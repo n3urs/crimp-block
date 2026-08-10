@@ -278,7 +278,13 @@ function block(date){
     w: (wIdx%4)+1,
     done: n%per,        // sessions banked into the current week
     per: per,
-    total: n            // total training days since the block started
+    total: n,           // total training days since the block started
+    wIdx: wIdx,          // training weeks completed, uncapped
+    /* Six blocks is the whole structured plan. Once wIdx passes 24 there is
+       no block 7 — you hold in block 6 (Performance/maintenance) and just
+       keep cycling its 4-week deload rhythm indefinitely. `over` marks that
+       so the UI can say so instead of quietly repeating "Block 6" forever. */
+    over: wIdx>=24
   };
 }
 /* Index, not the object — a plan may repeat a phase name (e.g. two separate
@@ -502,17 +508,34 @@ function bar(done,total,col){
   return '<div class="bar-t"><i style="width:'+pct+'%;background:'+col+'"></i></div>';
 }
 
+/* Six segments, one per block — each filled by how much of that block's 4
+   training weeks are actually banked. Past blocks read full, the current
+   one fills as you go, future ones sit empty. Once the whole plan is done
+   (over) block 6 just reads permanently full. */
+function overallBar(p){
+  var segs='';
+  for(var i=1;i<=6;i++){
+    var col=v(phaseAt(i).c||'--c');
+    var frac=Math.max(0,Math.min(1,(p.wIdx-(i-1)*4)/4));
+    segs+='<div class="ov-seg'+(!p.over&&p.b===i?' cur':'')+'"><i style="width:'+Math.round(frac*100)+'%;background:'+col+'"></i></div>';
+  }
+  return '<div class="ov-bar">'+segs+'</div>';
+}
+
 function showPlan(){
   var p=block(), curI=phaseIndexAt(p.b), cur=PHASES[curI];
   var col=v(cur.c||'--c');
 
   var h='<h2>The plan</h2>'+
+    overallBar(p)+
     '<div class="plan-now" style="border-left-color:'+col+'">'+
-      '<div class="plan-now-t" style="color:'+col+'">'+cur.n+' · Block '+p.b+' · Week '+p.w+(p.w===4?' · Deload':'')+'</div>'+
+      '<div class="plan-now-t" style="color:'+col+'">'+cur.n+' · '+(p.over?'Ongoing':'Block '+p.b)+' · Week '+p.w+(p.w===4?' · Deload':'')+'</div>'+
       bar(p.done,p.per,col)+
       '<div class="plan-now-s">'+p.done+' of '+p.per+' sessions into this week · '+p.total+' logged since you started</div>'+
     '</div>'+
-    '<p class="shp">A week advances when you have banked '+p.per+' sessions that carried load — not every 7 days. Take a fortnight off and you pick up exactly where you left off. Four weeks make a block, and every fourth week is a deload, where the app tightens its own limits and pushes rest.</p>';
+    (p.over
+      ? '<p class="shp">You have worked through all six blocks — the structured plan is complete. It does not stop or reset: you now hold in <strong style="color:'+col+'">'+cur.n+'</strong> indefinitely, still on the same 4-week rhythm with a deload every fourth trained week. This is meant to be where you live long-term, not a finish line.</p>'
+      : '<p class="shp">A week advances when you have banked '+p.per+' sessions that carried load — not every 7 days. Take a fortnight off and you pick up exactly where you left off. Four weeks make a block, and every fourth week is a deload, where the app tightens its own limits and pushes rest.</p>');
 
   h+=PHASES.map(function(x,i){
     var on=i===curI, c=v(x.c||'--s4');
@@ -538,7 +561,8 @@ function showPhase(i){
 
   if(on) h+='<div class="plan-now" style="border-left-color:'+col+'">'+
       bar(p.done,p.per,col)+
-      '<div class="plan-now-s">Week '+p.w+' of 4 · '+p.done+' of '+p.per+' sessions banked'+(p.w===4?' · deload week':'')+'</div>'+
+      '<div class="plan-now-s">Week '+p.w+' of 4 · '+p.done+' of '+p.per+' sessions banked'+(p.w===4?' · deload week':'')+
+        (p.over?' · plan complete, this repeats indefinitely':'')+'</div>'+
     '</div>';
 
   h+='<p class="shp" style="color:var(--dim)">'+x.d+'</p>';
