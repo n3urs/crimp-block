@@ -16,7 +16,6 @@ var START_DATE = '2026-08-10';
    ------------------------------------------------------------ */
 var SUPABASE_URL  = 'https://lbhsgkadlhcqqnlbfswr.supabase.co';
 var SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxiaHNna2FkbGhjcXFubGJmc3dyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYzNTg2NzMsImV4cCI6MjEwMTkzNDY3M30.3Df2BW9YVfJYZVSalLWGsx54iY_RvnZdln71Kehljug';
-var AUTH_EMAIL    = 'Oscar@sullivanltd.co.uk';
 
 var sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
 
@@ -303,15 +302,35 @@ function beep(){
 document.addEventListener('visibilitychange',function(){ if(!document.hidden && sessionReady) render(); });
 
 var sessionReady = false;
-function boot(){
-  sb.auth.getSession().then(function(res){
-    if(!res.data.session){
-      sb.auth.signInWithOtp({email:AUTH_EMAIL});
+
+function showLogin(msg){
+  $('h1').textContent='Sign in';
+  $('where').textContent='Crimp Block';
+  $('why').textContent = msg || 'Enter your email for a magic sign-in link. Each email gets its own private log — share the URL, everyone keeps their own data.';
+  $('bar').style.display='none';
+  $('list').innerHTML =
+    '<div class="num" style="margin-top:20px">'+
+      '<input type="email" inputmode="email" id="loginEmail" placeholder="you@example.com">'+
+    '</div>'+
+    '<div class="row2"><button class="pri" id="loginSend">Send link</button></div>';
+  $('loginSend').onclick=function(){
+    var email=$('loginEmail').value.trim();
+    if(!email) return;
+    var btn=$('loginSend'); btn.disabled=true; btn.textContent='Sending…';
+    sb.auth.signInWithOtp({email:email}).then(function(res){
+      if(res.error){ showLogin('Something went wrong: '+res.error.message); return; }
       $('h1').textContent='Check email';
       $('where').textContent='Sign-in';
-      $('why').textContent='Magic link sent to '+AUTH_EMAIL+'. Open it on this device to continue.';
-      return;
-    }
+      $('why').textContent='Magic link sent to '+email+'. Open it on this device to continue.';
+      $('list').innerHTML='';
+    });
+  };
+}
+
+function boot(){
+  sb.auth.getSession().then(function(res){
+    if(!res.data.session){ showLogin(); return; }
+    $('bar').style.display='';
     Store.load().then(function(){ sessionReady=true; render(); });
   });
 }
