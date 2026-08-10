@@ -32,9 +32,11 @@ body{
 
 /* header */
 .top{display:flex;align-items:baseline;gap:10px;padding:calc(14px + env(safe-area-inset-top)) 0 12px}
-.top-b{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:var(--c);background:none;border:none;padding:0;cursor:pointer;text-align:left;border-bottom:1px dotted var(--c)}
+.top-b{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:var(--c);background:none;border:none;padding:0;cursor:pointer;text-align:left;border-bottom:1px dotted var(--c);flex:0 0 auto}
 .top-d{margin-left:auto;font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:.06em;color:var(--faint);text-transform:uppercase}
-.top-u{display:flex;align-items:center;gap:6px;font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:.04em;color:var(--dim);background:var(--s1);border:1px solid var(--s3);border-radius:12px;padding:4px 10px 4px 8px;cursor:pointer}
+.top-u{display:flex;align-items:center;gap:6px;font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:.04em;color:var(--dim);background:var(--s1);border:1px solid var(--s3);border-radius:12px;padding:4px 10px 4px 8px;cursor:pointer;min-width:0;flex:0 1 auto}
+.top-u span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.top-u i{flex:0 0 auto}
 .top-u[hidden]{display:none}
 .top-u i{display:block;width:6px;height:6px;border-radius:50%;background:var(--tidepool)}
 

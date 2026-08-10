@@ -115,19 +115,32 @@ var PROGRAMS = {
 
   'joepearce2005@icloud.com': {
     startDate:'2026-08-10',
-    /* Compressed to fit the Font trip in October — roughly nine weeks from
-       the 10 Aug start. No long base phase: he is already training 2–3x a
-       week, so block 1 goes straight at strength. Block 3 is the taper. */
+    /* The Font trip is an idea, not a booking — so there is deliberately NO
+       taper phase here. A taper is only meaningful counted back from a known
+       date; running one "just in case" sheds fitness and buys nothing. This
+       is an open-ended rotation of strength and power-endurance blocks
+       instead.
+
+       WHEN THE TRIP IS BOOKED: insert a phase starting at the block that
+       contains the departure date, so the taper runs the final 7–10 days:
+         {n:'Peak — Font', from:<block>, d:'Volume drops hard, intensity
+          stays, you arrive fresh rather than fried. Fitness gained in the
+          last ten days is negligible; fatigue carried in is not.'}
+       and add matching `ph` entries: sloper hangs '2 × 7s — light, keep
+       sharp', endurance circuit 'skip', limit bouldering '30 min — Font-
+       style, well short of failure'. */
     phases:[
-      {n:'Max Strength', from:1, d:'Weeks 1–4. Straight at it — you are already training, so there is no time or need for a long base phase. Sloper and open-hand work goes near-maximal, weighted pull-ups build toward a real one-rep max. Get the strength on board early so there is time to convert it.'},
-      {n:'Power Endurance', from:2, d:'Weeks 5–8. Strength work drops to maintenance and the endurance gap becomes the priority — this is the thing most likely to cost you a 7B+ in Font. Circuits, boulder doubles and 4x4s move to the front of sessions instead of the end.'},
-      {n:'Peak — Font', from:3, d:'The last week or two before the trip. Volume drops hard, intensity stays, and you arrive fresh rather than fried. Resist the urge to cram a last big session in — fitness gained in the final ten days is negligible, but fatigue carried in is not. Climb easy, stay sharp, go send.'}
+      {n:'Max Strength', from:1, d:'Weeks 1–4. Straight at it — you are already training 2–3x a week, so there is no need for a long base phase. Sloper and open-hand work goes near-maximal, weighted pull-ups build toward a real one-rep max. Strength first, because everything else is easier to add on top of it than the other way round.'},
+      {n:'Power Endurance', from:2, d:'Weeks 5–8. Strength work drops to maintenance and the endurance gap becomes the priority — that is the thing most likely to cost you a 7B+. Circuits, boulder doubles and 4x4s move to the front of the session, where they get your best effort instead of your leftovers.'},
+      {n:'Max Strength', from:3, d:'Weeks 9–16. Second strength block, and the long one. You come into it stronger and better conditioned than block 1, so the loads should be meaningfully higher — that is the point of alternating rather than grinding one quality for six months.'},
+      {n:'Power Endurance', from:5, d:'Weeks 17–20. Convert the second strength block into staying power. Same format as before, heavier problems in the circuits.'},
+      {n:'Performance', from:6, d:'Weeks 21–24. Structured training steps back and climbing takes over — keep one finger session and one circuit a week to hold what you built, and spend the rest projecting. If the Font trip has a date by now, say so and this becomes a proper taper instead.'}
     ],
     sessions:{
       maxFingers:{n:'Max Strength', w:'Work · 40 min', c:'--gorse', finger:3, pull:1, ask:'Top set load',
         x:[
           {t:'Warm up',m:'15 min',d:'Pulse raise, then progressively heavier two-hand hangs on a jug before loading anything.'},
-          {t:'Open-hand / sloper block hangs',m:'5 × 7s',ph:{'Power Endurance':'3 × 7s — maintain only','Peak — Font':'2 × 7s — light, keep sharp'},d:'This is the priority lift — slopers are your weak grip, so this is where you actually move the needle for Font. Add weight once all five feel solid two sessions running. Take the full three minutes between sets; near-max work stops being near-max without it.',r:180},
+          {t:'Open-hand / sloper block hangs',m:'5 × 7s',ph:{'Power Endurance':'3 × 7s — maintain only','Performance':'3 × 7s — maintain only'},d:'This is the priority lift — slopers are your weak grip, so this is where you actually move the needle for Font. Add weight once all five feel solid two sessions running. Take the full three minutes between sets; near-max work stops being near-max without it.',r:180},
           {t:'Half-crimp hang',m:'3 × 7s',d:'Maintenance, not the focus — crimps are already a strength. Keep the pinky engaged the whole rep; that is what has tweaked the ring finger before.',r:120},
           {t:'Two-hand pinch block',m:'4 × 5s',d:'Compression-relevant grip work.',r:90}
         ]},
@@ -146,8 +159,8 @@ var PROGRAMS = {
         ]},
       climbHard:{n:'Compression & Power', w:'Gym · 90 min', c:'--heather', finger:2, pull:2, climb:1,
         x:[
-          {t:'Compression / sloper limit bouldering',m:'40 min',ph:{'Power Endurance':'25 min — after the circuit','Peak — Font':'30 min — Font-style, well short of failure'},d:'Seek out the compression-y, shouldery, sloper problems you would normally avoid. This block is what actually prepares you for Font, not the crimpy stuff you are already good at.',r:180},
-          {t:'Endurance circuit',m:'20 min',ph:{'Power Endurance':'35 min — do this FIRST, while fresh','Peak — Font':'skip'},d:'Boulder doubles or 4x4s — same format you have used before. This is the direct fix for the endurance gap. In the Power Endurance block this moves to the front of the session: whatever comes first gets the quality.',r:180},
+          {t:'Compression / sloper limit bouldering',m:'40 min',ph:{'Power Endurance':'25 min — after the circuit','Performance':'projecting — no fixed time'},d:'Seek out the compression-y, shouldery, sloper problems you would normally avoid. This block is what actually prepares you for Font, not the crimpy stuff you are already good at.',r:180},
+          {t:'Endurance circuit',m:'20 min',ph:{'Power Endurance':'35 min — do this FIRST, while fresh','Performance':'20 min — hold what you built'},d:'Boulder doubles or 4x4s — same format you have used before. This is the direct fix for the endurance gap. In the Power Endurance block this moves to the front of the session: whatever comes first gets the quality.',r:180},
           {t:'Cool down',m:'10 min',d:'Easy traversing.'}
         ]},
       outdoorHard:{n:'Outdoor', w:'Crag', c:'--heather', finger:3, pull:2, climb:1,
@@ -244,11 +257,14 @@ function block(date){
   var w=Math.max(0,Math.floor(ms/604800000));
   return {b:Math.min(6,Math.floor(w/4)+1), w:(w%4)+1};
 }
-function phaseAt(b){
-  var out=PHASES[0];
-  for(var i=0;i<PHASES.length;i++) if(b>=PHASES[i].from) out=PHASES[i];
+/* Index, not the object — a plan may repeat a phase name (e.g. two separate
+   Max Strength blocks), and "you are here" has to mark the right one. */
+function phaseIndexAt(b){
+  var out=0;
+  for(var i=0;i<PHASES.length;i++) if(b>=PHASES[i].from) out=i;
   return out;
 }
+function phaseAt(b){ return PHASES[phaseIndexAt(b)]; }
 function phaseRange(i){
   if(i===PHASES.length-1) return 'Block '+PHASES[i].from+' onwards';
   var from=PHASES[i].from, to=PHASES[i+1].from-1;
@@ -445,12 +461,12 @@ function pick(date){
 
 /* ---- the plan / timeline ---- */
 function showPlan(){
-  var p=block(), cur=phaseAt(p.b);
+  var p=block(), curI=phaseIndexAt(p.b);
   var h='<h2>The plan</h2>'+
     '<p class="shp">Block '+p.b+' · Week '+p.w+(p.w===4?' · Deload week':'')+
     '. Every fourth week is a deload — the app drops its own limits that week and asks for more rest.</p>';
   h+=PHASES.map(function(x,i){
-    var on = x.n===cur.n;
+    var on = i===curI;
     return '<button class="opt" style="--oc:'+(on?'var(--c)':'var(--s4)')+'" data-p="'+i+'">'+
       '<span class="optn">'+x.n+'</span>'+
       '<span class="opts">'+(on?'NOW · ':'')+phaseRange(i)+'</span></button>';
@@ -462,7 +478,7 @@ function showPlan(){
 }
 
 function showPhase(i){
-  var x=PHASES[i], p=block(), on=x.n===phaseAt(p.b).n;
+  var x=PHASES[i], p=block(), on=i===phaseIndexAt(block().b);
   open('<h2>'+x.n+'</h2>'+
     '<p class="shp">'+phaseRange(i)+(on?' · you are here':'')+'</p>'+
     '<p class="shp" style="color:var(--dim)">'+x.d+'</p>'+
