@@ -32,19 +32,44 @@ var Store = {
   },
   all:function(){ return this._d; },
   get:function(date){ return this._d[date] || null; },
+  /* Writes are optimistic (the UI updates before the network call returns,
+     so the app stays usable with no signal at the crag) — but that means a
+     failed write used to look identical to a successful one right up until
+     the next full reload silently dropped it. Both methods now roll the
+     local state back and rethrow on failure, so callers can tell the user
+     rather than losing the day quietly. */
   set:async function(date, type, load){
+    var prev=this._d[date];
     this._d[date] = load ? {t:type, l:load} : {t:type};
-    var u = (await sb.auth.getUser()).data.user;
-    await sb.from('sessions').upsert(
-      {user_id:u.id, date:date, type:type, load: load == null ? null : load},
+    var ures = await sb.auth.getUser();
+    if(ures.error || !ures.data.user){
+      this._d[date]=prev;
+      throw new Error(ures.error ? ures.error.message : 'Not signed in');
+    }
+    var res = await sb.from('sessions').upsert(
+      {user_id:ures.data.user.id, date:date, type:type, load: load == null ? null : load},
       {onConflict:'user_id,date'}
     );
+    if(res.error){ this._d[date]=prev; throw new Error(res.error.message); }
   },
   clear:async function(date){
+    var prev=this._d[date];
     delete this._d[date];
-    await sb.from('sessions').delete().eq('date', date);
+    var res = await sb.from('sessions').delete().eq('date', date);
+    if(res.error){ this._d[date]=prev; throw new Error(res.error.message); }
   }
 };
+
+/* Small error toast so a failed save is obvious immediately, not days
+   later when a reload reveals the day never actually persisted. */
+function saveFailed(err){
+  console.error('Save failed:', err);
+  var t=$('toast');
+  t.textContent='Could not save — '+(err&&err.message?err.message:'check your connection')+'. Try again.';
+  t.classList.add('on');
+  clearTimeout(saveFailed._h);
+  saveFailed._h=setTimeout(function(){ t.classList.remove('on'); },5000);
+}
 
 /* ------------------------------------------------------------
    PROGRAMS
@@ -456,7 +481,7 @@ function render(){
 
   $('doneBtn').textContent = isLogged ? 'Undo' : 'Done';
   $('doneBtn').onclick = isLogged
-    ? function(){ Store.clear(today()); browseIndex=null; render(); }
+    ? function(){ var p=Store.clear(today()); browseIndex=null; render(); p.catch(function(e){ render(); saveFailed(e); }); }
     : function(){ browseIndex=null; finish(today(), key); };
   $('altBtn').onclick = function(){ pick(today()); };
 }
@@ -496,7 +521,7 @@ function pick(date){
   open(h);
   $('shIn').querySelectorAll('.opt').forEach(function(b){
     b.onclick=function(){
-      if(b.dataset.k==='__clear'){ close(); Store.clear(date); render(); return; }
+      if(b.dataset.k==='__clear'){ close(); var p=Store.clear(date); render(); p.catch(function(e){ render(); saveFailed(e); }); return; }
       preview(date, b.dataset.k);
     };
   });
@@ -617,16 +642,24 @@ function preview(date, key){
 function finish(date, key){
   var s=T[key];
   if(date===today()) browseIndex=null;
-  if(!s.ask){ Store.set(date,key); render(); return; }
+  if(!s.ask){
+    var p=Store.set(date,key); render();
+    p.catch(function(e){ render(); saveFailed(e); });
+    return;
+  }
   open('<h2>'+s.ask+'</h2>'+
     '<p class="shp">One number, best set. Skip it if you did not measure — the plan still works without it.</p>'+
     '<div class="num"><input type="number" inputmode="decimal" id="numIn" placeholder="0"><span>kg</span></div>'+
     '<div class="row2"><button class="sec" id="numSkip">Skip</button><button class="pri" id="numOk">Save</button></div>');
   setTimeout(function(){ var el=$('numIn'); if(el) el.focus(); },260);
-  $('numSkip').onclick=function(){ close(); Store.set(date,key); render(); };
+  $('numSkip').onclick=function(){
+    close(); var p=Store.set(date,key); render();
+    p.catch(function(e){ render(); saveFailed(e); });
+  };
   $('numOk').onclick=function(){
     var val=parseFloat($('numIn').value);
-    close(); Store.set(date,key, isNaN(val)?null:val); render();
+    close(); var p=Store.set(date,key, isNaN(val)?null:val); render();
+    p.catch(function(e){ render(); saveFailed(e); });
   };
 }
 

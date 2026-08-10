@@ -137,6 +137,8 @@ h1{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:clamp(42p
 .pri{background:var(--c);border:none;color:var(--bg)}
 .sec{background:none;border:1px solid var(--s3);color:var(--dim)}
 :focus-visible{outline:2px solid var(--c);outline-offset:2px}
+.toast{position:fixed;left:18px;right:18px;bottom:calc(96px + env(safe-area-inset-bottom));z-index:70;background:#3a1f1f;border:1px solid #7a3535;color:#f0d5d5;font-family:'IBM Plex Mono',monospace;font-size:12.5px;line-height:1.4;padding:12px 14px;border-radius:var(--r);opacity:0;pointer-events:none;transform:translateY(6px);transition:opacity .2s,transform .2s;max-width:620px;margin:0 auto}
+.toast.on{opacity:1;transform:translateY(0)}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 </head>
@@ -176,6 +178,7 @@ h1{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:clamp(42p
 
 <div class="bgd" id="bgd"></div>
 <div class="sh" id="sh"><div class="shin" id="shIn"></div></div>
+<div class="toast" id="toast"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="app.js"></script>
