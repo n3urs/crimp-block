@@ -243,11 +243,28 @@ function pick(date){
   open(h);
   $('shIn').querySelectorAll('.opt').forEach(function(b){
     b.onclick=function(){
-      close();
-      if(b.dataset.k==='__clear'){ Store.clear(date); render(); return; }
-      finish(date, b.dataset.k);
+      if(b.dataset.k==='__clear'){ close(); Store.clear(date); render(); return; }
+      preview(date, b.dataset.k);
     };
   });
+}
+
+function preview(date, key){
+  var s=T[key];
+  var h='<h2>'+s.n+'</h2><p class="shp">'+s.w+'</p>';
+  h += s.x.length ? s.x.map(function(e){
+    return '<div style="padding:11px 0;border-bottom:1px solid var(--s2)">'+
+      '<div style="display:flex;justify-content:space-between;gap:12px;align-items:baseline">'+
+        '<span style="font-family:\'Barlow Condensed\',sans-serif;font-weight:600;font-size:17px;text-transform:uppercase">'+e.t+'</span>'+
+        '<span style="font-family:\'IBM Plex Mono\',monospace;font-size:11px;color:var(--faint);white-space:nowrap">'+e.m+'</span>'+
+      '</div>'+
+      (e.d?'<div style="font-size:13.5px;color:var(--dim);margin-top:3px;line-height:1.4">'+e.d+'</div>':'')+
+    '</div>';
+  }).join('') : '<p class="shp">No set exercises — just take the day.</p>';
+  h += '<div class="row2" style="margin-top:16px"><button class="sec" id="prevBack">Back</button><button class="pri" id="prevLog">Log this</button></div>';
+  open(h);
+  $('prevBack').onclick=function(){ pick(date); };
+  $('prevLog').onclick=function(){ close(); finish(date, key); };
 }
 
 function finish(date, key){
