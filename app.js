@@ -104,11 +104,49 @@ var PROGRAMS = {
     }
   },
 
-  /* Placeholder generic program — used for Joe until his questionnaire
-     answers come back and this gets replaced with a program built for
-     his actual weaknesses/goals, same as Oscar's is built around
-     crimps and the one-arm pull-up. Swap this block out (or add his
-     own PROGRAMS['<his-email>'] entry) once you have that. */
+  'joepearce2005@icloud.com': {
+    startDate:'2026-08-10',
+    sessions:{
+      maxFingers:{n:'Max Strength', w:'Work · 30 min', c:'--gorse', finger:3, pull:1, ask:'Top set load',
+        x:[
+          {t:'Warm up',m:'15 min',d:'Pulse raise, then progressively heavier two-hand hangs on a jug before loading anything.'},
+          {t:'Open-hand / sloper block hangs',m:'5 × 7s',d:'This is the priority lift — slopers are your weak grip, so this is where you actually move the needle for Font. Add weight once all five feel solid two sessions running.',r:150},
+          {t:'Half-crimp hang',m:'3 × 7s',d:'Maintenance, not the focus — crimps are already a strength. Keep the pinky engaged the whole rep; that is what has tweaked the ring finger before.',r:120},
+          {t:'Two-hand pinch block',m:'4 × 5s',d:'Compression-relevant grip work.',r:90}
+        ]},
+      pull:{n:'Pull & Power', w:'Work · 35 min', c:'--tidepool', finger:0, pull:3,
+        x:[
+          {t:'Weighted pull-ups',m:'4 × 3',d:'You know a 30kg × 3 — build toward a real 1-rep max here, not just reps. This is where the burliness comes from.',r:180},
+          {t:'Explosive pull-ups',m:'4 × 3',d:'Fast concentric, controlled landing. Power, not grind.',r:150},
+          {t:'Weighted dips or shoulder press',m:'4 × 6',d:'Push/shoulder strength for the compression-and-shouldery moves you are after.',r:120},
+          {t:'Bicep tendon health',m:'3 sets',d:'Slow eccentric hammer curls + isometric holds. Non-negotiable every time this session comes up, whether the arms feel fine or not — this is specifically what has kept the tendinopathy from coming back before. Progress load here gradually; sudden jumps are what has flared it up in the past.',r:60}
+        ]},
+      hangboard:{n:'Repeaters', w:'Work · 20 min', c:'--slate', finger:2, pull:1, ask:'Repeater load',
+        x:[
+          {t:'Repeaters',m:'5 × (10s on / 5s off × 5)',d:'Your usual protocol, at a sustainable load — not a max effort. If you are on a drag or edge position, keep the pinky engaged rather than isolating the ring finger.',r:120}
+        ]},
+      climbHard:{n:'Compression & Power', w:'Gym · 90 min', c:'--heather', finger:2, pull:2, climb:1,
+        x:[
+          {t:'Compression / sloper limit bouldering',m:'40 min',d:'Seek out the compression-y, shouldery, sloper problems you would normally avoid. This block is what actually prepares you for Font, not the crimpy stuff you are already good at.',r:180},
+          {t:'Endurance circuit',m:'20 min',d:'Boulder doubles or 4x4s — same format you have used before. This is the direct fix for the endurance gap.',r:180},
+          {t:'Cool down',m:'10 min',d:'Easy traversing.'}
+        ]},
+      outdoorHard:{n:'Outdoor', w:'Crag', c:'--heather', finger:3, pull:2, climb:1,
+        x:[
+          {t:'Warm up properly',m:'20 min',d:'Cold fingers on cold rock is how pulleys go.'},
+          {t:'Project',m:'—',d:'Font-style movement — compression, footwork, reading slopers — is the priority whenever the choice is yours.'}
+        ]},
+      climbEasy:{n:'Easy Climbing', w:'Anywhere', c:'--tidepool', finger:1, pull:1, climb:1,
+        x:[{t:'Mileage and movement',m:'—',d:'Nothing near limit. Footwork and reading, not trying hard.'}]},
+      rest:{n:'Rest', w:'—', c:'--grey', finger:0, pull:0, x:[]}
+    }
+  },
+
+  /* Generic placeholder — used for anyone signing in whose email isn't
+     mapped to a real program above yet. Add a PROGRAMS['<their-email>']
+     entry, built around their actual weaknesses/goals, once you have
+     answers for them (same as Oscar's crimps/one-arm-pull-up program
+     and Joe's compression/sloper program above). */
   'default': {
     startDate:'2026-08-10',
     sessions:{
