@@ -61,7 +61,10 @@ body{
 /* headline */
 h1{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:clamp(42px,13vw,60px);line-height:.9;text-transform:uppercase;color:var(--fg);margin-bottom:10px}
 .where{font-family:'IBM Plex Mono',monospace;font-size:11.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--c);margin-bottom:14px}
-.why{font-size:15.5px;color:var(--dim);line-height:1.45;padding-bottom:20px;border-bottom:1px solid var(--s2)}
+.why{font-size:15.5px;color:var(--dim);line-height:1.45;padding-bottom:14px}
+.cue{display:flex;align-items:baseline;gap:7px;font-family:'IBM Plex Mono',monospace;font-size:11.5px;letter-spacing:.02em;padding-bottom:20px;border-bottom:1px solid var(--s2)}
+.cue b{flex:0 0 auto;font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;padding:2px 7px;border-radius:8px}
+.cue[hidden]{display:none}
 
 /* exercises */
 .ex{display:flex;gap:14px;align-items:flex-start;padding:16px 0;border-bottom:1px solid var(--s2)}
@@ -151,6 +154,7 @@ h1{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:clamp(42p
 <h1 id="h1">—</h1>
 <div class="where" id="where"></div>
 <div class="why" id="why"></div>
+<div class="cue" id="cue" hidden><b id="cueB"></b><span id="cueT"></span></div>
 <div id="list"></div>
 </div>
 

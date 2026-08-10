@@ -68,10 +68,10 @@ var PROGRAMS = {
        a deload — see isDeload()/decide(). */
     perWeek:4,
     phases:[
-      {n:'Base', from:1, c:'--tidepool', d:'Four weeks building tissue tolerance before the heavy work starts. Loads sit clearly submaximal and sets run longer — the point is capacity and movement quality, not a top set. You are already training, so this is short: one block, not two.'},
-      {n:'Max Strength', from:2, c:'--gorse', d:'The main event, and the longest phase — twelve weeks. Pickups and hangs go near-maximal, rests go long, set counts stay low. This is where the crimp weakness and the one-arm actually move. Everything else in the week exists to let these sessions happen fresh.'},
-      {n:'Power', from:5, c:'--heather', d:'Converting the strength you built into speed. Same movements, fewer reps, moved fast and explosively rather than ground out. Contact strength on the fingers rather than long holds.'},
-      {n:'Performance', from:6, c:'--slate', d:'Structured training steps back and climbing takes over. Keep one light finger session a week to hold what you built, and spend the rest of your days projecting. This is when the previous five months are supposed to show up on rock.'}
+      {n:'Base', from:1, c:'--tidepool', cue:'Submaximal — build capacity, not a top set', d:'Four weeks building tissue tolerance before the heavy work starts. Loads sit clearly submaximal and sets run longer — the point is capacity and movement quality, not a top set. You are already training, so this is short: one block, not two.'},
+      {n:'Max Strength', from:2, c:'--gorse', cue:'Near-maximal — heavy is correct here', d:'The main event, and the longest phase — twelve weeks. Pickups and hangs go near-maximal, rests go long, set counts stay low. This is where the crimp weakness and the one-arm actually move. Everything else in the week exists to let these sessions happen fresh.'},
+      {n:'Power', from:5, c:'--heather', cue:'Lighter, fast — speed over load', d:'Converting the strength you built into speed. Same movements, fewer reps, moved fast and explosively rather than ground out. Contact strength on the fingers rather than long holds.'},
+      {n:'Performance', from:6, c:'--slate', cue:'Maintain only — climbing is the real work now', d:'Structured training steps back and climbing takes over. Keep one light finger session a week to hold what you built, and spend the rest of your days projecting. This is when the previous five months are supposed to show up on rock.'}
     ],
     sessions:{
       maxFingers:{n:'Max Fingers', w:'Home · 50 min', c:'--gorse', finger:3, pull:1, ask:'Top set — one-arm pickup',
@@ -134,11 +134,11 @@ var PROGRAMS = {
        style, well short of failure'. */
     perWeek:4,
     phases:[
-      {n:'Max Strength', from:1, c:'--gorse', d:'Straight at it — you are already training 2–3x a week, so there is no need for a long base phase. Sloper and open-hand work goes near-maximal, weighted pull-ups build toward a real one-rep max. Strength first, because everything else is easier to add on top of it than the other way round.'},
-      {n:'Power Endurance', from:2, c:'--tidepool', d:'Strength work drops to maintenance and the endurance gap becomes the priority — that is the thing most likely to cost you a 7B+. Circuits, boulder doubles and 4x4s move to the front of the session, where they get your best effort instead of your leftovers.'},
-      {n:'Max Strength', from:3, c:'--gorse', d:'Second strength block, and the long one. You come into it stronger and better conditioned than the first, so the loads should be meaningfully higher — that is the point of alternating rather than grinding one quality for six months.'},
-      {n:'Power Endurance', from:5, c:'--tidepool', d:'Convert the second strength block into staying power. Same format as before, heavier problems in the circuits.'},
-      {n:'Performance', from:6, c:'--slate', d:'Structured training steps back and climbing takes over — keep one finger session and one circuit a week to hold what you built, and spend the rest projecting. If the Font trip has a date by now, say so and this becomes a proper taper instead.'}
+      {n:'Max Strength', from:1, c:'--gorse', cue:'Near-maximal — heavy is correct here', d:'Straight at it — you are already training 2–3x a week, so there is no need for a long base phase. Sloper and open-hand work goes near-maximal, weighted pull-ups build toward a real one-rep max. Strength first, because everything else is easier to add on top of it than the other way round.'},
+      {n:'Power Endurance', from:2, c:'--tidepool', cue:'Submaximal, high volume — chase reps, not weight', d:'Strength work drops to maintenance and the endurance gap becomes the priority — that is the thing most likely to cost you a 7B+. Circuits, boulder doubles and 4x4s move to the front of the session, where they get your best effort instead of your leftovers.'},
+      {n:'Max Strength', from:3, c:'--gorse', cue:'Near-maximal, and higher than block 1 — you are stronger now', d:'Second strength block, and the long one. You come into it stronger and better conditioned than the first, so the loads should be meaningfully higher — that is the point of alternating rather than grinding one quality for six months.'},
+      {n:'Power Endurance', from:5, c:'--tidepool', cue:'Submaximal, high volume — chase reps, not weight', d:'Convert the second strength block into staying power. Same format as before, heavier problems in the circuits.'},
+      {n:'Performance', from:6, c:'--slate', cue:'Maintain only — climbing is the real work now', d:'Structured training steps back and climbing takes over — keep one finger session and one circuit a week to hold what you built, and spend the rest projecting. If the Font trip has a date by now, say so and this becomes a proper taper instead.'}
     ],
     sessions:{
       maxFingers:{n:'Max Strength', w:'Work · 40 min', c:'--gorse', finger:3, pull:1, ask:'Top set load',
@@ -187,10 +187,10 @@ var PROGRAMS = {
     startDate:'2026-08-10',
     perWeek:4,
     phases:[
-      {n:'Base', from:1, c:'--tidepool', d:'Build capacity and movement quality before loading heavy. Submaximal throughout.'},
-      {n:'Max Strength', from:2, c:'--gorse', d:'Near-maximal work, long rests, low set counts.'},
-      {n:'Power', from:5, c:'--heather', d:'Convert strength to speed — same movements, fewer reps, moved fast.'},
-      {n:'Performance', from:6, c:'--slate', d:'Structured training steps back, climbing takes over.'}
+      {n:'Base', from:1, c:'--tidepool', cue:'Submaximal — build capacity, not a top set', d:'Build capacity and movement quality before loading heavy. Submaximal throughout.'},
+      {n:'Max Strength', from:2, c:'--gorse', cue:'Near-maximal — heavy is correct here', d:'Near-maximal work, long rests, low set counts.'},
+      {n:'Power', from:5, c:'--heather', cue:'Lighter, fast — speed over load', d:'Convert strength to speed — same movements, fewer reps, moved fast.'},
+      {n:'Performance', from:6, c:'--slate', cue:'Maintain only — climbing is the real work now', d:'Structured training steps back, climbing takes over.'}
     ],
     sessions:{
       maxFingers:{n:'Finger Strength', w:'Home · 30 min', c:'--gorse', finger:3, pull:1, ask:'Top set load',
@@ -417,6 +417,19 @@ function render(){
   $('why').textContent = isLogged ? 'Logged.' + (logged.l ? ' Top set ' + logged.l + 'kg.' : '')
     : isRec ? (dl ? 'Deload week — cut every working set by about a third and keep the load the same. ' + d.why : d.why)
     : 'Browsing — swipe or tap a dot to see other sessions, Done logs this one instead.';
+
+  // effort cue — how hard/heavy this session should actually be, at a glance,
+  // without needing to tap through to the plan sheet
+  if(key==='rest'){
+    $('cue').hidden=true;
+  } else {
+    var phCol=v(ph.c||'--c');
+    $('cue').hidden=false;
+    $('cueB').textContent=dl?'Deload':ph.n;
+    $('cueB').style.background=phCol; $('cueB').style.color='var(--bg)';
+    $('cueT').textContent=dl?'Pull back regardless of phase — every working set lighter or shorter this week.':ph.cue;
+    $('cueT').style.color=phCol;
+  }
 
   // exercises — prescriptions follow the current phase where one is defined
   $('list').innerHTML = s.x.map(function(e,i){
