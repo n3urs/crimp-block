@@ -317,7 +317,7 @@ function showLogin(msg){
     var email=$('loginEmail').value.trim();
     if(!email) return;
     var btn=$('loginSend'); btn.disabled=true; btn.textContent='Sending…';
-    sb.auth.signInWithOtp({email:email}).then(function(res){
+    sb.auth.signInWithOtp({email:email, options:{emailRedirectTo:location.origin+location.pathname}}).then(function(res){
       if(res.error){ showLogin('Something went wrong: '+res.error.message); return; }
       $('h1').textContent='Check email';
       $('where').textContent='Sign-in';
