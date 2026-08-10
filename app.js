@@ -115,11 +115,12 @@ function history(endDate){
 function load(type,which){ return (type && T[type]) ? (T[type][which]||0) : 0; }
 function since(h,keys){ for(var i=0;i<h.length;i++) if(h[i].type && keys.indexOf(h[i].type)>=0) return h[i].ago; return 99; }
 function count(h,keys){ var n=0; for(var i=0;i<h.length;i++) if(h[i].type && keys.indexOf(h[i].type)>=0) n++; return n; }
+function isHard(type){ return load(type,'finger')>=2 || load(type,'pull')>=3; }
 function streak(h){
   var n=0;
   for(var i=0;i<h.length;i++){
     if(!h[i].type) break;
-    if(load(h[i].type,'finger')+load(h[i].type,'pull')>0) n++; else break;
+    if(isHard(h[i].type)) n++; else break;
   }
   return n;
 }
@@ -128,7 +129,7 @@ function decide(date){
   var h=history(date);
   var yf=load(h[0].type,'finger');
   var yName=h[0].type?T[h[0].type].n:null;
-  var hard=h.filter(function(e){ return load(e.type,'finger')>=2 || load(e.type,'pull')>=3; }).length;
+  var hard=h.filter(function(e){ return isHard(e.type); }).length;
   var run=streak(h);
 
   if(run>=3)  return {k:'rest', why:run+' days on the trot. Nothing productive happens on day four.'};
