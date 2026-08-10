@@ -32,7 +32,7 @@ body{
 
 /* header */
 .top{display:flex;align-items:baseline;gap:10px;padding:calc(14px + env(safe-area-inset-top)) 0 12px}
-.top-b{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:var(--c)}
+.top-b{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:var(--c);background:none;border:none;padding:0;cursor:pointer;text-align:left;border-bottom:1px dotted var(--c)}
 .top-d{margin-left:auto;font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:.06em;color:var(--faint);text-transform:uppercase}
 .top-u{display:flex;align-items:center;gap:6px;font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:.04em;color:var(--dim);background:var(--s1);border:1px solid var(--s3);border-radius:12px;padding:4px 10px 4px 8px;cursor:pointer}
 .top-u[hidden]{display:none}
@@ -68,6 +68,7 @@ h1{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:clamp(42p
 .et{display:flex;justify-content:space-between;gap:12px;align-items:baseline}
 .en{font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:20px;text-transform:uppercase;line-height:1.15}
 .em{font-family:'IBM Plex Mono',monospace;font-size:12px;font-weight:500;color:var(--c);white-space:nowrap}
+.em.ph{white-space:normal;text-align:right}
 .ed{font-size:14.5px;color:var(--dim);margin-top:4px;line-height:1.4}
 .ex.done .en,.ex.done .ed{color:var(--faint);text-decoration:line-through}
 .rest{margin-top:11px;background:none;border:1px solid var(--s3);color:var(--dim);font-family:'IBM Plex Mono',monospace;font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;padding:8px 14px;border-radius:var(--r);cursor:pointer}
@@ -119,7 +120,7 @@ h1{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:clamp(42p
 <body>
 
 <div class="top">
-  <span class="top-b" id="topB">—</span>
+  <button class="top-b" id="topB" aria-label="Show the plan">—</button>
   <span class="top-u" id="topU" hidden><i></i><span id="topUe"></span></span>
   <span class="top-d" id="topD"></span>
 </div>

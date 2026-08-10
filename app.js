@@ -9,7 +9,7 @@
 
 /* >>> Active program set from PROGRAMS below once the signed-in
    user's email is known. See applyProgram(). <<< */
-var START_DATE, T;
+var START_DATE, T, PHASES;
 
 /* ------------------------------------------------------------
    STORE — the ONLY place persistence happens.
@@ -61,11 +61,20 @@ var Store = {
 var PROGRAMS = {
   'oscar@sullivanltd.co.uk': {
     startDate:'2026-08-10',
+    /* Phases run in block order. `from` is the block this phase starts at,
+       and it holds until the next phase's `from`. Week 4 of every block is
+       a deload — see isDeload()/decide(). */
+    phases:[
+      {n:'Base', from:1, d:'Four weeks building tissue tolerance before the heavy work starts. Loads sit clearly submaximal and sets run longer — the point is capacity and movement quality, not a top set. You are already training, so this is short: one block, not two.'},
+      {n:'Max Strength', from:2, d:'The main event, and the longest phase — twelve weeks. Pickups and hangs go near-maximal, rests go long, set counts stay low. This is where the crimp weakness and the one-arm actually move. Everything else in the week exists to let these sessions happen fresh.'},
+      {n:'Power', from:5, d:'Converting the strength you built into speed. Same movements, fewer reps, moved fast and explosively rather than ground out. Contact strength on the fingers rather than long holds.'},
+      {n:'Performance', from:6, d:'Structured training steps back and climbing takes over. Keep one light finger session a week to hold what you built, and spend the rest of your days projecting. This is when the previous five months are supposed to show up on rock.'}
+    ],
     sessions:{
       maxFingers:{n:'Max Fingers', w:'Home · 50 min', c:'--gorse', finger:3, pull:1, ask:'Top set — one-arm pickup',
         x:[
           {t:'Warm up',m:'15 min',d:'Pulse raise, then three progressively heavier two-hand pickups. Never skip this on a cold morning.'},
-          {t:'Pickups — half crimp',m:'5 × 5s / hand',d:'20mm. Rep five hard but form-perfect. Add 1–2.5kg once all five feel solid two sessions running. Alternate hands — each hand then gets about three minutes between efforts, which is what near-max work needs to stay near-max.',r:90},
+          {t:'Pickups — half crimp',m:'5 × 5s / hand',ph:{'Base':'4 × 8s / hand — lighter','Power':'5 × 3s / hand — fast pickup','Performance':'3 × 5s / hand — maintain only'},d:'20mm. Rep five hard but form-perfect. Add 1–2.5kg once all five feel solid two sessions running. Alternate hands — each hand then gets about three minutes between efforts, which is what near-max work needs to stay near-max.',r:90},
           {t:'Pickups — three-finger drag',m:'3 × 5s / hand',d:'Lighter. Covers the rounded granite edges you actually climb on. Alternate hands.',r:90},
           {t:'Pinch block',m:'4 × 5s / hand',d:'Alternate hands.',r:60},
           {t:'Wrist roller',m:'3 sets',d:'Up and down to near failure.',r:60}
@@ -73,7 +82,7 @@ var PROGRAMS = {
       pull:{n:'Pull', w:'Home · 40 min', c:'--tidepool', finger:0, pull:3,
         x:[
           {t:'Warm up',m:'5 min',d:'Band pull-aparts, scap pulls, then two progressively heavier pull-up sets. The bar is outside — do not pull heavy on cold shoulders and elbows.'},
-          {t:'Bottom-range pull-ups',m:'4 × 5',d:'Two arms, full dead hang, pull only to ~30° elbow bend, hold 2s, lower slow. Heavy. This is the one that matters — it loads exactly the range where your one-arm stalls. Every third or fourth session, swap it for weighted pull-ups 4×4 or one-arm negatives 3×1/arm to vary the stimulus.',r:150},
+          {t:'Bottom-range pull-ups',m:'4 × 5',ph:{'Base':'3 × 8 — lighter','Power':'5 × 3 — explosive out of the hang','Performance':'3 × 4 — maintain only'},d:'Two arms, full dead hang, pull only to ~30° elbow bend, hold 2s, lower slow. Heavy. This is the one that matters — it loads exactly the range where your one-arm stalls. Every third or fourth session, swap it for weighted pull-ups 4×4 or one-arm negatives 3×1/arm to vary the stimulus.',r:150},
           {t:'One-arm transition holds',m:'4 × 8s / arm',d:'Minimal band or a toe on a stool. Hold at the top of your shrug plus a couple of centimetres — the exact point where you cannot get the elbow flexing. Alternate arms: one rests while the other works.',r:60},
           {t:'Weighted one-arm shrugs',m:'3 × 3 / arm',d:'Belt or vest, three-second hold at the top. Alternate arms. Three reps is right at your current ceiling — add weight before adding reps.',r:60},
           {t:'Front lever',m:'4 × 8–10s',d:'Hardest tuck or straddle you hold clean. If you cannot hold a tuck yet, do slow negative lowers from a tuck for the same sets.',r:75},
@@ -106,11 +115,19 @@ var PROGRAMS = {
 
   'joepearce2005@icloud.com': {
     startDate:'2026-08-10',
+    /* Compressed to fit the Font trip in October — roughly nine weeks from
+       the 10 Aug start. No long base phase: he is already training 2–3x a
+       week, so block 1 goes straight at strength. Block 3 is the taper. */
+    phases:[
+      {n:'Max Strength', from:1, d:'Weeks 1–4. Straight at it — you are already training, so there is no time or need for a long base phase. Sloper and open-hand work goes near-maximal, weighted pull-ups build toward a real one-rep max. Get the strength on board early so there is time to convert it.'},
+      {n:'Power Endurance', from:2, d:'Weeks 5–8. Strength work drops to maintenance and the endurance gap becomes the priority — this is the thing most likely to cost you a 7B+ in Font. Circuits, boulder doubles and 4x4s move to the front of sessions instead of the end.'},
+      {n:'Peak — Font', from:3, d:'The last week or two before the trip. Volume drops hard, intensity stays, and you arrive fresh rather than fried. Resist the urge to cram a last big session in — fitness gained in the final ten days is negligible, but fatigue carried in is not. Climb easy, stay sharp, go send.'}
+    ],
     sessions:{
       maxFingers:{n:'Max Strength', w:'Work · 40 min', c:'--gorse', finger:3, pull:1, ask:'Top set load',
         x:[
           {t:'Warm up',m:'15 min',d:'Pulse raise, then progressively heavier two-hand hangs on a jug before loading anything.'},
-          {t:'Open-hand / sloper block hangs',m:'5 × 7s',d:'This is the priority lift — slopers are your weak grip, so this is where you actually move the needle for Font. Add weight once all five feel solid two sessions running. Take the full three minutes between sets; near-max work stops being near-max without it.',r:180},
+          {t:'Open-hand / sloper block hangs',m:'5 × 7s',ph:{'Power Endurance':'3 × 7s — maintain only','Peak — Font':'2 × 7s — light, keep sharp'},d:'This is the priority lift — slopers are your weak grip, so this is where you actually move the needle for Font. Add weight once all five feel solid two sessions running. Take the full three minutes between sets; near-max work stops being near-max without it.',r:180},
           {t:'Half-crimp hang',m:'3 × 7s',d:'Maintenance, not the focus — crimps are already a strength. Keep the pinky engaged the whole rep; that is what has tweaked the ring finger before.',r:120},
           {t:'Two-hand pinch block',m:'4 × 5s',d:'Compression-relevant grip work.',r:90}
         ]},
@@ -129,8 +146,8 @@ var PROGRAMS = {
         ]},
       climbHard:{n:'Compression & Power', w:'Gym · 90 min', c:'--heather', finger:2, pull:2, climb:1,
         x:[
-          {t:'Compression / sloper limit bouldering',m:'40 min',d:'Seek out the compression-y, shouldery, sloper problems you would normally avoid. This block is what actually prepares you for Font, not the crimpy stuff you are already good at.',r:180},
-          {t:'Endurance circuit',m:'20 min',d:'Boulder doubles or 4x4s — same format you have used before. This is the direct fix for the endurance gap.',r:180},
+          {t:'Compression / sloper limit bouldering',m:'40 min',ph:{'Power Endurance':'25 min — after the circuit','Peak — Font':'30 min — Font-style, well short of failure'},d:'Seek out the compression-y, shouldery, sloper problems you would normally avoid. This block is what actually prepares you for Font, not the crimpy stuff you are already good at.',r:180},
+          {t:'Endurance circuit',m:'20 min',ph:{'Power Endurance':'35 min — do this FIRST, while fresh','Peak — Font':'skip'},d:'Boulder doubles or 4x4s — same format you have used before. This is the direct fix for the endurance gap. In the Power Endurance block this moves to the front of the session: whatever comes first gets the quality.',r:180},
           {t:'Cool down',m:'10 min',d:'Easy traversing.'}
         ]},
       outdoorHard:{n:'Outdoor', w:'Crag', c:'--heather', finger:3, pull:2, climb:1,
@@ -151,6 +168,12 @@ var PROGRAMS = {
      and Joe's compression/sloper program above). */
   'default': {
     startDate:'2026-08-10',
+    phases:[
+      {n:'Base', from:1, d:'Build capacity and movement quality before loading heavy. Submaximal throughout.'},
+      {n:'Max Strength', from:2, d:'Near-maximal work, long rests, low set counts.'},
+      {n:'Power', from:5, d:'Convert strength to speed — same movements, fewer reps, moved fast.'},
+      {n:'Performance', from:6, d:'Structured training steps back, climbing takes over.'}
+    ],
     sessions:{
       maxFingers:{n:'Finger Strength', w:'Home · 30 min', c:'--gorse', finger:3, pull:1, ask:'Top set load',
         x:[
@@ -193,6 +216,7 @@ function applyProgram(email){
   var p = PROGRAMS[key] || PROGRAMS['default'];
   START_DATE = p.startDate;
   T = p.sessions;
+  PHASES = p.phases;
 }
 
 /* ------------------------------------------------------------
@@ -209,6 +233,30 @@ var FING=['maxFingers','hangboard','climbHard','outdoorHard'];
 function iso(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
 function today(){ return iso(new Date()); }
 function addDays(base,n){ var d=new Date(base+'T12:00:00'); d.setDate(d.getDate()+n); return iso(d); }
+
+/* ------------------------------------------------------------
+   PHASE — where you are in the plan. Week 4 of every block is a
+   deload, and unlike before this actually changes what decide()
+   recommends, not just the header text.
+   ------------------------------------------------------------ */
+function block(date){
+  var ms=new Date((date||today())+'T12:00:00').getTime()-new Date(START_DATE+'T12:00:00').getTime();
+  var w=Math.max(0,Math.floor(ms/604800000));
+  return {b:Math.min(6,Math.floor(w/4)+1), w:(w%4)+1};
+}
+function phaseAt(b){
+  var out=PHASES[0];
+  for(var i=0;i<PHASES.length;i++) if(b>=PHASES[i].from) out=PHASES[i];
+  return out;
+}
+function phaseRange(i){
+  if(i===PHASES.length-1) return 'Block '+PHASES[i].from+' onwards';
+  var from=PHASES[i].from, to=PHASES[i+1].from-1;
+  return from>=to ? ('Block '+from) : ('Blocks '+from+'–'+to);
+}
+function isDeload(date){ return block(date).w===4; }
+/* Show the phase-specific prescription for an exercise if it has one. */
+function presc(e,phaseName){ return (e.ph && e.ph[phaseName]) || e.m; }
 
 /* ------------------------------------------------------------
    RULES ENGINE
@@ -241,8 +289,17 @@ function decide(date){
   var hard=h.filter(function(e){ return isHard(e.type); }).length;
   var run=streak(h);
 
-  if(run>=3)  return {k:'rest', why:run+' days on the trot. Nothing productive happens on day four.'};
-  if(hard>=5) return {k:'rest', why:hard+' hard days in the last seven. That is the ceiling.'};
+  /* Deload weeks pull both ceilings down, so the week genuinely comes out
+     lighter instead of just being labelled that way. */
+  var dl=isDeload(date);
+  var runCap=dl?2:3, hardCap=dl?3:5;
+
+  if(run>=runCap) return {k:'rest', why: dl
+    ? run+' days on the trot in a deload week. The whole point of this week is arriving at the next block fresh.'
+    : run+' days on the trot. Nothing productive happens on day four.'};
+  if(hard>=hardCap) return {k:'rest', why: dl
+    ? hard+' hard days already this deload week. Cap is three — bank the recovery.'
+    : hard+' hard days in the last seven. That is the ceiling.'};
 
   if(count(h,['maxFingers'])<1 && since(h,['maxFingers'])>=3 && yf<=1)
     return {k:'maxFingers', why:'Fingers are fresh. This is the session that moves your weakness, so it gets first claim.'};
@@ -268,12 +325,6 @@ var ticks={}, timer=null, tEnd=0, tTot=0;
 var $=function(id){ return document.getElementById(id); };
 function v(name){ return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
 
-function block(){
-  var ms=Date.now()-new Date(START_DATE+'T12:00:00').getTime();
-  var w=Math.max(0,Math.floor(ms/604800000));
-  return {b:Math.min(6,Math.floor(w/4)+1), w:(w%4)+1};
-}
-
 var browseIndex=null;
 
 function render(){
@@ -287,7 +338,9 @@ function render(){
 
   document.documentElement.style.setProperty('--c', v(s.c));
 
-  $('topB').textContent='Block '+p.b+' · Wk '+p.w+(p.w===4?' · Deload':'');
+  var ph=phaseAt(p.b), dl=p.w===4;
+  $('topB').textContent=ph.n+' · Wk '+p.w+(dl?' · Deload':'');
+  $('topB').onclick=showPlan;
   $('topD').textContent=new Date().toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'});
 
   // week dots
@@ -316,15 +369,15 @@ function render(){
   $('h1').textContent=s.n;
   $('where').innerHTML=s.w+(isRec?' <span class="rec-badge">Recommended</span>':'');
   $('why').textContent = isLogged ? 'Logged.' + (logged.l ? ' Top set ' + logged.l + 'kg.' : '')
-    : isRec ? d.why
+    : isRec ? (dl ? 'Deload week — cut every working set by about a third and keep the load the same. ' + d.why : d.why)
     : 'Browsing — swipe or tap a dot to see other sessions, Done logs this one instead.';
 
-  // exercises
+  // exercises — prescriptions follow the current phase where one is defined
   $('list').innerHTML = s.x.map(function(e,i){
     var on=!!ticks[key+i];
     return '<div class="ex'+(on?' done':'')+'" data-i="'+i+'">'+
       '<button class="tick" aria-pressed="'+on+'" aria-label="'+e.t+'"></button>'+
-      '<div class="eb"><div class="et"><span class="en">'+e.t+'</span><span class="em">'+e.m+'</span></div>'+
+      '<div class="eb"><div class="et"><span class="en">'+e.t+'</span><span class="em'+(presc(e,ph.n)!==e.m?' ph':'')+'">'+presc(e,ph.n)+'</span></div>'+
       (e.d?'<div class="ed">'+e.d+'</div>':'')+
       (e.r?'<button class="rest" data-r="'+e.r+'" data-l="'+e.t+'">'+fmt(e.r)+'</button>':'')+
       '</div></div>';
@@ -388,6 +441,33 @@ function pick(date){
       preview(date, b.dataset.k);
     };
   });
+}
+
+/* ---- the plan / timeline ---- */
+function showPlan(){
+  var p=block(), cur=phaseAt(p.b);
+  var h='<h2>The plan</h2>'+
+    '<p class="shp">Block '+p.b+' · Week '+p.w+(p.w===4?' · Deload week':'')+
+    '. Every fourth week is a deload — the app drops its own limits that week and asks for more rest.</p>';
+  h+=PHASES.map(function(x,i){
+    var on = x.n===cur.n;
+    return '<button class="opt" style="--oc:'+(on?'var(--c)':'var(--s4)')+'" data-p="'+i+'">'+
+      '<span class="optn">'+x.n+'</span>'+
+      '<span class="opts">'+(on?'NOW · ':'')+phaseRange(i)+'</span></button>';
+  }).join('');
+  open(h);
+  $('shIn').querySelectorAll('.opt').forEach(function(b){
+    b.onclick=function(){ showPhase(+b.dataset.p); };
+  });
+}
+
+function showPhase(i){
+  var x=PHASES[i], p=block(), on=x.n===phaseAt(p.b).n;
+  open('<h2>'+x.n+'</h2>'+
+    '<p class="shp">'+phaseRange(i)+(on?' · you are here':'')+'</p>'+
+    '<p class="shp" style="color:var(--dim)">'+x.d+'</p>'+
+    '<div class="row2" style="margin-top:16px"><button class="sec" id="phBack">Back</button></div>');
+  $('phBack').onclick=showPlan;
 }
 
 function preview(date, key){
