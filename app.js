@@ -123,14 +123,14 @@ var PROGRAMS = {
       hangboard:{n:'Hangboard', w:'Gym · 40–55 min + climb', c:'--slate', finger:2, pull:1, ask:'Repeater load',
         x:[
           {t:'Warm up',m:'10 min',d:'Pulse raise, then progressively heavier two-hand hangs on a jug before touching the edge. Weighted hangs come first in this session, so you are going straight into the heaviest thing you do here.'},
-          {t:'Weighted hangs',m:'10s × 5',d:'Alternate weeks, only if the gym has a belt. Heavy-ish, never maximal. This goes FIRST, while fingers are fresh — doing repeaters before it would blunt the load you can hold and mean pulling near-max on already-fatigued tissue.',r:180},
-          {t:'20mm repeaters',m:'4–5 sets',d:'7s on / 3s off × 6 = one set. Around 55–60% of max. Two minutes between sets.',r:120},
+          {t:'Weighted hangs',m:'10s × 5',ph:{'Base':'skip — repeaters only this phase','Power':'3s × 6 — short, sharp, contact-focused','Performance':'skip — hold what you built, repeaters only'},d:'Alternate weeks, only if the gym has a belt. Heavy-ish, never maximal. This goes FIRST, while fingers are fresh — doing repeaters before it would blunt the load you can hold and mean pulling near-max on already-fatigued tissue.',r:180},
+          {t:'20mm repeaters',m:'4–5 sets',ph:{'Base':'5–6 sets — lighter, higher volume','Power':'3 sets — reduced, priority is the pickups','Performance':'2–3 sets — maintain only'},d:'7s on / 3s off × 6 = one set. Around 55–60% of max. Two minutes between sets.',r:120},
           {t:'Band-assisted one-arm',m:'3 × 5s / hand',d:'If there is a pulley or a band. Closest thing to pickups you can do at work — and the right step while you cannot one-arm hang a 20mm edge unassisted. Alternate hands.',r:90},
           {t:'Volume climbing',m:'45 min',d:'Crimp-biased mileage, not limit attempts.'}
         ]},
       climbHard:{n:'Crimp Session', w:'Gym · 90 min', c:'--heather', finger:2, pull:2, climb:1,
         x:[
-          {t:'Crimp-only limit bouldering',m:'45 min',d:'Small edges, vertical to 20°. Set your own if there is nothing suitable — you work there.',r:180},
+          {t:'Crimp-only limit bouldering',m:'45 min',ph:{'Base':'60 min — volume over difficulty, movement quality first','Power':'30 min — fewer attempts, full power between tries','Performance':'projecting — no fixed time'},d:'Small edges, vertical to 20°. Set your own if there is nothing suitable — you work there.',r:180},
           {t:'No slopers, no heels',m:'rest of session',d:'Your instincts pull you toward what you are already good at. Ignore them.'},
           {t:'Cool down',m:'10 min',d:'Easy traversing, then finger extensors.'}
         ]},
