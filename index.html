@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#181B22">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="manifest" href="manifest.json">
+<title>Crimp Block</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Barlow:wght@400;500&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#181B22; --s1:#1E222B; --s2:#272C37; --s3:#333947; --s4:#454C5C;
+  --fg:#EDEBE5; --dim:#9AA0AE; --faint:#666C7A;
+  --gorse:#F2B134; --tidepool:#4FB3A5; --slate:#7B93E0; --heather:#C9739B; --grey:#5A6069;
+  --c:var(--grey); --r:3px;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html{-webkit-text-size-adjust:100%}
+body{
+  background:var(--bg);color:var(--fg);
+  font-family:'Barlow',-apple-system,BlinkMacSystemFont,sans-serif;
+  font-size:16px;line-height:1.5;-webkit-font-smoothing:antialiased;
+  padding:0 18px calc(96px + env(safe-area-inset-bottom));
+  max-width:620px;margin:0 auto;
+}
+
+/* header */
+.top{display:flex;align-items:baseline;gap:10px;padding:calc(14px + env(safe-area-inset-top)) 0 12px}
+.top-b{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:var(--c)}
+.top-d{margin-left:auto;font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:.06em;color:var(--faint);text-transform:uppercase}
+
+/* week dots */
+.dots{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-bottom:26px}
+.dot{height:30px;border:none;background:none;display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0}
+.dot i{display:block;width:11px;height:11px;border-radius:50%;border:1.5px solid var(--s4);background:none;transition:transform .12s}
+.dot i.on{border-color:transparent}
+.dot:active i{transform:scale(1.35)}
+.dot.now i{box-shadow:0 0 0 3px var(--bg),0 0 0 4.5px var(--s4)}
+
+/* headline */
+h1{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:clamp(42px,13vw,60px);line-height:.9;text-transform:uppercase;color:var(--fg);margin-bottom:10px}
+.where{font-family:'IBM Plex Mono',monospace;font-size:11.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--c);margin-bottom:14px}
+.why{font-size:15.5px;color:var(--dim);line-height:1.45;padding-bottom:20px;border-bottom:1px solid var(--s2)}
+
+/* exercises */
+.ex{display:flex;gap:14px;align-items:flex-start;padding:16px 0;border-bottom:1px solid var(--s2)}
+.tick{flex:0 0 auto;width:26px;height:26px;border:1.5px solid var(--s4);border-radius:var(--r);background:none;cursor:pointer;position:relative;margin-top:1px}
+.tick[aria-pressed="true"]{background:var(--c);border-color:var(--c)}
+.tick[aria-pressed="true"]::after{content:"";position:absolute;left:8px;top:4px;width:6px;height:12px;border:solid var(--bg);border-width:0 2.5px 2.5px 0;transform:rotate(42deg)}
+.eb{flex:1;min-width:0}
+.et{display:flex;justify-content:space-between;gap:12px;align-items:baseline}
+.en{font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:20px;text-transform:uppercase;line-height:1.15}
+.em{font-family:'IBM Plex Mono',monospace;font-size:12px;font-weight:500;color:var(--c);white-space:nowrap}
+.ed{font-size:14.5px;color:var(--dim);margin-top:4px;line-height:1.4}
+.ex.done .en,.ex.done .ed{color:var(--faint);text-decoration:line-through}
+.rest{margin-top:11px;background:none;border:1px solid var(--s3);color:var(--dim);font-family:'IBM Plex Mono',monospace;font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;padding:8px 14px;border-radius:var(--r);cursor:pointer}
+.rest:active{border-color:var(--c);color:var(--c)}
+
+/* bottom bar */
+.bar{position:fixed;left:0;right:0;bottom:0;background:linear-gradient(to top,var(--bg) 62%,rgba(24,27,34,0));padding:22px 18px calc(16px + env(safe-area-inset-bottom));z-index:40}
+.bar-in{max-width:620px;margin:0 auto;display:flex;gap:9px}
+.done{flex:1;background:var(--c);border:none;color:var(--bg);font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:19px;letter-spacing:.14em;text-transform:uppercase;padding:17px;border-radius:var(--r);cursor:pointer}
+.done:active{filter:brightness(1.12)}
+.alt{background:none;border:1px solid var(--s3);color:var(--dim);font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:15px;letter-spacing:.1em;text-transform:uppercase;padding:17px 18px;border-radius:var(--r);cursor:pointer}
+.alt:active{border-color:var(--s4);color:var(--fg)}
+
+/* timer */
+.tm{position:fixed;left:0;right:0;bottom:0;z-index:50;background:var(--s1);border-top:1px solid var(--s3);transform:translateY(110%);transition:transform .2s;padding-bottom:env(safe-area-inset-bottom)}
+.tm.on{transform:translateY(0)}
+.tmbar{height:3px;background:var(--c);transform-origin:left}
+.tmin{max-width:620px;margin:0 auto;padding:16px 18px;display:flex;align-items:center;gap:16px}
+.tmn{font-family:'IBM Plex Mono',monospace;font-weight:600;font-size:36px;color:var(--c);line-height:1;font-variant-numeric:tabular-nums}
+.tml{flex:1;font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:14px;letter-spacing:.1em;text-transform:uppercase;color:var(--faint);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tmx{background:none;border:1px solid var(--s3);color:var(--dim);font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:14px;letter-spacing:.1em;text-transform:uppercase;padding:10px 16px;border-radius:var(--r);cursor:pointer}
+
+/* sheet */
+.bgd{position:fixed;inset:0;background:rgba(8,10,14,.78);z-index:60;opacity:0;pointer-events:none;transition:opacity .2s}
+.bgd.on{opacity:1;pointer-events:auto}
+.sh{position:fixed;left:0;right:0;bottom:0;z-index:61;background:var(--s1);border-top:1px solid var(--s3);transform:translateY(110%);transition:transform .22s;max-height:88vh;overflow-y:auto;padding-bottom:env(safe-area-inset-bottom)}
+.sh.on{transform:translateY(0)}
+.shin{max-width:620px;margin:0 auto;padding:22px 18px 26px}
+.sh h2{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:23px;letter-spacing:.04em;text-transform:uppercase;margin-bottom:16px}
+.opt{display:flex;align-items:center;gap:12px;width:100%;background:var(--s2);border:1px solid transparent;border-left:4px solid var(--oc);color:var(--fg);padding:16px 15px;border-radius:var(--r);cursor:pointer;margin-bottom:8px;text-align:left}
+.opt:active{border-color:var(--oc)}
+.optn{font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:19px;text-transform:uppercase;flex:1}
+.opts{font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:var(--faint);text-transform:uppercase;letter-spacing:.06em}
+
+/* number entry */
+.num{display:flex;gap:10px;align-items:center;margin-bottom:16px}
+.num input{flex:1;background:var(--s2);border:1px solid var(--s3);color:var(--fg);font-family:'IBM Plex Mono',monospace;font-weight:600;font-size:30px;padding:14px 16px;border-radius:var(--r);text-align:center;width:100%}
+.num input:focus{outline:none;border-color:var(--c)}
+.num span{font-family:'IBM Plex Mono',monospace;font-size:15px;color:var(--faint)}
+.shp{font-size:14.5px;color:var(--faint);margin-bottom:16px;line-height:1.45}
+.row2{display:flex;gap:9px}
+.row2 button{flex:1;padding:16px;border-radius:var(--r);font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:17px;letter-spacing:.12em;text-transform:uppercase;cursor:pointer}
+.pri{background:var(--c);border:none;color:var(--bg)}
+.sec{background:none;border:1px solid var(--s3);color:var(--dim)}
+:focus-visible{outline:2px solid var(--c);outline-offset:2px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+<div class="top">
+  <span class="top-b" id="topB">—</span>
+  <span class="top-d" id="topD"></span>
+</div>
+<div class="dots" id="dots"></div>
+
+<h1 id="h1">—</h1>
+<div class="where" id="where"></div>
+<div class="why" id="why"></div>
+<div id="list"></div>
+
+<div class="bar" id="bar">
+  <div class="bar-in">
+    <button class="done" id="doneBtn">Done</button>
+    <button class="alt" id="altBtn">Not this</button>
+  </div>
+</div>
+
+<div class="tm" id="tm">
+  <div class="tmbar" id="tmBar"></div>
+  <div class="tmin">
+    <span class="tmn" id="tmN">0:00</span>
+    <span class="tml" id="tmL"></span>
+    <button class="tmx" id="tmX">Stop</button>
+  </div>
+</div>
+
+<div class="bgd" id="bgd"></div>
+<div class="sh" id="sh"><div class="shin" id="shIn"></div></div>
+
+<script src="app.js"></script>
+<script>
+if('serviceWorker' in navigator){
+  window.addEventListener('load',function(){ navigator.serviceWorker.register('sw.js').catch(function(){}); });
+}
+</script>
+</body>
+</html>
