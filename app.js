@@ -62,29 +62,29 @@ var PROGRAMS = {
   'oscar@sullivanltd.co.uk': {
     startDate:'2026-08-10',
     sessions:{
-      maxFingers:{n:'Max Fingers', w:'Home · 40 min', c:'--gorse', finger:3, pull:1, ask:'Top set — one-arm pickup',
+      maxFingers:{n:'Max Fingers', w:'Home · 50 min', c:'--gorse', finger:3, pull:1, ask:'Top set — one-arm pickup',
         x:[
           {t:'Warm up',m:'15 min',d:'Pulse raise, then three progressively heavier two-hand pickups. Never skip this on a cold morning.'},
-          {t:'Pickups — half crimp',m:'5 × 5s / hand',d:'20mm. Rep five hard but form-perfect. Add 1–2.5kg once all five feel solid two sessions running.',r:120},
-          {t:'Pickups — three-finger drag',m:'3 × 5s / hand',d:'Lighter. Covers the rounded granite edges you actually climb on.',r:120},
-          {t:'Pinch block',m:'4 × 5s / hand',d:'',r:90},
+          {t:'Pickups — half crimp',m:'5 × 5s / hand',d:'20mm. Rep five hard but form-perfect. Add 1–2.5kg once all five feel solid two sessions running. Alternate hands — each hand then gets about three minutes between efforts, which is what near-max work needs to stay near-max.',r:90},
+          {t:'Pickups — three-finger drag',m:'3 × 5s / hand',d:'Lighter. Covers the rounded granite edges you actually climb on. Alternate hands.',r:90},
+          {t:'Pinch block',m:'4 × 5s / hand',d:'Alternate hands.',r:60},
           {t:'Wrist roller',m:'3 sets',d:'Up and down to near failure.',r:60}
         ]},
       pull:{n:'Pull', w:'Home · 40 min', c:'--tidepool', finger:0, pull:3,
         x:[
-          {t:'Bottom-range pull-ups',m:'5 × 5',d:'Two arms, full dead hang, pull only to ~30° elbow bend, hold 2s, lower slow. Heavy. This is the one that matters.',r:180},
-          {t:'One-arm transition holds',m:'8s × 5 / arm',d:'Minimal band or a toe on a stool. Hold at the top of your shrug plus a couple of centimetres.',r:120},
-          {t:'Weighted one-arm shrugs',m:'4 × 3 / arm',d:'Belt or vest, three-second hold at the top.',r:120},
-          {t:'One-arm negatives',m:'3 × 1 / arm',d:'8–10 second descent. Control the last 30cm above all.',r:180},
-          {t:'Weighted pull-ups',m:'4 × 4',d:'Heavy, full dead hang each rep.',r:180},
-          {t:'Front lever',m:'5 × 8–10s',d:'Hardest tuck or straddle you hold clean.',r:90},
-          {t:'Antagonists',m:'4 sets',d:'Reverse wrist curls 3×15 · finger extensors 3×20 · external rotation 3×12 · dips 3×10.'}
+          {t:'Warm up',m:'5 min',d:'Band pull-aparts, scap pulls, then two progressively heavier pull-up sets. The bar is outside — do not pull heavy on cold shoulders and elbows.'},
+          {t:'Bottom-range pull-ups',m:'4 × 5',d:'Two arms, full dead hang, pull only to ~30° elbow bend, hold 2s, lower slow. Heavy. This is the one that matters — it loads exactly the range where your one-arm stalls. Every third or fourth session, swap it for weighted pull-ups 4×4 or one-arm negatives 3×1/arm to vary the stimulus.',r:150},
+          {t:'One-arm transition holds',m:'4 × 8s / arm',d:'Minimal band or a toe on a stool. Hold at the top of your shrug plus a couple of centimetres — the exact point where you cannot get the elbow flexing. Alternate arms: one rests while the other works.',r:60},
+          {t:'Weighted one-arm shrugs',m:'3 × 3 / arm',d:'Belt or vest, three-second hold at the top. Alternate arms. Three reps is right at your current ceiling — add weight before adding reps.',r:60},
+          {t:'Front lever',m:'4 × 8–10s',d:'Hardest tuck or straddle you hold clean. If you cannot hold a tuck yet, do slow negative lowers from a tuck for the same sets.',r:75},
+          {t:'Antagonists',m:'3 supersets',d:'Reverse wrist curls 3×15 · finger extensors 3×20 · external rotation 3×12 · dips 3×10. Run as supersets with minimal rest — maintenance work, not a strength focus.'}
         ]},
-      hangboard:{n:'Hangboard', w:'Gym · 25 min', c:'--slate', finger:2, pull:1, ask:'Repeater load',
+      hangboard:{n:'Hangboard', w:'Gym · 40–55 min + climb', c:'--slate', finger:2, pull:1, ask:'Repeater load',
         x:[
+          {t:'Warm up',m:'10 min',d:'Pulse raise, then progressively heavier two-hand hangs on a jug before touching the edge. Weighted hangs come first in this session, so you are going straight into the heaviest thing you do here.'},
+          {t:'Weighted hangs',m:'10s × 5',d:'Alternate weeks, only if the gym has a belt. Heavy-ish, never maximal. This goes FIRST, while fingers are fresh — doing repeaters before it would blunt the load you can hold and mean pulling near-max on already-fatigued tissue.',r:180},
           {t:'20mm repeaters',m:'4–5 sets',d:'7s on / 3s off × 6 = one set. Around 55–60% of max. Two minutes between sets.',r:120},
-          {t:'Weighted hangs',m:'10s × 5',d:'Alternate weeks, only if the gym has a belt. Heavy-ish, never maximal.',r:180},
-          {t:'Band-assisted one-arm',m:'3 × 5s / hand',d:'If there is a pulley or a band. Closest thing to pickups you can do at work.',r:120},
+          {t:'Band-assisted one-arm',m:'3 × 5s / hand',d:'If there is a pulley or a band. Closest thing to pickups you can do at work — and the right step while you cannot one-arm hang a 20mm edge unassisted. Alternate hands.',r:90},
           {t:'Volume climbing',m:'45 min',d:'Crimp-biased mileage, not limit attempts.'}
         ]},
       climbHard:{n:'Crimp Session', w:'Gym · 90 min', c:'--heather', finger:2, pull:2, climb:1,
@@ -107,22 +107,24 @@ var PROGRAMS = {
   'joepearce2005@icloud.com': {
     startDate:'2026-08-10',
     sessions:{
-      maxFingers:{n:'Max Strength', w:'Work · 30 min', c:'--gorse', finger:3, pull:1, ask:'Top set load',
+      maxFingers:{n:'Max Strength', w:'Work · 40 min', c:'--gorse', finger:3, pull:1, ask:'Top set load',
         x:[
           {t:'Warm up',m:'15 min',d:'Pulse raise, then progressively heavier two-hand hangs on a jug before loading anything.'},
-          {t:'Open-hand / sloper block hangs',m:'5 × 7s',d:'This is the priority lift — slopers are your weak grip, so this is where you actually move the needle for Font. Add weight once all five feel solid two sessions running.',r:150},
+          {t:'Open-hand / sloper block hangs',m:'5 × 7s',d:'This is the priority lift — slopers are your weak grip, so this is where you actually move the needle for Font. Add weight once all five feel solid two sessions running. Take the full three minutes between sets; near-max work stops being near-max without it.',r:180},
           {t:'Half-crimp hang',m:'3 × 7s',d:'Maintenance, not the focus — crimps are already a strength. Keep the pinky engaged the whole rep; that is what has tweaked the ring finger before.',r:120},
           {t:'Two-hand pinch block',m:'4 × 5s',d:'Compression-relevant grip work.',r:90}
         ]},
-      pull:{n:'Pull & Power', w:'Work · 35 min', c:'--tidepool', finger:0, pull:3,
+      pull:{n:'Pull & Power', w:'Work · 40 min', c:'--tidepool', finger:0, pull:3,
         x:[
+          {t:'Warm up',m:'5 min',d:'Band pull-aparts, scap pulls, then two progressively heavier pull-up sets. Given the bicep history, never start heavy or explosive work cold.'},
           {t:'Weighted pull-ups',m:'4 × 3',d:'You know a 30kg × 3 — build toward a real 1-rep max here, not just reps. This is where the burliness comes from.',r:180},
           {t:'Explosive pull-ups',m:'4 × 3',d:'Fast concentric, controlled landing. Power, not grind.',r:150},
           {t:'Weighted dips or shoulder press',m:'4 × 6',d:'Push/shoulder strength for the compression-and-shouldery moves you are after.',r:120},
           {t:'Bicep tendon health',m:'3 sets',d:'Slow eccentric hammer curls + isometric holds. Non-negotiable every time this session comes up, whether the arms feel fine or not — this is specifically what has kept the tendinopathy from coming back before. Progress load here gradually; sudden jumps are what has flared it up in the past.',r:60}
         ]},
-      hangboard:{n:'Repeaters', w:'Work · 20 min', c:'--slate', finger:2, pull:1, ask:'Repeater load',
+      hangboard:{n:'Repeaters', w:'Work · 25 min', c:'--slate', finger:2, pull:1, ask:'Repeater load',
         x:[
+          {t:'Warm up',m:'10 min',d:'Pulse raise, then progressively heavier two-hand hangs on a jug. Short session, but going straight onto a loaded edge cold is exactly how the ring finger gets tweaked.'},
           {t:'Repeaters',m:'5 × (10s on / 5s off × 5)',d:'Your usual protocol, at a sustainable load — not a max effort. If you are on a drag or edge position, keep the pinky engaged rather than isolating the ring finger.',r:120}
         ]},
       climbHard:{n:'Compression & Power', w:'Gym · 90 min', c:'--heather', finger:2, pull:2, climb:1,
