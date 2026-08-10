@@ -164,12 +164,16 @@ function block(){
   return {b:Math.min(6,Math.floor(w/4)+1), w:(w%4)+1};
 }
 
+var browseIndex=null;
+
 function render(){
   var p=block();
   var logged=Store.get(today());
   var d=decide(today());
-  var key=logged?logged.t:d.k;
+  var key = browseIndex!==null ? ORDER[browseIndex] : (logged?logged.t:d.k);
   var s=T[key];
+  var isLogged = logged && logged.t===key;
+  var isRec = key===d.k && !logged;
 
   document.documentElement.style.setProperty('--c', v(s.c));
 
@@ -189,9 +193,21 @@ function render(){
     b.onclick=function(){ pick(b.dataset.d); };
   });
 
+  // session swipe strip
+  var sdh=ORDER.map(function(k){
+    var cls='sdot'+(k===key?' cur':'')+(k===d.k&&!logged?' rec':'');
+    return '<button class="'+cls+'" data-k="'+k+'" style="--sc:'+v(T[k].c)+'" aria-label="'+T[k].n+'"></button>';
+  }).join('');
+  $('sdots').innerHTML=sdh;
+  $('sdots').querySelectorAll('.sdot').forEach(function(b){
+    b.onclick=function(){ browseIndex=ORDER.indexOf(b.dataset.k); render(); };
+  });
+
   $('h1').textContent=s.n;
-  $('where').textContent=s.w;
-  $('why').textContent = logged ? 'Logged.' + (logged.l ? ' Top set ' + logged.l + 'kg.' : '') : d.why;
+  $('where').innerHTML=s.w+(isRec?' <span class="rec-badge">Recommended</span>':'');
+  $('why').textContent = isLogged ? 'Logged.' + (logged.l ? ' Top set ' + logged.l + 'kg.' : '')
+    : isRec ? d.why
+    : 'Browsing — swipe or tap a dot to see other sessions, Done logs this one instead.';
 
   // exercises
   $('list').innerHTML = s.x.map(function(e,i){
@@ -216,14 +232,29 @@ function render(){
     b.onclick=function(){ startTimer(+b.dataset.r, b.dataset.l); };
   });
 
-  $('doneBtn').textContent = logged ? 'Undo' : 'Done';
-  $('doneBtn').onclick = logged
-    ? function(){ Store.clear(today()); render(); }
-    : function(){ finish(today(), d.k); };
+  $('doneBtn').textContent = isLogged ? 'Undo' : 'Done';
+  $('doneBtn').onclick = isLogged
+    ? function(){ Store.clear(today()); browseIndex=null; render(); }
+    : function(){ browseIndex=null; finish(today(), key); };
   $('altBtn').onclick = function(){ pick(today()); };
 }
 
 function fmt(s){ var m=Math.floor(s/60),r=s%60; return m+':'+(r<10?'0':'')+r; }
+
+/* ---- swipe between sessions ---- */
+var swX=0, swY=0;
+$('card').addEventListener('touchstart',function(e){
+  var t=e.touches[0]; swX=t.clientX; swY=t.clientY;
+},{passive:true});
+$('card').addEventListener('touchend',function(e){
+  var t=e.changedTouches[0], dx=t.clientX-swX, dy=t.clientY-swY;
+  if(Math.abs(dx)>50 && Math.abs(dx)>Math.abs(dy)*1.5){
+    var logged=Store.get(today()), d=decide(today());
+    var cur = browseIndex!==null ? ORDER[browseIndex] : (logged?logged.t:d.k);
+    var idx=(ORDER.indexOf(cur)+(dx<0?1:-1)+ORDER.length)%ORDER.length;
+    browseIndex=idx; render();
+  }
+},{passive:true});
 
 /* ---- sheets ---- */
 var sh=$('sh'), bgd=$('bgd');
@@ -269,6 +300,7 @@ function preview(date, key){
 
 function finish(date, key){
   var s=T[key];
+  if(date===today()) browseIndex=null;
   if(!s.ask){ Store.set(date,key); render(); return; }
   open('<h2>'+s.ask+'</h2>'+
     '<p class="shp">One number, best set. Skip it if you did not measure — the plan still works without it.</p>'+

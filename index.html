@@ -36,6 +36,14 @@ body{
 .top-u[hidden]{display:none}
 .top-u i{display:block;width:6px;height:6px;border-radius:50%;background:var(--tidepool)}
 
+/* session swipe strip */
+.sdots{display:flex;gap:9px;margin-bottom:20px}
+.sdot{width:14px;height:14px;border-radius:50%;border:1.5px solid var(--s4);background:none;padding:0;cursor:pointer;position:relative;flex:0 0 auto}
+.sdot.cur{background:var(--sc);border-color:var(--sc)}
+.sdot.rec::after{content:"";position:absolute;inset:-4px;border:1.5px solid var(--sc);border-radius:50%}
+.rec-badge{display:inline-block;color:var(--c);border:1px solid var(--c);border-radius:10px;padding:1px 7px;font-size:9.5px;letter-spacing:.08em;margin-left:8px;vertical-align:middle;font-family:'IBM Plex Mono',monospace}
+#card{touch-action:pan-y}
+
 /* week dots */
 .dots{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-bottom:26px}
 .dot{height:30px;border:none;background:none;display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0}
@@ -114,11 +122,14 @@ h1{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:clamp(42p
   <span class="top-d" id="topD"></span>
 </div>
 <div class="dots" id="dots"></div>
+<div class="sdots" id="sdots"></div>
 
+<div id="card">
 <h1 id="h1">—</h1>
 <div class="where" id="where"></div>
 <div class="why" id="why"></div>
 <div id="list"></div>
+</div>
 
 <div class="bar" id="bar">
   <div class="bar-in">
