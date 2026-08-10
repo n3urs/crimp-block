@@ -7,8 +7,9 @@
 (function(){
 "use strict";
 
-/* >>> EDIT THIS when you start. Monday of week 1. <<< */
-var START_DATE = '2026-08-10';
+/* >>> Active program set from PROGRAMS below once the signed-in
+   user's email is known. See applyProgram(). <<< */
+var START_DATE, T;
 
 /* ------------------------------------------------------------
    STORE — the ONLY place persistence happens.
@@ -44,52 +45,120 @@ var Store = {
 };
 
 /* ------------------------------------------------------------
-   SESSIONS
+   PROGRAMS
+   One session library per person, keyed by their sign-in email
+   (lowercased). Every program must define the same seven keys
+   (maxFingers, hangboard, pull, climbHard, outdoorHard, climbEasy,
+   rest) — the rules engine below (decide/ORDER/FING/CLIMB) is
+   shared and references those keys directly. Only the content
+   (name, description, exercises, load numbers, start date)
+   varies per person. 'default' is used for anyone signed in
+   whose email isn't listed below yet.
+
    finger / pull = load scores 0–3, used by the rules engine.
    ask = prompt for a top-set number after logging.
    ------------------------------------------------------------ */
-var T = {
-  maxFingers:{n:'Max Fingers', w:'Home · 40 min', c:'--gorse', finger:3, pull:1, ask:'Top set — one-arm pickup',
-    x:[
-      {t:'Warm up',m:'15 min',d:'Pulse raise, then three progressively heavier two-hand pickups. Never skip this on a cold morning.'},
-      {t:'Pickups — half crimp',m:'5 × 5s / hand',d:'20mm. Rep five hard but form-perfect. Add 1–2.5kg once all five feel solid two sessions running.',r:120},
-      {t:'Pickups — three-finger drag',m:'3 × 5s / hand',d:'Lighter. Covers the rounded granite edges you actually climb on.',r:120},
-      {t:'Pinch block',m:'4 × 5s / hand',d:'',r:90},
-      {t:'Wrist roller',m:'3 sets',d:'Up and down to near failure.',r:60}
-    ]},
-  pull:{n:'Pull', w:'Home · 40 min', c:'--tidepool', finger:0, pull:3,
-    x:[
-      {t:'Bottom-range pull-ups',m:'5 × 5',d:'Two arms, full dead hang, pull only to ~30° elbow bend, hold 2s, lower slow. Heavy. This is the one that matters.',r:180},
-      {t:'One-arm transition holds',m:'8s × 5 / arm',d:'Minimal band or a toe on a stool. Hold at the top of your shrug plus a couple of centimetres.',r:120},
-      {t:'Weighted one-arm shrugs',m:'4 × 3 / arm',d:'Belt or vest, three-second hold at the top.',r:120},
-      {t:'One-arm negatives',m:'3 × 1 / arm',d:'8–10 second descent. Control the last 30cm above all.',r:180},
-      {t:'Weighted pull-ups',m:'4 × 4',d:'Heavy, full dead hang each rep.',r:180},
-      {t:'Front lever',m:'5 × 8–10s',d:'Hardest tuck or straddle you hold clean.',r:90},
-      {t:'Antagonists',m:'4 sets',d:'Reverse wrist curls 3×15 · finger extensors 3×20 · external rotation 3×12 · dips 3×10.'}
-    ]},
-  hangboard:{n:'Hangboard', w:'Gym · 25 min', c:'--slate', finger:2, pull:1, ask:'Repeater load',
-    x:[
-      {t:'20mm repeaters',m:'4–5 sets',d:'7s on / 3s off × 6 = one set. Around 55–60% of max. Two minutes between sets.',r:120},
-      {t:'Weighted hangs',m:'10s × 5',d:'Alternate weeks, only if the gym has a belt. Heavy-ish, never maximal.',r:180},
-      {t:'Band-assisted one-arm',m:'3 × 5s / hand',d:'If there is a pulley or a band. Closest thing to pickups you can do at work.',r:120},
-      {t:'Volume climbing',m:'45 min',d:'Crimp-biased mileage, not limit attempts.'}
-    ]},
-  climbHard:{n:'Crimp Session', w:'Gym · 90 min', c:'--heather', finger:2, pull:2, climb:1,
-    x:[
-      {t:'Crimp-only limit bouldering',m:'45 min',d:'Small edges, vertical to 20°. Set your own if there is nothing suitable — you work there.',r:180},
-      {t:'No slopers, no heels',m:'rest of session',d:'Your instincts pull you toward what you are already good at. Ignore them.'},
-      {t:'Cool down',m:'10 min',d:'Easy traversing, then finger extensors.'}
-    ]},
-  outdoorHard:{n:'Outdoor', w:'Crag', c:'--heather', finger:3, pull:2, climb:1,
-    x:[
-      {t:'Warm up properly',m:'20 min',d:'Cold granite and cold fingers is how pulleys go.'},
-      {t:'Project',m:'—',d:'Every third day out, pick something crimpy you would normally walk past.'}
-    ]},
-  climbEasy:{n:'Easy Climbing', w:'Anywhere', c:'--tidepool', finger:1, pull:1, climb:1,
-    x:[{t:'Mileage and movement',m:'—',d:'Nothing near limit. If you are trying hard, it stops being this session.'}]},
-  rest:{n:'Rest', w:'—', c:'--grey', finger:0, pull:0, x:[]}
+var PROGRAMS = {
+  'oscar@sullivanltd.co.uk': {
+    startDate:'2026-08-10',
+    sessions:{
+      maxFingers:{n:'Max Fingers', w:'Home · 40 min', c:'--gorse', finger:3, pull:1, ask:'Top set — one-arm pickup',
+        x:[
+          {t:'Warm up',m:'15 min',d:'Pulse raise, then three progressively heavier two-hand pickups. Never skip this on a cold morning.'},
+          {t:'Pickups — half crimp',m:'5 × 5s / hand',d:'20mm. Rep five hard but form-perfect. Add 1–2.5kg once all five feel solid two sessions running.',r:120},
+          {t:'Pickups — three-finger drag',m:'3 × 5s / hand',d:'Lighter. Covers the rounded granite edges you actually climb on.',r:120},
+          {t:'Pinch block',m:'4 × 5s / hand',d:'',r:90},
+          {t:'Wrist roller',m:'3 sets',d:'Up and down to near failure.',r:60}
+        ]},
+      pull:{n:'Pull', w:'Home · 40 min', c:'--tidepool', finger:0, pull:3,
+        x:[
+          {t:'Bottom-range pull-ups',m:'5 × 5',d:'Two arms, full dead hang, pull only to ~30° elbow bend, hold 2s, lower slow. Heavy. This is the one that matters.',r:180},
+          {t:'One-arm transition holds',m:'8s × 5 / arm',d:'Minimal band or a toe on a stool. Hold at the top of your shrug plus a couple of centimetres.',r:120},
+          {t:'Weighted one-arm shrugs',m:'4 × 3 / arm',d:'Belt or vest, three-second hold at the top.',r:120},
+          {t:'One-arm negatives',m:'3 × 1 / arm',d:'8–10 second descent. Control the last 30cm above all.',r:180},
+          {t:'Weighted pull-ups',m:'4 × 4',d:'Heavy, full dead hang each rep.',r:180},
+          {t:'Front lever',m:'5 × 8–10s',d:'Hardest tuck or straddle you hold clean.',r:90},
+          {t:'Antagonists',m:'4 sets',d:'Reverse wrist curls 3×15 · finger extensors 3×20 · external rotation 3×12 · dips 3×10.'}
+        ]},
+      hangboard:{n:'Hangboard', w:'Gym · 25 min', c:'--slate', finger:2, pull:1, ask:'Repeater load',
+        x:[
+          {t:'20mm repeaters',m:'4–5 sets',d:'7s on / 3s off × 6 = one set. Around 55–60% of max. Two minutes between sets.',r:120},
+          {t:'Weighted hangs',m:'10s × 5',d:'Alternate weeks, only if the gym has a belt. Heavy-ish, never maximal.',r:180},
+          {t:'Band-assisted one-arm',m:'3 × 5s / hand',d:'If there is a pulley or a band. Closest thing to pickups you can do at work.',r:120},
+          {t:'Volume climbing',m:'45 min',d:'Crimp-biased mileage, not limit attempts.'}
+        ]},
+      climbHard:{n:'Crimp Session', w:'Gym · 90 min', c:'--heather', finger:2, pull:2, climb:1,
+        x:[
+          {t:'Crimp-only limit bouldering',m:'45 min',d:'Small edges, vertical to 20°. Set your own if there is nothing suitable — you work there.',r:180},
+          {t:'No slopers, no heels',m:'rest of session',d:'Your instincts pull you toward what you are already good at. Ignore them.'},
+          {t:'Cool down',m:'10 min',d:'Easy traversing, then finger extensors.'}
+        ]},
+      outdoorHard:{n:'Outdoor', w:'Crag', c:'--heather', finger:3, pull:2, climb:1,
+        x:[
+          {t:'Warm up properly',m:'20 min',d:'Cold granite and cold fingers is how pulleys go.'},
+          {t:'Project',m:'—',d:'Every third day out, pick something crimpy you would normally walk past.'}
+        ]},
+      climbEasy:{n:'Easy Climbing', w:'Anywhere', c:'--tidepool', finger:1, pull:1, climb:1,
+        x:[{t:'Mileage and movement',m:'—',d:'Nothing near limit. If you are trying hard, it stops being this session.'}]},
+      rest:{n:'Rest', w:'—', c:'--grey', finger:0, pull:0, x:[]}
+    }
+  },
+
+  /* Placeholder generic program — used for Joe until his questionnaire
+     answers come back and this gets replaced with a program built for
+     his actual weaknesses/goals, same as Oscar's is built around
+     crimps and the one-arm pull-up. Swap this block out (or add his
+     own PROGRAMS['<his-email>'] entry) once you have that. */
+  'default': {
+    startDate:'2026-08-10',
+    sessions:{
+      maxFingers:{n:'Finger Strength', w:'Home · 30 min', c:'--gorse', finger:3, pull:1, ask:'Top set load',
+        x:[
+          {t:'Warm up',m:'15 min',d:'Pulse raise, then progressively heavier two-hand hangs on a jug before touching a small edge.'},
+          {t:'Edge hangs',m:'5 × 7s',d:'20mm, two hands. Add weight once all five feel solid two sessions running.',r:120},
+          {t:'Open-hand hangs',m:'4 × 7s',d:'Same edge, open-hand grip — different tendon stress than crimping.',r:120},
+          {t:'Antagonists',m:'3 sets',d:'Reverse wrist curls 3×15 · finger extensors 3×20 · external rotation 3×12.'}
+        ]},
+      pull:{n:'Pull Strength', w:'Home · 30 min', c:'--tidepool', finger:0, pull:3,
+        x:[
+          {t:'Weighted pull-ups',m:'5 × 5',d:'Full dead hang, controlled tempo. Add weight once all five are clean.',r:150},
+          {t:'Lock-off holds',m:'4 × 8s',d:'Bent-arm hold at three joint angles across the set.',r:90},
+          {t:'Rows',m:'4 × 8',d:'Ring rows or barbell rows, heavy.',r:90},
+          {t:'Dips',m:'3 × 10',d:'Push antagonist work.',r:60}
+        ]},
+      hangboard:{n:'Hangboard', w:'Gym · 25 min', c:'--slate', finger:2, pull:1, ask:'Repeater load',
+        x:[
+          {t:'Repeaters',m:'4–5 sets',d:'7s on / 3s off × 6 = one set, around 55–60% of max. Two minutes between sets.',r:120},
+          {t:'Volume climbing',m:'40 min',d:'Easy mileage, not limit attempts.'}
+        ]},
+      climbHard:{n:'Limit Session', w:'Gym · 90 min', c:'--heather', finger:2, pull:2, climb:1,
+        x:[
+          {t:'Limit bouldering',m:'50 min',d:'Hardest moves you can do with good form. This is where the session earns its keep.',r:180},
+          {t:'Cool down',m:'10 min',d:'Easy traversing, then antagonist work.'}
+        ]},
+      outdoorHard:{n:'Outdoor', w:'Crag', c:'--heather', finger:3, pull:2, climb:1,
+        x:[
+          {t:'Warm up properly',m:'20 min',d:'Cold fingers on cold rock is how injuries happen.'},
+          {t:'Project',m:'—',d:'Pick something that pushes you.'}
+        ]},
+      climbEasy:{n:'Easy Climbing', w:'Anywhere', c:'--tidepool', finger:1, pull:1, climb:1,
+        x:[{t:'Mileage and movement',m:'—',d:'Nothing near limit — volume and movement quality only.'}]},
+      rest:{n:'Rest', w:'—', c:'--grey', finger:0, pull:0, x:[]}
+    }
+  }
 };
 
+function applyProgram(email){
+  var key = (email||'').toLowerCase();
+  var p = PROGRAMS[key] || PROGRAMS['default'];
+  START_DATE = p.startDate;
+  T = p.sessions;
+}
+
+/* ------------------------------------------------------------
+   RULES ENGINE — shared across everyone. Only PROGRAMS above
+   varies per person; the gating logic below does not.
+   ------------------------------------------------------------ */
 var ORDER=['maxFingers','hangboard','pull','climbHard','outdoorHard','climbEasy','rest'];
 var CLIMB=['climbHard','outdoorHard','climbEasy'];
 var FING=['maxFingers','hangboard','climbHard','outdoorHard'];
@@ -395,6 +464,7 @@ function boot(){
   sb.auth.getSession().then(function(res){
     if(!res.data.session){ $('topU').hidden=true; showLogin(); return; }
     $('bar').style.display='';
+    applyProgram(res.data.session.user.email);
     showWho(res.data.session.user.email);
     Store.load().then(function(){ sessionReady=true; render(); });
   });
