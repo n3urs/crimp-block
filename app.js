@@ -784,25 +784,54 @@ var sessionReady = false;
 function showLogin(msg){
   $('h1').textContent='Sign in';
   $('where').textContent='Crimp Block';
-  $('why').textContent = msg || 'Enter your email for a magic sign-in link. Each email gets its own private log — share the URL, everyone keeps their own data.';
+  $('why').textContent = msg || 'Enter your email. Each email gets its own private log — share the URL, everyone keeps their own data.';
   $('bar').style.display='none';
   $('list').innerHTML =
     '<div class="num" style="margin-top:20px">'+
       '<input type="email" inputmode="email" id="loginEmail" placeholder="you@example.com">'+
     '</div>'+
-    '<div class="row2"><button class="pri" id="loginSend">Send link</button></div>';
+    '<div class="row2"><button class="pri" id="loginSend">Send code</button></div>';
   $('loginSend').onclick=function(){
     var email=$('loginEmail').value.trim();
     if(!email) return;
     var btn=$('loginSend'); btn.disabled=true; btn.textContent='Sending…';
     sb.auth.signInWithOtp({email:email, options:{emailRedirectTo:location.origin+location.pathname}}).then(function(res){
       if(res.error){ showLogin('Something went wrong: '+res.error.message); return; }
-      $('h1').textContent='Check email';
-      $('where').textContent='Sign-in';
-      $('why').textContent='Magic link sent to '+email+'. Open it on this device to continue.';
-      $('list').innerHTML='';
+      showCode(email);
     });
   };
+}
+
+/* Code entry rather than relying on the emailed link.
+   Tapping the link opens Safari, and Safari and the iOS wrapper's WKWebView
+   have separate storage — so a link that signs you in on the website leaves
+   the app still signed out. A typed code lands the session in whichever one
+   you are actually looking at, and works the same on every device. The link
+   still works too, for anyone who prefers it in a browser. */
+function showCode(email, msg){
+  $('h1').textContent='Enter code';
+  $('where').textContent='Sign-in';
+  $('why').textContent = msg || 'Six-digit code sent to '+email+'. Typing it here signs you in on this device — in the app, tapping the emailed link would sign you in to Safari instead.';
+  $('bar').style.display='none';
+  $('list').innerHTML =
+    '<div class="num" style="margin-top:20px">'+
+      '<input type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" id="otpIn" placeholder="000000">'+
+    '</div>'+
+    '<div class="row2"><button class="sec" id="otpBack">Back</button><button class="pri" id="otpGo">Sign in</button></div>';
+  setTimeout(function(){ var el=$('otpIn'); if(el) el.focus(); },120);
+
+  function submit(){
+    var token=$('otpIn').value.trim();
+    if(token.length<6) return;
+    var btn=$('otpGo'); btn.disabled=true; btn.textContent='Checking…';
+    sb.auth.verifyOtp({email:email, token:token, type:'email'}).then(function(res){
+      if(res.error){ showCode(email, 'That code did not work: '+res.error.message+' Codes expire, so request a new one if it has been a while.'); return; }
+      boot();
+    });
+  }
+  $('otpGo').onclick=submit;
+  $('otpIn').onkeydown=function(e){ if(e.key==='Enter') submit(); };
+  $('otpBack').onclick=function(){ showLogin(); };
 }
 
 function showWho(email){
