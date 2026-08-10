@@ -1,0 +1,383 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		A658403534DCDFAE75701C4B /* CrimpBlockApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3D6C85DA89BAAA37248F4D4C /* CrimpBlockApp.swift */; };
+		24D651BBF0F9C23021ACDF1D /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A71E1C741FAD504C1462171B /* ContentView.swift */; };
+		B36DCB53FC740A4DA5EB8BCE /* Forecast.swift in Sources */ = {isa = PBXBuildFile; fileRef = C43BD3E3C9BDFB29CC44AD87 /* Forecast.swift */; };
+		2D0DBF68350AF3995662E19C /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 199D95D3AB13E7DF7CB52182 /* Assets.xcassets */; };
+		6E3BC0816F646C5C486516D7 /* CrimpBlockWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F5EA7A8AFC0BF42C7FC0B3A /* CrimpBlockWidget.swift */; };
+		B467629214EFBEB2FB04199B /* Forecast.swift in Sources */ = {isa = PBXBuildFile; fileRef = C43BD3E3C9BDFB29CC44AD87 /* Forecast.swift */; };
+		128EBBE24588227ABA28C1CD /* CrimpBlockWidgetExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = A5221723F055193DCAAC847A /* CrimpBlockWidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		996C44C1E081EBEAF9B0054E /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 0BE12DF9407D2C38A0E912F5 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = D01DF4CA95263393F405FD3E;
+			remoteInfo = CrimpBlockWidgetExtension;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		8C33915E187576F37B66F539 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				128EBBE24588227ABA28C1CD /* CrimpBlockWidgetExtension.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
+/* Begin PBXFileReference section */
+		E543EA876DDB2AC85E5B67C1 /* CrimpBlock.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = CrimpBlock.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		A5221723F055193DCAAC847A /* CrimpBlockWidgetExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = CrimpBlockWidgetExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		3D6C85DA89BAAA37248F4D4C /* CrimpBlockApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CrimpBlockApp.swift; sourceTree = "<group>"; };
+		A71E1C741FAD504C1462171B /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		199D95D3AB13E7DF7CB52182 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		CF2F221A9F4201ED25C77F10 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		C9376940D0FBDDF94F567CD0 /* CrimpBlock.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = CrimpBlock.entitlements; sourceTree = "<group>"; };
+		6F5EA7A8AFC0BF42C7FC0B3A /* CrimpBlockWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CrimpBlockWidget.swift; sourceTree = "<group>"; };
+		4467F1D93EB356D299EBDDCD /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		8F785CD80E8569F223B49427 /* CrimpBlockWidget.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = CrimpBlockWidget.entitlements; sourceTree = "<group>"; };
+		C43BD3E3C9BDFB29CC44AD87 /* Forecast.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Forecast.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		87425B26BAA1F0928F6ECB3E /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = ();
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		548113D13845A9B538A29327 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = ();
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		A11949F6B9BFE9EC92C4392A = {
+			isa = PBXGroup;
+			children = (
+				B059E2B5F5EDE8F44DF5AE82 /* CrimpBlock */,
+				5296CA2E8A3BB2E37124A76C /* CrimpBlockWidget */,
+				A653ED356B058A8D1CD6CE8B /* Shared */,
+				07FBF00CAEC90E427FE7B262 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		07FBF00CAEC90E427FE7B262 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				E543EA876DDB2AC85E5B67C1 /* CrimpBlock.app */,
+				A5221723F055193DCAAC847A /* CrimpBlockWidgetExtension.appex */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		B059E2B5F5EDE8F44DF5AE82 /* CrimpBlock */ = {
+			isa = PBXGroup;
+			children = (
+				3D6C85DA89BAAA37248F4D4C /* CrimpBlockApp.swift */,
+				A71E1C741FAD504C1462171B /* ContentView.swift */,
+				199D95D3AB13E7DF7CB52182 /* Assets.xcassets */,
+				CF2F221A9F4201ED25C77F10 /* Info.plist */,
+				C9376940D0FBDDF94F567CD0 /* CrimpBlock.entitlements */,
+			);
+			path = CrimpBlock;
+			sourceTree = "<group>";
+		};
+		5296CA2E8A3BB2E37124A76C /* CrimpBlockWidget */ = {
+			isa = PBXGroup;
+			children = (
+				6F5EA7A8AFC0BF42C7FC0B3A /* CrimpBlockWidget.swift */,
+				4467F1D93EB356D299EBDDCD /* Info.plist */,
+				8F785CD80E8569F223B49427 /* CrimpBlockWidget.entitlements */,
+			);
+			path = CrimpBlockWidget;
+			sourceTree = "<group>";
+		};
+		A653ED356B058A8D1CD6CE8B /* Shared */ = {
+			isa = PBXGroup;
+			children = (
+				C43BD3E3C9BDFB29CC44AD87 /* Forecast.swift */,
+			);
+			path = Shared;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		A1813AA567F9F54F5131E3D3 /* CrimpBlock */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = B87F553A23E9F13665B4BF78 /* Build configuration list for PBXNativeTarget "CrimpBlock" */;
+			buildPhases = (
+				33F3A69A4D49768FD0A0014C /* Sources */,
+				87425B26BAA1F0928F6ECB3E /* Frameworks */,
+				6C60CB9B290726E2FDB33449 /* Resources */,
+				8C33915E187576F37B66F539 /* Embed Foundation Extensions */,
+			);
+			buildRules = ();
+			dependencies = (
+				DE845A94F80ABDA7663B3536 /* PBXTargetDependency */,
+			);
+			name = CrimpBlock;
+			productName = CrimpBlock;
+			productReference = E543EA876DDB2AC85E5B67C1 /* CrimpBlock.app */;
+			productType = "com.apple.product-type.application";
+		};
+		D01DF4CA95263393F405FD3E /* CrimpBlockWidgetExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 11912D043489B3B8DB3E5895 /* Build configuration list for PBXNativeTarget "CrimpBlockWidgetExtension" */;
+			buildPhases = (
+				5C6CCCA0AE2F9B335E7EFF51 /* Sources */,
+				548113D13845A9B538A29327 /* Frameworks */,
+				C4CD9E38C444F28A4BA04C0F /* Resources */,
+			);
+			buildRules = ();
+			dependencies = ();
+			name = CrimpBlockWidgetExtension;
+			productName = CrimpBlockWidgetExtension;
+			productReference = A5221723F055193DCAAC847A /* CrimpBlockWidgetExtension.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		0BE12DF9407D2C38A0E912F5 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 1600;
+				LastUpgradeCheck = 1600;
+				TargetAttributes = {
+					A1813AA567F9F54F5131E3D3 = { CreatedOnToolsVersion = 16.0; };
+					D01DF4CA95263393F405FD3E = { CreatedOnToolsVersion = 16.0; };
+				};
+			};
+			buildConfigurationList = 92BED72DA5E11B035406C3B0 /* Build configuration list for PBXProject "CrimpBlock" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = ( en, Base, );
+			mainGroup = A11949F6B9BFE9EC92C4392A;
+			productRefGroup = 07FBF00CAEC90E427FE7B262 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				A1813AA567F9F54F5131E3D3 /* CrimpBlock */,
+				D01DF4CA95263393F405FD3E /* CrimpBlockWidgetExtension */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		6C60CB9B290726E2FDB33449 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				2D0DBF68350AF3995662E19C /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		C4CD9E38C444F28A4BA04C0F /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = ();
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		33F3A69A4D49768FD0A0014C /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				24D651BBF0F9C23021ACDF1D /* ContentView.swift in Sources */,
+				A658403534DCDFAE75701C4B /* CrimpBlockApp.swift in Sources */,
+				B36DCB53FC740A4DA5EB8BCE /* Forecast.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		5C6CCCA0AE2F9B335E7EFF51 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				6E3BC0816F646C5C486516D7 /* CrimpBlockWidget.swift in Sources */,
+				B467629214EFBEB2FB04199B /* Forecast.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		DE845A94F80ABDA7663B3536 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = D01DF4CA95263393F405FD3E /* CrimpBlockWidgetExtension */;
+			targetProxy = 996C44C1E081EBEAF9B0054E /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		3CE20634B666D1A470D7897F /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MTL_FAST_MATH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.0;
+				ONLY_ACTIVE_ARCH = YES;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				ENABLE_TESTABILITY = YES;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+			};
+			name = Debug;
+		};
+		8AD368C71FC3B120E36F1D36 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MTL_FAST_MATH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.0;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		03A1206B7F005E4284FA274E /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = CrimpBlock/CrimpBlock.entitlements;
+				INFOPLIST_FILE = CrimpBlock/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "Crimp Block";
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				PRODUCT_BUNDLE_IDENTIFIER = uk.co.sullivanltd.crimpblock;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+			};
+			name = Debug;
+		};
+		F76AA42E5A0AD40CC173C403 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = CrimpBlock/CrimpBlock.entitlements;
+				INFOPLIST_FILE = CrimpBlock/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "Crimp Block";
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				PRODUCT_BUNDLE_IDENTIFIER = uk.co.sullivanltd.crimpblock;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+			};
+			name = Release;
+		};
+		6AD547E4269EB2D7617915C9 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				CODE_SIGN_ENTITLEMENTS = CrimpBlockWidget/CrimpBlockWidget.entitlements;
+				INFOPLIST_FILE = CrimpBlockWidget/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "Crimp Block";
+				PRODUCT_BUNDLE_IDENTIFIER = uk.co.sullivanltd.crimpblock.widget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+			};
+			name = Debug;
+		};
+		65E00C13A1A5AFC5EDB46332 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				CODE_SIGN_ENTITLEMENTS = CrimpBlockWidget/CrimpBlockWidget.entitlements;
+				INFOPLIST_FILE = CrimpBlockWidget/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "Crimp Block";
+				PRODUCT_BUNDLE_IDENTIFIER = uk.co.sullivanltd.crimpblock.widget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		92BED72DA5E11B035406C3B0 /* Build configuration list for PBXProject "CrimpBlock" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = ( 3CE20634B666D1A470D7897F /* Debug */, 8AD368C71FC3B120E36F1D36 /* Release */, );
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		B87F553A23E9F13665B4BF78 /* Build configuration list for PBXNativeTarget "CrimpBlock" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = ( 03A1206B7F005E4284FA274E /* Debug */, F76AA42E5A0AD40CC173C403 /* Release */, );
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		11912D043489B3B8DB3E5895 /* Build configuration list for PBXNativeTarget "CrimpBlockWidgetExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = ( 6AD547E4269EB2D7617915C9 /* Debug */, 65E00C13A1A5AFC5EDB46332 /* Release */, );
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 0BE12DF9407D2C38A0E912F5 /* Project object */;
+}
