@@ -1,27 +1,69 @@
-/* Offline cache. Bump CACHE when you change any file. */
-var CACHE = 'crimp-v25';
+/* Offline cache.
+
+   Network-first for our own files. This is a live web app wrapped in an iOS
+   shell, so pushing is the only way fixes reach the phone — a stale cache
+   silently swallows them, which is exactly what happened with the sign-in
+   code length. Cache is the fallback for offline, which is the case that
+   actually matters (logging a session at the crag with no signal).
+
+   Bump CACHE when you change any file. */
+var CACHE = 'crimp-v26';
 var FILES = ['./','./index.html','./app.js','./manifest.json','./icon.svg'];
+var NET_TIMEOUT = 4000;
 
 self.addEventListener('install', function(e){
   self.skipWaiting();
-  e.waitUntil(caches.open(CACHE).then(function(c){ return c.addAll(FILES); }));
+  e.waitUntil(caches.open(CACHE).then(function(c){
+    /* cache:'reload' bypasses the HTTP cache. Without it, GitHub Pages'
+       max-age=600 means a fresh install can repopulate the new cache with
+       the OLD files and the update is lost with no error anywhere. */
+    return Promise.all(FILES.map(function(u){
+      return fetch(new Request(u, {cache:'reload'}))
+        .then(function(res){ if(res && res.ok) return c.put(u, res); })
+        .catch(function(){});
+    }));
+  }));
 });
 
 self.addEventListener('activate', function(e){
   e.waitUntil(caches.keys().then(function(keys){
-    return Promise.all(keys.filter(function(k){ return k!==CACHE; }).map(function(k){ return caches.delete(k); }));
+    return Promise.all(keys.filter(function(k){ return k!==CACHE; })
+                           .map(function(k){ return caches.delete(k); }));
   }).then(function(){ return self.clients.claim(); }));
 });
 
 self.addEventListener('fetch', function(e){
-  if(e.request.method !== 'GET') return;
+  var req = e.request;
+  if(req.method !== 'GET') return;
+  /* Leave Supabase and the font CDN alone — they handle their own caching
+     and must never be served from a stale copy. */
+  if(new URL(req.url).origin !== self.location.origin) return;
+
   e.respondWith(
-    caches.match(e.request).then(function(hit){
-      return hit || fetch(e.request).then(function(res){
-        var copy = res.clone();
-        caches.open(CACHE).then(function(c){ c.put(e.request, copy); }).catch(function(){});
-        return res;
-      }).catch(function(){ return caches.match('./index.html'); });
+    new Promise(function(resolve){
+      var settled = false;
+      function done(r){ if(!settled && r){ settled = true; resolve(r); } }
+
+      /* Don't let a hanging connection (one bar of signal at the crag) block
+         the app forever — fall back to cache after a few seconds. */
+      var timer = setTimeout(function(){
+        caches.match(req).then(function(hit){ if(hit) done(hit); });
+      }, NET_TIMEOUT);
+
+      fetch(req).then(function(res){
+        clearTimeout(timer);
+        if(res && res.ok){
+          var copy = res.clone();
+          caches.open(CACHE).then(function(c){ c.put(req, copy); }).catch(function(){});
+        }
+        done(res);
+      }).catch(function(){
+        clearTimeout(timer);
+        caches.match(req).then(function(hit){
+          if(hit) { done(hit); return; }
+          caches.match('./index.html').then(function(idx){ done(idx); });
+        });
+      });
     })
   );
 });
