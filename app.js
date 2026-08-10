@@ -497,7 +497,11 @@ function render(){
   }).join('');
   $('sdots').innerHTML=sdh;
   $('sdots').querySelectorAll('.sdot').forEach(function(b){
-    b.onclick=function(){ browseIndex=ORDER.indexOf(b.dataset.k); render(); };
+    b.onclick=function(){
+      var to=b.dataset.k;
+      if(to===key) return;
+      slideTo(dirBetween(key,to), function(){ browseIndex=ORDER.indexOf(to); });
+    };
   });
 
   $('h1').textContent=s.n;
@@ -569,6 +573,49 @@ function render(){
 function fmt(s){ var m=Math.floor(s/60),r=s%60; return m+':'+(r<10?'0':'')+r; }
 
 /* ---- swipe between sessions ---- */
+
+/* Slide the card out the way you swiped, re-render while it's off screen,
+   then bring the new one in from the opposite edge. `dir` is +1 for moving
+   forward through ORDER (finger swiped left), -1 for back. */
+var animating=false;
+function slideTo(dir, apply){
+  var card=$('card');
+  if(animating){ apply(); render(); return; }
+  if(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches){
+    apply(); render(); return;
+  }
+  animating=true;
+  card.style.transition='transform .13s ease-in, opacity .13s ease-in';
+  card.style.transform='translateX('+(dir>0?-34:34)+'px)';
+  card.style.opacity='0';
+  setTimeout(function(){
+    apply(); render();
+    card.style.transition='none';
+    card.style.transform='translateX('+(dir>0?34:-34)+'px)';
+    void card.offsetWidth;                     // force the jump to take before animating back
+    card.style.transition='transform .19s ease-out, opacity .19s ease-out';
+    card.style.transform='translateX(0)';
+    card.style.opacity='1';
+    setTimeout(function(){
+      card.style.transition=''; card.style.transform=''; card.style.opacity='';
+      animating=false;
+    },200);
+  },135);
+}
+
+/* Which way to slide when jumping to an arbitrary session — take the
+   shorter way round the list so the motion matches the dot you tapped. */
+function dirBetween(fromKey, toKey){
+  var n=ORDER.length, a=ORDER.indexOf(fromKey), b=ORDER.indexOf(toKey);
+  if(a<0||b<0||a===b) return 1;
+  return ((b-a+n)%n) <= n/2 ? 1 : -1;
+}
+
+function currentKey(){
+  var logged=Store.get(today());
+  return browseIndex!==null ? ORDER[browseIndex] : (logged?logged.t:decide(today()).k);
+}
+
 var swX=0, swY=0;
 $('card').addEventListener('touchstart',function(e){
   var t=e.touches[0]; swX=t.clientX; swY=t.clientY;
@@ -576,10 +623,9 @@ $('card').addEventListener('touchstart',function(e){
 $('card').addEventListener('touchend',function(e){
   var t=e.changedTouches[0], dx=t.clientX-swX, dy=t.clientY-swY;
   if(Math.abs(dx)>50 && Math.abs(dx)>Math.abs(dy)*1.5){
-    var logged=Store.get(today()), d=decide(today());
-    var cur = browseIndex!==null ? ORDER[browseIndex] : (logged?logged.t:d.k);
-    var idx=(ORDER.indexOf(cur)+(dx<0?1:-1)+ORDER.length)%ORDER.length;
-    browseIndex=idx; render();
+    var dir = dx<0 ? 1 : -1;
+    var idx=(ORDER.indexOf(currentKey())+dir+ORDER.length)%ORDER.length;
+    slideTo(dir, function(){ browseIndex=idx; });
   }
 },{passive:true});
 
@@ -790,10 +836,17 @@ function showLogin(msg){
     '<div class="num" style="margin-top:20px">'+
       '<input type="email" inputmode="email" id="loginEmail" placeholder="you@example.com">'+
     '</div>'+
-    '<div class="row2"><button class="pri" id="loginSend">Send code</button></div>';
+    '<div class="row2"><button class="pri go off" id="loginSend">Send code</button></div>';
+
+  function emailOK(){ return /\S+@\S+\.\S+/.test($('loginEmail').value.trim()); }
+  function syncBtn(){ $('loginSend').classList.toggle('off', !emailOK()); }
+  $('loginEmail').oninput=syncBtn;
+  $('loginEmail').onkeydown=function(e){ if(e.key==='Enter' && emailOK()) $('loginSend').click(); };
+  syncBtn();
+
   $('loginSend').onclick=function(){
     var email=$('loginEmail').value.trim();
-    if(!email) return;
+    if(!emailOK()) return;
     var btn=$('loginSend'); btn.disabled=true; btn.textContent='Sending…';
     sb.auth.signInWithOtp({email:email, options:{emailRedirectTo:location.origin+location.pathname}}).then(function(res){
       if(res.error){ showLogin('Something went wrong: '+res.error.message); return; }
@@ -821,8 +874,16 @@ function showCode(email, msg){
     '<div class="num" style="margin-top:20px">'+
       '<input type="text" inputmode="numeric" autocomplete="one-time-code" id="otpIn" placeholder="code from email">'+
     '</div>'+
-    '<div class="row2"><button class="sec" id="otpBack">Back</button><button class="pri" id="otpGo">Sign in</button></div>';
+    '<div class="row2"><button class="sec" id="otpBack">Back</button><button class="pri go off" id="otpGo">Sign in</button></div>';
   setTimeout(function(){ var el=$('otpIn'); if(el) el.focus(); },120);
+
+  /* Length isn't fixed (it's a Supabase project setting), so this only
+     checks there's a plausible amount of digits — the server is still the
+     one that decides whether the code is right. */
+  function codeOK(){ return $('otpIn').value.replace(/\D/g,'').length>=4; }
+  function syncBtn(){ $('otpGo').classList.toggle('off', !codeOK()); }
+  $('otpIn').oninput=syncBtn;
+  syncBtn();
 
   function submit(){
     // tolerate pasted codes with spaces or stray characters

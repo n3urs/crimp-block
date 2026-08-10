@@ -142,6 +142,11 @@ h1{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:clamp(42p
 .row2 button{flex:1;padding:16px;border-radius:var(--r);font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:17px;letter-spacing:.12em;text-transform:uppercase;cursor:pointer}
 .pri{background:var(--c);border:none;color:var(--bg)}
 .sec{background:none;border:1px solid var(--s3);color:var(--dim)}
+/* Sign-in buttons can't inherit --c: no session is showing yet, so it falls
+   back to grey and the button reads as disabled. Fixed accent instead, and
+   visibly dimmed until the field actually holds something valid. */
+.pri.go{background:var(--gorse);color:var(--bg);transition:background .15s,color .15s}
+.pri.go.off{background:var(--s3);color:var(--faint)}
 :focus-visible{outline:2px solid var(--c);outline-offset:2px}
 .toast{position:fixed;left:18px;right:18px;bottom:calc(96px + env(safe-area-inset-bottom));z-index:70;background:#3a1f1f;border:1px solid #7a3535;color:#f0d5d5;font-family:'IBM Plex Mono',monospace;font-size:12.5px;line-height:1.4;padding:12px 14px;border-radius:var(--r);opacity:0;pointer-events:none;transform:translateY(6px);transition:opacity .2s,transform .2s;max-width:620px;margin:0 auto}
 .toast.on{opacity:1;transform:translateY(0)}
