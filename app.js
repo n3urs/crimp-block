@@ -9,7 +9,7 @@
 
 /* >>> Active program set from PROGRAMS below once the signed-in
    user's email is known. See applyProgram(). <<< */
-var START_DATE, T, PHASES;
+var START_DATE, T, PHASES, PER_WEEK;
 
 /* ------------------------------------------------------------
    STORE — the ONLY place persistence happens.
@@ -23,8 +23,10 @@ var sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
 var Store = {
   _d:{},
   load:async function(){
-    var since = new Date(Date.now() - 60*86400000).toISOString().slice(0,10);
-    var res = await sb.from('sessions').select('date,type,load').gte('date', since);
+    /* From the program start, not a rolling window — block progression counts
+       every training day since day one, so a 60-day window would quietly
+       rewind the plan. */
+    var res = await sb.from('sessions').select('date,type,load').gte('date', START_DATE);
     this._d = {};
     (res.data||[]).forEach(function(r){ this._d[r.date] = {t:r.type, l:r.load}; }, this);
   },
@@ -64,11 +66,12 @@ var PROGRAMS = {
     /* Phases run in block order. `from` is the block this phase starts at,
        and it holds until the next phase's `from`. Week 4 of every block is
        a deload — see isDeload()/decide(). */
+    perWeek:4,
     phases:[
-      {n:'Base', from:1, d:'Four weeks building tissue tolerance before the heavy work starts. Loads sit clearly submaximal and sets run longer — the point is capacity and movement quality, not a top set. You are already training, so this is short: one block, not two.'},
-      {n:'Max Strength', from:2, d:'The main event, and the longest phase — twelve weeks. Pickups and hangs go near-maximal, rests go long, set counts stay low. This is where the crimp weakness and the one-arm actually move. Everything else in the week exists to let these sessions happen fresh.'},
-      {n:'Power', from:5, d:'Converting the strength you built into speed. Same movements, fewer reps, moved fast and explosively rather than ground out. Contact strength on the fingers rather than long holds.'},
-      {n:'Performance', from:6, d:'Structured training steps back and climbing takes over. Keep one light finger session a week to hold what you built, and spend the rest of your days projecting. This is when the previous five months are supposed to show up on rock.'}
+      {n:'Base', from:1, c:'--tidepool', d:'Four weeks building tissue tolerance before the heavy work starts. Loads sit clearly submaximal and sets run longer — the point is capacity and movement quality, not a top set. You are already training, so this is short: one block, not two.'},
+      {n:'Max Strength', from:2, c:'--gorse', d:'The main event, and the longest phase — twelve weeks. Pickups and hangs go near-maximal, rests go long, set counts stay low. This is where the crimp weakness and the one-arm actually move. Everything else in the week exists to let these sessions happen fresh.'},
+      {n:'Power', from:5, c:'--heather', d:'Converting the strength you built into speed. Same movements, fewer reps, moved fast and explosively rather than ground out. Contact strength on the fingers rather than long holds.'},
+      {n:'Performance', from:6, c:'--slate', d:'Structured training steps back and climbing takes over. Keep one light finger session a week to hold what you built, and spend the rest of your days projecting. This is when the previous five months are supposed to show up on rock.'}
     ],
     sessions:{
       maxFingers:{n:'Max Fingers', w:'Home · 50 min', c:'--gorse', finger:3, pull:1, ask:'Top set — one-arm pickup',
@@ -129,12 +132,13 @@ var PROGRAMS = {
        and add matching `ph` entries: sloper hangs '2 × 7s — light, keep
        sharp', endurance circuit 'skip', limit bouldering '30 min — Font-
        style, well short of failure'. */
+    perWeek:4,
     phases:[
-      {n:'Max Strength', from:1, d:'Weeks 1–4. Straight at it — you are already training 2–3x a week, so there is no need for a long base phase. Sloper and open-hand work goes near-maximal, weighted pull-ups build toward a real one-rep max. Strength first, because everything else is easier to add on top of it than the other way round.'},
-      {n:'Power Endurance', from:2, d:'Weeks 5–8. Strength work drops to maintenance and the endurance gap becomes the priority — that is the thing most likely to cost you a 7B+. Circuits, boulder doubles and 4x4s move to the front of the session, where they get your best effort instead of your leftovers.'},
-      {n:'Max Strength', from:3, d:'Weeks 9–16. Second strength block, and the long one. You come into it stronger and better conditioned than block 1, so the loads should be meaningfully higher — that is the point of alternating rather than grinding one quality for six months.'},
-      {n:'Power Endurance', from:5, d:'Weeks 17–20. Convert the second strength block into staying power. Same format as before, heavier problems in the circuits.'},
-      {n:'Performance', from:6, d:'Weeks 21–24. Structured training steps back and climbing takes over — keep one finger session and one circuit a week to hold what you built, and spend the rest projecting. If the Font trip has a date by now, say so and this becomes a proper taper instead.'}
+      {n:'Max Strength', from:1, c:'--gorse', d:'Straight at it — you are already training 2–3x a week, so there is no need for a long base phase. Sloper and open-hand work goes near-maximal, weighted pull-ups build toward a real one-rep max. Strength first, because everything else is easier to add on top of it than the other way round.'},
+      {n:'Power Endurance', from:2, c:'--tidepool', d:'Strength work drops to maintenance and the endurance gap becomes the priority — that is the thing most likely to cost you a 7B+. Circuits, boulder doubles and 4x4s move to the front of the session, where they get your best effort instead of your leftovers.'},
+      {n:'Max Strength', from:3, c:'--gorse', d:'Second strength block, and the long one. You come into it stronger and better conditioned than the first, so the loads should be meaningfully higher — that is the point of alternating rather than grinding one quality for six months.'},
+      {n:'Power Endurance', from:5, c:'--tidepool', d:'Convert the second strength block into staying power. Same format as before, heavier problems in the circuits.'},
+      {n:'Performance', from:6, c:'--slate', d:'Structured training steps back and climbing takes over — keep one finger session and one circuit a week to hold what you built, and spend the rest projecting. If the Font trip has a date by now, say so and this becomes a proper taper instead.'}
     ],
     sessions:{
       maxFingers:{n:'Max Strength', w:'Work · 40 min', c:'--gorse', finger:3, pull:1, ask:'Top set load',
@@ -181,11 +185,12 @@ var PROGRAMS = {
      and Joe's compression/sloper program above). */
   'default': {
     startDate:'2026-08-10',
+    perWeek:4,
     phases:[
-      {n:'Base', from:1, d:'Build capacity and movement quality before loading heavy. Submaximal throughout.'},
-      {n:'Max Strength', from:2, d:'Near-maximal work, long rests, low set counts.'},
-      {n:'Power', from:5, d:'Convert strength to speed — same movements, fewer reps, moved fast.'},
-      {n:'Performance', from:6, d:'Structured training steps back, climbing takes over.'}
+      {n:'Base', from:1, c:'--tidepool', d:'Build capacity and movement quality before loading heavy. Submaximal throughout.'},
+      {n:'Max Strength', from:2, c:'--gorse', d:'Near-maximal work, long rests, low set counts.'},
+      {n:'Power', from:5, c:'--heather', d:'Convert strength to speed — same movements, fewer reps, moved fast.'},
+      {n:'Performance', from:6, c:'--slate', d:'Structured training steps back, climbing takes over.'}
     ],
     sessions:{
       maxFingers:{n:'Finger Strength', w:'Home · 30 min', c:'--gorse', finger:3, pull:1, ask:'Top set load',
@@ -230,6 +235,7 @@ function applyProgram(email){
   START_DATE = p.startDate;
   T = p.sessions;
   PHASES = p.phases;
+  PER_WEEK = p.perWeek || 4;
 }
 
 /* ------------------------------------------------------------
@@ -252,10 +258,28 @@ function addDays(base,n){ var d=new Date(base+'T12:00:00'); d.setDate(d.getDate(
    deload, and unlike before this actually changes what decide()
    recommends, not just the header text.
    ------------------------------------------------------------ */
+/* A "training week" is a week's worth of work actually done, NOT seven days
+   elapsed. Calendar weeks would march the plan forward through illness,
+   holidays and busy spells, dumping you into a Max Strength block having
+   trained twice — which contradicts the whole point of the daily engine.
+   So: count logged days that carried load, and advance every PER_WEEK of
+   them. Take a fortnight off and you resume exactly where you left off. */
+function isTraining(t){ return load(t,'finger')+load(t,'pull')>0; }
+
 function block(date){
-  var ms=new Date((date||today())+'T12:00:00').getTime()-new Date(START_DATE+'T12:00:00').getTime();
-  var w=Math.max(0,Math.floor(ms/604800000));
-  return {b:Math.min(6,Math.floor(w/4)+1), w:(w%4)+1};
+  date = date || today();
+  var all=Store.all(), n=0;
+  for(var k in all){
+    if(k>=START_DATE && k<=date && all[k] && isTraining(all[k].t)) n++;
+  }
+  var per=PER_WEEK, wIdx=Math.floor(n/per);
+  return {
+    b: Math.min(6, Math.floor(wIdx/4)+1),
+    w: (wIdx%4)+1,
+    done: n%per,        // sessions banked into the current week
+    per: per,
+    total: n            // total training days since the block started
+  };
 }
 /* Index, not the object — a plan may repeat a phase name (e.g. two separate
    Max Strength blocks), and "you are here" has to mark the right one. */
@@ -460,17 +484,43 @@ function pick(date){
 }
 
 /* ---- the plan / timeline ---- */
+
+/* Which exercises this phase actually rewrites — derived from the `ph`
+   overrides rather than written out by hand, so it can never drift. */
+function phaseChanges(name){
+  var out=[];
+  ORDER.forEach(function(k){
+    T[k].x.forEach(function(e){
+      if(e.ph && e.ph[name]) out.push({s:T[k].n, t:e.t, m:e.ph[name]});
+    });
+  });
+  return out;
+}
+
+function bar(done,total,col){
+  var pct=Math.round((done/total)*100);
+  return '<div class="bar-t"><i style="width:'+pct+'%;background:'+col+'"></i></div>';
+}
+
 function showPlan(){
-  var p=block(), curI=phaseIndexAt(p.b);
+  var p=block(), curI=phaseIndexAt(p.b), cur=PHASES[curI];
+  var col=v(cur.c||'--c');
+
   var h='<h2>The plan</h2>'+
-    '<p class="shp">Block '+p.b+' · Week '+p.w+(p.w===4?' · Deload week':'')+
-    '. Every fourth week is a deload — the app drops its own limits that week and asks for more rest.</p>';
+    '<div class="plan-now" style="border-left-color:'+col+'">'+
+      '<div class="plan-now-t" style="color:'+col+'">'+cur.n+' · Block '+p.b+' · Week '+p.w+(p.w===4?' · Deload':'')+'</div>'+
+      bar(p.done,p.per,col)+
+      '<div class="plan-now-s">'+p.done+' of '+p.per+' sessions into this week · '+p.total+' logged since you started</div>'+
+    '</div>'+
+    '<p class="shp">A week advances when you have banked '+p.per+' sessions that carried load — not every 7 days. Take a fortnight off and you pick up exactly where you left off. Four weeks make a block, and every fourth week is a deload, where the app tightens its own limits and pushes rest.</p>';
+
   h+=PHASES.map(function(x,i){
-    var on = i===curI;
-    return '<button class="opt" style="--oc:'+(on?'var(--c)':'var(--s4)')+'" data-p="'+i+'">'+
+    var on=i===curI, c=v(x.c||'--s4');
+    return '<button class="opt" style="--oc:'+c+(on?'':';opacity:.62')+'" data-p="'+i+'">'+
       '<span class="optn">'+x.n+'</span>'+
       '<span class="opts">'+(on?'NOW · ':'')+phaseRange(i)+'</span></button>';
   }).join('');
+
   open(h);
   $('shIn').querySelectorAll('.opt').forEach(function(b){
     b.onclick=function(){ showPhase(+b.dataset.p); };
@@ -478,11 +528,34 @@ function showPlan(){
 }
 
 function showPhase(i){
-  var x=PHASES[i], p=block(), on=i===phaseIndexAt(block().b);
-  open('<h2>'+x.n+'</h2>'+
-    '<p class="shp">'+phaseRange(i)+(on?' · you are here':'')+'</p>'+
-    '<p class="shp" style="color:var(--dim)">'+x.d+'</p>'+
-    '<div class="row2" style="margin-top:16px"><button class="sec" id="phBack">Back</button></div>');
+  var x=PHASES[i], p=block(), on=i===phaseIndexAt(p.b);
+  var col=v(x.c||'--c'), ch=phaseChanges(x.n);
+  var weeks=(i===PHASES.length-1) ? null : (PHASES[i+1].from-x.from)*4;
+
+  var h='<h2 style="color:'+col+'">'+x.n+'</h2>'+
+    '<p class="shp">'+phaseRange(i)+' · '+(weeks?weeks+' training weeks':'runs to the end of the plan')+
+      (on?' · <span style="color:'+col+'">you are here</span>':'')+'</p>';
+
+  if(on) h+='<div class="plan-now" style="border-left-color:'+col+'">'+
+      bar(p.done,p.per,col)+
+      '<div class="plan-now-s">Week '+p.w+' of 4 · '+p.done+' of '+p.per+' sessions banked'+(p.w===4?' · deload week':'')+'</div>'+
+    '</div>';
+
+  h+='<p class="shp" style="color:var(--dim)">'+x.d+'</p>';
+
+  if(ch.length){
+    h+='<div class="plan-h">What changes in this phase</div>';
+    h+=ch.map(function(c){
+      return '<div class="plan-ch"><div class="plan-ch-t">'+c.t+'<span>'+c.s+'</span></div>'+
+        '<div class="plan-ch-m" style="color:'+col+'">'+c.m+'</div></div>';
+    }).join('');
+  } else {
+    h+='<div class="plan-h">What changes in this phase</div>'+
+       '<p class="shp">Sessions run at their standard prescriptions — this is the phase the others are written against.</p>';
+  }
+
+  h+='<div class="row2" style="margin-top:18px"><button class="sec" id="phBack">Back</button></div>';
+  open(h);
   $('phBack').onclick=showPlan;
 }
 
