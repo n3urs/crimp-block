@@ -811,18 +811,23 @@ function showLogin(msg){
 function showCode(email, msg){
   $('h1').textContent='Enter code';
   $('where').textContent='Sign-in';
-  $('why').textContent = msg || 'Six-digit code sent to '+email+'. Typing it here signs you in on this device — in the app, tapping the emailed link would sign you in to Safari instead.';
+  $('why').textContent = msg || 'Sign-in code sent to '+email+'. Typing it here signs you in on this device — in the app, tapping the emailed link would sign you in to Safari instead.';
   $('bar').style.display='none';
+  /* No maxlength: Supabase's OTP length is a per-project setting (this one
+     issues 8 digits, not the documented default of 6), so pinning a length
+     here just makes longer codes impossible to type. Let the server decide
+     what's valid. */
   $('list').innerHTML =
     '<div class="num" style="margin-top:20px">'+
-      '<input type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" id="otpIn" placeholder="000000">'+
+      '<input type="text" inputmode="numeric" autocomplete="one-time-code" id="otpIn" placeholder="code from email">'+
     '</div>'+
     '<div class="row2"><button class="sec" id="otpBack">Back</button><button class="pri" id="otpGo">Sign in</button></div>';
   setTimeout(function(){ var el=$('otpIn'); if(el) el.focus(); },120);
 
   function submit(){
-    var token=$('otpIn').value.trim();
-    if(token.length<6) return;
+    // tolerate pasted codes with spaces or stray characters
+    var token=$('otpIn').value.replace(/\D/g,'');
+    if(!token) return;
     var btn=$('otpGo'); btn.disabled=true; btn.textContent='Checking…';
     sb.auth.verifyOtp({email:email, token:token, type:'email'}).then(function(res){
       if(res.error){ showCode(email, 'That code did not work: '+res.error.message+' Codes expire, so request a new one if it has been a while.'); return; }
