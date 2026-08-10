@@ -32,6 +32,9 @@ body{
 .top{display:flex;align-items:baseline;gap:10px;padding:calc(14px + env(safe-area-inset-top)) 0 12px}
 .top-b{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:var(--c)}
 .top-d{margin-left:auto;font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:.06em;color:var(--faint);text-transform:uppercase}
+.top-u{display:flex;align-items:center;gap:6px;font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:.04em;color:var(--dim);background:var(--s1);border:1px solid var(--s3);border-radius:12px;padding:4px 10px 4px 8px;cursor:pointer}
+.top-u[hidden]{display:none}
+.top-u i{display:block;width:6px;height:6px;border-radius:50%;background:var(--tidepool)}
 
 /* week dots */
 .dots{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-bottom:26px}
@@ -107,6 +110,7 @@ h1{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:clamp(42p
 
 <div class="top">
   <span class="top-b" id="topB">—</span>
+  <span class="top-u" id="topU" hidden><i></i><span id="topUe"></span></span>
   <span class="top-d" id="topD"></span>
 </div>
 <div class="dots" id="dots"></div>

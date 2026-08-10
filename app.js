@@ -327,10 +327,25 @@ function showLogin(msg){
   };
 }
 
+function showWho(email){
+  $('topUe').textContent=email;
+  $('topU').hidden=false;
+  $('topU').onclick=function(){
+    open('<h2>Signed in</h2>'+
+      '<p class="shp">'+email+'</p>'+
+      '<button class="opt" style="--oc:var(--s4)" id="signOutBtn"><span class="optn">Sign out</span></button>');
+    $('signOutBtn').onclick=function(){
+      close();
+      sb.auth.signOut().then(function(){ location.reload(); });
+    };
+  };
+}
+
 function boot(){
   sb.auth.getSession().then(function(res){
-    if(!res.data.session){ showLogin(); return; }
+    if(!res.data.session){ $('topU').hidden=true; showLogin(); return; }
     $('bar').style.display='';
+    showWho(res.data.session.user.email);
     Store.load().then(function(){ sessionReady=true; render(); });
   });
 }
