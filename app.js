@@ -347,6 +347,51 @@ function upNext(){
   return {date:tmr, key:decide(tmr,h).k, provisional:!logged};
 }
 
+/* An N-day rolling forecast for the iOS widget. Same idea as upNext() but
+   iterated: each day the plan is assumed followed becomes the history for
+   the next. Real logged days always win over simulated ones.
+
+   Phase is taken from the current block for every day, which is correct
+   rather than lazy: the plan only advances when days are actually logged,
+   and logging requires opening the app, which regenerates this. So the
+   cached forecast is accurate for exactly as long as it is the widget's
+   only source of truth. */
+function forecast(days){
+  var sim={}, out=[], p=block(), ph=phaseAt(p.b), dl=p.w===4;
+  for(var i=0;i<days;i++){
+    var d=addDays(today(),i);
+    var real=Store.get(d), key;
+    if(real){ key=real.t; }
+    else {
+      var h=history(d).map(function(e){
+        return sim[e.date] ? {date:e.date, type:sim[e.date], ago:e.ago} : e;
+      });
+      key=decide(d,h).k;
+      sim[d]=key;
+    }
+    var s=T[key];
+    out.push({
+      date:d, key:key, name:s.n, where:s.w, colour:v(s.c), logged:!!real,
+      phase: dl ? 'Deload' : ph.n,
+      cue: key==='rest' ? '' : (dl ? 'Pull back — every set lighter or shorter this week.' : ph.cue),
+      exercises: s.x.filter(function(e){ return !/^skip\b/i.test(presc(e,ph.n)); })
+                    .map(function(e){ return {t:e.t, m:presc(e,ph.n)}; })
+    });
+  }
+  return out;
+}
+
+/* Hand the forecast to the native iOS wrapper, if we are running inside it.
+   In any normal browser window.webkit.messageHandlers is undefined, so this
+   is a complete no-op and the web app behaves exactly as it always has. */
+function pushNative(){
+  var mh = window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.crimp;
+  if(!mh) return;
+  try{
+    mh.postMessage(JSON.stringify({v:1, generated:today(), days:forecast(14)}));
+  }catch(e){ /* the bridge must never be able to break the app */ }
+}
+
 /* ------------------------------------------------------------
    RULES ENGINE
    ------------------------------------------------------------ */
@@ -517,6 +562,8 @@ function render(){
     '<span class="un-d">'+(un.provisional?'if today goes to plan · ':'')+
       new Date(un.date+'T12:00:00').toLocaleDateString('en-GB',{weekday:'short',day:'numeric'})+'</span>';
   $('upnext').onclick=function(){ preview(un.date, un.key); };
+
+  pushNative();
 }
 
 function fmt(s){ var m=Math.floor(s/60),r=s%60; return m+':'+(r<10?'0':'')+r; }
