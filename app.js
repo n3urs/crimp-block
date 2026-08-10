@@ -23,10 +23,14 @@ var sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
 var Store = {
   _d:{},
   load:async function(){
-    /* From the program start, not a rolling window — block progression counts
-       every training day since day one, so a 60-day window would quietly
-       rewind the plan. */
-    var res = await sb.from('sessions').select('date,type,load').gte('date', START_DATE);
+    /* Must cover BOTH: everything since START_DATE (block progression counts
+       every training day since day one, so a rolling window would rewind the
+       plan) AND a buffer before it (the week-dots row shows the last 7 days,
+       and you can backdate days that predate the program start — filtering
+       from START_DATE alone silently discarded those on reload). */
+    var back = addDays(today(), -60);
+    var from = back < START_DATE ? back : START_DATE;
+    var res = await sb.from('sessions').select('date,type,load').gte('date', from);
     this._d = {};
     (res.data||[]).forEach(function(r){ this._d[r.date] = {t:r.type, l:r.load}; }, this);
   },
