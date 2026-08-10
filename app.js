@@ -122,7 +122,7 @@ var PROGRAMS = {
         ]},
       hangboard:{n:'Hangboard', w:'Gym · 40–55 min + climb', c:'--slate', finger:2, pull:1, ask:'Repeater load',
         x:[
-          {t:'Warm up',m:'10 min',d:'Pulse raise, then progressively heavier two-hand hangs on a jug before touching the edge. Weighted hangs come first in this session, so you are going straight into the heaviest thing you do here.'},
+          {t:'Warm up',m:'10 min',d:'Pulse raise, then progressively heavier two-hand hangs on a jug before touching the edge. On weeks Weighted Hangs is in the session it goes first, while fingers are fresh — so warm up properly, you are heading straight into the heaviest thing you do here.'},
           {t:'Weighted hangs',m:'10s × 5',ph:{'Base':'skip — repeaters only this phase','Power':'3s × 6 — short, sharp, contact-focused','Performance':'skip — hold what you built, repeaters only'},d:'Alternate weeks, only if the gym has a belt. Heavy-ish, never maximal. This goes FIRST, while fingers are fresh — doing repeaters before it would blunt the load you can hold and mean pulling near-max on already-fatigued tissue.',r:180},
           {t:'20mm repeaters',m:'4–5 sets',ph:{'Base':'5–6 sets — lighter, higher volume','Power':'3 sets — reduced, priority is the pickups','Performance':'2–3 sets — maintain only'},d:'7s on / 3s off × 6 = one set. Around 55–60% of max. Two minutes between sets.',r:120},
           {t:'Band-assisted one-arm',m:'3 × 5s / hand',d:'If there is a pulley or a band. Closest thing to pickups you can do at work — and the right step while you cannot one-arm hang a 20mm edge unassisted. Alternate hands.',r:90},
@@ -474,12 +474,17 @@ function render(){
     $('cueT').style.color=phCol;
   }
 
-  // exercises — prescriptions follow the current phase where one is defined
+  // exercises — prescriptions follow the current phase where one is defined.
+  // A phase can skip an exercise entirely ("skip — ...") rather than just
+  // adjust its numbers — those don't render as a row at all, not a row
+  // that says "skip" while still showing its full description and timer.
   $('list').innerHTML = s.x.map(function(e,i){
+    var m=presc(e,ph.n);
+    if(/^skip\b/i.test(m)) return '';
     var on=!!ticks[key+i];
     return '<div class="ex'+(on?' done':'')+'" data-i="'+i+'">'+
       '<button class="tick" aria-pressed="'+on+'" aria-label="'+e.t+'"></button>'+
-      '<div class="eb"><div class="et"><span class="en">'+e.t+'</span><span class="em'+(presc(e,ph.n)!==e.m?' ph':'')+'">'+presc(e,ph.n)+'</span></div>'+
+      '<div class="eb"><div class="et"><span class="en">'+e.t+'</span><span class="em'+(m!==e.m?' ph':'')+'">'+m+'</span></div>'+
       (e.d?'<div class="ed">'+e.d+'</div>':'')+
       (e.r?'<button class="rest" data-r="'+e.r+'" data-l="'+e.t+'">'+fmt(e.r)+'</button>':'')+
       '</div></div>';
