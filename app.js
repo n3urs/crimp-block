@@ -333,6 +333,20 @@ function isDeload(date){ return block(date).w===4; }
 /* Show the phase-specific prescription for an exercise if it has one. */
 function presc(e,phaseName){ return (e.ph && e.ph[phaseName]) || e.m; }
 
+/* Tomorrow's forecast. decide() is a pure function of the last 7 days, so
+   asking it about tomorrow just needs one hypothetical day patched in for
+   today — whatever's actually logged, or today's own current
+   recommendation if nothing's logged yet. Doesn't touch Store, so nothing
+   here is real until today is. */
+function upNext(){
+  var tmr=addDays(today(),1);
+  var logged=Store.get(today());
+  var todayKey = logged ? logged.t : decide(today()).k;
+  var h=history(tmr);
+  h[0]={date:h[0].date, type:todayKey, ago:1};
+  return {date:tmr, key:decide(tmr,h).k, provisional:!logged};
+}
+
 /* ------------------------------------------------------------
    RULES ENGINE
    ------------------------------------------------------------ */
@@ -357,8 +371,8 @@ function streak(h){
   return n;
 }
 
-function decide(date){
-  var h=history(date);
+function decide(date, hOverride){
+  var h=hOverride || history(date);
   var yf=load(h[0].type,'finger');
   var yName=h[0].type?T[h[0].type].n:null;
   var hard=h.filter(function(e){ return isHard(e.type); }).length;
@@ -488,6 +502,16 @@ function render(){
     ? function(){ var p=Store.clear(today()); browseIndex=null; render(); p.catch(function(e){ render(); saveFailed(e); }); }
     : function(){ browseIndex=null; finish(today(), key); };
   $('altBtn').onclick = function(){ pick(today()); };
+
+  // up next — tomorrow's forecast, independent of whatever session is
+  // currently being browsed/previewed above
+  var un=upNext(), unS=T[un.key];
+  $('upnext').innerHTML =
+    '<span class="un-dot" style="background:'+v(unS.c)+'"></span>'+
+    '<span class="un-t">Up next<b>'+unS.n+'</b></span>'+
+    '<span class="un-d">'+(un.provisional?'if today goes to plan · ':'')+
+      new Date(un.date+'T12:00:00').toLocaleDateString('en-GB',{weekday:'short',day:'numeric'})+'</span>';
+  $('upnext').onclick=function(){ preview(un.date, un.key); };
 }
 
 function fmt(s){ var m=Math.floor(s/60),r=s%60; return m+':'+(r<10?'0':'')+r; }

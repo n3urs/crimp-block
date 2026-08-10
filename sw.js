@@ -1,5 +1,5 @@
 /* Offline cache. Bump CACHE when you change any file. */
-var CACHE = 'crimp-v20';
+var CACHE = 'crimp-v21';
 var FILES = ['./','./index.html','./app.js','./manifest.json','./icon.svg'];
 
 self.addEventListener('install', function(e){

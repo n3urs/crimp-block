@@ -48,6 +48,12 @@ body{
 .sdot.cur{background:var(--sc);border-color:var(--sc)}
 .sdot.rec::after{content:"";position:absolute;inset:-4px;border:1.5px solid var(--sc);border-radius:50%}
 .rec-badge{display:inline-block;color:var(--c);border:1px solid var(--c);border-radius:10px;padding:1px 7px;font-size:9.5px;letter-spacing:.08em;margin-left:8px;vertical-align:middle;font-family:'IBM Plex Mono',monospace}
+
+.upnext{display:flex;align-items:center;gap:9px;padding:13px 2px 6px;border-top:1px solid var(--s2);margin-top:6px;cursor:pointer}
+.un-dot{flex:0 0 auto;width:8px;height:8px;border-radius:50%}
+.un-t{font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:14.5px;text-transform:uppercase;color:var(--dim);letter-spacing:.02em}
+.un-t b{color:var(--fg);font-weight:700;margin-left:6px}
+.un-d{margin-left:auto;font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--faint);text-transform:uppercase;letter-spacing:.04em;text-align:right;white-space:nowrap}
 #card{touch-action:pan-y}
 
 /* week dots */
@@ -159,6 +165,8 @@ h1{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:clamp(42p
 <div class="cue" id="cue" hidden><b id="cueB"></b><span id="cueT"></span></div>
 <div id="list"></div>
 </div>
+
+<div class="upnext" id="upnext"></div>
 
 <div class="bar" id="bar">
   <div class="bar-in">
