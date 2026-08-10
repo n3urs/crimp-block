@@ -67,6 +67,19 @@ private extension Forecast.Day {
         let c = uiColour
         return Color(red: c.r, green: c.g, blue: c.b)
     }
+
+    /// "TUE 11" from the yyyy-MM-dd the web app sent. Parsed rather than
+    /// taken from Date() so it always matches the entry actually shown.
+    var dayLabel: String {
+        let inFmt = DateFormatter()
+        inFmt.locale = Locale(identifier: "en_US_POSIX")
+        inFmt.dateFormat = "yyyy-MM-dd"
+        guard let d = inFmt.date(from: date) else { return "" }
+        let out = DateFormatter()
+        out.locale = Locale(identifier: "en_GB")
+        out.dateFormat = "EEE d"
+        return out.string(from: d).uppercased()
+    }
 }
 
 struct WidgetView: View {
@@ -91,20 +104,20 @@ struct WidgetView: View {
 
     private func small(_ day: Forecast.Day) -> some View {
         VStack(alignment: .leading, spacing: 0) {
-            phaseChip(day)
-            Spacer(minLength: 6)
+            banner(day)
+            Spacer(minLength: 8)
             Text(day.name.uppercased())
-                .font(.system(size: 21, weight: .heavy, design: .default))
+                .font(.system(size: 21, weight: .heavy))
                 .foregroundStyle(.white)
-                .minimumScaleFactor(0.6)
+                .minimumScaleFactor(0.55)
                 .lineLimit(3)
                 .fixedSize(horizontal: false, vertical: true)
-            Spacer(minLength: 4)
+            Spacer(minLength: 6)
             Text(day.where)
-                .font(.system(size: 10, weight: .medium, design: .monospaced))
-                .foregroundStyle(day.accent)
-                .lineLimit(1)
-                .minimumScaleFactor(0.8)
+                .font(.system(size: 9.5, weight: .medium, design: .monospaced))
+                .foregroundStyle(day.accent.opacity(0.85))
+                .lineLimit(2)
+                .minimumScaleFactor(0.75)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
     }
@@ -112,61 +125,96 @@ struct WidgetView: View {
     // MARK: medium
 
     private func medium(_ day: Forecast.Day) -> some View {
-        HStack(alignment: .top, spacing: 14) {
-            VStack(alignment: .leading, spacing: 0) {
-                phaseChip(day)
-                Spacer(minLength: 6)
-                Text(day.name.uppercased())
-                    .font(.system(size: 24, weight: .heavy))
-                    .foregroundStyle(.white)
-                    .minimumScaleFactor(0.6)
-                    .lineLimit(3)
-                    .fixedSize(horizontal: false, vertical: true)
-                Spacer(minLength: 4)
-                Text(day.where)
-                    .font(.system(size: 10, weight: .medium, design: .monospaced))
-                    .foregroundStyle(day.accent)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.8)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-
-            if !day.exercises.isEmpty {
+        /* Fixed spacing, not Spacers: an expanding Spacer under the banner
+           pushed the columns down far enough that the exercise list ran off
+           the bottom edge. Everything hangs from the top and any slack
+           collects at the bottom instead. */
+        VStack(alignment: .leading, spacing: 8) {
+            banner(day)
+            HStack(alignment: .top, spacing: 12) {
                 VStack(alignment: .leading, spacing: 5) {
-                    ForEach(Array(day.exercises.prefix(4).enumerated()), id: \.offset) { _, ex in
-                        VStack(alignment: .leading, spacing: 1) {
-                            Text(ex.t.uppercased())
-                                .font(.system(size: 9.5, weight: .semibold))
-                                .foregroundStyle(dim)
-                                .lineLimit(1)
-                            Text(ex.m)
-                                .font(.system(size: 9, design: .monospaced))
-                                .foregroundStyle(faint)
-                                .lineLimit(1)
-                        }
-                    }
-                    if day.exercises.count > 4 {
-                        Text("+\(day.exercises.count - 4) more")
-                            .font(.system(size: 8.5, design: .monospaced))
+                    Text(day.name.uppercased())
+                        .font(.system(size: 25, weight: .heavy))
+                        .foregroundStyle(.white)
+                        .minimumScaleFactor(0.55)
+                        .lineLimit(3)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Text(day.where)
+                        .font(.system(size: 9.5, weight: .medium, design: .monospaced))
+                        .foregroundStyle(day.accent.opacity(0.85))
+                        .lineLimit(2)
+                        .minimumScaleFactor(0.75)
+                    if !day.cue.isEmpty {
+                        Text(day.cue)
+                            .font(.system(size: 9))
                             .foregroundStyle(faint)
+                            .lineLimit(3)
+                            .fixedSize(horizontal: false, vertical: true)
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
+
+                if !day.exercises.isEmpty {
+                    // 3, not 4 — four rows overflowed the bottom on the
+                    // longest sessions once widget padding is accounted for.
+                    let shown = day.exercises.prefix(3)
+                    VStack(alignment: .leading, spacing: 4) {
+                        ForEach(Array(shown.enumerated()), id: \.offset) { _, ex in
+                            HStack(alignment: .top, spacing: 5) {
+                                RoundedRectangle(cornerRadius: 1)
+                                    .fill(day.accent.opacity(0.55))
+                                    .frame(width: 2)
+                                VStack(alignment: .leading, spacing: 1) {
+                                    Text(ex.t.uppercased())
+                                        .font(.system(size: 9, weight: .semibold))
+                                        .foregroundStyle(dim)
+                                        .lineLimit(1)
+                                    Text(ex.m)
+                                        .font(.system(size: 8.5, design: .monospaced))
+                                        .foregroundStyle(faint)
+                                        .lineLimit(1)
+                                }
+                            }
+                            .fixedSize(horizontal: false, vertical: true)
+                        }
+                        if day.exercises.count > shown.count {
+                            Text("+\(day.exercises.count - shown.count) more")
+                                .font(.system(size: 8.5, design: .monospaced))
+                                .foregroundStyle(faint)
+                                .padding(.leading, 7)
+                        }
+                        Spacer(minLength: 0)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
             }
+            Spacer(minLength: 0)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 
     // MARK: bits
 
-    private func phaseChip(_ day: Forecast.Day) -> some View {
-        HStack(spacing: 5) {
-            Circle().fill(day.accent).frame(width: 6, height: 6)
+    /// Full-width accent strip: phase on the left, the day on the right.
+    /// Bleeds to the widget edges so it reads as a header rather than a chip.
+    private func banner(_ day: Forecast.Day) -> some View {
+        HStack(spacing: 6) {
             Text(day.logged ? "LOGGED" : day.phase.uppercased())
-                .font(.system(size: 9, weight: .bold, design: .monospaced))
-                .foregroundStyle(day.accent)
+                .font(.system(size: 9.5, weight: .bold, design: .monospaced))
                 .lineLimit(1)
+                .minimumScaleFactor(0.7)
+            Spacer(minLength: 4)
+            Text(day.dayLabel)
+                .font(.system(size: 9.5, weight: .bold, design: .monospaced))
+                .lineLimit(1)
+                .layoutPriority(1)
         }
+        .foregroundStyle(bg)
+        .padding(.horizontal, 9)
+        .padding(.vertical, 5)
+        .frame(maxWidth: .infinity)
+        .background(day.accent)
+        .clipShape(RoundedRectangle(cornerRadius: 6))
     }
 
     private var empty: some View {
