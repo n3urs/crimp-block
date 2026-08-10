@@ -12,27 +12,36 @@ var START_DATE = '2026-08-10';
 
 /* ------------------------------------------------------------
    STORE — the ONLY place persistence happens.
-   Swapping to Supabase means replacing this object and nothing
-   else. See SUPABASE.md.
+   Backed by Supabase for cross-device sync. See SUPABASE.md.
    ------------------------------------------------------------ */
+var SUPABASE_URL  = 'https://lbhsgkadlhcqqnlbfswr.supabase.co';
+var SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxiaHNna2FkbGhjcXFubGJmc3dyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYzNTg2NzMsImV4cCI6MjEwMTkzNDY3M30.3Df2BW9YVfJYZVSalLWGsx54iY_RvnZdln71Kehljug';
+var AUTH_EMAIL    = 'Oscar@sullivanltd.co.uk';
+
+var sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+
 var Store = {
-  _k:'crimpblock.v1',
-  _d:null,
-  _read:function(){
-    if(this._d) return this._d;
-    try{ this._d = JSON.parse(localStorage.getItem(this._k)) || {}; }
-    catch(e){ this._d = {}; }
-    return this._d;
+  _d:{},
+  load:async function(){
+    var since = new Date(Date.now() - 60*86400000).toISOString().slice(0,10);
+    var res = await sb.from('sessions').select('date,type,load').gte('date', since);
+    this._d = {};
+    (res.data||[]).forEach(function(r){ this._d[r.date] = {t:r.type, l:r.load}; }, this);
   },
-  _write:function(){ try{ localStorage.setItem(this._k, JSON.stringify(this._d)); }catch(e){} },
-  all:function(){ return this._read(); },
-  get:function(date){ return this._read()[date] || null; },
-  set:function(date, type, load){
-    var d=this._read();
-    d[date] = load ? {t:type, l:load} : {t:type};
-    this._write();
+  all:function(){ return this._d; },
+  get:function(date){ return this._d[date] || null; },
+  set:async function(date, type, load){
+    this._d[date] = load ? {t:type, l:load} : {t:type};
+    var u = (await sb.auth.getUser()).data.user;
+    await sb.from('sessions').upsert(
+      {user_id:u.id, date:date, type:type, load: load == null ? null : load},
+      {onConflict:'user_id,date'}
+    );
   },
-  clear:function(date){ var d=this._read(); delete d[date]; this._write(); }
+  clear:async function(date){
+    delete this._d[date];
+    await sb.from('sessions').delete().eq('date', date);
+  }
 };
 
 /* ------------------------------------------------------------
@@ -291,7 +300,23 @@ function beep(){
 }
 
 /* re-render on wake, so the date rolls over correctly overnight */
-document.addEventListener('visibilitychange',function(){ if(!document.hidden) render(); });
+document.addEventListener('visibilitychange',function(){ if(!document.hidden && sessionReady) render(); });
 
-render();
+var sessionReady = false;
+function boot(){
+  sb.auth.getSession().then(function(res){
+    if(!res.data.session){
+      sb.auth.signInWithOtp({email:AUTH_EMAIL});
+      $('h1').textContent='Check email';
+      $('where').textContent='Sign-in';
+      $('why').textContent='Magic link sent to '+AUTH_EMAIL+'. Open it on this device to continue.';
+      return;
+    }
+    Store.load().then(function(){ sessionReady=true; render(); });
+  });
+}
+sb.auth.onAuthStateChange(function(event){
+  if(event==='SIGNED_IN' && !sessionReady) boot();
+});
+boot();
 })();
