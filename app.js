@@ -114,16 +114,21 @@ var PROGRAMS = {
       pull:{n:'Pull', w:'Home · 40 min', c:'--tidepool', finger:0, pull:3,
         x:[
           {t:'Warm up',m:'5 min',d:'Band pull-aparts, scap pulls, then two progressively heavier pull-up sets. The bar is outside — do not pull heavy on cold shoulders and elbows.'},
-          {t:'Bottom-range pull-ups',m:'4 × 5',ph:{'Base':'3 × 8 — lighter','Power':'5 × 3 — explosive out of the hang','Performance':'3 × 4 — maintain only'},d:'Two arms, full dead hang, pull only to ~30° elbow bend, hold 2s, lower slow. Heavy. This is the one that matters — it loads exactly the range where your one-arm stalls. Every third or fourth session, swap it for weighted pull-ups 4×4 or one-arm negatives 3×1/arm to vary the stimulus.',r:150},
+          {t:'Bottom-range pull-ups',m:'4 × 5',ph:{'Base':'3 × 8 — lighter','Power':'5 × 3 — explosive out of the hang','Performance':'3 × 4 — maintain only'},d:'Two arms, full dead hang, pull only to ~30° elbow bend, hold 2s, lower slow. Heavy. This is the one that matters — it loads exactly the range where your one-arm stalls. Rotates automatically every 4th Pull session to vary the stimulus.',r:150,
+            rotate:{every:4, with:[
+              {t:'Weighted pull-ups',m:'4 × 4',d:'Heavy, full dead hang each rep.',r:180},
+              {t:'One-arm negatives',m:'3 × 1 / arm',d:'8–10 second descent. Control the last 30cm above all.',r:180}
+            ]}},
           {t:'One-arm transition holds',m:'4 × 8s / arm',d:'Minimal band or a toe on a stool. Hold at the top of your shrug plus a couple of centimetres — the exact point where you cannot get the elbow flexing. Alternate arms: one rests while the other works.',r:60},
           {t:'Weighted one-arm shrugs',m:'3 × 3 / arm',d:'Belt or vest, three-second hold at the top. Alternate arms. Three reps is right at your current ceiling — add weight before adding reps.',r:60},
           {t:'Front lever',m:'4 × 8–10s',d:'Hardest tuck or straddle you hold clean. If you cannot hold a tuck yet, do slow negative lowers from a tuck for the same sets.',r:75},
-          {t:'Antagonists',m:'3 supersets',d:'Reverse wrist curls 3×15 · finger extensors 3×20 · external rotation 3×12 · dips 3×10. Run as supersets with minimal rest — maintenance work, not a strength focus.'}
+          {t:'Antagonists',m:'3 supersets',d:'Reverse wrist curls 3×15 · finger extensors 3×20 (a rubber band round the fingertips, opening the hand against it — no dedicated tool needed) · external rotation 3×12 · dips 3×10. Run as supersets with minimal rest — maintenance work, not a strength focus.'}
         ]},
       hangboard:{n:'Hangboard', w:'Gym · 40–55 min + climb', c:'--slate', finger:2, pull:1, ask:'Repeater load',
         x:[
           {t:'Warm up',m:'10 min',d:'Pulse raise, then progressively heavier two-hand hangs on a jug before touching the edge. On weeks Weighted Hangs is in the session it goes first, while fingers are fresh — so warm up properly, you are heading straight into the heaviest thing you do here.'},
-          {t:'Weighted hangs',m:'10s × 5',ph:{'Base':'skip — repeaters only this phase','Power':'3s × 6 — short, sharp, contact-focused','Performance':'skip — hold what you built, repeaters only'},d:'Alternate weeks, only if the gym has a belt. Heavy-ish, never maximal. This goes FIRST, while fingers are fresh — doing repeaters before it would blunt the load you can hold and mean pulling near-max on already-fatigued tissue.',r:180},
+          {t:'Weighted hangs',m:'10s × 5',ph:{'Base':'skip — repeaters only this phase','Power':'3s × 6 — short, sharp, contact-focused','Performance':'skip — hold what you built, repeaters only'},d:'Only if the gym has a belt. Heavy-ish, never maximal. This goes FIRST, while fingers are fresh — doing repeaters before it would blunt the load you can hold and mean pulling near-max on already-fatigued tissue. Alternates automatically with a lighter week.',r:180,
+            rotate:{every:2, with:[{t:'Weighted hangs',m:'skip — alternate week, repeaters carries this session'}]}},
           {t:'20mm repeaters',m:'4–5 sets',ph:{'Base':'5–6 sets — lighter, higher volume','Power':'3 sets — reduced, priority is the pickups','Performance':'2–3 sets — maintain only'},d:'7s on / 3s off × 6 = one set. Around 55–60% of max. Two minutes between sets.',r:120},
           {t:'Band-assisted one-arm',m:'3 × 5s / hand',d:'If there is a pulley or a band. Closest thing to pickups you can do at work — and the right step while you cannot one-arm hang a 20mm edge unassisted. Alternate hands.',r:90},
           {t:'Volume climbing',m:'45 min',d:'Crimp-biased mileage, not limit attempts.'}
@@ -137,7 +142,8 @@ var PROGRAMS = {
       outdoorHard:{n:'Outdoor', w:'Crag', c:'--heather', finger:3, pull:2, climb:1,
         x:[
           {t:'Warm up properly',m:'20 min',d:'Cold granite and cold fingers is how pulleys go.'},
-          {t:'Project',m:'—',d:'Every third day out, pick something crimpy you would normally walk past.'}
+          {t:'Project',m:'—',d:'Pick something that pushes you.',
+            rotate:{every:3, with:[{t:'Project — crimpy pick',m:'—',d:'Third outdoor day — pick something crimpy you would normally walk past.'}]}}
         ]},
       climbEasy:{n:'Easy Climbing', w:'Anywhere', c:'--tidepool', finger:1, pull:1, climb:1,
         x:[{t:'Mileage and movement',m:'—',d:'Nothing near limit. If you are trying hard, it stops being this session.'}]},
@@ -227,7 +233,7 @@ var PROGRAMS = {
           {t:'Warm up',m:'15 min',d:'Pulse raise, then progressively heavier two-hand hangs on a jug before touching a small edge.'},
           {t:'Edge hangs',m:'5 × 7s',d:'20mm, two hands. Add weight once all five feel solid two sessions running.',r:120},
           {t:'Open-hand hangs',m:'4 × 7s',d:'Same edge, open-hand grip — different tendon stress than crimping.',r:120},
-          {t:'Antagonists',m:'3 sets',d:'Reverse wrist curls 3×15 · finger extensors 3×20 · external rotation 3×12.'}
+          {t:'Antagonists',m:'3 sets',d:'Reverse wrist curls 3×15 · finger extensors 3×20 (a rubber band round the fingertips, opening the hand against it — no dedicated tool needed) · external rotation 3×12.'}
         ]},
       pull:{n:'Pull Strength', w:'Home · 30 min', c:'--tidepool', finger:0, pull:3,
         x:[
@@ -333,6 +339,47 @@ function isDeload(date){ return block(date).w===4; }
 /* Show the phase-specific prescription for an exercise if it has one. */
 function presc(e,phaseName){ return (e.ph && e.ph[phaseName]) || e.m; }
 
+/* Which time round is this? Counts logged days of this session type before
+   `date`, so today is occurrence n+1 whether or not it's been logged yet. */
+function occurrence(key, date){
+  date = date || today();
+  var all=Store.all(), n=0;
+  for(var k in all){
+    if(k < date && all[k] && all[k].t===key) n++;
+  }
+  return n+1;
+}
+
+/* Exercises that deliberately vary session to session ("every third or
+   fourth session swap it", "alternate weeks") used to say so in their
+   description — which meant YOU had to remember how many you'd done. The
+   engine already knows the whole history, so it picks.
+
+   `rotate:{every:N, with:[...]}` — on every Nth occurrence of the session,
+   substitute the next variant in `with`, cycling through them. Returns the
+   exercise to actually show plus whether it was swapped, so the UI can say
+   so rather than silently showing something different. */
+function rotated(e, key, date){
+  if(!e.rotate || !e.rotate.with || !e.rotate.with.length) return {e:e, swapped:false};
+  var every = e.rotate.every || 4;
+  var occ = occurrence(key, date);
+  if(occ % every !== 0) return {e:e, swapped:false};
+  var list = e.rotate.with;
+  return {e:list[((occ/every) - 1) % list.length], swapped:true, occ:occ};
+}
+
+/* Resolve an exercise for a given session/date/phase: phase skip wins over
+   rotation (a phase that drops an exercise entirely shouldn't have a
+   rotated variant sneak back in), otherwise rotate then apply the phase
+   prescription. */
+function resolveEx(e, key, date, phaseName){
+  if(/^skip\b/i.test(presc(e, phaseName))) return null;
+  var r = rotated(e, key, date);
+  var m = presc(r.e, phaseName);
+  if(/^skip\b/i.test(m)) return null;   // a rotated-in variant can also skip
+  return {e:r.e, m:m, swapped:r.swapped, base:e};
+}
+
 /* Tomorrow's forecast. decide() is a pure function of the last 7 days, so
    asking it about tomorrow just needs one hypothetical day patched in for
    today — whatever's actually logged, or today's own current
@@ -374,8 +421,8 @@ function forecast(days){
       date:d, key:key, name:s.n, where:s.w, colour:v(s.c), logged:!!real,
       phase: dl ? 'Deload' : ph.n,
       cue: key==='rest' ? '' : (dl ? 'Pull back — every set lighter or shorter this week.' : ph.cue),
-      exercises: s.x.filter(function(e){ return !/^skip\b/i.test(presc(e,ph.n)); })
-                    .map(function(e){ return {t:e.t, m:presc(e,ph.n)}; })
+      exercises: s.x.map(function(e){ return resolveEx(e, key, d, ph.n); }).filter(Boolean)
+                    .map(function(r){ return {t:r.e.t, m:r.m}; })
     });
   }
   return out;
@@ -530,13 +577,15 @@ function render(){
   // A phase can skip an exercise entirely ("skip — ...") rather than just
   // adjust its numbers — those don't render as a row at all, not a row
   // that says "skip" while still showing its full description and timer.
-  $('list').innerHTML = s.x.map(function(e,i){
-    var m=presc(e,ph.n);
-    if(/^skip\b/i.test(m)) return '';
+  $('list').innerHTML = s.x.map(function(base,i){
+    var r=resolveEx(base, key, today(), ph.n);
+    if(!r) return '';
+    var e=r.e, m=r.m;
     var on=!!ticks[key+i];
     return '<div class="ex'+(on?' checked':'')+'" data-i="'+i+'">'+
       '<button class="tick" aria-pressed="'+on+'" aria-label="'+e.t+'"></button>'+
       '<div class="eb"><div class="et"><span class="en">'+e.t+'</span><span class="em'+(m!==e.m?' ph':'')+'">'+m+'</span></div>'+
+      (r.swapped?'<div class="ed rot">Rotation — swapped in for '+base.t+' this time.</div>':'')+
       (e.d?'<div class="ed">'+e.d+'</div>':'')+
       (e.r?'<button class="rest" data-r="'+e.r+'" data-l="'+e.t+'">'+fmt(e.r)+'</button>':'')+
       '</div></div>';
@@ -758,13 +807,17 @@ function showPhase(i){
 
 function preview(date, key){
   var s=T[key];
+  var phName=phaseAt(block(date).b).n;
+  var shown=s.x.map(function(base){ return resolveEx(base, key, date, phName); }).filter(Boolean);
   var h='<h2>'+s.n+'</h2><p class="shp">'+s.w+'</p>';
-  h += s.x.length ? s.x.map(function(e){
+  h += shown.length ? shown.map(function(r){
+    var e=r.e;
     return '<div style="padding:11px 0;border-bottom:1px solid var(--s2)">'+
       '<div style="display:flex;justify-content:space-between;gap:12px;align-items:baseline">'+
         '<span style="font-family:\'Barlow Condensed\',sans-serif;font-weight:600;font-size:17px;text-transform:uppercase">'+e.t+'</span>'+
-        '<span style="font-family:\'IBM Plex Mono\',monospace;font-size:11px;color:var(--faint);white-space:nowrap">'+e.m+'</span>'+
+        '<span style="font-family:\'IBM Plex Mono\',monospace;font-size:11px;color:var(--faint);white-space:nowrap">'+r.m+'</span>'+
       '</div>'+
+      (r.swapped?'<div style="font-size:12px;color:var(--faint);margin-top:3px">Rotation — swapped in for '+r.base.t+' this time.</div>':'')+
       (e.d?'<div style="font-size:13.5px;color:var(--dim);margin-top:3px;line-height:1.4">'+e.d+'</div>':'')+
     '</div>';
   }).join('') : '<p class="shp">No set exercises — just take the day.</p>';
