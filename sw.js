@@ -7,7 +7,7 @@
    actually matters (logging a session at the crag with no signal).
 
    Bump CACHE when you change any file. */
-var CACHE = 'crimp-v30';
+var CACHE = 'crimp-v31';
 var FILES = ['./','./index.html','./app.js','./manifest.json','./icon.svg'];
 var NET_TIMEOUT = 4000;
 
@@ -50,7 +50,13 @@ self.addEventListener('fetch', function(e){
         caches.match(req).then(function(hit){ if(hit) done(hit); });
       }, NET_TIMEOUT);
 
-      fetch(req).then(function(res){
+      /* cache:'reload' here too, same reasoning as install() — plain
+         fetch(req) is still allowed to answer from the browser's own HTTP
+         cache, which honours GitHub Pages' max-age=600. That silently
+         defeated the whole point of "network-first": for up to 10 minutes
+         after any load, every subsequent "network" fetch could still
+         return the same stale response with no error to notice. */
+      fetch(new Request(req, {cache:'reload'})).then(function(res){
         clearTimeout(timer);
         if(res && res.ok){
           var copy = res.clone();

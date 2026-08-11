@@ -37,12 +37,50 @@ struct WebView: UIViewRepresentable {
         web.scrollView.bounces = false
         web.allowsBackForwardNavigationGestures = false
         web.load(URLRequest(url: appURL))
+
+        // WKWebView keeps its already-loaded page alive across a background/
+        // foreground cycle — switching away and back does NOT refetch
+        // anything, unlike a browser tab. Without this, a fix pushed to the
+        // web app would only ever reach the phone on a true cold launch
+        // (force-quit, then reopen), which is easy to not realise.
+        //
+        // Reload only after a real gap (60s), not every foreground: a quick
+        // glance at another app shouldn't wipe in-progress tick marks, which
+        // only live in memory and aren't persisted by design.
+        context.coordinator.webView = web
+        context.coordinator.observeLifecycle()
+
         return web
     }
 
     func updateUIView(_ uiView: WKWebView, context: Context) {}
 
     final class Coordinator: NSObject, WKScriptMessageHandler {
+        weak var webView: WKWebView?
+        private var backgroundedAt: Date?
+        private let staleAfter: TimeInterval = 60
+        private var observing = false
+
+        func observeLifecycle() {
+            guard !observing else { return }
+            observing = true
+            let nc = NotificationCenter.default
+            nc.addObserver(self, selector: #selector(didEnterBackground),
+                            name: UIApplication.didEnterBackgroundNotification, object: nil)
+            nc.addObserver(self, selector: #selector(willEnterForeground),
+                            name: UIApplication.willEnterForegroundNotification, object: nil)
+        }
+
+        @objc private func didEnterBackground() {
+            backgroundedAt = Date()
+        }
+
+        @objc private func willEnterForeground() {
+            guard let since = backgroundedAt,
+                  Date().timeIntervalSince(since) > staleAfter else { return }
+            webView?.reload()
+        }
+
         func userContentController(_ controller: WKUserContentController,
                                    didReceive message: WKScriptMessage) {
             guard message.name == "crimp",
