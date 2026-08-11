@@ -554,11 +554,13 @@ function render(){
     b.onclick=function(){ startTimer(+b.dataset.r, b.dataset.l); };
   });
 
-  $('doneBtn').textContent = isLogged ? 'Undo' : 'Done';
+  // No separate "browse other sessions" button — swipe/tap a dot to get
+  // there, then this logs whichever one is on screen. Label spells that
+  // out so it doesn't read as only confirming the recommendation.
+  $('doneBtn').textContent = isLogged ? 'Undo' : 'Done This Workout';
   $('doneBtn').onclick = isLogged
     ? function(){ var p=Store.clear(today()); browseIndex=null; render(); p.catch(function(e){ render(); saveFailed(e); }); }
     : function(){ browseIndex=null; finish(today(), key); };
-  $('altBtn').onclick = function(){ pick(today()); };
 
   // up next — tomorrow's forecast, independent of whatever session is
   // currently being browsed/previewed above. Lives compact next to the
