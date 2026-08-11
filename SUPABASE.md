@@ -30,6 +30,40 @@ create policy "own rows" on sessions
 The unique constraint on `(user_id, date)` is what makes upsert work — one
 session per day, same as the local version.
 
+### Per-exercise working weights
+
+Added later, for the weight each exercise is being trained at. Run this too:
+
+```sql
+create table exercise_loads (
+  user_id  uuid not null references auth.users(id) on delete cascade,
+  date     date not null,
+  ex       text not null,
+  kg       numeric not null,
+  primary key (user_id, date, ex)
+);
+
+alter table exercise_loads enable row level security;
+
+create policy "own rows" on exercise_loads
+  for all
+  using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
+```
+
+This is deliberately NOT a column on `sessions`. Writing a weight must not
+mark the day as trained — you set a weight at the start of a session, and if
+that logged the day the card would flip to "Undo" before you had done
+anything and the engine would count a session you have not had yet. Separate
+table, separate meaning.
+
+`ex` is the exercise's `id` from PROGRAMS in app.js, not its title — titles
+get reworded and that would orphan the history. Never reuse or rename an id
+once it has data behind it.
+
+The app degrades gracefully if this table is missing: `Loads.load()` logs a
+warning and weights simply do not appear. Nothing else breaks.
+
 ## 2. Client
 
 Add to `index.html` before `app.js`:

@@ -64,6 +64,58 @@ var Store = {
   }
 };
 
+/* ------------------------------------------------------------
+   LOADS — what weight, on which exercise, on which day.
+
+   Deliberately its OWN table rather than a column on sessions:
+   writing a weight must not mark the day as trained. You set a
+   weight at the START of a session, and if that logged the day the
+   card would flip to "Undo" before you had done anything and the
+   engine would count a session you have not had yet.
+
+   Writes land immediately rather than being held until Done. The
+   iOS shell reloads the web view after 60s in the background, which
+   would otherwise silently bin a weight typed mid-session.
+   ------------------------------------------------------------ */
+var Loads = {
+  _d:{},   // exercise id -> [{date, kg}], newest first
+  load:async function(){
+    this._d={};
+    /* Not date-filtered: "what did I lift last time" has to survive a long
+       layoff, which is exactly when you can least remember it. The table is
+       a handful of rows per week — small enough to just hold all of it. */
+    var res = await sb.from('exercise_loads').select('date,ex,kg').order('date',{ascending:false});
+    /* Missing table (migration not run yet) must not take the app down —
+       weights just don't appear until the SQL in SUPABASE.md is run. */
+    if(res.error){ console.warn('Loads unavailable:', res.error.message); return; }
+    (res.data||[]).forEach(function(r){
+      (this._d[r.ex] = this._d[r.ex] || []).push({date:r.date, kg:Number(r.kg)});
+    }, this);
+  },
+  history:function(id){ return this._d[id] || []; },
+  on:function(id, date){
+    var a=this._d[id]||[];
+    for(var i=0;i<a.length;i++) if(a[i].date===date) return a[i];
+    return null;
+  },
+  set:async function(date, id, kg){
+    var a = this._d[id] = this._d[id] || [];
+    var prev = a.slice(), hit = this.on(id, date);
+    if(hit) hit.kg = kg;
+    else { a.push({date:date, kg:kg}); a.sort(function(x,y){ return x.date<y.date?1:-1; }); }
+    var ures = await sb.auth.getUser();
+    if(ures.error || !ures.data.user){
+      this._d[id]=prev;
+      throw new Error(ures.error ? ures.error.message : 'Not signed in');
+    }
+    var res = await sb.from('exercise_loads').upsert(
+      {user_id:ures.data.user.id, date:date, ex:id, kg:kg},
+      {onConflict:'user_id,date,ex'}
+    );
+    if(res.error){ this._d[id]=prev; throw new Error(res.error.message); }
+  }
+};
+
 /* Small error toast so a failed save is obvious immediately, not days
    later when a reload reveals the day never actually persisted. */
 function saveFailed(err){
@@ -103,33 +155,33 @@ var PROGRAMS = {
       {n:'Performance', from:6, c:'--slate', cue:'Maintain only — climbing is the real work now', d:'Structured training steps back and climbing takes over. Keep one light finger session a week to hold what you built, and spend the rest of your days projecting. This is when the previous five months are supposed to show up on rock.'}
     ],
     sessions:{
-      maxFingers:{n:'Max Fingers', w:'Home · 50 min', c:'--gorse', finger:3, pull:1, ask:'Top set — one-arm pickup',
+      maxFingers:{n:'Max Fingers', w:'Home · 50 min', c:'--gorse', finger:3, pull:1,
         x:[
           {t:'Warm up',m:'15 min',d:'Pulse raise, then three progressively heavier two-hand pickups. Never skip this on a cold morning.'},
-          {t:'Pickups — half crimp',m:'5 × 5s / hand',ph:{'Base':'4 × 8s / hand — lighter','Power':'5 × 3s / hand — fast pickup','Performance':'3 × 5s / hand — maintain only'},d:'20mm. Rep five hard but form-perfect. Add 1–2.5kg once all five feel solid two sessions running. Alternate hands — each hand then gets about three minutes between efforts, which is what near-max work needs to stay near-max.',r:90},
-          {t:'Pickups — three-finger drag',m:'3 × 5s / hand',d:'Lighter. Covers the rounded granite edges you actually climb on. Alternate hands.',r:90},
-          {t:'Pinch block',m:'4 × 5s / hand',d:'Alternate hands.',r:60},
+          {t:'Pickups — half crimp',id:'osc-pickup-half',m:'5 × 5s / hand',ph:{'Base':'4 × 8s / hand — lighter','Power':'5 × 3s / hand — fast pickup','Performance':'3 × 5s / hand — maintain only'},d:'20mm. Rep five hard but form-perfect. Alternate hands — each hand then gets about three minutes between efforts, which is what near-max work needs to stay near-max.',r:90},
+          {t:'Pickups — three-finger drag',id:'osc-pickup-drag',m:'3 × 5s / hand',d:'Lighter. Covers the rounded granite edges you actually climb on. Alternate hands.',r:90},
+          {t:'Pinch block',id:'osc-pinch',step:1.25,m:'4 × 5s / hand',d:'Alternate hands.',r:60},
           {t:'Wrist roller',m:'3 sets',d:'Up and down to near failure.',r:60}
         ]},
       pull:{n:'Pull', w:'Home · 40 min', c:'--tidepool', finger:0, pull:3,
         x:[
           {t:'Warm up',m:'5 min',d:'Band pull-aparts, scap pulls, then two progressively heavier pull-up sets. The bar is outside — do not pull heavy on cold shoulders and elbows.'},
-          {t:'Bottom-range pull-ups',m:'4 × 5',ph:{'Base':'3 × 8 — lighter','Power':'5 × 3 — explosive out of the hang','Performance':'3 × 4 — maintain only'},d:'Two arms, full dead hang, pull only to ~30° elbow bend, hold 2s, lower slow. Heavy. This is the one that matters — it loads exactly the range where your one-arm stalls. Rotates automatically every 4th Pull session to vary the stimulus.',r:150,
+          {t:'Bottom-range pull-ups',id:'osc-pull-bottom',m:'4 × 5',ph:{'Base':'3 × 8 — lighter','Power':'5 × 3 — explosive out of the hang','Performance':'3 × 4 — maintain only'},d:'Two arms, full dead hang, pull only to ~30° elbow bend, hold 2s, lower slow. Heavy. This is the one that matters — it loads exactly the range where your one-arm stalls. Rotates automatically every 4th Pull session to vary the stimulus.',r:150,
             rotate:{every:4, with:[
-              {t:'Weighted pull-ups',m:'4 × 4',d:'Heavy, full dead hang each rep.',r:180},
+              {t:'Weighted pull-ups',id:'osc-pull-wt',m:'4 × 4',d:'Heavy, full dead hang each rep.',r:180},
               {t:'One-arm negatives',m:'3 × 1 / arm',d:'8–10 second descent. Control the last 30cm above all.',r:180}
             ]}},
           {t:'One-arm transition holds',m:'4 × 8s / arm',d:'Minimal band or a toe on a stool. Hold at the top of your shrug plus a couple of centimetres — the exact point where you cannot get the elbow flexing. Alternate arms: one rests while the other works.',r:60},
-          {t:'Weighted one-arm shrugs',m:'3 × 3 / arm',d:'Belt or vest, three-second hold at the top. Alternate arms. Three reps is right at your current ceiling — add weight before adding reps.',r:60},
+          {t:'Weighted one-arm shrugs',id:'osc-shrug',m:'3 × 3 / arm',d:'Belt or vest, three-second hold at the top. Alternate arms. Three reps is right at your current ceiling, so the weight moves rather than the reps.',r:60},
           {t:'Front lever',m:'4 × 8–10s',d:'Hardest tuck or straddle you hold clean. If you cannot hold a tuck yet, do slow negative lowers from a tuck for the same sets.',r:75},
           {t:'Antagonists',m:'3 supersets',d:'Reverse wrist curls 3×15 · finger extensors 3×20 (a rubber band round the fingertips, opening the hand against it — no dedicated tool needed) · external rotation 3×12 · dips 3×10. Run as supersets with minimal rest — maintenance work, not a strength focus.'}
         ]},
-      hangboard:{n:'Hangboard', w:'Gym · 40–55 min + climb', c:'--slate', finger:2, pull:1, ask:'Repeater load',
+      hangboard:{n:'Hangboard', w:'Gym · 40–55 min + climb', c:'--slate', finger:2, pull:1,
         x:[
           {t:'Warm up',m:'10 min',d:'Pulse raise, then progressively heavier two-hand hangs on a jug before touching the edge. On weeks Weighted Hangs is in the session it goes first, while fingers are fresh — so warm up properly, you are heading straight into the heaviest thing you do here.'},
-          {t:'Weighted hangs',m:'10s × 5',ph:{'Base':'skip — repeaters only this phase','Power':'3s × 6 — short, sharp, contact-focused','Performance':'skip — hold what you built, repeaters only'},d:'Only if the gym has a belt. Heavy-ish, never maximal. This goes FIRST, while fingers are fresh — doing repeaters before it would blunt the load you can hold and mean pulling near-max on already-fatigued tissue. Alternates automatically with a lighter week.',r:180,
+          {t:'Weighted hangs',id:'osc-hang-wt',m:'10s × 5',ph:{'Base':'skip — repeaters only this phase','Power':'3s × 6 — short, sharp, contact-focused','Performance':'skip — hold what you built, repeaters only'},d:'Only if the gym has a belt. Heavy-ish, never maximal. This goes FIRST, while fingers are fresh — doing repeaters before it would blunt the load you can hold and mean pulling near-max on already-fatigued tissue. Alternates automatically with a lighter week.',r:180,
             rotate:{every:2, with:[{t:'Weighted hangs',m:'skip — alternate week, repeaters carries this session'}]}},
-          {t:'20mm repeaters',m:'4–5 sets',ph:{'Base':'5–6 sets — lighter, higher volume','Power':'3 sets — reduced, priority is the pickups','Performance':'2–3 sets — maintain only'},d:'7s on / 3s off × 6 = one set. Around 55–60% of max. Two minutes between sets.',r:120},
+          {t:'20mm repeaters',id:'osc-rep20',m:'4–5 sets',ph:{'Base':'5–6 sets — lighter, higher volume','Power':'3 sets — reduced, priority is the pickups','Performance':'2–3 sets — maintain only'},d:'7s on / 3s off × 6 = one set. Around 55–60% of max. Two minutes between sets.',r:120},
           {t:'Band-assisted one-arm',m:'3 × 5s / hand',d:'If there is a pulley or a band. Closest thing to pickups you can do at work — and the right step while you cannot one-arm hang a 20mm edge unassisted. Alternate hands.',r:90},
           {t:'Volume climbing',m:'45 min',d:'Crimp-biased mileage, not limit attempts.'}
         ]},
@@ -176,28 +228,28 @@ var PROGRAMS = {
       {n:'Performance', from:6, c:'--slate', cue:'Maintain only — climbing is the real work now', d:'Structured training steps back and climbing takes over — keep one finger session and one circuit a week to hold what you built, and spend the rest projecting. If the Font trip has a date by now, say so and this becomes a proper taper instead.'}
     ],
     sessions:{
-      maxFingers:{n:'Max Strength', w:'Work · 40 min', c:'--gorse', finger:3, pull:1, ask:'Top set load',
+      maxFingers:{n:'Max Strength', w:'Work · 40 min', c:'--gorse', finger:3, pull:1,
         x:[
           {t:'Warm up',m:'15 min',d:'Pulse raise, then progressively heavier two-hand hangs on a jug before loading anything.'},
-          {t:'Half-crimp hang — 15mm edge',m:'5 × 7s',ph:{'Power Endurance':'3 × 7s — maintain only','Performance':'3 × 7s — maintain only'},d:'Beastmaker 1000, 15mm edge, four fingers half-crimped. This is the priority lift — crimps train reliably, which slopers do not: a sloper hold fails on friction and skin, so a worse session might just mean a slicker day rather than a weaker one. Add weight once all five feel solid two sessions running. PROGRESSION when the gym’s ~15kg runs out: move to the 10mm four-finger pockets, then band-assisted one-arm on 20mm. NOT the three- or two-finger pockets — pinky disengaged is exactly what has tweaked your ring finger. Take the full three minutes between sets; near-max work stops being near-max without it.',r:180},
-          {t:'Open-hand hang — 20mm pockets',m:'3 × 7s',d:'Secondary, not the focus. Extended fingers, no crimp. Keeps the open-hand position that slopers actually load, so dropping sloper board work does not leave that capacity untrained — but it stays submaximal and low volume while the 15mm work carries the session. Four fingers, pinky in.',r:120},
-          {t:'Plate pinches',m:'4 × 5s / hand',d:'Two plates smooth-sides-out, pinched between thumb and fingers, held for time — the substitute for a pinch block, which the gym does not have. Thumb strength is what compression climbing runs on, so this is the Font-relevant bit. Start light; the grip fails long before the weight feels heavy.',r:90}
+          {t:'Half-crimp hang — 15mm edge',id:'joe-hang15',m:'5 × 7s',ph:{'Power Endurance':'3 × 7s — maintain only','Performance':'3 × 7s — maintain only'},d:'Beastmaker 1000, 15mm edge, four fingers half-crimped. This is the priority lift — crimps train reliably, which slopers do not: a sloper hold fails on friction and skin, so a worse session might just mean a slicker day rather than a weaker one. WHEN THE GYM’S ~15kg RUNS OUT: move to the 10mm four-finger pockets, then band-assisted one-arm on 20mm. NOT the three- or two-finger pockets — pinky disengaged is exactly what has tweaked your ring finger. Take the full three minutes between sets; near-max work stops being near-max without it.',r:180},
+          {t:'Open-hand hang — 20mm pockets',id:'joe-hang20',m:'3 × 7s',d:'Secondary, not the focus. Extended fingers, no crimp. Keeps the open-hand position that slopers actually load, so dropping sloper board work does not leave that capacity untrained — but it stays submaximal and low volume while the 15mm work carries the session. Four fingers, pinky in.',r:120},
+          {t:'Plate pinches',id:'joe-pinch',step:1.25,m:'4 × 5s / hand',d:'Two plates smooth-sides-out, pinched between thumb and fingers, held for time — the substitute for a pinch block, which the gym does not have. Thumb strength is what compression climbing runs on, so this is the Font-relevant bit. Start light; the grip fails long before the weight feels heavy.',r:90}
         ]},
       pull:{n:'Pull & Power', w:'Work · 40 min', c:'--tidepool', finger:0, pull:3,
         x:[
           {t:'Warm up',m:'5 min',d:'Band pull-aparts, scap pulls, then two progressively heavier pull-up sets. Given the bicep history, never start heavy or explosive work cold.'},
           {t:'Archer / band-assisted one-arm pull-ups',m:'4 × 3 / arm',d:'Swapped off weighted pull-ups because the gym’s ~15kg cannot make them near-maximal — you already pull 30kg × 3, so 15kg is rep work wearing a strength label. Going unilateral gets you back to a genuine max effort with no plates at all: archer pull-ups, or a band through the bar taking just enough off. Progress by reducing band assistance. This is still where the burliness comes from.',r:180},
           {t:'Explosive pull-ups',m:'4 × 3',d:'Fast concentric, controlled landing. Power, not grind.',r:150},
-          {t:'Weighted dips or shoulder press',m:'4 × 6',d:'Push/shoulder strength for the compression-and-shouldery moves you are after.',r:120},
+          {t:'Weighted dips or shoulder press',id:'joe-dip',m:'4 × 6',d:'Push/shoulder strength for the compression-and-shouldery moves you are after.',r:120},
           /* dl deliberately equals m: this is rehab, not training load. Deload
              weeks thin out the work that accumulates fatigue — tendon
              maintenance is the thing you keep doing while the rest backs off. */
           {t:'Bicep tendon health',m:'3 sets',dl:'3 sets',d:'Slow eccentric hammer curls + isometric holds. Non-negotiable every time this session comes up, whether the arms feel fine or not — this is specifically what has kept the tendinopathy from coming back before. Progress load here gradually; sudden jumps are what has flared it up in the past.',r:60}
         ]},
-      hangboard:{n:'Repeaters', w:'Work · 25 min', c:'--slate', finger:2, pull:1, ask:'Repeater load',
+      hangboard:{n:'Repeaters', w:'Work · 25 min', c:'--slate', finger:2, pull:1,
         x:[
           {t:'Warm up',m:'10 min',d:'Pulse raise, then progressively heavier two-hand hangs on a jug. Short session, but going straight onto a loaded edge cold is exactly how the ring finger gets tweaked.'},
-          {t:'Repeaters',m:'5 × (10s on / 5s off × 5)',d:'Your usual protocol, at a sustainable load — not a max effort. Beastmaker 1000, the 20mm-range four-finger pockets. Unaffected by the gym’s 15kg cap: repeaters are meant to be submaximal, so running out of plates costs nothing here. Keep the pinky engaged and stay off the three- and two-finger pockets — that position is what tweaks your ring finger.',r:120}
+          {t:'Repeaters',id:'joe-rep',m:'5 × (10s on / 5s off × 5)',d:'Your usual protocol, at a sustainable load — not a max effort. Beastmaker 1000, the 20mm-range four-finger pockets. Unaffected by the gym’s 15kg cap: repeaters are meant to be submaximal, so running out of plates costs nothing here. Keep the pinky engaged and stay off the three- and two-finger pockets — that position is what tweaks your ring finger.',r:120}
         ]},
       climbHard:{n:'Compression & Power', w:'Gym · 90 min', c:'--heather', finger:2, pull:2, climb:1,
         x:[
@@ -231,23 +283,23 @@ var PROGRAMS = {
       {n:'Performance', from:6, c:'--slate', cue:'Maintain only — climbing is the real work now', d:'Structured training steps back, climbing takes over.'}
     ],
     sessions:{
-      maxFingers:{n:'Finger Strength', w:'Home · 30 min', c:'--gorse', finger:3, pull:1, ask:'Top set load',
+      maxFingers:{n:'Finger Strength', w:'Home · 30 min', c:'--gorse', finger:3, pull:1,
         x:[
           {t:'Warm up',m:'15 min',d:'Pulse raise, then progressively heavier two-hand hangs on a jug before touching a small edge.'},
-          {t:'Edge hangs',m:'5 × 7s',d:'20mm, two hands. Add weight once all five feel solid two sessions running.',r:120},
-          {t:'Open-hand hangs',m:'4 × 7s',d:'Same edge, open-hand grip — different tendon stress than crimping.',r:120},
+          {t:'Edge hangs',id:'def-hang',m:'5 × 7s',d:'20mm, two hands.',r:120},
+          {t:'Open-hand hangs',id:'def-hang-open',m:'4 × 7s',d:'Same edge, open-hand grip — different tendon stress than crimping.',r:120},
           {t:'Antagonists',m:'3 sets',d:'Reverse wrist curls 3×15 · finger extensors 3×20 (a rubber band round the fingertips, opening the hand against it — no dedicated tool needed) · external rotation 3×12.'}
         ]},
       pull:{n:'Pull Strength', w:'Home · 30 min', c:'--tidepool', finger:0, pull:3,
         x:[
-          {t:'Weighted pull-ups',m:'5 × 5',d:'Full dead hang, controlled tempo. Add weight once all five are clean.',r:150},
+          {t:'Weighted pull-ups',id:'def-pull',m:'5 × 5',d:'Full dead hang, controlled tempo.',r:150},
           {t:'Lock-off holds',m:'4 × 8s',d:'Bent-arm hold at three joint angles across the set.',r:90},
           {t:'Rows',m:'4 × 8',d:'Ring rows or barbell rows, heavy.',r:90},
           {t:'Dips',m:'3 × 10',d:'Push antagonist work.',r:60}
         ]},
-      hangboard:{n:'Hangboard', w:'Gym · 25 min', c:'--slate', finger:2, pull:1, ask:'Repeater load',
+      hangboard:{n:'Hangboard', w:'Gym · 25 min', c:'--slate', finger:2, pull:1,
         x:[
-          {t:'Repeaters',m:'4–5 sets',d:'7s on / 3s off × 6 = one set, around 55–60% of max. Two minutes between sets.',r:120},
+          {t:'Repeaters',id:'def-rep',m:'4–5 sets',d:'7s on / 3s off × 6 = one set, around 55–60% of max. Two minutes between sets.',r:120},
           {t:'Volume climbing',m:'40 min',d:'Easy mileage, not limit attempts.'}
         ]},
       climbHard:{n:'Limit Session', w:'Gym · 90 min', c:'--heather', finger:2, pull:2, climb:1,
@@ -404,6 +456,46 @@ function deloadPresc(m){
   return m;  // "—", "rest of session", "projecting", anything else
 }
 
+/* What to put on the bar today, for exercises carrying an `id`.
+
+   This is the last hand-administered rule in the plan: "add 1–2.5kg once
+   all five feel solid two sessions running" used to sit in the exercise
+   description, which meant YOU had to remember what you lifted and how
+   many times. The app has the history, so it does the arithmetic.
+
+   Returns null when there is no history at all — the app cannot invent a
+   starting weight, so the first one is always typed in by hand.
+
+   Deload weeks never bump: the whole point of the week is holding the load
+   while volume drops, so suggesting a PB in one would be backwards. */
+function target(e, date){
+  date = date || today();
+  var step = e.step || 2.5;
+  var set = Loads.on(e.id, date);
+  if(set) return {kg:set.kg, bump:false, set:true};
+
+  var past = Loads.history(e.id).filter(function(r){ return r.date < date; });
+  if(!past.length) return null;
+
+  var last = past[0];
+  if(isDeload(date)) return {kg:last.kg, bump:false};
+  /* Two sessions at the same weight = it has stopped being hard. One is
+     not enough — a single good session is as likely to be a good day. */
+  var held = past.length>=2 && past[1].kg===last.kg;
+  return held ? {kg:+(last.kg+step).toFixed(2), bump:true} : {kg:last.kg, bump:false};
+}
+
+/* Every load-tracked exercise in a session, already resolved for rotation
+   and phase, paired with its row index so tick state can be matched up. */
+function sessionLoads(key, date, phName){
+  var out=[];
+  T[key].x.forEach(function(base,i){
+    var r=resolveEx(base, key, date, phName);
+    if(r && r.e.id) out.push({i:i, e:r.e});
+  });
+  return out;
+}
+
 /* Resolve an exercise for a given session/date/phase: phase skip wins over
    rotation (a phase that drops an exercise entirely shouldn't have a
    rotated variant sneak back in), otherwise rotate, apply the phase
@@ -460,7 +552,12 @@ function forecast(days){
       phase: dl ? 'Deload' : ph.n,
       cue: key==='rest' ? '' : (dl ? 'Pull back — every set lighter or shorter this week.' : ph.cue),
       exercises: s.x.map(function(e){ return resolveEx(e, key, d, ph.n); }).filter(Boolean)
-                    .map(function(r){ return {t:r.e.t, m:r.m}; })
+                    .map(function(r){
+                      /* Weight folded into the prescription string rather than
+                         a new field — the widget shows it with no Swift change. */
+                      var tg = r.e.id ? target(r.e, d) : null;
+                      return {t:r.e.t, m:r.m + (tg ? ' · '+tg.kg+'kg' : '')};
+                    })
     });
   }
   return out;
@@ -619,13 +716,32 @@ function render(){
     if(!r) return '';
     var e=r.e, m=r.m;
     var on=!!ticks[key+i];
+    /* Working weight, for exercises that carry one. Shown, not asked for —
+       the number IS the instruction, so the zero-tap path is to read it and
+       lift it. Tapping only happens on the rare day the weight changes. */
+    var w='';
+    if(e.id){
+      var tg=target(e, today());
+      w = tg
+        ? '<button class="wt'+(tg.bump?' up':'')+(tg.set?' set':'')+'" data-x="'+i+'" aria-label="'+e.t+' weight">'+tg.kg+'<i>kg</i></button>'
+        : '<button class="wt add" data-x="'+i+'" aria-label="Set '+e.t+' weight">set<i>kg</i></button>';
+    }
     return '<div class="ex'+(on?' checked':'')+'" data-i="'+i+'">'+
       '<button class="tick" aria-pressed="'+on+'" aria-label="'+e.t+'"></button>'+
-      '<div class="eb"><div class="et"><span class="en">'+e.t+'</span><span class="em'+(m!==e.m?' ph':'')+'">'+m+'</span></div>'+
+      '<div class="eb"><div class="et"><span class="en">'+e.t+'</span>'+
+        '<span class="ep"><span class="em'+(m!==e.m?' ph':'')+'">'+m+'</span>'+w+'</span></div>'+
       (e.d?'<div class="ed">'+e.d+'</div>':'')+
       (e.r?'<button class="rest" data-r="'+e.r+'" data-l="'+e.t+'">'+fmt(e.r)+'</button>':'')+
       '</div></div>';
   }).join('');
+
+  $('list').querySelectorAll('.wt').forEach(function(b){
+    b.onclick=function(ev){
+      ev.stopPropagation();
+      var rr=resolveEx(s.x[+b.dataset.x], key, today(), ph.n);
+      if(rr && rr.e.id) weightSheet(rr.e);
+    };
+  });
 
   $('list').querySelectorAll('.tick').forEach(function(b){
     b.onclick=function(){
@@ -896,28 +1012,71 @@ function preview(date, key){
   $('prevLog').onclick=function(){ close(); finish(date, key); };
 }
 
-function finish(date, key){
-  var s=T[key];
-  if(date===today()) browseIndex=null;
-  if(!s.ask){
-    var p=Store.set(date,key); render();
-    p.catch(function(e){ render(); saveFailed(e); });
-    return;
+function shortDate(d){
+  return new Date(d+'T12:00:00').toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'});
+}
+
+/* Setting a working weight. Behind a tap, so this is the one place it is
+   worth explaining itself — the daily card stays silent. Writes immediately
+   rather than on Done: this table does not mark the day as trained, so
+   there is no reason to hold it, and holding it would lose the number to
+   the iOS shell's 60-second background reload. */
+function weightSheet(e){
+  var step=e.step||2.5;
+  var tg=target(e, today());
+  var past=Loads.history(e.id).filter(function(r){ return r.date<today(); });
+  var prev=past[0];
+
+  var note;
+  if(tg && tg.set)      note='Recorded '+tg.kg+'kg today.'+(prev?' Last time '+prev.kg+'kg, '+shortDate(prev.date)+'.':'');
+  else if(tg && tg.bump)note='You held '+prev.kg+'kg for two sessions, so this is up '+step+'kg. Put it back if it is too much — nothing is lost.';
+  else if(prev)         note='Last time — '+prev.kg+'kg, '+shortDate(prev.date)+'.';
+  else                  note='First time on this one. Put in what you actually lift today and the app takes it from there.';
+
+  open('<h2>'+e.t+'</h2>'+
+    '<p class="shp">'+note+'</p>'+
+    '<div class="wtr">'+
+      '<button class="wtb" id="wDn" aria-label="Less">−</button>'+
+      '<div class="num" style="margin:0;flex:1"><input type="number" inputmode="decimal" step="any" id="wIn" placeholder="0" value="'+(tg?tg.kg:'')+'"><span>kg</span></div>'+
+      '<button class="wtb" id="wUp" aria-label="More">+</button>'+
+    '</div>'+
+    '<div class="row2"><button class="sec" id="wX">Cancel</button><button class="pri" id="wOk">Save</button></div>');
+
+  function nudge(dir){
+    var cur=parseFloat($('wIn').value);
+    if(isNaN(cur)) cur=0;
+    $('wIn').value=Math.max(0, +(cur + dir*step).toFixed(2));
   }
-  open('<h2>'+s.ask+'</h2>'+
-    '<p class="shp">One number, best set. Skip it if you did not measure — the plan still works without it.</p>'+
-    '<div class="num"><input type="number" inputmode="decimal" id="numIn" placeholder="0"><span>kg</span></div>'+
-    '<div class="row2"><button class="sec" id="numSkip">Skip</button><button class="pri" id="numOk">Save</button></div>');
-  setTimeout(function(){ var el=$('numIn'); if(el) el.focus(); },260);
-  $('numSkip').onclick=function(){
-    close(); var p=Store.set(date,key); render();
-    p.catch(function(e){ render(); saveFailed(e); });
+  $('wDn').onclick=function(){ nudge(-1); };
+  $('wUp').onclick=function(){ nudge(1); };
+  $('wX').onclick=close;
+  $('wOk').onclick=function(){
+    var n=parseFloat($('wIn').value);
+    close();
+    if(isNaN(n)) return;
+    var p=Loads.set(today(), e.id, n); render();
+    p.catch(function(err){ render(); saveFailed(err); });
   };
-  $('numOk').onclick=function(){
-    var val=parseFloat($('numIn').value);
-    close(); var p=Store.set(date,key, isNaN(val)?null:val); render();
-    p.catch(function(e){ render(); saveFailed(e); });
-  };
+}
+
+function finish(date, key){
+  if(date===today()) browseIndex=null;
+
+  /* Ticking an exercise off is already how you say "did that" — so it is
+     also the confirmation that you did it at the weight on screen, and the
+     weight gets recorded. No extra step, and nothing is invented for rows
+     you never ticked. Computed BEFORE the session is saved: logging the day
+     can tip the block into a deload week, which changes what target() says. */
+  var phn=phaseAt(block(date).b).n;
+  sessionLoads(key, date, phn).forEach(function(x){
+    if(!ticks[key+x.i]) return;
+    if(Loads.on(x.e.id, date)) return;        // already set by hand today
+    var tg=target(x.e, date);
+    if(tg) Loads.set(date, x.e.id, tg.kg).catch(saveFailed);
+  });
+
+  var p=Store.set(date,key); render();
+  p.catch(function(e){ render(); saveFailed(e); });
 }
 
 /* ---- timer ---- */
@@ -1051,7 +1210,7 @@ function boot(){
     $('bar').style.display='';
     applyProgram(res.data.session.user.email);
     showWho(res.data.session.user.email);
-    Store.load().then(function(){ sessionReady=true; render(); });
+    Promise.all([Store.load(), Loads.load()]).then(function(){ sessionReady=true; render(); });
   });
 }
 sb.auth.onAuthStateChange(function(event){
