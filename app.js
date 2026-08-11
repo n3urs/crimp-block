@@ -515,7 +515,6 @@ function render(){
   var key = browseIndex!==null ? ORDER[browseIndex] : (logged?logged.t:d.k);
   var s=T[key];
   var isLogged = logged && logged.t===key;
-  var isRec = key===d.k && !logged;
 
   document.documentElement.style.setProperty('--c', v(s.c));
 
@@ -554,29 +553,20 @@ function render(){
     };
   });
 
+  // The daily card shows what to do, not the reasoning behind it — no
+  // recommendation text, no phase/effort-cue narration, no rotation
+  // explanation. That detail lives one tap away in "the plan" (topB above)
+  // for whoever wants it; the card itself should take zero thought to read.
   $('h1').textContent=s.n;
-  $('where').innerHTML=s.w+(isRec?' <span class="rec-badge">Recommended</span>':'');
-  $('why').textContent = isLogged ? 'Logged.' + (logged.l ? ' Top set ' + logged.l + 'kg.' : '')
-    : isRec ? (dl ? 'Deload week — cut every working set by about a third and keep the load the same. ' + d.why : d.why)
-    : 'Browsing — swipe or tap a dot to see other sessions, Done logs this one instead.';
-
-  // effort cue — how hard/heavy this session should actually be, at a glance,
-  // without needing to tap through to the plan sheet
-  if(key==='rest'){
-    $('cue').hidden=true;
-  } else {
-    var phCol=v(ph.c||'--c');
-    $('cue').hidden=false;
-    $('cueB').textContent=dl?'Deload':ph.n;
-    $('cueB').style.background=phCol; $('cueB').style.color='var(--bg)';
-    $('cueT').textContent=dl?'Pull back regardless of phase — every working set lighter or shorter this week.':ph.cue;
-    $('cueT').style.color=phCol;
-  }
+  $('where').innerHTML=s.w+(dl && key!=='rest'?' <span class="deload-badge">Deload — go lighter</span>':'');
+  $('why').textContent = isLogged ? 'Logged.' + (logged.l ? ' Top set ' + logged.l + 'kg.' : '') : '';
 
   // exercises — prescriptions follow the current phase where one is defined.
   // A phase can skip an exercise entirely ("skip — ...") rather than just
   // adjust its numbers — those don't render as a row at all, not a row
   // that says "skip" while still showing its full description and timer.
+  // Rotation swaps the exercise silently — resolveEx() already picked the
+  // right variant, and the card just shows it like any other exercise.
   $('list').innerHTML = s.x.map(function(base,i){
     var r=resolveEx(base, key, today(), ph.n);
     if(!r) return '';
@@ -585,7 +575,6 @@ function render(){
     return '<div class="ex'+(on?' checked':'')+'" data-i="'+i+'">'+
       '<button class="tick" aria-pressed="'+on+'" aria-label="'+e.t+'"></button>'+
       '<div class="eb"><div class="et"><span class="en">'+e.t+'</span><span class="em'+(m!==e.m?' ph':'')+'">'+m+'</span></div>'+
-      (r.swapped?'<div class="ed rot">Rotation — swapped in for '+base.t+' this time.</div>':'')+
       (e.d?'<div class="ed">'+e.d+'</div>':'')+
       (e.r?'<button class="rest" data-r="'+e.r+'" data-l="'+e.t+'">'+fmt(e.r)+'</button>':'')+
       '</div></div>';
@@ -725,6 +714,28 @@ function phaseChanges(name){
   return out;
 }
 
+/* Every exercise with a `rotate` config, across all sessions, with where it
+   currently sits in its own cycle. This is the "behind the scenes" detail
+   the daily card deliberately no longer shows — it lives here instead,
+   one tap into the plan, for whoever wants to check it. */
+function rotationsInfo(){
+  var out=[];
+  ORDER.forEach(function(key){
+    T[key].x.forEach(function(e){
+      if(!e.rotate || !e.rotate.with || !e.rotate.with.length) return;
+      var every=e.rotate.every||4;
+      var occ=occurrence(key, today());
+      var pos=((occ-1)%every)+1;
+      var r=rotated(e, key, today());
+      out.push({
+        session:T[key].n, base:e.t, every:every, pos:pos,
+        showingToday:r.swapped, showing:r.swapped?r.e.t:e.t
+      });
+    });
+  });
+  return out;
+}
+
 function bar(done,total,col){
   var pct=Math.round((done/total)*100);
   return '<div class="bar-t"><i style="width:'+pct+'%;background:'+col+'"></i></div>';
@@ -765,6 +776,18 @@ function showPlan(){
       '<span class="optn">'+x.n+'</span>'+
       '<span class="opts">'+(on?'NOW · ':'')+phaseRange(i)+'</span></button>';
   }).join('');
+
+  var rot=rotationsInfo();
+  if(rot.length){
+    h+='<div class="plan-h">Rotations</div>';
+    h+=rot.map(function(r){
+      var status = r.showingToday
+        ? 'Currently showing <strong>'+r.showing+'</strong> instead'
+        : 'On '+r.base+' · swaps to a variant every '+r.every+(r.every===2?'nd':r.every===3?'rd':'th')+' '+r.session+' session — '+(r.every-r.pos)+' to go';
+      return '<div class="plan-ch"><div class="plan-ch-t">'+r.base+'<span>'+r.session+'</span></div>'+
+        '<div class="plan-ch-m" style="color:var(--dim)">'+status+'</div></div>';
+    }).join('');
+  }
 
   open(h);
   $('shIn').querySelectorAll('.opt').forEach(function(b){
@@ -817,7 +840,6 @@ function preview(date, key){
         '<span style="font-family:\'Barlow Condensed\',sans-serif;font-weight:600;font-size:17px;text-transform:uppercase">'+e.t+'</span>'+
         '<span style="font-family:\'IBM Plex Mono\',monospace;font-size:11px;color:var(--faint);white-space:nowrap">'+r.m+'</span>'+
       '</div>'+
-      (r.swapped?'<div style="font-size:12px;color:var(--faint);margin-top:3px">Rotation — swapped in for '+r.base.t+' this time.</div>':'')+
       (e.d?'<div style="font-size:13.5px;color:var(--dim);margin-top:3px;line-height:1.4">'+e.d+'</div>':'')+
     '</div>';
   }).join('') : '<p class="shp">No set exercises — just take the day.</p>';

@@ -144,13 +144,6 @@ struct WidgetView: View {
                         .foregroundStyle(day.accent.opacity(0.85))
                         .lineLimit(2)
                         .minimumScaleFactor(0.75)
-                    if !day.cue.isEmpty {
-                        Text(day.cue)
-                            .font(.system(size: 9))
-                            .foregroundStyle(faint)
-                            .lineLimit(3)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
 
@@ -195,14 +188,19 @@ struct WidgetView: View {
 
     // MARK: bits
 
-    /// Full-width accent strip: phase on the left, the day on the right.
-    /// Bleeds to the widget edges so it reads as a header rather than a chip.
+    /// Full-width accent strip: a status word (if there is one worth
+    /// showing) on the left, the day on the right. Deliberately not the
+    /// phase name — the widget is a glance, not a briefing, so "where you
+    /// are in the plan" stays out unless it's actionable (logged, deload).
     private func banner(_ day: Forecast.Day) -> some View {
         HStack(spacing: 6) {
-            Text(day.logged ? "LOGGED" : day.phase.uppercased())
-                .font(.system(size: 9.5, weight: .bold, design: .monospaced))
-                .lineLimit(1)
-                .minimumScaleFactor(0.7)
+            let status = day.logged ? "LOGGED" : (day.phase == "Deload" ? "DELOAD" : "")
+            if !status.isEmpty {
+                Text(status)
+                    .font(.system(size: 9.5, weight: .bold, design: .monospaced))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+            }
             Spacer(minLength: 4)
             Text(day.dayLabel)
                 .font(.system(size: 9.5, weight: .bold, design: .monospaced))

@@ -48,7 +48,7 @@ body{
 .sdot{width:14px;height:14px;border-radius:50%;border:1.5px solid var(--s4);background:none;padding:0;cursor:pointer;position:relative;flex:0 0 auto}
 .sdot.cur{background:var(--sc);border-color:var(--sc)}
 .sdot.rec::after{content:"";position:absolute;inset:-4px;border:1.5px solid var(--sc);border-radius:50%}
-.rec-badge{display:inline-block;color:var(--c);border:1px solid var(--c);border-radius:10px;padding:1px 7px;font-size:9.5px;letter-spacing:.08em;margin-left:8px;vertical-align:middle;font-family:'IBM Plex Mono',monospace}
+.deload-badge{display:inline-block;color:var(--gorse);border:1px solid var(--gorse);border-radius:10px;padding:1px 7px;font-size:9.5px;letter-spacing:.08em;margin-left:8px;vertical-align:middle;font-family:'IBM Plex Mono',monospace}
 
 /* compact — lives in the gap next to the session dots, not a full row */
 .upnext{display:flex;align-items:center;gap:6px;cursor:pointer;min-width:0;flex:0 1 auto;justify-content:flex-end}
@@ -72,9 +72,7 @@ body{
 h1{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:clamp(42px,13vw,60px);line-height:.9;text-transform:uppercase;color:var(--fg);margin-bottom:10px}
 .where{font-family:'IBM Plex Mono',monospace;font-size:11.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--c);margin-bottom:14px}
 .why{font-size:15.5px;color:var(--dim);line-height:1.45;padding-bottom:14px}
-.cue{display:flex;align-items:baseline;gap:7px;font-family:'IBM Plex Mono',monospace;font-size:11.5px;letter-spacing:.02em;padding-bottom:20px;border-bottom:1px solid var(--s2)}
-.cue b{flex:0 0 auto;font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;padding:2px 7px;border-radius:8px}
-.cue[hidden]{display:none}
+.why:empty{display:none}
 
 /* exercises */
 .ex{display:flex;gap:14px;align-items:flex-start;padding:16px 0;border-bottom:1px solid var(--s2)}
@@ -87,7 +85,6 @@ h1{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:clamp(42p
 .em{font-family:'IBM Plex Mono',monospace;font-size:12px;font-weight:500;color:var(--c);white-space:nowrap}
 .em.ph{white-space:normal;text-align:right}
 .ed{font-size:14.5px;color:var(--dim);margin-top:4px;line-height:1.4}
-.ed.rot{color:var(--c);font-style:italic}
 /* checked off — collapses to just the struck-through title, description
    and rest timer hidden, tighter padding so the list actually gets
    shorter as you go rather than each done row taking MORE room */
@@ -180,7 +177,6 @@ h1{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:clamp(42p
 <h1 id="h1">—</h1>
 <div class="where" id="where"></div>
 <div class="why" id="why"></div>
-<div class="cue" id="cue" hidden><b id="cueB"></b><span id="cueT"></span></div>
 <div id="list"></div>
 </div>
 
