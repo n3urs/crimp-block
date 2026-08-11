@@ -477,15 +477,18 @@ function render(){
   $('topB').onclick=showPlan;
   $('topD').textContent=new Date().toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'});
 
-  // week dots
-  var dh='';
+  // week dots, and the day-initial under each one
+  var dh='', wh='';
   for(var i=6;i>=0;i--){
     var k=addDays(today(),-i), e=Store.get(k);
     var col = e ? v(T[e.t].c) : '';
     dh+='<button class="dot'+(i===0?' now':'')+'" data-d="'+k+'" aria-label="'+k+'">'+
         '<i class="'+(e?'on':'')+'" style="'+(e?'background:'+col:'')+'"></i></button>';
+    var letter=new Date(k+'T12:00:00').toLocaleDateString('en-GB',{weekday:'short'}).charAt(0);
+    wh+='<span'+(i===0?' class="now"':'')+'>'+letter+'</span>';
   }
   $('dots').innerHTML=dh;
+  $('dow').innerHTML=wh;
   $('dots').querySelectorAll('.dot').forEach(function(b){
     b.onclick=function(){ pick(b.dataset.d); };
   });
@@ -558,13 +561,17 @@ function render(){
   $('altBtn').onclick = function(){ pick(today()); };
 
   // up next — tomorrow's forecast, independent of whatever session is
-  // currently being browsed/previewed above
+  // currently being browsed/previewed above. Lives compact next to the
+  // session dots rather than as its own full-width row.
   var un=upNext(), unS=T[un.key];
+  var unLabel='Tomorrow, '+new Date(un.date+'T12:00:00').toLocaleDateString('en-GB',{weekday:'long',day:'numeric'})+
+    ': '+unS.n+(un.provisional?' — if today goes to plan':'');
+  $('upnext').setAttribute('aria-label',unLabel);
+  $('upnext').title=unLabel;
   $('upnext').innerHTML =
+    '<span class="un-l">NEXT</span>'+
     '<span class="un-dot" style="background:'+v(unS.c)+'"></span>'+
-    '<span class="un-t">Up next<b>'+unS.n+'</b></span>'+
-    '<span class="un-d">'+(un.provisional?'if today goes to plan · ':'')+
-      new Date(un.date+'T12:00:00').toLocaleDateString('en-GB',{weekday:'short',day:'numeric'})+'</span>';
+    '<span class="un-n">'+unS.n+'</span>';
   $('upnext').onclick=function(){ preview(un.date, un.key); };
 
   pushNative();

@@ -42,27 +42,31 @@ body{
 .top-u[hidden]{display:none}
 .top-u i{display:block;width:6px;height:6px;border-radius:50%;background:var(--tidepool)}
 
-/* session swipe strip */
-.sdots{display:flex;gap:9px;margin-bottom:20px}
+/* session swipe strip + up-next, sharing a row */
+.srow{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:20px}
+.sdots{display:flex;gap:9px;flex:0 0 auto}
 .sdot{width:14px;height:14px;border-radius:50%;border:1.5px solid var(--s4);background:none;padding:0;cursor:pointer;position:relative;flex:0 0 auto}
 .sdot.cur{background:var(--sc);border-color:var(--sc)}
 .sdot.rec::after{content:"";position:absolute;inset:-4px;border:1.5px solid var(--sc);border-radius:50%}
 .rec-badge{display:inline-block;color:var(--c);border:1px solid var(--c);border-radius:10px;padding:1px 7px;font-size:9.5px;letter-spacing:.08em;margin-left:8px;vertical-align:middle;font-family:'IBM Plex Mono',monospace}
 
-.upnext{display:flex;align-items:center;gap:9px;padding:13px 2px 6px;border-top:1px solid var(--s2);margin-top:6px;cursor:pointer}
-.un-dot{flex:0 0 auto;width:8px;height:8px;border-radius:50%}
-.un-t{font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:14.5px;text-transform:uppercase;color:var(--dim);letter-spacing:.02em}
-.un-t b{color:var(--fg);font-weight:700;margin-left:6px}
-.un-d{margin-left:auto;font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--faint);text-transform:uppercase;letter-spacing:.04em;text-align:right;white-space:nowrap}
+/* compact — lives in the gap next to the session dots, not a full row */
+.upnext{display:flex;align-items:center;gap:6px;cursor:pointer;min-width:0;flex:0 1 auto;justify-content:flex-end}
+.un-l{font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.1em;color:var(--faint);white-space:nowrap;flex:0 0 auto}
+.un-dot{flex:0 0 auto;width:7px;height:7px;border-radius:50%}
+.un-n{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:13.5px;text-transform:uppercase;color:var(--dim);letter-spacing:.02em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 #card{touch-action:pan-y}
 
 /* week dots */
-.dots{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-bottom:26px}
+.dots{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-bottom:4px}
 .dot{height:30px;border:none;background:none;display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0}
 .dot i{display:block;width:11px;height:11px;border-radius:50%;border:1.5px solid var(--s4);background:none;transition:transform .12s}
 .dot i.on{border-color:transparent}
 .dot:active i{transform:scale(1.35)}
 .dot.now i{box-shadow:0 0 0 3px var(--bg),0 0 0 4.5px var(--s4)}
+.dow{display:grid;grid-template-columns:repeat(7,1fr);margin-bottom:22px}
+.dow span{text-align:center;font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--faint);letter-spacing:.02em}
+.dow span.now{color:var(--dim);font-weight:600}
 
 /* headline */
 h1{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:clamp(42px,13vw,60px);line-height:.9;text-transform:uppercase;color:var(--fg);margin-bottom:10px}
@@ -161,7 +165,11 @@ h1{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:clamp(42p
   <span class="top-d" id="topD"></span>
 </div>
 <div class="dots" id="dots"></div>
-<div class="sdots" id="sdots"></div>
+<div class="dow" id="dow"></div>
+<div class="srow">
+  <div class="sdots" id="sdots"></div>
+  <div class="upnext" id="upnext"></div>
+</div>
 
 <div id="card">
 <h1 id="h1">—</h1>
