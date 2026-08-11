@@ -173,14 +173,14 @@ var PROGRAMS = {
       maxFingers:{n:'Max Strength', w:'Work · 40 min', c:'--gorse', finger:3, pull:1, ask:'Top set load',
         x:[
           {t:'Warm up',m:'15 min',d:'Pulse raise, then progressively heavier two-hand hangs on a jug before loading anything.'},
-          {t:'Open-hand / sloper block hangs',m:'5 × 7s',ph:{'Power Endurance':'3 × 7s — maintain only','Performance':'3 × 7s — maintain only'},d:'This is the priority lift — slopers are your weak grip, so this is where you actually move the needle for Font. Add weight once all five feel solid two sessions running. Take the full three minutes between sets; near-max work stops being near-max without it.',r:180},
-          {t:'Half-crimp hang',m:'3 × 7s',d:'Maintenance, not the focus — crimps are already a strength. Keep the pinky engaged the whole rep; that is what has tweaked the ring finger before.',r:120},
-          {t:'Two-hand pinch block',m:'4 × 5s',d:'Compression-relevant grip work.',r:90}
+          {t:'Half-crimp hang — 15mm edge',m:'5 × 7s',ph:{'Power Endurance':'3 × 7s — maintain only','Performance':'3 × 7s — maintain only'},d:'Beastmaker 1000, 15mm edge, four fingers half-crimped. This is the priority lift — crimps train reliably, which slopers do not: a sloper hold fails on friction and skin, so a worse session might just mean a slicker day rather than a weaker one. Add weight once all five feel solid two sessions running. PROGRESSION when the gym’s ~15kg runs out: move to the 10mm four-finger pockets, then band-assisted one-arm on 20mm. NOT the three- or two-finger pockets — pinky disengaged is exactly what has tweaked your ring finger. Take the full three minutes between sets; near-max work stops being near-max without it.',r:180},
+          {t:'Open-hand hang — 20mm pockets',m:'3 × 7s',d:'Secondary, not the focus. Extended fingers, no crimp. Keeps the open-hand position that slopers actually load, so dropping sloper board work does not leave that capacity untrained — but it stays submaximal and low volume while the 15mm work carries the session. Four fingers, pinky in.',r:120},
+          {t:'Plate pinches',m:'4 × 5s / hand',d:'Two plates smooth-sides-out, pinched between thumb and fingers, held for time — the substitute for a pinch block, which the gym does not have. Thumb strength is what compression climbing runs on, so this is the Font-relevant bit. Start light; the grip fails long before the weight feels heavy.',r:90}
         ]},
       pull:{n:'Pull & Power', w:'Work · 40 min', c:'--tidepool', finger:0, pull:3,
         x:[
           {t:'Warm up',m:'5 min',d:'Band pull-aparts, scap pulls, then two progressively heavier pull-up sets. Given the bicep history, never start heavy or explosive work cold.'},
-          {t:'Weighted pull-ups',m:'4 × 3',d:'You know a 30kg × 3 — build toward a real 1-rep max here, not just reps. This is where the burliness comes from.',r:180},
+          {t:'Archer / band-assisted one-arm pull-ups',m:'4 × 3 / arm',d:'Swapped off weighted pull-ups because the gym’s ~15kg cannot make them near-maximal — you already pull 30kg × 3, so 15kg is rep work wearing a strength label. Going unilateral gets you back to a genuine max effort with no plates at all: archer pull-ups, or a band through the bar taking just enough off. Progress by reducing band assistance. This is still where the burliness comes from.',r:180},
           {t:'Explosive pull-ups',m:'4 × 3',d:'Fast concentric, controlled landing. Power, not grind.',r:150},
           {t:'Weighted dips or shoulder press',m:'4 × 6',d:'Push/shoulder strength for the compression-and-shouldery moves you are after.',r:120},
           {t:'Bicep tendon health',m:'3 sets',d:'Slow eccentric hammer curls + isometric holds. Non-negotiable every time this session comes up, whether the arms feel fine or not — this is specifically what has kept the tendinopathy from coming back before. Progress load here gradually; sudden jumps are what has flared it up in the past.',r:60}
@@ -188,7 +188,7 @@ var PROGRAMS = {
       hangboard:{n:'Repeaters', w:'Work · 25 min', c:'--slate', finger:2, pull:1, ask:'Repeater load',
         x:[
           {t:'Warm up',m:'10 min',d:'Pulse raise, then progressively heavier two-hand hangs on a jug. Short session, but going straight onto a loaded edge cold is exactly how the ring finger gets tweaked.'},
-          {t:'Repeaters',m:'5 × (10s on / 5s off × 5)',d:'Your usual protocol, at a sustainable load — not a max effort. If you are on a drag or edge position, keep the pinky engaged rather than isolating the ring finger.',r:120}
+          {t:'Repeaters',m:'5 × (10s on / 5s off × 5)',d:'Your usual protocol, at a sustainable load — not a max effort. Beastmaker 1000, the 20mm-range four-finger pockets. Unaffected by the gym’s 15kg cap: repeaters are meant to be submaximal, so running out of plates costs nothing here. Keep the pinky engaged and stay off the three- and two-finger pockets — that position is what tweaks your ring finger.',r:120}
         ]},
       climbHard:{n:'Compression & Power', w:'Gym · 90 min', c:'--heather', finger:2, pull:2, climb:1,
         x:[
