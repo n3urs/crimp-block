@@ -534,7 +534,7 @@ function render(){
     var m=presc(e,ph.n);
     if(/^skip\b/i.test(m)) return '';
     var on=!!ticks[key+i];
-    return '<div class="ex'+(on?' done':'')+'" data-i="'+i+'">'+
+    return '<div class="ex'+(on?' checked':'')+'" data-i="'+i+'">'+
       '<button class="tick" aria-pressed="'+on+'" aria-label="'+e.t+'"></button>'+
       '<div class="eb"><div class="et"><span class="en">'+e.t+'</span><span class="em'+(m!==e.m?' ph':'')+'">'+m+'</span></div>'+
       (e.d?'<div class="ed">'+e.d+'</div>':'')+
@@ -547,7 +547,7 @@ function render(){
       var row=b.closest('.ex'), k2=key+row.dataset.i;
       ticks[k2]=!ticks[k2];
       b.setAttribute('aria-pressed',!!ticks[k2]);
-      row.classList.toggle('done',!!ticks[k2]);
+      row.classList.toggle('checked',!!ticks[k2]);
     };
   });
   $('list').querySelectorAll('.rest').forEach(function(b){
