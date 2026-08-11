@@ -1042,10 +1042,15 @@ function weightSheet(e){
     '</div>'+
     '<div class="row2"><button class="sec" id="wX">Cancel</button><button class="pri" id="wOk">Save</button></div>');
 
+  /* No floor at 0: negative is a real value here, not an error — it is
+     assistance taken OFF (a band, a pulley, feet still doing some of the
+     work), same as Joe's band-assisted pull-ups. Less negative next time is
+     still progress, so the existing bump-when-held-twice logic already
+     does the right thing without any sign-specific handling. */
   function nudge(dir){
     var cur=parseFloat($('wIn').value);
     if(isNaN(cur)) cur=0;
-    $('wIn').value=Math.max(0, +(cur + dir*step).toFixed(2));
+    $('wIn').value=+(cur + dir*step).toFixed(2);
   }
   $('wDn').onclick=function(){ nudge(-1); };
   $('wUp').onclick=function(){ nudge(1); };
