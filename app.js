@@ -189,7 +189,10 @@ var PROGRAMS = {
           {t:'Archer / band-assisted one-arm pull-ups',m:'4 × 3 / arm',d:'Swapped off weighted pull-ups because the gym’s ~15kg cannot make them near-maximal — you already pull 30kg × 3, so 15kg is rep work wearing a strength label. Going unilateral gets you back to a genuine max effort with no plates at all: archer pull-ups, or a band through the bar taking just enough off. Progress by reducing band assistance. This is still where the burliness comes from.',r:180},
           {t:'Explosive pull-ups',m:'4 × 3',d:'Fast concentric, controlled landing. Power, not grind.',r:150},
           {t:'Weighted dips or shoulder press',m:'4 × 6',d:'Push/shoulder strength for the compression-and-shouldery moves you are after.',r:120},
-          {t:'Bicep tendon health',m:'3 sets',d:'Slow eccentric hammer curls + isometric holds. Non-negotiable every time this session comes up, whether the arms feel fine or not — this is specifically what has kept the tendinopathy from coming back before. Progress load here gradually; sudden jumps are what has flared it up in the past.',r:60}
+          /* dl deliberately equals m: this is rehab, not training load. Deload
+             weeks thin out the work that accumulates fatigue — tendon
+             maintenance is the thing you keep doing while the rest backs off. */
+          {t:'Bicep tendon health',m:'3 sets',dl:'3 sets',d:'Slow eccentric hammer curls + isometric holds. Non-negotiable every time this session comes up, whether the arms feel fine or not — this is specifically what has kept the tendinopathy from coming back before. Progress load here gradually; sudden jumps are what has flared it up in the past.',r:60}
         ]},
       hangboard:{n:'Repeaters', w:'Work · 25 min', c:'--slate', finger:2, pull:1, ask:'Repeater load',
         x:[
@@ -368,15 +371,50 @@ function rotated(e, key, date){
   return {e:list[((occ/every) - 1) % list.length], swapped:true, occ:occ};
 }
 
+/* Deload = cut VOLUME, hold INTENSITY. Same weight on the bar/belt, fewer
+   sets. Dropping the load instead sheds exactly the neural adaptation the
+   block just built, which is the opposite of the point — and it would also
+   mean needing to remember last block's numbers to take a third off them.
+   Fewer sets of whatever you did last time needs no records at all.
+
+   Derived from the ALREADY phase-resolved prescription rather than written
+   out per exercise, so it stays correct in every phase for free. An
+   explicit `dl` on the exercise wins where the shapes below don't fit. */
+function deloadPresc(m){
+  var cut=function(n){ return Math.max(2, Math.round(parseInt(n,10)*0.65)); };
+  // "10s × 5" -> "10s × 3". Hang duration is the intensity here, so the
+  // SECOND number is the set count. Must be tested before the rule below.
+  if(/^\d+s\s*[×x]\s*\d+/.test(m))
+    return m.replace(/^(\d+s\s*[×x]\s*)(\d+)/, function(_,head,n){ return head+cut(n); });
+  // "5 × 5s / hand" -> "3 × 5s / hand"
+  if(/^\d+\s*[×x]/.test(m))            return m.replace(/^(\d+)/, function(n){ return cut(n); });
+  // "4–5 sets" -> "3 sets"
+  if(/^\d+\s*[–-]\s*\d+\s*sets?/i.test(m)) return m.replace(/^(\d+)\s*[–-]\s*\d+(\s*sets?)/i, function(_,a,s){ return cut(a)+s; });
+  // "3 sets" / "3 supersets" -> "2 sets"
+  if(/^\d+\s*(super)?sets?/i.test(m))  return m.replace(/^(\d+)/, function(n){ return cut(n); });
+  // "45 min" -> "30 min". Warm-ups and cool-downs never reach here (see
+  // resolveEx) — a deload week is not a reason to warm up less.
+  if(/^\d+\s*min/i.test(m)){
+    var mins=parseInt(m,10), out=Math.max(10, Math.round(mins*0.65/5)*5);
+    // The 10-minute floor must never round a short session UP: a deload
+    // week can only ever take work away.
+    if(out>=mins) return m;
+    return m.replace(/^\d+/, out);
+  }
+  return m;  // "—", "rest of session", "projecting", anything else
+}
+
 /* Resolve an exercise for a given session/date/phase: phase skip wins over
    rotation (a phase that drops an exercise entirely shouldn't have a
-   rotated variant sneak back in), otherwise rotate then apply the phase
-   prescription. */
+   rotated variant sneak back in), otherwise rotate, apply the phase
+   prescription, then thin it out if this is a deload week. */
 function resolveEx(e, key, date, phaseName){
   if(/^skip\b/i.test(presc(e, phaseName))) return null;
   var r = rotated(e, key, date);
   var m = presc(r.e, phaseName);
   if(/^skip\b/i.test(m)) return null;   // a rotated-in variant can also skip
+  if(isDeload(date) && !/^(warm up|cool down)/i.test(r.e.t))
+    m = r.e.dl || deloadPresc(m);
   return {e:r.e, m:m, swapped:r.swapped, base:e};
 }
 
@@ -558,8 +596,17 @@ function render(){
   // explanation. That detail lives one tap away in "the plan" (topB above)
   // for whoever wants it; the card itself should take zero thought to read.
   $('h1').textContent=s.n;
-  $('where').innerHTML=s.w+(dl && key!=='rest'?' <span class="deload-badge">Deload — go lighter</span>':'');
-  $('why').textContent = isLogged ? 'Logged.' + (logged.l ? ' Top set ' + logged.l + 'kg.' : '') : '';
+  $('where').innerHTML=s.w+(dl && key!=='rest'?' <span class="deload-badge">Deload</span>':'');
+  /* The only surviving explanatory line, and it earns its place: the numbers
+     below are already deloaded, but "same weight, fewer sets" is the bit you
+     have to actually understand, because the instinct is to drop the load —
+     which sheds exactly what the block just built. */
+  $('why').textContent = (isLogged ? 'Logged.' + (logged.l ? ' Top set ' + logged.l + 'kg.' : '') + ' ' : '') +
+    (dl && key!=='rest'
+      ? 'Deload week — ' + (s.climb
+          ? 'fewer hard attempts, and stop well short of failure. Times below are already cut.'
+          : 'same weights as usual, fewer sets. The numbers below are already cut.')
+      : '');
 
   // exercises — prescriptions follow the current phase where one is defined.
   // A phase can skip an exercise entirely ("skip — ...") rather than just

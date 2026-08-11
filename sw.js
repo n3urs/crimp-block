@@ -7,7 +7,7 @@
    actually matters (logging a session at the crag with no signal).
 
    Bump CACHE when you change any file. */
-var CACHE = 'crimp-v34';
+var CACHE = 'crimp-v35';
 var FILES = ['./','./index.html','./app.js','./manifest.json','./icon.svg'];
 var NET_TIMEOUT = 4000;
 
