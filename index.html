@@ -121,6 +121,25 @@ h1{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:clamp(42p
 .tml{flex:1;font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:14px;letter-spacing:.1em;text-transform:uppercase;color:var(--faint);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .tmx{background:none;border:1px solid var(--s3);color:var(--dim);font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:14px;letter-spacing:.1em;text-transform:uppercase;padding:10px 16px;border-radius:var(--r);cursor:pointer}
 
+/* celebration — brief, non-blocking, nothing to dismiss */
+.celebrate{position:fixed;inset:0;z-index:70;pointer-events:none;display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity .15s}
+.celebrate.on{opacity:1}
+.cel-check{width:84px;height:84px;border-radius:50%;background:var(--c);display:flex;align-items:center;justify-content:center;transform:scale(0);animation:cel-pop .5s cubic-bezier(.34,1.56,.64,1) forwards}
+.cel-check svg{width:44px;height:44px}
+.cel-check path{stroke:var(--bg);stroke-width:4;fill:none;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:40;stroke-dashoffset:40;animation:cel-draw .35s ease .25s forwards}
+@keyframes cel-pop{0%{transform:scale(0)}60%{transform:scale(1.15)}100%{transform:scale(1)}}
+@keyframes cel-draw{to{stroke-dashoffset:0}}
+.cel-p{position:absolute;left:50%;top:50%;width:6px;height:6px;border-radius:1px;background:var(--c);opacity:0}
+.celebrate.on .cel-p{animation:cel-burst .7s ease-out forwards}
+@keyframes cel-burst{
+  0%{opacity:1;transform:translate(-50%,-50%) rotate(var(--ang)) translateX(0) scale(1)}
+  100%{opacity:0;transform:translate(-50%,-50%) rotate(var(--ang)) translateX(var(--dist)) scale(.4)}
+}
+@media (prefers-reduced-motion: reduce){
+  .cel-check{animation:none;transform:scale(1)}
+  .cel-check path{animation:none;stroke-dashoffset:0}
+}
+
 /* sheet */
 .bgd{position:fixed;inset:0;background:rgba(8,10,14,.78);z-index:60;opacity:0;pointer-events:none;transition:opacity .2s}
 .bgd.on{opacity:1;pointer-events:auto}
@@ -212,6 +231,8 @@ h1{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:clamp(42p
     <button class="tmx" id="tmX">Stop</button>
   </div>
 </div>
+
+<div class="celebrate" id="celebrate"></div>
 
 <div class="bgd" id="bgd"></div>
 <div class="sh" id="sh"><div class="shin" id="shIn"></div></div>

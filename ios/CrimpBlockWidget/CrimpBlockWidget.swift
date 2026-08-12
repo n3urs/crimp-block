@@ -108,16 +108,21 @@ struct WidgetView: View {
             Spacer(minLength: 8)
             Text(day.name.uppercased())
                 .font(.system(size: 21, weight: .heavy))
-                .foregroundStyle(.white)
+                .foregroundStyle(day.logged ? dim : .white)
+                .strikethrough(day.logged, pattern: .solid, color: day.accent)
                 .minimumScaleFactor(0.55)
                 .lineLimit(3)
                 .fixedSize(horizontal: false, vertical: true)
             Spacer(minLength: 6)
-            Text(day.where)
-                .font(.system(size: 9.5, weight: .medium, design: .monospaced))
-                .foregroundStyle(day.accent.opacity(0.85))
-                .lineLimit(2)
-                .minimumScaleFactor(0.75)
+            if day.logged {
+                doneBadge(day, size: 20)
+            } else {
+                Text(day.where)
+                    .font(.system(size: 9.5, weight: .medium, design: .monospaced))
+                    .foregroundStyle(day.accent.opacity(0.85))
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.75)
+            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
     }
@@ -135,7 +140,8 @@ struct WidgetView: View {
                 VStack(alignment: .leading, spacing: 5) {
                     Text(day.name.uppercased())
                         .font(.system(size: 25, weight: .heavy))
-                        .foregroundStyle(.white)
+                        .foregroundStyle(day.logged ? dim : .white)
+                        .strikethrough(day.logged, pattern: .solid, color: day.accent)
                         .minimumScaleFactor(0.55)
                         .lineLimit(3)
                         .fixedSize(horizontal: false, vertical: true)
@@ -147,7 +153,13 @@ struct WidgetView: View {
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
 
-                if !day.exercises.isEmpty {
+                // Logged replaces the exercise list rather than sitting
+                // alongside it — once it's done, what was prescribed stops
+                // being the point; a big done marker is.
+                if day.logged {
+                    doneBadge(day, size: 34)
+                        .frame(maxWidth: .infinity, alignment: .center)
+                } else if !day.exercises.isEmpty {
                     // 3, not 4 — four rows overflowed the bottom on the
                     // longest sessions once widget padding is accounted for.
                     let shown = day.exercises.prefix(3)
@@ -187,6 +199,20 @@ struct WidgetView: View {
     }
 
     // MARK: bits
+
+    /// The big done marker that replaces exercise detail once logged —
+    /// same reasoning as the strikethrough title: once it's done, what was
+    /// prescribed isn't the point anymore, "done" is.
+    private func doneBadge(_ day: Forecast.Day, size: CGFloat) -> some View {
+        VStack(spacing: 4) {
+            Image(systemName: "checkmark.circle.fill")
+                .font(.system(size: size))
+                .foregroundStyle(day.accent)
+            Text("DONE")
+                .font(.system(size: 10, weight: .bold, design: .monospaced))
+                .foregroundStyle(day.accent)
+        }
+    }
 
     /// Full-width accent strip: a status word (if there is one worth
     /// showing) on the left, the day on the right. Deliberately not the

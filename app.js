@@ -1200,6 +1200,32 @@ function finish(date, key){
 
   var p=Store.set(date,key); render();
   p.catch(function(e){ render(); saveFailed(e); });
+  if(date===today()) celebrate();
+}
+
+/* ---- celebration ---- */
+/* A brief, non-blocking reward on logging today's session — nothing to
+   dismiss, nothing to read, just there for a moment then gone. Kept out
+   of the daily card itself (same reasoning as everything else stripped
+   off it): this is a one-off reaction to an action just taken, not
+   standing information about the day. */
+function celebrate(){
+  var el=$('celebrate');
+  var reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var particles='';
+  if(!reduced){
+    var n=10;
+    for(var i=0;i<n;i++){
+      var ang=Math.round((360/n)*i + (Math.random()*20-10));
+      var dist=Math.round(60+Math.random()*40);
+      particles+='<i class="cel-p" style="--ang:'+ang+'deg;--dist:'+dist+'px;animation-delay:'+(Math.random()*0.06).toFixed(2)+'s"></i>';
+    }
+  }
+  el.innerHTML = particles +
+    '<div class="cel-check"><svg viewBox="0 0 24 24"><path d="M4 12l6 6L20 6"/></svg></div>';
+  el.classList.add('on');
+  clearTimeout(celebrate._t);
+  celebrate._t=setTimeout(function(){ el.classList.remove('on'); el.innerHTML=''; },900);
 }
 
 /* ---- timer ---- */
