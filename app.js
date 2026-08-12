@@ -394,6 +394,70 @@ function isDeload(date){ return block(date).w===4; }
 /* Show the phase-specific prescription for an exercise if it has one. */
 function presc(e,phaseName){ return (e.ph && e.ph[phaseName]) || e.m; }
 
+/* ------------------------------------------------------------
+   RETURNING FROM A LAYOFF — the same taper deload already does
+   (cut volume, hold weight), triggered by a real gap instead of the
+   4-week clock.
+
+   block() already handles the calendar side correctly: it counts
+   training days actually banked, so a fortnight off just pauses the
+   count rather than skipping you forward. What it does NOT do is
+   notice the gap happened at all — miss three weeks and it hands you
+   back the same Max Strength loads you were doing before, on tissue
+   that has partly detrained. For finger/pulley work specifically
+   that is exactly the caution this whole plan already takes for a
+   COLD session ("cold fingers is how pulleys go") — a long layoff is
+   the same risk, just measured in weeks instead of minutes.
+
+   LAYOFF_DAYS is deliberately short (crimp-specific tissue, not
+   general fitness) and RETURN_SESSIONS deliberately small — this is
+   two cautious sessions back in, not a whole reset block. */
+var LAYOFF_DAYS = 10;
+var RETURN_SESSIONS = 2;
+/* Deload holds the weight and only cuts volume, because that is fatigue
+   management on capacity that is still intact. A layoff is a different
+   risk — connective tissue that has not been loaded in weeks meeting a
+   near-max weight cold — so unlike deload this DOES reduce the number, not
+   just the sets. 15% is a reasoned buffer, not a measured one: there is no
+   clean per-person formula for this, and it applies the same cut to
+   everything tracked rather than trying to guess which exercises are more
+   finger/tendon-sensitive than others. If it reads as too cautious or not
+   cautious enough once you have actually come back from a break, this is
+   the one number to change. */
+var RETURN_CUT = 0.85;
+
+/* Is there a layoff of LAYOFF_DAYS+ that ended recently enough for `date`
+   to still be inside the RETURN_SESSIONS-session taper — and if so, which
+   layoff, and how far into the taper is `date`.
+
+   Walks the real training history backward from `date` (`date` itself
+   counted as the hypothetical next session) looking for the most recent
+   gap of LAYOFF_DAYS+. This has to be a walk, not a single before/after
+   comparison against the single most recent training day — the most
+   recent training day IS session 1 of the taper once you have done it, so
+   anchoring the gap check there instead of the ORIGINAL layoff would
+   collapse the whole taper down to one session: on session 2 the "gap"
+   would just be the couple of days since session 1, nowhere near
+   LAYOFF_DAYS, and the taper would look like it had already ended when it
+   has not. */
+function returnInfo(date){
+  date = date || today();
+  var all=Store.all(), days=[];
+  for(var k in all) if(k<date && all[k] && isTraining(all[k].t)) days.push(k);
+  days.sort();
+  if(!days.length) return null;
+
+  var seq=days.concat([date]), n=0;
+  for(var i=seq.length-1; i>0; i--){
+    n++;
+    var gap=Math.round((new Date(seq[i]+'T12:00:00') - new Date(seq[i-1]+'T12:00:00')) / 86400000);
+    if(gap>=LAYOFF_DAYS) return n<=RETURN_SESSIONS ? {gap:gap, resumed:seq[i], session:n} : null;
+    if(n>=RETURN_SESSIONS) return null;   // RETURN_SESSIONS have passed with no qualifying gap
+  }
+  return null;
+}
+function isReturning(date){ return !!returnInfo(date); }
+
 /* Which time round is this? Counts logged days of this session type before
    `date`, so today is occurrence n+1 whether or not it's been logged yet. */
 function occurrence(key, date){
@@ -479,6 +543,7 @@ function target(e, date){
 
   var last = past[0];
   if(isDeload(date)) return {kg:last.kg, bump:false};
+  if(isReturning(date)) return {kg:+(last.kg*RETURN_CUT).toFixed(2), bump:false, eased:true};
   /* Two sessions at the same weight = it has stopped being hard. One is
      not enough — a single good session is as likely to be a good day. */
   var held = past.length>=2 && past[1].kg===last.kg;
@@ -505,7 +570,7 @@ function resolveEx(e, key, date, phaseName){
   var r = rotated(e, key, date);
   var m = presc(r.e, phaseName);
   if(/^skip\b/i.test(m)) return null;   // a rotated-in variant can also skip
-  if(isDeload(date) && !/^(warm up|cool down)/i.test(r.e.t))
+  if((isDeload(date) || isReturning(date)) && !/^(warm up|cool down)/i.test(r.e.t))
     m = r.e.dl || deloadPresc(m);
   return {e:r.e, m:m, swapped:r.swapped, base:e};
 }
@@ -547,9 +612,16 @@ function forecast(days){
       sim[d]=key;
     }
     var s=T[key];
+    /* isReturning() checks real Store data, not the `sim` days above, so
+       across a 14-day forecast this stays "true" for every simulated day
+       until a real log shrinks the actual gap — same known limitation as
+       phase/dl being frozen to today for the whole window (see comment
+       above). Cosmetic only: it can show the taper running a little longer
+       in the widget than it will once real days get logged. */
+    var ret = !dl && isReturning(d);
     out.push({
       date:d, key:key, name:s.n, where:s.w, colour:v(s.c), logged:!!real,
-      phase: dl ? 'Deload' : ph.n,
+      phase: dl ? 'Deload' : ret ? 'Returning' : ph.n,
       cue: key==='rest' ? '' : (dl ? 'Pull back — every set lighter or shorter this week.' : ph.cue),
       exercises: s.x.map(function(e){ return resolveEx(e, key, d, ph.n); }).filter(Boolean)
                     .map(function(r){
@@ -606,15 +678,20 @@ function decide(date, hOverride){
   var run=streak(h);
 
   /* Deload weeks pull both ceilings down, so the week genuinely comes out
-     lighter instead of just being labelled that way. */
-  var dl=isDeload(date);
-  var runCap=dl?2:3, hardCap=dl?3:5;
+     lighter instead of just being labelled that way. Returning from a
+     layoff gets the same tighter ceilings, for the same reason deload
+     tightens them, but for a different underlying cause — see isReturning(). */
+  var dl=isDeload(date), ret=!dl && isReturning(date);
+  var tight=dl||ret;
+  var runCap=tight?2:3, hardCap=tight?3:5;
 
   if(run>=runCap) return {k:'rest', why: dl
     ? run+' days on the trot in a deload week. The whole point of this week is arriving at the next block fresh.'
+    : ret ? run+' days on the trot while easing back in. That is exactly the number that used to catch you out — rest.'
     : run+' days on the trot. Nothing productive happens on day four.'};
   if(hard>=hardCap) return {k:'rest', why: dl
     ? hard+' hard days already this deload week. Cap is three — bank the recovery.'
+    : ret ? hard+' hard days already since coming back. Cap is three while easing back in — bank the recovery.'
     : hard+' hard days in the last seven. That is the ceiling.'};
 
   if(count(h,['maxFingers'])<1 && since(h,['maxFingers'])>=3 && yf<=1)
@@ -653,8 +730,8 @@ function render(){
 
   document.documentElement.style.setProperty('--c', v(s.c));
 
-  var ph=phaseAt(p.b), dl=p.w===4;
-  $('topB').textContent=ph.n+' · Wk '+p.w+(dl?' · Deload':'');
+  var ph=phaseAt(p.b), dl=p.w===4, ret=!dl && isReturning(today());
+  $('topB').textContent=ph.n+' · Wk '+p.w+(dl?' · Deload':ret?' · Easing back in':'');
   $('topB').onclick=showPlan;
   $('topD').textContent=new Date().toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'});
 
@@ -693,16 +770,19 @@ function render(){
   // explanation. That detail lives one tap away in "the plan" (topB above)
   // for whoever wants it; the card itself should take zero thought to read.
   $('h1').textContent=s.n;
-  $('where').innerHTML=s.w+(dl && key!=='rest'?' <span class="deload-badge">Deload</span>':'');
-  /* The only surviving explanatory line, and it earns its place: the numbers
-     below are already deloaded, but "same weight, fewer sets" is the bit you
-     have to actually understand, because the instinct is to drop the load —
-     which sheds exactly what the block just built. */
+  $('where').innerHTML=s.w+
+    (dl && key!=='rest' ? ' <span class="deload-badge">Deload</span>'
+      : ret && key!=='rest' ? ' <span class="deload-badge">Easing back in</span>' : '');
+  /* The only surviving explanatory lines, and they earn their place: the
+     numbers below are already adjusted, but the REASON you should not just
+     push through to what they used to say is the bit worth one sentence. */
   $('why').textContent = (isLogged ? 'Logged.' + (logged.l ? ' Top set ' + logged.l + 'kg.' : '') + ' ' : '') +
     (dl && key!=='rest'
       ? 'Deload week — ' + (s.climb
           ? 'fewer hard attempts, and stop well short of failure. Times below are already cut.'
           : 'same weights as usual, fewer sets. The numbers below are already cut.')
+      : ret && key!=='rest'
+      ? 'Easing back in after a break — weights are cut, not just sets. Go by feel: back off further if anything below feels off, this is not the week to chase the number.'
       : '');
 
   // exercises — prescriptions follow the current phase where one is defined.
@@ -933,6 +1013,17 @@ function showPlan(){
       ? '<p class="shp">You have worked through all six blocks — the structured plan is complete. It does not stop or reset: you now hold in <strong style="color:'+col+'">'+cur.n+'</strong> indefinitely, still on the same 4-week rhythm with a deload every fourth trained week. This is meant to be where you live long-term, not a finish line.</p>'
       : '<p class="shp">A week advances when you have banked '+p.per+' sessions that carried load — not every 7 days. Take a fortnight off and you pick up exactly where you left off. Four weeks make a block, and every fourth week is a deload, where the app tightens its own limits and pushes rest.</p>');
 
+  /* Sticks around for exactly the sessions the taper actually covers, not
+     a fixed number of days — it does not linger as stale advice once you
+     are back to normal. */
+  var rinfo=returnInfo();
+  if(rinfo){
+    h+='<div class="plan-h">Coming back</div>'+
+      '<p class="shp">'+rinfo.gap+' days off, back since '+shortDate(rinfo.resumed)+
+      ' — session '+rinfo.session+' of '+RETURN_SESSIONS+' in the taper. Weights are cut '+Math.round((1-RETURN_CUT)*100)+
+      '% and volume is trimmed. Normal prescriptions from the session after this.</p>';
+  }
+
   h+=PHASES.map(function(x,i){
     var on=i===curI, c=v(x.c||'--s4');
     return '<button class="opt" style="--oc:'+c+(on?'':';opacity:.62')+'" data-p="'+i+'">'+
@@ -1030,6 +1121,10 @@ function weightSheet(e){
   var note;
   if(tg && tg.set)      note='Recorded '+tg.kg+'kg today.'+(prev?' Last time '+prev.kg+'kg, '+shortDate(prev.date)+'.':'');
   else if(tg && tg.bump)note='You held '+prev.kg+'kg for two sessions, so this is up '+step+'kg. Put it back if it is too much — nothing is lost.';
+  else if(tg && tg.eased){
+    var rinf=returnInfo(today());
+    note='Easing back in after '+(rinf?rinf.gap:'a few')+' days off, so this is cut down from '+prev.kg+'kg rather than picking up where you left off. Go lower still if it feels off — the number is a ceiling, not a target.';
+  }
   else if(prev)         note='Last time — '+prev.kg+'kg, '+shortDate(prev.date)+'.';
   else                  note='First time on this one. Put in what you actually lift today and the app takes it from there.';
 

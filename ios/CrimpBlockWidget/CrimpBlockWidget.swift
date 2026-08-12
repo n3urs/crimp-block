@@ -194,7 +194,10 @@ struct WidgetView: View {
     /// are in the plan" stays out unless it's actionable (logged, deload).
     private func banner(_ day: Forecast.Day) -> some View {
         HStack(spacing: 6) {
-            let status = day.logged ? "LOGGED" : (day.phase == "Deload" ? "DELOAD" : "")
+            let status = day.logged ? "LOGGED"
+                : day.phase == "Deload" ? "DELOAD"
+                : day.phase == "Returning" ? "EASING IN"
+                : ""
             if !status.isEmpty {
                 Text(status)
                     .font(.system(size: 9.5, weight: .bold, design: .monospaced))
