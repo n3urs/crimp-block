@@ -385,6 +385,7 @@ function phaseIndexAt(b){
   return out;
 }
 function phaseAt(b){ return PHASES[phaseIndexAt(b)]; }
+function phaseNameAt(date){ return phaseAt(block(date).b).n; }
 function phaseRange(i){
   if(i===PHASES.length-1) return 'Block '+PHASES[i].from+' onwards';
   var from=PHASES[i].from, to=PHASES[i+1].from-1;
@@ -520,6 +521,23 @@ function deloadPresc(m){
   return m;  // "—", "rest of session", "projecting", anything else
 }
 
+/* Weight history for an exercise, scoped to the phase actually active on
+   `date` — Base's submaximal numbers must never surface as "last time"
+   once you are in Max Strength's near-max protocol for the same lift, and
+   the reverse. Needs no stored field: any past date's phase is already
+   fully derivable from the training log (that is how the whole
+   periodization system works), so this is a filter over data already
+   collected, not new bookkeeping.
+
+   Phases that repeat by name (Joe's program runs Max Strength twice)
+   correctly DO share history across their occurrences — same name, same
+   intensity, and his second Max Strength block is explicitly written to
+   continue from where the first one left off, not restart blind. */
+function loadHistory(id, date){
+  var ph=phaseNameAt(date);
+  return Loads.history(id).filter(function(r){ return r.date<date && phaseNameAt(r.date)===ph; });
+}
+
 /* What to put on the bar today, for exercises carrying an `id`.
 
    This is the last hand-administered rule in the plan: "add 1–2.5kg once
@@ -538,7 +556,7 @@ function target(e, date){
   var set = Loads.on(e.id, date);
   if(set) return {kg:set.kg, bump:false, set:true};
 
-  var past = Loads.history(e.id).filter(function(r){ return r.date < date; });
+  var past = loadHistory(e.id, date);
   if(!past.length) return null;
 
   var last = past[0];
@@ -1115,8 +1133,12 @@ function shortDate(d){
 function weightSheet(e){
   var step=e.step||2.5;
   var tg=target(e, today());
-  var past=Loads.history(e.id).filter(function(r){ return r.date<today(); });
+  var past=loadHistory(e.id, today());   // this phase only — see loadHistory()
   var prev=past[0];
+  // Only consulted when there is nothing in THIS phase yet — a reference,
+  // never a suggestion, so a Base number never quietly becomes today's
+  // Max Strength target.
+  var anyPrev = !prev ? Loads.history(e.id).filter(function(r){ return r.date<today(); })[0] : null;
 
   var note;
   if(tg && tg.set)      note='Recorded '+tg.kg+'kg today.'+(prev?' Last time '+prev.kg+'kg, '+shortDate(prev.date)+'.':'');
@@ -1126,6 +1148,7 @@ function weightSheet(e){
     note='Easing back in after '+(rinf?rinf.gap:'a few')+' days off, so this is cut down from '+prev.kg+'kg rather than picking up where you left off. Go lower still if it feels off — the number is a ceiling, not a target.';
   }
   else if(prev)         note='Last time — '+prev.kg+'kg, '+shortDate(prev.date)+'.';
+  else if(anyPrev)      note='New phase — '+phaseNameAt(anyPrev.date)+' numbers don\'t carry over here. Last logged there: '+anyPrev.kg+'kg, '+shortDate(anyPrev.date)+'. Put in what you actually lift today.';
   else                  note='First time on this one. Put in what you actually lift today and the app takes it from there.';
 
   open('<h2>'+e.t+'</h2>'+
