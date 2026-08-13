@@ -704,8 +704,21 @@ function decide(date, hOverride){
   var h=hOverride || history(date);
   var yf=load(h[0].type,'finger');
   var yName=h[0].type?T[h[0].type].n:null;
-  var hard=h.filter(function(e){ return isHard(e.type); }).length;
   var run=streak(h);
+
+  /* The caps below mean "no more than N in any SEVEN CONSECUTIVE DAYS", and
+     the window that matters when deciding `date` is `date` itself plus the
+     six days behind it — `date` occupies the seventh slot. So the count runs
+     over ago 1..6, not the full ago 1..7 that history() returns.
+
+     Counting all seven made the engine a day more conservative than designed
+     and produced a genuinely wrong answer: a finger day exactly 7 days back
+     blocked training today, even though it drops out of the window the
+     instant today is logged, so no 5-in-7 could ever have occurred. Recency
+     is handled separately by the since() gates; these two are purely about
+     how much fits in a week. */
+  var win=h.slice(0,6);
+  var hard=win.filter(function(e){ return isHard(e.type); }).length;
 
   /* Deload weeks pull both ceilings down, so the week genuinely comes out
      lighter instead of just being labelled that way. Returning from a
@@ -721,7 +734,7 @@ function decide(date, hOverride){
      not run three-on-one-off no matter how recovered the fingers were.
      Connective tissue adapts far slower than muscle, so this is the limit
      that actually matters for injury; the blanket cap is the systemic one. */
-  var fingerDays=h.filter(function(e){ return e.type && FING.indexOf(e.type)>=0; }).length;
+  var fingerDays=win.filter(function(e){ return e.type && FING.indexOf(e.type)>=0; }).length;
   var fingerCap=tight?2:4;
 
   if(run>=runCap) return {k:'rest', why: dl
@@ -731,7 +744,7 @@ function decide(date, hOverride){
   if(hard>=hardCap) return {k:'rest', why: dl
     ? hard+' hard days already this deload week. Cap is three — bank the recovery.'
     : ret ? hard+' hard days already since coming back. Cap is three while easing back in — bank the recovery.'
-    : hard+' hard days in the last seven. That is the ceiling.'};
+    : hard+' hard days behind you already. Training today would make '+(hard+1)+' in a week, which is over the ceiling.'};
 
   /* Gated on RECOVERY ONLY, not on a once-per-calendar-week quota. The old
      `count(h,[X])<1` meant each session could appear at most once in any
