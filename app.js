@@ -132,8 +132,11 @@ function saveFailed(err){
    One session library per person, keyed by their sign-in email
    (lowercased). Every program must define the same seven keys
    (maxFingers, hangboard, pull, climbHard, outdoorHard, climbEasy,
-   rest) — the rules engine below (decide/ORDER/FING/CLIMB) is
-   shared and references those keys directly. Only the content
+   rest) — the rules engine below (decide/ORDER/FING) is
+   shared and references those keys directly. Only the first three
+   are ever RECOMMENDED; the climbing sessions exist so you can log
+   them yourself, and so they count toward recovery once you have.
+   Only the content
    (name, description, exercises, load numbers, start date)
    varies per person. 'default' is used for anyone signed in
    whose email isn't listed below yet.
@@ -332,8 +335,12 @@ function applyProgram(email){
    RULES ENGINE — shared across everyone. Only PROGRAMS above
    varies per person; the gating logic below does not.
    ------------------------------------------------------------ */
+/* ORDER is the swipe strip — every session stays reachable by hand, including
+   the climbing ones the engine never recommends. FING is what counts as
+   having loaded your fingers, and deliberately still includes the climbing
+   sessions: a crag day gates tomorrow's hangboard exactly as it always did,
+   whether the app suggested it or you did. */
 var ORDER=['maxFingers','hangboard','pull','climbHard','outdoorHard','climbEasy','rest'];
-var CLIMB=['climbHard','outdoorHard','climbEasy'];
 var FING=['maxFingers','hangboard','climbHard','outdoorHard'];
 
 /* ------------------------------------------------------------
@@ -688,10 +695,14 @@ function streak(h){
   return n;
 }
 
-/* The raw answer, before the no-two-rests-in-a-row rule below. Split out
-   only so that rule has one place to sit rather than being repeated at
-   every `rest` return in here. */
-function decideBase(date, h){
+/* The engine only ever schedules the three structured sessions — Max
+   Fingers, Hangboard, Pull — or rest. Climbing (indoor, outdoor, easy) is
+   never recommended: those are days you decide to take, and you put them
+   in yourself by swiping or tapping a dot. Logged climbing days still feed
+   the recovery gates and the hard-day caps below exactly as before, they
+   just are not something the app asks you to do. */
+function decide(date, hOverride){
+  var h=hOverride || history(date);
   var yf=load(h[0].type,'finger');
   var yName=h[0].type?T[h[0].type].n:null;
   var hard=h.filter(function(e){ return isHard(e.type); }).length;
@@ -725,35 +736,10 @@ function decideBase(date, h){
       ? (yName||'Yesterday')+' left your fingers cooked. Your arms are fine — this is exactly what Pull is for.'
       : 'Pull work is outstanding this week and nothing is blocking it.'};
 
-  if(count(h,CLIMB)<4)
-    return {k:'climbHard', why:'Structured work is covered. Go climbing, and make it the crimpy one.'};
-
-  return {k:'rest', why:'Everything is done or blocked. Take the day.'};
-}
-
-/* Never two rest days back to back.
-
-   The caps in decideBase() are a ceiling on HARD days, not an instruction
-   to sit still — but with nothing between "hard" and "nothing", hitting
-   the ceiling produced rest, and hitting it two days running produced two
-   rests. Easy climbing is what that gap is for.
-
-   This deliberately does NOT loosen the ceiling: climbEasy is not a hard
-   day (isHard() is false for it in every program), so it neither extends
-   a hard streak nor counts toward the 5-in-7 cap. The rest day is being
-   replaced with active recovery, not with training.
-
-   An unlogged day counts as rest here, same as everywhere else in the
-   engine — if you did not open the app, you did not train. */
-function decide(date, hOverride){
-  var h = hOverride || history(date);
-  var d = decideBase(date, h);
-  if(d.k !== 'rest') return d;
-
-  var y = h[0].type;                       // yesterday, null if never logged
-  if(y && y !== 'rest') return d;          // yesterday was a real day — rest is fine
-
-  return {k:'climbEasy', why:'Yesterday was already off. The cap is on hard days, not on moving — keep this genuinely easy and it costs you nothing against the ceiling.'};
+  /* Nothing structured is due. Not an instruction to sit still — this is
+     the day to go climbing if you fancy it; the app just does not presume
+     to schedule that for you. */
+  return {k:'rest', why:'Nothing structured due. Climb if you fancy it, otherwise take the day.'};
 }
 
 /* ------------------------------------------------------------
