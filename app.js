@@ -713,7 +713,16 @@ function decide(date, hOverride){
      tightens them, but for a different underlying cause — see isReturning(). */
   var dl=isDeload(date), ret=!dl && isReturning(date);
   var tight=dl||ret;
-  var runCap=tight?2:3, hardCap=tight?3:5;
+  var runCap=tight?2:3, hardCap=tight?3:6;
+
+  /* Fingers get their own ceiling, separate from the blanket one above.
+     Pull is systemically hard but it is a REST DAY for fingers, so counting
+     it against a single combined cap strangled the rotation — the plan could
+     not run three-on-one-off no matter how recovered the fingers were.
+     Connective tissue adapts far slower than muscle, so this is the limit
+     that actually matters for injury; the blanket cap is the systemic one. */
+  var fingerDays=h.filter(function(e){ return e.type && FING.indexOf(e.type)>=0; }).length;
+  var fingerCap=tight?2:4;
 
   if(run>=runCap) return {k:'rest', why: dl
     ? run+' days on the trot in a deload week. The whole point of this week is arriving at the next block fresh.'
@@ -731,16 +740,18 @@ function decide(date, hOverride){
      rolling three-on-one-off: each session comes back round as soon as
      the tissue it loads has recovered, and the caps above are what stop it
      running away. Recovery is the limiter, not the calendar. */
-  if(since(h,['maxFingers'])>=3 && yf<=1)
+  if(fingerDays<fingerCap && since(h,['maxFingers'])>=3 && yf<=1)
     return {k:'maxFingers', why:'Fingers are fresh. This is the session that moves your weakness, so it gets first claim.'};
 
   /* Two clear days since ANY finger loading, crag days included — which is
      also why this one gets squeezed first when the week is busy. Little and
      often on the board matters less than arriving at Max Fingers fresh. */
-  if(since(h,FING)>=2)
+  if(fingerDays<fingerCap && since(h,FING)>=2)
     return {k:'hangboard', why:'Max Fingers is unavailable, but your fingers can take submaximal tolerance work.'};
 
-  if(since(h,['pull'])>=2)
+  /* Three-day floor, not two: at two it filled every gap the finger cap
+     opened up and the rotation degenerated into pull-rest-pull-rest. */
+  if(since(h,['pull'])>=3)
     return {k:'pull', why: yf>1
       ? (yName||'Yesterday')+' left your fingers cooked. Your arms are fine — this is exactly what Pull is for.'
       : 'Pull work is outstanding this week and nothing is blocking it.'};
