@@ -202,7 +202,7 @@ var PROGRAMS = {
         ]},
       climbEasy:{n:'Easy Climbing', w:'Anywhere', c:'--tidepool', finger:1, pull:1, climb:1,
         x:[{t:'Mileage and movement',m:'—',d:'Nothing near limit. If you are trying hard, it stops being this session.'}]},
-      rest:{n:'Rest', w:'—', c:'--grey', finger:0, pull:0, x:[]}
+      rest:{n:'Rest', w:'—', c:'--grey', finger:0, pull:0, note:'Rest from training, not from moving. An easy climb is fine — if it turns into trying hard, log it as a Crimp Session so the plan can count it.', x:[]}
     }
   },
 
@@ -267,7 +267,7 @@ var PROGRAMS = {
         ]},
       climbEasy:{n:'Easy Climbing', w:'Anywhere', c:'--tidepool', finger:1, pull:1, climb:1,
         x:[{t:'Mileage and movement',m:'—',d:'Nothing near limit. Footwork and reading, not trying hard.'}]},
-      rest:{n:'Rest', w:'—', c:'--grey', finger:0, pull:0, x:[]}
+      rest:{n:'Rest', w:'—', c:'--grey', finger:0, pull:0, note:'Rest from training, not from moving. An easy climb is fine — if it turns into trying hard, log it so the plan can count it.', x:[]}
     }
   },
 
@@ -317,7 +317,7 @@ var PROGRAMS = {
         ]},
       climbEasy:{n:'Easy Climbing', w:'Anywhere', c:'--tidepool', finger:1, pull:1, climb:1,
         x:[{t:'Mileage and movement',m:'—',d:'Nothing near limit — volume and movement quality only.'}]},
-      rest:{n:'Rest', w:'—', c:'--grey', finger:0, pull:0, x:[]}
+      rest:{n:'Rest', w:'—', c:'--grey', finger:0, pull:0, note:'Rest from training, not from moving. An easy climb is fine — if it turns into trying hard, log it so the plan can count it.', x:[]}
     }
   }
 };
@@ -756,9 +756,20 @@ function decide(date, hOverride){
       ? (yName||'Yesterday')+' left your fingers cooked. Your arms are fine — this is exactly what Pull is for.'
       : 'Pull work is outstanding this week and nothing is blocking it.'};
 
-  /* Nothing structured is due. Not an instruction to sit still — this is
-     the day to go climbing if you fancy it; the app just does not presume
-     to schedule that for you. */
+  /* Nothing structured is due. Before settling for rest: if yesterday was
+     already a rest day, Pull's floor drops from three days to two. Pull is
+     the one session that costs the fingers nothing, so it is the only
+     legitimate filler for a would-be second consecutive rest day — and this
+     lives HERE, at the nothing-due fallthrough, deliberately: rests decided
+     by the caps above are safety and are never overridden, and deload /
+     easing-back weeks (tight) keep their doubled rests on purpose. */
+  var y=h[0].type;
+  if((!y || y==='rest') && !tight && since(h,['pull'])>=2)
+    return {k:'pull', why:'Second day off in a row otherwise. Pull spares the fingers entirely, so its usual three-day gap drops to two rather than sitting still again.'};
+
+  /* Genuinely nothing due. Not an instruction to sit still — this is the
+     day to go climbing if you fancy it; the app just does not presume to
+     schedule that for you. */
   return {k:'rest', why:'Nothing structured due. Climb if you fancy it, otherwise take the day.'};
 }
 
