@@ -684,7 +684,6 @@ function history(endDate){
 }
 function load(type,which){ return (type && T[type]) ? (T[type][which]||0) : 0; }
 function since(h,keys){ for(var i=0;i<h.length;i++) if(h[i].type && keys.indexOf(h[i].type)>=0) return h[i].ago; return 99; }
-function count(h,keys){ var n=0; for(var i=0;i<h.length;i++) if(h[i].type && keys.indexOf(h[i].type)>=0) n++; return n; }
 function isHard(type){ return load(type,'finger')>=2 || load(type,'pull')>=3; }
 function streak(h){
   var n=0;
@@ -725,13 +724,23 @@ function decide(date, hOverride){
     : ret ? hard+' hard days already since coming back. Cap is three while easing back in — bank the recovery.'
     : hard+' hard days in the last seven. That is the ceiling.'};
 
-  if(count(h,['maxFingers'])<1 && since(h,['maxFingers'])>=3 && yf<=1)
+  /* Gated on RECOVERY ONLY, not on a once-per-calendar-week quota. The old
+     `count(h,[X])<1` meant each session could appear at most once in any
+     7-day window, which capped the whole plan at three training days a
+     week and left five rest days in a row. The intended rhythm is a
+     rolling three-on-one-off: each session comes back round as soon as
+     the tissue it loads has recovered, and the caps above are what stop it
+     running away. Recovery is the limiter, not the calendar. */
+  if(since(h,['maxFingers'])>=3 && yf<=1)
     return {k:'maxFingers', why:'Fingers are fresh. This is the session that moves your weakness, so it gets first claim.'};
 
-  if(count(h,['hangboard'])<1 && since(h,FING)>=2)
+  /* Two clear days since ANY finger loading, crag days included — which is
+     also why this one gets squeezed first when the week is busy. Little and
+     often on the board matters less than arriving at Max Fingers fresh. */
+  if(since(h,FING)>=2)
     return {k:'hangboard', why:'Max Fingers is unavailable, but your fingers can take submaximal tolerance work.'};
 
-  if(count(h,['pull'])<1 && since(h,['pull'])>=2)
+  if(since(h,['pull'])>=2)
     return {k:'pull', why: yf>1
       ? (yName||'Yesterday')+' left your fingers cooked. Your arms are fine — this is exactly what Pull is for.'
       : 'Pull work is outstanding this week and nothing is blocking it.'};
