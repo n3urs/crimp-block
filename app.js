@@ -158,7 +158,7 @@ var PROGRAMS = {
       {n:'Performance', from:6, c:'--slate', cue:'Maintain only — climbing is the real work now', d:'Structured training steps back and climbing takes over. Keep one light finger session a week to hold what you built, and spend the rest of your days projecting. This is when the previous five months are supposed to show up on rock.'}
     ],
     sessions:{
-      maxFingers:{n:'Max Fingers', w:'Home · 50 min', c:'--gorse', finger:3, pull:1,
+      maxFingers:{n:'Max Fingers', w:'Home · 50 min', c:'--gorse', finger:3, pull:1, note:'Climbing today? This first, then the gym a few hours later. Never climb before max finger work — you cannot pull max on tired fingers, and that is how pulleys go.',
         x:[
           {t:'Warm up',m:'15 min',d:'Pulse raise, then three progressively heavier two-hand pickups. Never skip this on a cold morning.'},
           {t:'Pickups — half crimp',id:'osc-pickup-half',m:'5 × 5s / hand',ph:{'Base':'4 × 8s / hand — lighter','Power':'5 × 3s / hand — fast pickup','Performance':'3 × 5s / hand — maintain only'},d:'20mm. Rep five hard but form-perfect. Alternate hands — each hand then gets about three minutes between efforts, which is what near-max work needs to stay near-max.',r:90},
@@ -166,7 +166,7 @@ var PROGRAMS = {
           {t:'Pinch block',id:'osc-pinch',step:1.25,m:'4 × 5s / hand',d:'Alternate hands.',r:60},
           {t:'Wrist roller',m:'3 sets',d:'Up and down to near failure.',r:60}
         ]},
-      pull:{n:'Pull', w:'Home · 40 min', c:'--tidepool', finger:0, pull:3,
+      pull:{n:'Pull', w:'Home · 40 min', c:'--tidepool', finger:0, pull:3, note:'Climbing today? Climb FIRST and do this after — no fingers here, so spend them on the wall. This is the day to try hard on something crimpy. Just leave enough arm for the one-arm holds.',
         x:[
           {t:'Warm up',m:'5 min',d:'Band pull-aparts, scap pulls, then two progressively heavier pull-up sets. The bar is outside — do not pull heavy on cold shoulders and elbows.'},
           {t:'Bottom-range pull-ups',id:'osc-pull-bottom',m:'4 × 5',ph:{'Base':'3 × 8 — lighter','Power':'5 × 3 — explosive out of the hang','Performance':'3 × 4 — maintain only'},d:'Two arms, full dead hang, pull only to ~30° elbow bend, hold 2s, lower slow. Heavy. This is the one that matters — it loads exactly the range where your one-arm stalls. Rotates automatically every 4th Pull session to vary the stimulus.',r:150,
@@ -179,7 +179,7 @@ var PROGRAMS = {
           {t:'Front lever',m:'4 × 8–10s',d:'Hardest tuck or straddle you hold clean. If you cannot hold a tuck yet, do slow negative lowers from a tuck for the same sets.',r:75},
           {t:'Antagonists',m:'3 supersets',d:'Reverse wrist curls 3×15 · finger extensors 3×20 (a rubber band round the fingertips, opening the hand against it — no dedicated tool needed) · external rotation 3×12 · dips 3×10. Run as supersets with minimal rest — maintenance work, not a strength focus.'}
         ]},
-      hangboard:{n:'Hangboard', w:'Gym · 40–55 min + climb', c:'--slate', finger:2, pull:1,
+      hangboard:{n:'Hangboard', w:'Gym · 40–55 min + climb', c:'--slate', finger:2, pull:1, note:'Board work before climbing, in the order below. Repeaters on already-tired fingers is a different exercise at a load you did not choose.',
         x:[
           {t:'Warm up',m:'10 min',d:'Pulse raise, then progressively heavier two-hand hangs on a jug before touching the edge. On weeks Weighted Hangs is in the session it goes first, while fingers are fresh — so warm up properly, you are heading straight into the heaviest thing you do here.'},
           {t:'Weighted hangs',id:'osc-hang-wt',m:'10s × 5',ph:{'Base':'skip — repeaters only this phase','Power':'3s × 6 — short, sharp, contact-focused','Performance':'skip — hold what you built, repeaters only'},d:'Only if the gym has a belt. Heavy-ish, never maximal. This goes FIRST, while fingers are fresh — doing repeaters before it would blunt the load you can hold and mean pulling near-max on already-fatigued tissue. Alternates automatically with a lighter week.',r:180,
@@ -231,14 +231,14 @@ var PROGRAMS = {
       {n:'Performance', from:6, c:'--slate', cue:'Maintain only — climbing is the real work now', d:'Structured training steps back and climbing takes over — keep one finger session and one circuit a week to hold what you built, and spend the rest projecting. If the Font trip has a date by now, say so and this becomes a proper taper instead.'}
     ],
     sessions:{
-      maxFingers:{n:'Max Strength', w:'Work · 40 min', c:'--gorse', finger:3, pull:1,
+      maxFingers:{n:'Max Strength', w:'Work · 40 min', c:'--gorse', finger:3, pull:1, note:'Climbing today? This first, ideally hours before. Fingers cannot pull near-max once they are already tired, and that is when they get hurt.',
         x:[
           {t:'Warm up',m:'15 min',d:'Pulse raise, then progressively heavier two-hand hangs on a jug before loading anything.'},
           {t:'Half-crimp hang — 15mm edge',id:'joe-hang15',m:'5 × 7s',ph:{'Power Endurance':'3 × 7s — maintain only','Performance':'3 × 7s — maintain only'},d:'Beastmaker 1000, 15mm edge, four fingers half-crimped. This is the priority lift — crimps train reliably, which slopers do not: a sloper hold fails on friction and skin, so a worse session might just mean a slicker day rather than a weaker one. WHEN THE GYM’S ~15kg RUNS OUT: move to the 10mm four-finger pockets, then band-assisted one-arm on 20mm. NOT the three- or two-finger pockets — pinky disengaged is exactly what has tweaked your ring finger. Take the full three minutes between sets; near-max work stops being near-max without it.',r:180},
           {t:'Open-hand hang — 20mm pockets',id:'joe-hang20',m:'3 × 7s',d:'Secondary, not the focus. Extended fingers, no crimp. Keeps the open-hand position that slopers actually load, so dropping sloper board work does not leave that capacity untrained — but it stays submaximal and low volume while the 15mm work carries the session. Four fingers, pinky in.',r:120},
           {t:'Plate pinches',id:'joe-pinch',step:1.25,m:'4 × 5s / hand',d:'Two plates smooth-sides-out, pinched between thumb and fingers, held for time — the substitute for a pinch block, which the gym does not have. Thumb strength is what compression climbing runs on, so this is the Font-relevant bit. Start light; the grip fails long before the weight feels heavy.',r:90}
         ]},
-      pull:{n:'Pull & Power', w:'Work · 40 min', c:'--tidepool', finger:0, pull:3,
+      pull:{n:'Pull & Power', w:'Work · 40 min', c:'--tidepool', finger:0, pull:3, note:'Climbing today? Climb first and do this after — no finger load here, so spend them on the wall. Keep enough left for the bicep work; that one is not optional.',
         x:[
           {t:'Warm up',m:'5 min',d:'Band pull-aparts, scap pulls, then two progressively heavier pull-up sets. Given the bicep history, never start heavy or explosive work cold.'},
           {t:'Archer / band-assisted one-arm pull-ups',m:'4 × 3 / arm',d:'Swapped off weighted pull-ups because the gym’s ~15kg cannot make them near-maximal — you already pull 30kg × 3, so 15kg is rep work wearing a strength label. Going unilateral gets you back to a genuine max effort with no plates at all: archer pull-ups, or a band through the bar taking just enough off. Progress by reducing band assistance. This is still where the burliness comes from.',r:180},
@@ -249,7 +249,7 @@ var PROGRAMS = {
              maintenance is the thing you keep doing while the rest backs off. */
           {t:'Bicep tendon health',m:'3 sets',dl:'3 sets',d:'Slow eccentric hammer curls + isometric holds. Non-negotiable every time this session comes up, whether the arms feel fine or not — this is specifically what has kept the tendinopathy from coming back before. Progress load here gradually; sudden jumps are what has flared it up in the past.',r:60}
         ]},
-      hangboard:{n:'Repeaters', w:'Work · 25 min', c:'--slate', finger:2, pull:1,
+      hangboard:{n:'Repeaters', w:'Work · 25 min', c:'--slate', finger:2, pull:1, note:'Board before climbing. Repeaters are meant to be a known, sustainable load — done on tired fingers they stop being that.',
         x:[
           {t:'Warm up',m:'10 min',d:'Pulse raise, then progressively heavier two-hand hangs on a jug. Short session, but going straight onto a loaded edge cold is exactly how the ring finger gets tweaked.'},
           {t:'Repeaters',id:'joe-rep',m:'5 × (10s on / 5s off × 5)',d:'Your usual protocol, at a sustainable load — not a max effort. Beastmaker 1000, the 20mm-range four-finger pockets. Unaffected by the gym’s 15kg cap: repeaters are meant to be submaximal, so running out of plates costs nothing here. Keep the pinky engaged and stay off the three- and two-finger pockets — that position is what tweaks your ring finger.',r:120}
@@ -286,21 +286,21 @@ var PROGRAMS = {
       {n:'Performance', from:6, c:'--slate', cue:'Maintain only — climbing is the real work now', d:'Structured training steps back, climbing takes over.'}
     ],
     sessions:{
-      maxFingers:{n:'Finger Strength', w:'Home · 30 min', c:'--gorse', finger:3, pull:1,
+      maxFingers:{n:'Finger Strength', w:'Home · 30 min', c:'--gorse', finger:3, pull:1, note:'Climbing today? This first, ideally hours before. Near-max finger work on already-tired fingers is the classic injury mechanism.',
         x:[
           {t:'Warm up',m:'15 min',d:'Pulse raise, then progressively heavier two-hand hangs on a jug before touching a small edge.'},
           {t:'Edge hangs',id:'def-hang',m:'5 × 7s',d:'20mm, two hands.',r:120},
           {t:'Open-hand hangs',id:'def-hang-open',m:'4 × 7s',d:'Same edge, open-hand grip — different tendon stress than crimping.',r:120},
           {t:'Antagonists',m:'3 sets',d:'Reverse wrist curls 3×15 · finger extensors 3×20 (a rubber band round the fingertips, opening the hand against it — no dedicated tool needed) · external rotation 3×12.'}
         ]},
-      pull:{n:'Pull Strength', w:'Home · 30 min', c:'--tidepool', finger:0, pull:3,
+      pull:{n:'Pull Strength', w:'Home · 30 min', c:'--tidepool', finger:0, pull:3, note:'Climbing today? Climb first and do this after — no finger load here, so spend them on the wall.',
         x:[
           {t:'Weighted pull-ups',id:'def-pull',m:'5 × 5',d:'Full dead hang, controlled tempo.',r:150},
           {t:'Lock-off holds',m:'4 × 8s',d:'Bent-arm hold at three joint angles across the set.',r:90},
           {t:'Rows',m:'4 × 8',d:'Ring rows or barbell rows, heavy.',r:90},
           {t:'Dips',m:'3 × 10',d:'Push antagonist work.',r:60}
         ]},
-      hangboard:{n:'Hangboard', w:'Gym · 25 min', c:'--slate', finger:2, pull:1,
+      hangboard:{n:'Hangboard', w:'Gym · 25 min', c:'--slate', finger:2, pull:1, note:'Board work before climbing, in the order below.',
         x:[
           {t:'Repeaters',id:'def-rep',m:'4–5 sets',d:'7s on / 3s off × 6 = one set, around 55–60% of max. Two minutes between sets.',r:120},
           {t:'Volume climbing',m:'40 min',d:'Easy mileage, not limit attempts.'}
@@ -826,8 +826,13 @@ function render(){
       : ret && key!=='rest' ? ' <span class="deload-badge">Easing back in</span>' : '');
   /* The only surviving explanatory lines, and they earn their place: the
      numbers below are already adjusted, but the REASON you should not just
-     push through to what they used to say is the bit worth one sentence. */
-  $('why').textContent = (isLogged ? 'Logged.' + (logged.l ? ' Top set ' + logged.l + 'kg.' : '') + ' ' : '') +
+     push through to what they used to say is the bit worth one sentence.
+     Falls back to the session's own note (where climbing goes relative to
+     this workout) on an ordinary day — the one bit of sequencing you have
+     to get right before you start, so it belongs before the exercises
+     rather than a tap away. Suppressed once logged: the session is over,
+     the ordering advice has expired. */
+  var msg = (isLogged ? 'Logged.' + (logged.l ? ' Top set ' + logged.l + 'kg.' : '') + ' ' : '') +
     (dl && key!=='rest'
       ? 'Deload week — ' + (s.climb
           ? 'fewer hard attempts, and stop well short of failure. Times below are already cut.'
@@ -835,6 +840,8 @@ function render(){
       : ret && key!=='rest'
       ? 'Easing back in after a break — weights are cut, not just sets. Go by feel: back off further if anything below feels off, this is not the week to chase the number.'
       : '');
+  if(!msg && !isLogged && s.note) msg = s.note;
+  $('why').textContent = msg;
 
   // exercises — prescriptions follow the current phase where one is defined.
   // A phase can skip an exercise entirely ("skip — ...") rather than just
