@@ -1454,17 +1454,24 @@ document.addEventListener('visibilitychange',function(){
    parameter here, not part of `cfg`: it is read by the caller from the
    CURRENT resolved prescription text, which is already phase- and
    deload-adjusted, so a deload week runs fewer sets for free. */
+/* Time to put the phone down and get hands on the board before the first
+   rep starts counting — without this, pressing Start and then getting into
+   position eats into (or entirely swallows) the first hang. Applies to
+   every interval timer, Oscar's and Joe's alike, since it lives in the
+   shared engine rather than per-exercise data. */
+var READY_SECS = 5;
+
 function startIntervalTimer(cfg, setRest, prescText, label){
   var sets = parseInt(prescText, 10);
   if(!sets || sets<1) sets=1;
   stopIntervalTimer();
   unlockAudio();
   ivt = {label:label, on:cfg.on, off:cfg.off, reps:cfg.reps, sets:sets, setRest:setRest,
-         set:1, rep:1, phase:'on', tTot:cfg.on, tEnd:Date.now()+cfg.on*1000};
+         set:1, rep:1, phase:'ready', tTot:READY_SECS, tEnd:Date.now()+READY_SECS*1000};
   requestWakeLock();
   pushTimerNative('keepAwake', {});
   $('ivt').classList.add('on');
-  ivtRender(cfg.on);
+  ivtRender(READY_SECS);
   ivtTimer=setInterval(ivtStep,200);
 }
 
@@ -1476,7 +1483,9 @@ function ivtStep(){
 
 function ivtAdvance(){
   var next;
-  if(ivt.phase==='on'){
+  if(ivt.phase==='ready'){
+    next='on'; // straight into set 1, rep 1 — nothing to advance yet
+  } else if(ivt.phase==='on'){
     next='off';
   } else if(ivt.phase==='off'){
     if(ivt.rep<ivt.reps){ ivt.rep++; next='on'; }
@@ -1494,11 +1503,13 @@ function ivtAdvance(){
 
 function ivtRender(left){
   var ph=ivt.phase;
-  $('ivt').className = 'ivt on ivt-'+(ph==='setrest'?'off':ph);
+  $('ivt').className = 'ivt on ivt-'+(ph==='ready'?'ready':ph==='setrest'?'off':ph);
   $('ivtN').textContent=fmt(left);
   $('ivtBar').style.transform='scaleX('+(left/ivt.tTot)+')';
   $('ivtL').textContent=ivt.label;
-  $('ivtP').textContent = ph==='setrest'
+  $('ivtP').textContent = ph==='ready'
+    ? 'GET READY — SET '+ivt.set+' OF '+ivt.sets
+    : ph==='setrest'
     ? 'SET '+ivt.set+' OF '+ivt.sets+' · REST BEFORE SET '+(ivt.set+1)
     : 'SET '+ivt.set+' OF '+ivt.sets+' · REP '+ivt.rep+' OF '+ivt.reps+' · '+(ph==='on'?'HANG':'REST');
 }

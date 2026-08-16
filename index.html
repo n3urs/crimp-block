@@ -19,7 +19,7 @@
   --fg:#EDEBE5; --dim:#9AA0AE; --faint:#666C7A;
   --gorse:#F2B134; --tidepool:#4FB3A5; --slate:#7B93E0; --heather:#C9739B; --grey:#5A6069;
   --c:var(--grey); --r:3px;
-  --go:#1FA24A; --rest-c:#D6383D;
+  --go:#1FA24A; --rest-c:#D6383D; --ready-c:#D69A1F;
 }
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 html{-webkit-text-size-adjust:100%}
@@ -155,6 +155,7 @@ h1{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:clamp(42p
   padding:24px;text-align:center}
 .ivt.on{opacity:1;pointer-events:auto}
 .ivt-off{background:var(--rest-c)}
+.ivt-ready{background:var(--ready-c)}
 .ivtx{position:absolute;top:calc(16px + env(safe-area-inset-top));right:16px;width:42px;height:42px;border-radius:50%;
   background:rgba(0,0,0,.22);border:none;color:#fff;font-size:18px;cursor:pointer;line-height:1}
 .ivtx:active{background:rgba(0,0,0,.35)}
