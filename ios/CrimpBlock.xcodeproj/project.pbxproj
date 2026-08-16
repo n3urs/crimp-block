@@ -12,6 +12,9 @@
 		2D0DBF68350AF3995662E19C /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 199D95D3AB13E7DF7CB52182 /* Assets.xcassets */; };
 		6E3BC0816F646C5C486516D7 /* CrimpBlockWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F5EA7A8AFC0BF42C7FC0B3A /* CrimpBlockWidget.swift */; };
 		B467629214EFBEB2FB04199B /* Forecast.swift in Sources */ = {isa = PBXBuildFile; fileRef = C43BD3E3C9BDFB29CC44AD87 /* Forecast.swift */; };
+		7B005C51A8BC4875A33CDBFE /* TimerActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 93BCB9F1D7CF4014B151F718 /* TimerActivity.swift */; };
+		AEC822403A5642948B8D9C5F /* TimerActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 93BCB9F1D7CF4014B151F718 /* TimerActivity.swift */; };
+		61652ECF514B444A8CC3E87F /* RestTimerLiveActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B8D0DA2E6DD472694D85D8B /* RestTimerLiveActivity.swift */; };
 		128EBBE24588227ABA28C1CD /* CrimpBlockWidgetExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = A5221723F055193DCAAC847A /* CrimpBlockWidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
 
@@ -51,6 +54,8 @@
 		4467F1D93EB356D299EBDDCD /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		8F785CD80E8569F223B49427 /* CrimpBlockWidget.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = CrimpBlockWidget.entitlements; sourceTree = "<group>"; };
 		C43BD3E3C9BDFB29CC44AD87 /* Forecast.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Forecast.swift; sourceTree = "<group>"; };
+		93BCB9F1D7CF4014B151F718 /* TimerActivity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimerActivity.swift; sourceTree = "<group>"; };
+		0B8D0DA2E6DD472694D85D8B /* RestTimerLiveActivity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RestTimerLiveActivity.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -104,6 +109,7 @@
 			isa = PBXGroup;
 			children = (
 				6F5EA7A8AFC0BF42C7FC0B3A /* CrimpBlockWidget.swift */,
+				0B8D0DA2E6DD472694D85D8B /* RestTimerLiveActivity.swift */,
 				4467F1D93EB356D299EBDDCD /* Info.plist */,
 				8F785CD80E8569F223B49427 /* CrimpBlockWidget.entitlements */,
 			);
@@ -114,6 +120,7 @@
 			isa = PBXGroup;
 			children = (
 				C43BD3E3C9BDFB29CC44AD87 /* Forecast.swift */,
+				93BCB9F1D7CF4014B151F718 /* TimerActivity.swift */,
 			);
 			path = Shared;
 			sourceTree = "<group>";
@@ -209,6 +216,7 @@
 				24D651BBF0F9C23021ACDF1D /* ContentView.swift in Sources */,
 				A658403534DCDFAE75701C4B /* CrimpBlockApp.swift in Sources */,
 				B36DCB53FC740A4DA5EB8BCE /* Forecast.swift in Sources */,
+				7B005C51A8BC4875A33CDBFE /* TimerActivity.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -218,6 +226,8 @@
 			files = (
 				6E3BC0816F646C5C486516D7 /* CrimpBlockWidget.swift in Sources */,
 				B467629214EFBEB2FB04199B /* Forecast.swift in Sources */,
+				AEC822403A5642948B8D9C5F /* TimerActivity.swift in Sources */,
+				61652ECF514B444A8CC3E87F /* RestTimerLiveActivity.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -276,7 +286,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				GENERATE_INFOPLIST_FILE = YES;
 				MARKETING_VERSION = 1.0;
 				SWIFT_VERSION = 5.0;
@@ -299,7 +309,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				GENERATE_INFOPLIST_FILE = YES;
 				MARKETING_VERSION = 1.0;
 				SWIFT_VERSION = 5.0;
@@ -322,7 +332,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				GENERATE_INFOPLIST_FILE = YES;
 				MARKETING_VERSION = 1.0;
 				SWIFT_VERSION = 5.0;
@@ -343,7 +353,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				GENERATE_INFOPLIST_FILE = YES;
 				MARKETING_VERSION = 1.0;
 				SWIFT_VERSION = 5.0;

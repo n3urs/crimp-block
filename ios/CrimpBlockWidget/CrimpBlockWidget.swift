@@ -269,7 +269,17 @@ struct WidgetView: View {
 
 // MARK: - Widget
 
+/// Both the home-screen widget and the rest-timer Live Activity are hosted
+/// by this one extension — a WidgetKit extension can carry more than one
+/// Widget, and there is only ever one @main per target.
 @main
+struct CrimpBlockWidgetBundle: WidgetBundle {
+    var body: some Widget {
+        CrimpBlockWidget()
+        RestTimerLiveActivity()
+    }
+}
+
 struct CrimpBlockWidget: Widget {
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: "CrimpBlockWidget", provider: Provider()) { entry in

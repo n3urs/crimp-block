@@ -1310,6 +1310,7 @@ function startTimer(secs,label){
   $('tmL').textContent=label;
   $('tm').classList.add('on');
   step(); timer=setInterval(step,200);
+  pushTimerNative('start', {secs:secs, label:label, colour:v('--c')});
 }
 function step(){
   var left=Math.max(0,Math.round((tEnd-Date.now())/1000));
@@ -1318,9 +1319,34 @@ function step(){
   if(left<=0){
     beep(); clearInterval(timer); timer=null;
     setTimeout(function(){ $('tm').classList.remove('on'); },1800);
+    /* Notification was already scheduled for this exact moment when the
+       timer started — it stays live and fires on its own (only actually
+       audible if the app is backgrounded; the OS suppresses a notification's
+       own sound while its app is frontmost, so this is never a double beep
+       on top of the Web Audio one two lines up). This message just ends the
+       Live Activity — nothing left to cancel. */
+    pushTimerNative('stop', {cancelNotification:false});
   }
 }
-$('tmX').onclick=function(){ if(timer) clearInterval(timer); timer=null; $('tm').classList.remove('on'); };
+$('tmX').onclick=function(){
+  if(timer) clearInterval(timer); timer=null; $('tm').classList.remove('on');
+  // Stopped early — the notification scheduled for the original end time
+  // must NOT fire later for a timer that no longer exists.
+  pushTimerNative('stop', {cancelNotification:true});
+};
+
+/* No-op outside the native app, exactly like pushNative() for the widget
+   forecast — window.webkit.messageHandlers.timer only exists inside the
+   WKWebView shell, so this is silently inert in any normal browser. */
+function pushTimerNative(action, extra){
+  var mh = window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.timer;
+  if(!mh) return;
+  try{
+    var msg = {action:action};
+    for(var k in extra) msg[k]=extra[k];
+    mh.postMessage(JSON.stringify(msg));
+  }catch(e){ /* the bridge must never be able to break the timer itself */ }
+}
 function beep(){
   try{
     var ac=new (window.AudioContext||window.webkitAudioContext)();

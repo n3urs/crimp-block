@@ -86,16 +86,20 @@ enum SharedStore {
     }
 }
 
-extension Forecast.Day {
-    /// Hex like "#F2B134" from the web app's CSS custom properties.
-    var uiColour: (r: Double, g: Double, b: Double) {
-        var hex = colour.trimmingCharacters(in: .whitespacesAndNewlines)
-        if hex.hasPrefix("#") { hex.removeFirst() }
-        guard hex.count == 6, let n = UInt32(hex, radix: 16) else {
-            return (0.95, 0.69, 0.20) // fall back to --gorse
-        }
-        return (Double((n >> 16) & 0xFF) / 255.0,
-                Double((n >> 8) & 0xFF) / 255.0,
-                Double(n & 0xFF) / 255.0)
+/// Hex like "#F2B134" from the web app's CSS custom properties. Shared
+/// because the Live Activity carries its own colour (RestTimerAttributes)
+/// alongside Forecast.Day's — same source format, one parser.
+func parseHexColour(_ hex: String) -> (r: Double, g: Double, b: Double) {
+    var h = hex.trimmingCharacters(in: .whitespacesAndNewlines)
+    if h.hasPrefix("#") { h.removeFirst() }
+    guard h.count == 6, let n = UInt32(h, radix: 16) else {
+        return (0.95, 0.69, 0.20) // fall back to --gorse
     }
+    return (Double((n >> 16) & 0xFF) / 255.0,
+            Double((n >> 8) & 0xFF) / 255.0,
+            Double(n & 0xFF) / 255.0)
+}
+
+extension Forecast.Day {
+    var uiColour: (r: Double, g: Double, b: Double) { parseHexColour(colour) }
 }
