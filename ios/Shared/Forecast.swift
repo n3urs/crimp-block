@@ -26,6 +26,25 @@ struct Forecast: Codable {
     }
 }
 
+/// The day "starts" at this local hour, not midnight — mirrors
+/// DAY_START_HOUR in app.js. Must be kept in sync with it: the web app
+/// generates the forecast's date keys using its own shifted "today", and if
+/// this disagreed, the widget would look up the wrong day for the few hours
+/// either side of the boundary (device already past midnight, forecast
+/// still keyed to "yesterday" because the web app has not crossed 3am yet).
+private let dayStartHour = 3
+
+extension Date {
+    /// The "app day" this instant belongs to, per dayStartHour.
+    var appDay: Date {
+        let cal = Calendar.current
+        let shifted = cal.component(.hour, from: self) < dayStartHour
+            ? cal.date(byAdding: .day, value: -1, to: self) ?? self
+            : self
+        return cal.startOfDay(for: shifted)
+    }
+}
+
 /// The one place the app and the widget agree on where cached data lives.
 /// Both targets must carry this App Group in their entitlements or the
 /// widget silently reads nothing.
@@ -49,7 +68,13 @@ enum SharedStore {
     /// Deliberately matches on the date string rather than taking `days.first`,
     /// so a stale cache reports "no entry" instead of confidently showing a
     /// workout from whenever the app was last opened.
-    static func day(for date: Date = Date()) -> Forecast.Day? {
+    /// `date` must already be the correct app-day (see `Date.appDay`) — this
+    /// does not re-derive it. The widget's timeline hands this a run of
+    /// already-anchored midnights (today, today+1, today+2, ...); re-applying
+    /// the hour check to each of those would see hour 0 on every single one
+    /// and treat every day as "before the boundary", shifting the whole
+    /// series back by one. The shift happens exactly once, at the anchor.
+    static func day(for date: Date = Date().appDay) -> Forecast.Day? {
         guard let f = load() else { return nil }
         let fmt = DateFormatter()
         fmt.calendar = Calendar(identifier: .gregorian)

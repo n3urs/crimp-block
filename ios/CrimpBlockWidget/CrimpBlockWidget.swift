@@ -15,14 +15,23 @@ struct Provider: TimelineProvider {
     }
 
     func getSnapshot(in context: Context, completion: @escaping (Entry) -> Void) {
-        completion(entryFor(Date()))
+        completion(entryFor(Date().appDay))
     }
 
     /// One entry per remaining forecast day, so the widget rolls over at
     /// midnight on its own rather than waiting for the app to be opened.
+    ///
+    /// `startOfToday` is computed ONCE from the real current moment via
+    /// `.appDay` (which looks at the actual current hour to decide whether
+    /// "today" has started yet). Every subsequent day in the loop is then
+    /// plain calendar-day addition from that anchor — deliberately NOT
+    /// re-running the hour check on each one, since `.appDay` collapses to
+    /// midnight (hour 0) and midnight always looks like "before the
+    /// boundary": re-applying it per offset would shift the whole 14-day
+    /// series back by an extra day.
     func getTimeline(in context: Context, completion: @escaping (Timeline<Entry>) -> Void) {
         let cal = Calendar.current
-        let startOfToday = cal.startOfDay(for: Date())
+        let startOfToday = Date().appDay
         var entries: [Entry] = []
 
         for offset in 0..<14 {

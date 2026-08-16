@@ -347,7 +347,18 @@ var FING=['maxFingers','hangboard','climbHard','outdoorHard'];
    DATES
    ------------------------------------------------------------ */
 function iso(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
-function today(){ return iso(new Date()); }
+/* The day "starts" here, not at midnight — logging a late session should not
+   silently roll into tomorrow while you are still mid-workout. Before this
+   hour, "today" is still yesterday. Keep in sync with `dayStartHour` in
+   ios/Shared/Forecast.swift — the widget computes its own "today" from the
+   raw device clock and has to agree with this or it can show the wrong day's
+   entry for the few hours either side of the boundary. */
+var DAY_START_HOUR = 3;
+function today(){
+  var d = new Date();
+  if(d.getHours() < DAY_START_HOUR) d.setDate(d.getDate()-1);
+  return iso(d);
+}
 function addDays(base,n){ var d=new Date(base+'T12:00:00'); d.setDate(d.getDate()+n); return iso(d); }
 
 /* ------------------------------------------------------------
@@ -808,7 +819,7 @@ function render(){
   var ph=phaseAt(p.b), dl=p.w===4, ret=!dl && isReturning(today());
   $('topB').textContent=ph.n+' · Wk '+p.w+(dl?' · Deload':ret?' · Easing back in':'');
   $('topB').onclick=showPlan;
-  $('topD').textContent=new Date().toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'});
+  $('topD').textContent=new Date(today()+'T12:00:00').toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'});
 
   // week dots, and the day-initial under each one
   var dh='', wh='';
