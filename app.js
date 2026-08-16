@@ -252,7 +252,15 @@ var PROGRAMS = {
       hangboard:{n:'Repeaters', w:'Work · 25 min', c:'--slate', finger:2, pull:1, note:'Board before climbing. Repeaters are meant to be a known, sustainable load — done on tired fingers they stop being that.',
         x:[
           {t:'Warm up',m:'10 min',d:'Pulse raise, then progressively heavier two-hand hangs on a jug. Short session, but going straight onto a loaded edge cold is exactly how the ring finger gets tweaked.'},
-          {t:'Repeaters',id:'joe-rep',m:'5 × (10s on / 5s off × 5)',d:'Your usual protocol, at a sustainable load — not a max effort. Beastmaker 1000, the 20mm-range four-finger pockets. Unaffected by the gym’s 15kg cap: repeaters are meant to be submaximal, so running out of plates costs nothing here. Keep the pinky engaged and stay off the three- and two-finger pockets — that position is what tweaks your ring finger.',r:120}
+          /* interval:{on,off,reps} drives the auto-cycling full-screen
+             repeater timer (see startIntervalTimer()) — press once, it runs
+             every rep of every set with no further taps, using `r` below as
+             the rest BETWEEN sets so that number only has to live in one
+             place. Deliberately no `sets` field here: the set count is read
+             at start time from whatever `m` currently resolves to, which is
+             already phase- and deload-adjusted — a deload week correctly
+             runs fewer sets with zero extra logic. */
+          {t:'Repeaters',id:'joe-rep',m:'5 × (10s on / 5s off × 5)',interval:{on:10,off:5,reps:5},d:'Your usual protocol, at a sustainable load — not a max effort. Beastmaker 1000, the 20mm-range four-finger pockets. Unaffected by the gym’s 15kg cap: repeaters are meant to be submaximal, so running out of plates costs nothing here. Keep the pinky engaged and stay off the three- and two-finger pockets — that position is what tweaks your ring finger. Press Start below and just hang — the timer runs the whole protocol, sets included.',r:120}
         ]},
       climbHard:{n:'Compression & Power', w:'Gym · 90 min', c:'--heather', finger:2, pull:2, climb:1,
         x:[
@@ -899,12 +907,18 @@ function render(){
         ? '<button class="wt'+(tg.bump?' up':'')+(tg.set?' set':'')+'" data-x="'+i+'" aria-label="'+e.t+' weight">'+tg.kg+'<i>kg</i></button>'
         : '<button class="wt add" data-x="'+i+'" aria-label="Set '+e.t+' weight">set<i>kg</i></button>';
     }
+    /* An exercise with structured interval data gets the auto-cycling
+       repeater timer instead of the plain rest button — that button would
+       be redundant once the interval timer owns the between-set rest too. */
+    var timerBtn = e.interval
+      ? '<button class="reps" data-x="'+i+'">Start</button>'
+      : (e.r?'<button class="rest" data-r="'+e.r+'" data-l="'+e.t+'">'+fmt(e.r)+'</button>':'');
     return '<div class="ex'+(on?' checked':'')+'" data-i="'+i+'">'+
       '<button class="tick" aria-pressed="'+on+'" aria-label="'+e.t+'"></button>'+
       '<div class="eb"><div class="et"><span class="en">'+e.t+'</span>'+
         '<span class="ep"><span class="em'+(m!==e.m?' ph':'')+'">'+m+'</span>'+w+'</span></div>'+
       (e.d?'<div class="ed">'+e.d+'</div>':'')+
-      (e.r?'<button class="rest" data-r="'+e.r+'" data-l="'+e.t+'">'+fmt(e.r)+'</button>':'')+
+      timerBtn+
       '</div></div>';
   }).join('');
 
@@ -913,6 +927,13 @@ function render(){
       ev.stopPropagation();
       var rr=resolveEx(s.x[+b.dataset.x], key, today(), ph.n);
       if(rr && rr.e.id) weightSheet(rr.e);
+    };
+  });
+  $('list').querySelectorAll('.reps').forEach(function(b){
+    b.onclick=function(ev){
+      ev.stopPropagation();
+      var rr=resolveEx(s.x[+b.dataset.x], key, today(), ph.n);
+      if(rr && rr.e.interval) startIntervalTimer(rr.e.interval, rr.e.r||120, rr.m, rr.e.t);
     };
   });
 
@@ -1361,6 +1382,125 @@ function beep(){
     if(navigator.vibrate) navigator.vibrate([120,80,120]);
   }catch(e){}
 }
+
+/* ---- interval (repeater) timer ----
+   Auto-cycling on/off/set-rest, press once and it runs the whole prescribed
+   volume unattended: reps within a set, then the between-set rest (reusing
+   the exercise's own `r`), then straight into the next set, until every set
+   is done. No further taps unless stopped early. */
+var ivt=null, ivtTimer=null, wakeLock=null;
+
+/* Two tones, not one: this runs while you are hanging off a board looking
+   at your hand, not the phone, so the SOUND has to carry which phase just
+   started — a rising double-beep means go, a single low one means rest.
+   Distinct from beep() (the plain rest timer's completion sound) on
+   purpose, so the two timers never sound the same. */
+function tone(kind){
+  try{
+    var ac=new (window.AudioContext||window.webkitAudioContext)();
+    var freqs = kind==='go' ? [880,1180] : [420];
+    var gap = kind==='go' ? 130 : 0;
+    freqs.forEach(function(f,i){
+      var o=ac.createOscillator(), g=ac.createGain();
+      o.connect(g); g.connect(ac.destination); o.frequency.value=f;
+      var t=ac.currentTime+(i*gap)/1000; g.gain.value=0.0001;
+      g.gain.exponentialRampToValueAtTime(.32,t+.015);
+      g.gain.exponentialRampToValueAtTime(.0001,t+(kind==='go'?.16:.32));
+      o.start(t); o.stop(t+(kind==='go'?.18:.34));
+    });
+    if(navigator.vibrate) navigator.vibrate(kind==='go'?[80,60,80]:[200]);
+  }catch(e){}
+}
+
+/* Best-effort, and only ever a supplement — the native bridge below
+   (isIdleTimerDisabled inside the wrapped app) is what Joe actually relies
+   on. This covers anyone using it as a plain browser tab, where that native
+   call is a no-op. The browser itself revokes the lock when the tab is
+   hidden, so it is re-acquired on visibilitychange while ivt is running. */
+function requestWakeLock(){
+  if(!('wakeLock' in navigator)) return;
+  navigator.wakeLock.request('screen').then(function(l){ wakeLock=l; }).catch(function(){});
+}
+function releaseWakeLock(){
+  if(wakeLock){ wakeLock.release().catch(function(){}); wakeLock=null; }
+}
+document.addEventListener('visibilitychange',function(){
+  if(!document.hidden && ivt) requestWakeLock();
+});
+
+/* `setRest` comes from the exercise's own `r` (the same number the plain
+   rest button would have used) rather than living twice in the data — one
+   source of truth for "how long between sets". `sets` is deliberately a
+   parameter here, not part of `cfg`: it is read by the caller from the
+   CURRENT resolved prescription text, which is already phase- and
+   deload-adjusted, so a deload week runs fewer sets for free. */
+function startIntervalTimer(cfg, setRest, prescText, label){
+  var sets = parseInt(prescText, 10);
+  if(!sets || sets<1) sets=1;
+  stopIntervalTimer();
+  ivt = {label:label, on:cfg.on, off:cfg.off, reps:cfg.reps, sets:sets, setRest:setRest,
+         set:1, rep:1, phase:'on', tTot:cfg.on, tEnd:Date.now()+cfg.on*1000};
+  requestWakeLock();
+  pushTimerNative('keepAwake', {});
+  $('ivt').classList.add('on');
+  ivtRender(cfg.on);
+  ivtTimer=setInterval(ivtStep,200);
+}
+
+function ivtStep(){
+  var left=Math.max(0,Math.round((ivt.tEnd-Date.now())/1000));
+  ivtRender(left);
+  if(left<=0) ivtAdvance();
+}
+
+function ivtAdvance(){
+  var next;
+  if(ivt.phase==='on'){
+    next='off';
+  } else if(ivt.phase==='off'){
+    if(ivt.rep<ivt.reps){ ivt.rep++; next='on'; }
+    else if(ivt.set<ivt.sets){ next='setrest'; }
+    else { finishIntervalTimer(); return; }
+  } else { // 'setrest' just ended -> straight into the next set
+    ivt.set++; ivt.rep=1; next='on';
+  }
+  ivt.phase=next;
+  ivt.tTot = next==='on' ? ivt.on : next==='off' ? ivt.off : ivt.setRest;
+  ivt.tEnd = Date.now()+ivt.tTot*1000;
+  tone(next==='on' ? 'go' : 'rest');
+  ivtRender(ivt.tTot);
+}
+
+function ivtRender(left){
+  var ph=ivt.phase;
+  $('ivt').className = 'ivt on ivt-'+(ph==='setrest'?'off':ph);
+  $('ivtN').textContent=fmt(left);
+  $('ivtBar').style.transform='scaleX('+(left/ivt.tTot)+')';
+  $('ivtL').textContent=ivt.label;
+  $('ivtP').textContent = ph==='setrest'
+    ? 'SET '+ivt.set+' OF '+ivt.sets+' · REST BEFORE SET '+(ivt.set+1)
+    : 'SET '+ivt.set+' OF '+ivt.sets+' · REP '+ivt.rep+' OF '+ivt.reps+' · '+(ph==='on'?'HANG':'REST');
+}
+
+function finishIntervalTimer(){
+  tone('go');
+  clearInterval(ivtTimer); ivtTimer=null;
+  $('ivtP').textContent='DONE — ALL '+ivt.sets+' SETS';
+  $('ivtN').textContent='';
+  $('ivtBar').style.transform='scaleX(0)';
+  setTimeout(function(){ $('ivt').classList.remove('on'); ivt=null; },1400);
+  releaseWakeLock();
+  pushTimerNative('allowSleep', {});
+  celebrate();
+}
+
+function stopIntervalTimer(){
+  if(ivtTimer){ clearInterval(ivtTimer); ivtTimer=null; }
+  if(ivt){ $('ivt').classList.remove('on'); ivt=null; }
+  releaseWakeLock();
+  pushTimerNative('allowSleep', {});
+}
+$('ivtX').onclick=stopIntervalTimer;
 
 /* re-render on wake, so the date rolls over correctly overnight */
 document.addEventListener('visibilitychange',function(){ if(!document.hidden && sessionReady) render(); });

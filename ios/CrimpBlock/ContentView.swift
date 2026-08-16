@@ -127,6 +127,15 @@ struct WebView: UIViewRepresentable {
                 startRestActivity(secs: secs, label: label, colour: colour)
             case "stop":
                 endRestActivity(cancelNotification: msg.cancelNotification ?? false)
+            case "keepAwake":
+                // The interval repeater timer — screen stays on and unlocked
+                // for its whole run, which is the opposite situation to the
+                // rest timer above (that one is FOR when the phone locks).
+                // No Live Activity involved: the screen never goes dark
+                // during this, so there is nothing for a Lock Screen to show.
+                UIApplication.shared.isIdleTimerDisabled = true
+            case "allowSleep":
+                UIApplication.shared.isIdleTimerDisabled = false
             default:
                 break
             }
