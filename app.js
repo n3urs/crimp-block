@@ -1324,9 +1324,29 @@ function celebrate(){
   celebrate._t=setTimeout(function(){ el.classList.remove('on'); el.innerHTML=''; },900);
 }
 
+/* One AudioContext, shared, unlocked exactly once by a real tap — not one
+   fresh context per beep. WebKit requires audio to originate from a user
+   gesture or the context comes up 'suspended' and produces nothing, silent
+   and error-free. beep() and tone() below both used to call `new
+   AudioContext()` from inside a setInterval callback, which is never a
+   gesture no matter how the timer itself got started — that silence, with
+   nothing in the console to explain it, was the actual bug Oscar reported.
+   Creating/resuming it here, synchronously inside startTimer()'s and
+   startIntervalTimer()'s own click handlers, unlocks it for every sound
+   scheduled afterwards, gesture or not — WebKit's restriction is on
+   starting a context outside a gesture, not on a context that is already
+   running continuing to play. */
+var audioCtx=null;
+function unlockAudio(){
+  if(!audioCtx) audioCtx=new (window.AudioContext||window.webkitAudioContext)();
+  if(audioCtx.state==='suspended') audioCtx.resume();
+  return audioCtx;
+}
+
 /* ---- timer ---- */
 function startTimer(secs,label){
   if(timer) clearInterval(timer);
+  unlockAudio();
   tTot=secs; tEnd=Date.now()+secs*1000;
   $('tmL').textContent=label;
   $('tm').classList.add('on');
@@ -1370,7 +1390,7 @@ function pushTimerNative(action, extra){
 }
 function beep(){
   try{
-    var ac=new (window.AudioContext||window.webkitAudioContext)();
+    var ac=unlockAudio();
     [0,190].forEach(function(dl){
       var o=ac.createOscillator(), g=ac.createGain();
       o.connect(g); g.connect(ac.destination); o.frequency.value=880;
@@ -1380,7 +1400,7 @@ function beep(){
       o.start(t); o.stop(t+.17);
     });
     if(navigator.vibrate) navigator.vibrate([120,80,120]);
-  }catch(e){}
+  }catch(e){ console.warn('beep failed:', e); }
 }
 
 /* ---- interval (repeater) timer ----
@@ -1397,7 +1417,7 @@ var ivt=null, ivtTimer=null, wakeLock=null;
    purpose, so the two timers never sound the same. */
 function tone(kind){
   try{
-    var ac=new (window.AudioContext||window.webkitAudioContext)();
+    var ac=unlockAudio();
     var freqs = kind==='go' ? [880,1180] : [420];
     var gap = kind==='go' ? 130 : 0;
     freqs.forEach(function(f,i){
@@ -1409,7 +1429,7 @@ function tone(kind){
       o.start(t); o.stop(t+(kind==='go'?.18:.34));
     });
     if(navigator.vibrate) navigator.vibrate(kind==='go'?[80,60,80]:[200]);
-  }catch(e){}
+  }catch(e){ console.warn('tone failed:', e); }
 }
 
 /* Best-effort, and only ever a supplement — the native bridge below
@@ -1438,6 +1458,7 @@ function startIntervalTimer(cfg, setRest, prescText, label){
   var sets = parseInt(prescText, 10);
   if(!sets || sets<1) sets=1;
   stopIntervalTimer();
+  unlockAudio();
   ivt = {label:label, on:cfg.on, off:cfg.off, reps:cfg.reps, sets:sets, setRest:setRest,
          set:1, rep:1, phase:'on', tTot:cfg.on, tEnd:Date.now()+cfg.on*1000};
   requestWakeLock();

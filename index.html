@@ -102,9 +102,16 @@ h1{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:clamp(42p
    shorter as you go rather than each done row taking MORE room */
 .ex.checked{padding:11px 0}
 .ex.checked .en{color:var(--faint);text-decoration:line-through}
-.ex.checked .ep,.ex.checked .ed,.ex.checked .rest{display:none}
+.ex.checked .ep,.ex.checked .ed,.ex.checked .rest,.ex.checked .reps{display:none}
 .rest{margin-top:11px;background:none;border:1px solid var(--s3);color:var(--dim);font-family:'IBM Plex Mono',monospace;font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;padding:8px 14px;border-radius:var(--r);cursor:pointer}
 .rest:active{border-color:var(--c);color:var(--c)}
+/* Same footprint as .rest — this was rendering completely unstyled (no
+   rule existed at all), which is the "looks weird and small" report. Filled
+   rather than outlined, since starting the whole auto-cycling sequence is a
+   bigger commitment than a plain rest countdown and should read as the
+   clear call-to-action it is, not blend in the same as a passive timer. */
+.reps{margin-top:11px;background:var(--c);border:none;color:var(--bg);font-family:'IBM Plex Mono',monospace;font-weight:600;font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;padding:8px 14px;border-radius:var(--r);cursor:pointer}
+.reps:active{filter:brightness(1.12)}
 
 /* bottom bar */
 .bar{position:fixed;left:0;right:0;bottom:0;background:linear-gradient(to top,var(--bg) 62%,rgba(24,27,34,0));padding:22px 18px calc(16px + env(safe-area-inset-bottom));z-index:40}
