@@ -37,6 +37,12 @@
 		2390FE79D020BF8F17F5D6E1 /* IntervalTimerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 509C122BF2A9E23301D7B91B /* IntervalTimerView.swift */; };
 		7E9A3714C664D67E5ACF716B /* WeekStripView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3FA7FBBB61EF7F7994B9DD88 /* WeekStripView.swift */; };
 		DD0A88CD778120CEE40F6DD3 /* CelebrationOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = CBACE466B35EED32AC6748EA /* CelebrationOverlay.swift */; };
+		E23831851C2A4FB380A76BAF /* template-resolver.js in Resources */ = {isa = PBXBuildFile; fileRef = 2FB27976E4B168AB5F33C9E0 /* template-resolver.js */; };
+		B50A1C9DA6456982DA7AA621 /* templates.js in Resources */ = {isa = PBXBuildFile; fileRef = 291F4FCB9C2BCB962D9EC6B5 /* templates.js */; };
+		73878B52967705265938F2E2 /* QuizModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 229FADB782DFBB299AFA98B6 /* QuizModel.swift */; };
+		CA3ABE16007645A96952C94A /* IntakeQuizView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0CF66749302703C2BB7FC64B /* IntakeQuizView.swift */; };
+		7BAC273FB1659B8E9AEB1CAE /* OnboardingTutorialView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5552E43B8554D76E4A62C321 /* OnboardingTutorialView.swift */; };
+		0AC7F68470E11799F2F5B6A5 /* QuizDemoView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDDFF6E9403E8939FEE4971B /* QuizDemoView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -98,6 +104,12 @@
 		509C122BF2A9E23301D7B91B /* IntervalTimerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IntervalTimerView.swift; sourceTree = "<group>"; };
 		3FA7FBBB61EF7F7994B9DD88 /* WeekStripView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeekStripView.swift; sourceTree = "<group>"; };
 		CBACE466B35EED32AC6748EA /* CelebrationOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CelebrationOverlay.swift; sourceTree = "<group>"; };
+		2FB27976E4B168AB5F33C9E0 /* template-resolver.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; name = "template-resolver.js"; path = "../template-resolver.js"; sourceTree = SOURCE_ROOT; };
+		291F4FCB9C2BCB962D9EC6B5 /* templates.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; name = "templates.js"; path = "../templates.js"; sourceTree = SOURCE_ROOT; };
+		229FADB782DFBB299AFA98B6 /* QuizModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuizModel.swift; sourceTree = "<group>"; };
+		0CF66749302703C2BB7FC64B /* IntakeQuizView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IntakeQuizView.swift; sourceTree = "<group>"; };
+		5552E43B8554D76E4A62C321 /* OnboardingTutorialView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingTutorialView.swift; sourceTree = "<group>"; };
+		FDDFF6E9403E8939FEE4971B /* QuizDemoView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuizDemoView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -150,6 +162,9 @@
 				509C122BF2A9E23301D7B91B /* IntervalTimerView.swift */,
 				3FA7FBBB61EF7F7994B9DD88 /* WeekStripView.swift */,
 				CBACE466B35EED32AC6748EA /* CelebrationOverlay.swift */,
+				0CF66749302703C2BB7FC64B /* IntakeQuizView.swift */,
+				5552E43B8554D76E4A62C321 /* OnboardingTutorialView.swift */,
+				FDDFF6E9403E8939FEE4971B /* QuizDemoView.swift */,
 				199D95D3AB13E7DF7CB52182 /* Assets.xcassets */,
 				CF2F221A9F4201ED25C77F10 /* Info.plist */,
 				C9376940D0FBDDF94F567CD0 /* CrimpBlock.entitlements */,
@@ -184,6 +199,9 @@
 				1D4A93D2E799953023A0D44C /* IntervalTonePlayer.swift */,
 				BB9B02DBDC4FFE41757FF766 /* engine-core.js */,
 				C2057310DAED31D00943FA48 /* programs.js */,
+				2FB27976E4B168AB5F33C9E0 /* template-resolver.js */,
+				291F4FCB9C2BCB962D9EC6B5 /* templates.js */,
+				229FADB782DFBB299AFA98B6 /* QuizModel.swift */,
 			);
 			path = Shared;
 			sourceTree = "<group>";
@@ -262,6 +280,8 @@
 				2D0DBF68350AF3995662E19C /* Assets.xcassets in Resources */,
 				A373515748483D2A13434CDA /* engine-core.js in Resources */,
 				FCF14DD78AD6CB70AFB76DA9 /* programs.js in Resources */,
+				E23831851C2A4FB380A76BAF /* template-resolver.js in Resources */,
+				B50A1C9DA6456982DA7AA621 /* templates.js in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -301,6 +321,10 @@
 				2390FE79D020BF8F17F5D6E1 /* IntervalTimerView.swift in Sources */,
 				7E9A3714C664D67E5ACF716B /* WeekStripView.swift in Sources */,
 				DD0A88CD778120CEE40F6DD3 /* CelebrationOverlay.swift in Sources */,
+				73878B52967705265938F2E2 /* QuizModel.swift in Sources */,
+				CA3ABE16007645A96952C94A /* IntakeQuizView.swift in Sources */,
+				7BAC273FB1659B8E9AEB1CAE /* OnboardingTutorialView.swift in Sources */,
+				0AC7F68470E11799F2F5B6A5 /* QuizDemoView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

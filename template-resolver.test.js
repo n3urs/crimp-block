@@ -52,6 +52,21 @@ describe('resolveTemplate — basics', function(){
     expect(program.sessions.maxFingers.x[0].t).toBe('Open hang');
   });
 
+  test('daysPerWeek overrides the template default when different', function(){
+    var program = TemplateResolver.resolveTemplate(makeTestTemplate(), {startDate:'2026-01-01', modifiers:{daysPerWeek:5}});
+    expect(program.perWeek).toBe(5);
+  });
+
+  test('daysPerWeek matching the template default is a no-op, not just coincidentally equal', function(){
+    var program = TemplateResolver.resolveTemplate(makeTestTemplate(), {startDate:'2026-01-01', modifiers:{daysPerWeek:3}});
+    expect(program.perWeek).toBe(3);
+  });
+
+  test('no daysPerWeek modifier leaves the template default untouched', function(){
+    var program = TemplateResolver.resolveTemplate(makeTestTemplate(), {startDate:'2026-01-01', modifiers:{}});
+    expect(program.perWeek).toBe(3);
+  });
+
   test('does not mutate the original template object (templates are shared across every user assigned to them)', function(){
     var tpl = makeTestTemplate();
     var before = JSON.stringify(tpl);

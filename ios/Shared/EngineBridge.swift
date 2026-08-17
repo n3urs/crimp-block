@@ -93,6 +93,60 @@ final class EngineBridge {
         engine = created
     }
 
+    /// - Parameters:
+    ///   - templateId: a key into TEMPLATES (templates.js), e.g.
+    ///     "boulderingBeginner" — see TemplateBridge.templateId(discipline:experienceLevel:)
+    ///     for how the quiz turns two answers into this id.
+    ///   - startDate: becomes the resolved program's startDate — the
+    ///     user's own assignment date, not baked into the template.
+    ///   - modifiers: `{equipment, injuryFlags, weaknesses, tripDate,
+    ///     daysPerWeek}` — see template-resolver.js's own doc comment
+    ///     for the exact shape each key expects.
+    init(templateId: String, startDate: String, modifiers: [String: Any], sessionLog: [String: Any], loadLog: [String: [[String: Any]]]) throws {
+        guard let ctx = JSContext() else { throw BridgeError.missingGlobal("JSContext") }
+        context = ctx
+        var thrown: String?
+        ctx.exceptionHandler = { _, exception in
+            thrown = exception?.toString() ?? "unknown JS exception"
+        }
+
+        try Self.evaluate(resource: "engine-core", in: ctx)
+        try Self.evaluate(resource: "template-resolver", in: ctx)
+        try Self.evaluate(resource: "templates", in: ctx)
+        if let thrown { throw BridgeError.jsException(thrown) }
+
+        guard let core = ctx.globalObject.forProperty("EngineCore"), !core.isUndefined else {
+            throw BridgeError.missingGlobal("EngineCore")
+        }
+        engineCore = core
+
+        guard let resolver = ctx.globalObject.forProperty("TemplateResolver"), !resolver.isUndefined else {
+            throw BridgeError.missingGlobal("TemplateResolver")
+        }
+        guard let templatesObj = ctx.globalObject.forProperty("TEMPLATES"), !templatesObj.isUndefined else {
+            throw BridgeError.missingGlobal("TEMPLATES")
+        }
+        guard let template = templatesObj.forProperty(templateId), !template.isUndefined else {
+            throw BridgeError.missingGlobal("TEMPLATES['\(templateId)']")
+        }
+
+        let opts: [String: Any] = ["startDate": startDate, "modifiers": modifiers]
+        guard let resolved = resolver.invokeMethod("resolveTemplate", withArguments: [template, opts]),
+              !resolved.isUndefined else {
+            throw BridgeError.missingGlobal("resolveTemplate(...) result")
+        }
+        if let thrown { throw BridgeError.jsException(thrown) }
+        program = resolved
+
+        let data: [String: Any] = ["sessionLog": sessionLog, "loadLog": loadLog]
+        guard let created = core.invokeMethod("createEngine", withArguments: [program as Any, data]),
+              !created.isUndefined else {
+            throw BridgeError.missingGlobal("createEngine(...) result")
+        }
+        if let thrown { throw BridgeError.jsException(thrown) }
+        engine = created
+    }
+
     private static func evaluate(resource name: String, in ctx: JSContext) throws {
         guard let url = Bundle.main.url(forResource: name, withExtension: "js") else {
             throw BridgeError.missingBundledResource("\(name).js")

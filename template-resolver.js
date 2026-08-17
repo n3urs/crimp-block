@@ -193,6 +193,18 @@ function resolveTemplate(template, opts){
   });
   program.startDate = startDate;
 
+  /* daysPerWeek is the quiz's own question ("how many days a week can
+     you train"), separate from perWeek's role inside engine-core.js
+     (the number of training days that make up one 4-week block — see
+     block() in engine-core.js). They're the same number in every
+     template today because that's a reasonable default, but they're
+     conceptually different, so this only overrides when the quiz
+     answer actually differs from the template's built-in pace rather
+     than always overwriting it. */
+  if(modifiers.daysPerWeek && modifiers.daysPerWeek !== program.perWeek){
+    program.perWeek = modifiers.daysPerWeek;
+  }
+
   filterEquipment(program.sessions, modifiers.equipment);
   applyInjuryFlags(program, modifiers.injuryFlags);
   applyWeaknesses(program, modifiers.weaknesses);
