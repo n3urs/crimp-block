@@ -25,6 +25,7 @@ struct NativeAppView: View {
     @State private var loading = false
     @State private var ticks: Set<String> = []
     @State private var editingExercise: EngineBridge.RenderedExercise?
+    @State private var browsedKey: String?
 
     var body: some View {
         Group {
@@ -37,13 +38,14 @@ struct NativeAppView: View {
                     state: state,
                     footerNote: "Native SwiftUI (live data) · \(client.session?.email ?? "") · \(state.today)"
                         + (saveError != nil ? " · save failed" : ""),
-                    isLogged: store?.get(state.today)?.t == state.decision.k,
+                    isLogged: store?.get(state.today)?.t == state.displayKey,
                     ticks: ticks,
                     onToggleTick: { id in
                         if ticks.contains(id) { ticks.remove(id) } else { ticks.insert(id) }
                     },
                     onTapWeight: { ex in editingExercise = ex },
-                    onTapDone: { Task { await toggleDone() } }
+                    onTapDone: { Task { await toggleDone() } },
+                    onBrowse: { key in browse(to: key) }
                 )
             } else {
                 ZStack { SessionColours.bg.ignoresSafeArea(); ProgressView().tint(.white) }
@@ -87,7 +89,7 @@ struct NativeAppView: View {
             for (date, entry) in store?.all() ?? [:] { sessionLog[date] = ["t": entry.t] }
 
             let bridge = try EngineBridge(email: session.email, sessionLog: sessionLog, loadLog: loads?.all() ?? [:])
-            guard let s = DailyCardState.load(bridge: bridge) else {
+            guard let s = DailyCardState.load(bridge: bridge, displayKey: browsedKey) else {
                 loadError = "engine returned incomplete data for \(session.email)"; return
             }
             ticks = []
@@ -96,6 +98,14 @@ struct NativeAppView: View {
         } catch {
             loadError = "\(error)"
         }
+    }
+
+    /// Mirrors app.js's session dots: tap a different session to preview
+    /// and (if you choose) log THAT one instead of the recommendation.
+    private func browse(to key: String) {
+        guard key != state?.displayKey else { return }
+        browsedKey = key
+        Task { await reload() }
     }
 
     // MARK: - Writes
@@ -110,15 +120,16 @@ struct NativeAppView: View {
         guard let state, let store, let loads else { return }
         saveError = nil
         do {
-            if store.get(state.today)?.t == state.decision.k {
+            if store.get(state.today)?.t == state.displayKey {
                 try await store.clear(date: state.today)
             } else {
                 for ex in state.exercises where ticks.contains(ex.id) && ex.hasWeightTracking {
                     guard loads.on(ex.id, date: state.today) == nil, let kg = ex.weightKg else { continue }
                     try await loads.set(date: state.today, id: ex.id, kg: kg)
                 }
-                try await store.set(date: state.today, type: state.decision.k, load: nil)
+                try await store.set(date: state.today, type: state.displayKey, load: nil)
             }
+            browsedKey = nil // mirrors app.js: logging/undoing TODAY resets browseIndex
             await reload()
         } catch {
             saveError = "\(error)"

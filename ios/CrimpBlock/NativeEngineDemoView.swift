@@ -18,7 +18,11 @@ struct NativeEngineDemoView: View {
             if let loadError {
                 engineBridgeErrorView(loadError)
             } else if let state {
-                DailyCardView(state: state, footerNote: "Native SwiftUI (sample data) · engine-core.js via JavaScriptCore · \(state.today)")
+                DailyCardView(
+                    state: state,
+                    footerNote: "Native SwiftUI (sample data) · engine-core.js via JavaScriptCore · \(state.today)",
+                    onBrowse: { key in browse(to: key) }
+                )
             } else {
                 ZStack { SessionColours.bg.ignoresSafeArea(); ProgressView().tint(.white) }
             }
@@ -37,6 +41,11 @@ struct NativeEngineDemoView: View {
         } catch {
             loadError = "\(error)"
         }
+    }
+
+    private func browse(to key: String) {
+        guard let bridge = state?.bridge, key != state?.displayKey else { return }
+        if let s = DailyCardState.load(bridge: bridge, displayKey: key) { state = s }
     }
 
     /// Mirrors the fake-Supabase harness (scratchpad/harness/stub.js) used

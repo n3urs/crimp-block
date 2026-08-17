@@ -7,7 +7,14 @@ import SwiftUI
 struct DailyCardState {
     let bridge: EngineBridge
     let today: String
+    /// The TRUE recommendation from decide() — kept even while browsing a
+    /// different session, since it's still needed for the "rec" dot in the
+    /// session strip (mirrors app.js's `k===d.k` check, where `d` is always
+    /// today's real decide() result regardless of what's on screen).
     let decision: EngineBridge.Decision
+    /// What's actually shown — equals decision.k unless browsing another
+    /// session, matching app.js's `key` (browseIndex!==null ? ORDER[...] : d.k).
+    let displayKey: String
     let block: EngineBridge.BlockInfo
     let phaseName: String
     let session: EngineBridge.SessionInfo
@@ -15,21 +22,22 @@ struct DailyCardState {
     let accent: Color
     let accentVarName: String
 
-    static func load(bridge: EngineBridge) -> DailyCardState? {
+    static func load(bridge: EngineBridge, displayKey: String? = nil) -> DailyCardState? {
         let today = bridge.today()
         guard let d = bridge.decide(date: today),
               let b = bridge.block(date: today),
-              let phase = bridge.phaseNameAt(today),
-              let info = bridge.sessionInfo(d.k) else { return nil }
+              let phase = bridge.phaseNameAt(today) else { return nil }
+        let key = displayKey ?? d.k
+        guard let info = bridge.sessionInfo(key) else { return nil }
 
         // The session's own colour lives in programs.js as e.g. "--gorse" —
         // same lookup app.js does via v(s.c), just against the native
         // palette instead of computed CSS.
-        let varName = bridge.program.forProperty("sessions")?.forProperty(d.k)?.forProperty("c")?.toString() ?? "--gorse"
+        let varName = bridge.program.forProperty("sessions")?.forProperty(key)?.forProperty("c")?.toString() ?? "--gorse"
 
         return DailyCardState(
-            bridge: bridge, today: today, decision: d, block: b, phaseName: phase, session: info,
-            exercises: bridge.resolveExercises(for: d.k, date: today, phaseName: phase),
+            bridge: bridge, today: today, decision: d, displayKey: key, block: b, phaseName: phase, session: info,
+            exercises: bridge.resolveExercises(for: key, date: today, phaseName: phase),
             accent: SessionColours.resolve(varName), accentVarName: varName
         )
     }
@@ -47,6 +55,7 @@ struct DailyCardView: View {
     var onToggleTick: ((String) -> Void)? = nil
     var onTapWeight: ((EngineBridge.RenderedExercise) -> Void)? = nil
     var onTapDone: (() -> Void)? = nil
+    var onBrowse: ((String) -> Void)? = nil
     @State private var showPlan = false
     @State private var restTimer = RestTimerController()
     @State private var intervalTimer = IntervalTimerController()
@@ -75,7 +84,7 @@ struct DailyCardView: View {
     /// `note` (e.g. climb-before-or-after ordering) — in that priority
     /// order, never combined with the note.
     private var cardMessage: String {
-        let key = state.decision.k
+        let key = state.displayKey
         let isDeload = state.block.w == 4
         let isReturning = !isDeload && state.bridge.isReturning(state.today)
 
@@ -100,6 +109,7 @@ struct DailyCardView: View {
                     header
                         .contentShape(Rectangle())
                         .onTapGesture { showPlan = true }
+                    if onBrowse != nil { sessionDots }
                     VStack(alignment: .leading, spacing: 4) {
                         Text(state.session.name.uppercased())
                             .font(.system(size: 32, weight: .heavy))
@@ -154,6 +164,40 @@ struct DailyCardView: View {
             IntervalTimerView(controller: intervalTimer, onDismiss: { showIntervalTimer = false })
         }
         .onAppear { restTimer.requestNotificationPermission() }
+    }
+
+    /// Native equivalent of #sdots in app.js — every session stays
+    /// reachable by hand (including the climbing ones decide() never
+    /// recommends), tap to browse and preview a different one than the
+    /// recommendation. A ring marks the one currently on screen; a small
+    /// dot marks the actual recommendation, but only while today is
+    /// unlogged — mirrors `k===d.k && !logged` exactly.
+    private var sessionDots: some View {
+        HStack(spacing: 10) {
+            ForEach(EngineBridge.order, id: \.self) { key in
+                let varName = state.bridge.program.forProperty("sessions")?.forProperty(key)?.forProperty("c")?.toString() ?? "--gorse"
+                let isCurrent = key == state.displayKey
+                let isRecommended = key == state.decision.k && !isLogged
+                Button(action: { onBrowse?(key) }) {
+                    ZStack {
+                        Circle()
+                            .strokeBorder(.white, lineWidth: isCurrent ? 2 : 0)
+                            .frame(width: 16, height: 16)
+                        Circle()
+                            .fill(SessionColours.resolve(varName))
+                            .frame(width: 11, height: 11)
+                        if isRecommended {
+                            Circle()
+                                .fill(.white)
+                                .frame(width: 4, height: 4)
+                                .offset(y: 11)
+                        }
+                    }
+                    .frame(width: 20, height: 20)
+                }
+                .buttonStyle(.plain)
+            }
+        }
     }
 
     private var header: some View {
