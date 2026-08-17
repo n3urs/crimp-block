@@ -178,6 +178,8 @@ final class EngineBridge {
         let restSeconds: Int?
         let weightKg: Double?
         let weightIsBump: Bool
+        let hasWeightTracking: Bool   // true only when `id` is the exercise's REAL id, not the title fallback
+        let step: Double              // nudge increment for the weight editor, mirrors e.step (default 2.5)
     }
 
     /// Every exercise in `key`'s session for `date`, in order, skipping any
@@ -207,16 +209,22 @@ final class EngineBridge {
 
             var weightKg: Double? = nil
             var weightIsBump = false
-            if hasID, let e, let tg = engine.invokeMethod("target", withArguments: [e, date]), !tg.isNull, !tg.isUndefined {
-                weightKg = tg.forProperty("kg")?.toDouble()
-                weightIsBump = tg.forProperty("bump")?.toBool() ?? false
+            var step = 2.5
+            if hasID, let e {
+                let stepProp = e.forProperty("step")
+                if let stepProp, !stepProp.isUndefined { step = stepProp.toDouble() }
+                if let tg = engine.invokeMethod("target", withArguments: [e, date]), !tg.isNull, !tg.isUndefined {
+                    weightKg = tg.forProperty("kg")?.toDouble()
+                    weightIsBump = tg.forProperty("bump")?.toBool() ?? false
+                }
             }
 
             out.append(RenderedExercise(
                 id: id, title: title, prescription: m,
                 phaseAdjusted: baseM != nil && baseM != m,
                 description: description, restSeconds: restSeconds,
-                weightKg: weightKg, weightIsBump: weightIsBump
+                weightKg: weightKg, weightIsBump: weightIsBump,
+                hasWeightTracking: hasID, step: step
             ))
         }
         return out

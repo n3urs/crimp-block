@@ -28,6 +28,7 @@
 		60516990701FBD17659EC968 /* NativeSignInView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E97CE18A5549C249A8732777 /* NativeSignInView.swift */; };
 		206351353A5593FD37787D6B /* DailyCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D91CD9C20065423ECED8B37B /* DailyCardView.swift */; };
 		C31C8D37DC69557CF399AB46 /* NativeAppView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD80D35B8080F7ADFD3179F0 /* NativeAppView.swift */; };
+		A363D63028FA38AF3FCC4348 /* WeightEditView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE17BCB5744BA24227CA2B62 /* WeightEditView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -80,6 +81,7 @@
 		E97CE18A5549C249A8732777 /* NativeSignInView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeSignInView.swift; sourceTree = "<group>"; };
 		D91CD9C20065423ECED8B37B /* DailyCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyCardView.swift; sourceTree = "<group>"; };
 		FD80D35B8080F7ADFD3179F0 /* NativeAppView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeAppView.swift; sourceTree = "<group>"; };
+		EE17BCB5744BA24227CA2B62 /* WeightEditView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeightEditView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -126,6 +128,7 @@
 				E97CE18A5549C249A8732777 /* NativeSignInView.swift */,
 				D91CD9C20065423ECED8B37B /* DailyCardView.swift */,
 				FD80D35B8080F7ADFD3179F0 /* NativeAppView.swift */,
+				EE17BCB5744BA24227CA2B62 /* WeightEditView.swift */,
 				199D95D3AB13E7DF7CB52182 /* Assets.xcassets */,
 				CF2F221A9F4201ED25C77F10 /* Info.plist */,
 				C9376940D0FBDDF94F567CD0 /* CrimpBlock.entitlements */,
@@ -265,6 +268,7 @@
 				60516990701FBD17659EC968 /* NativeSignInView.swift in Sources */,
 				206351353A5593FD37787D6B /* DailyCardView.swift in Sources */,
 				C31C8D37DC69557CF399AB46 /* NativeAppView.swift in Sources */,
+				A363D63028FA38AF3FCC4348 /* WeightEditView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
