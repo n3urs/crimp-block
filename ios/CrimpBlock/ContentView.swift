@@ -21,14 +21,20 @@ struct ContentView: View {
     #endif
 
     var body: some View {
-        WebView()
-            .background(Color(red: 0.094, green: 0.106, blue: 0.133)) // --bg #181B22
         #if DEBUG
+        WebView(onLongPress: { showNativeMenu = true })
+            .background(Color(red: 0.094, green: 0.106, blue: 0.133)) // --bg #181B22
             // Phase B proof-of-concept only — compiled out of Release, so
-            // this can never reach Oscar/Joe's TestFlight build. Long-press
-            // anywhere to reach the native-engine screens without disturbing
-            // the WKWebView path everyone actually depends on.
-            .onLongPressGesture(minimumDuration: 1.2) { showNativeMenu = true }
+            // this can never reach Oscar/Joe's TestFlight build. Reachable
+            // by a long-press anywhere, without disturbing the WKWebView
+            // path everyone actually depends on. NOTE: this is wired as a
+            // real UILongPressGestureRecognizer on the WKWebView itself
+            // (see Coordinator.attachLongPress below), not a plain SwiftUI
+            // .onLongPressGesture — WKWebView has its own built-in
+            // long-press-to-select-text recognizer, which silently wins
+            // and eats a SwiftUI gesture layered on top via the normal
+            // modifier. Only a delegate-based recognizer told to fire
+            // simultaneously survives that.
             .confirmationDialog("Native engine (Phase B)", isPresented: $showNativeMenu) {
                 Button("Sample data") { nativeDestination = .sample }
                 Button("Live data (sign in)") { nativeDestination = .live }
@@ -40,11 +46,18 @@ struct ContentView: View {
                 case .live: NativeAppView()
                 }
             }
+        #else
+        WebView()
+            .background(Color(red: 0.094, green: 0.106, blue: 0.133)) // --bg #181B22
         #endif
     }
 }
 
 struct WebView: UIViewRepresentable {
+    #if DEBUG
+    var onLongPress: (() -> Void)? = nil
+    #endif
+
     func makeCoordinator() -> Coordinator { Coordinator() }
 
     func makeUIView(context: Context) -> WKWebView {
@@ -81,17 +94,48 @@ struct WebView: UIViewRepresentable {
         context.coordinator.webView = web
         context.coordinator.observeLifecycle()
         context.coordinator.requestNotificationPermission()
+        #if DEBUG
+        context.coordinator.onLongPress = onLongPress
+        context.coordinator.attachLongPress(to: web)
+        #endif
 
         return web
     }
 
     func updateUIView(_ uiView: WKWebView, context: Context) {}
 
-    final class Coordinator: NSObject, WKScriptMessageHandler {
+    final class Coordinator: NSObject, WKScriptMessageHandler, UIGestureRecognizerDelegate {
         weak var webView: WKWebView?
         private var backgroundedAt: Date?
         private let staleAfter: TimeInterval = 60
         private var observing = false
+
+        #if DEBUG
+        var onLongPress: (() -> Void)?
+
+        /// A real UIKit recognizer, not a SwiftUI `.onLongPressGesture` —
+        /// WKWebView owns its own long-press recognizer (for text selection
+        /// / link previews) which otherwise wins outright and the SwiftUI
+        /// gesture never fires at all. Declaring simultaneous recognition
+        /// via the delegate callback below is what lets this one fire
+        /// alongside it instead of losing the arbitration.
+        func attachLongPress(to view: UIView) {
+            let recognizer = UILongPressGestureRecognizer(target: self, action: #selector(handleLongPress(_:)))
+            recognizer.minimumPressDuration = 1.2
+            recognizer.delegate = self
+            view.addGestureRecognizer(recognizer)
+        }
+
+        @objc private func handleLongPress(_ recognizer: UILongPressGestureRecognizer) {
+            guard recognizer.state == .began else { return }
+            onLongPress?()
+        }
+
+        func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer,
+                                shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer) -> Bool {
+            true
+        }
+        #endif
 
         func observeLifecycle() {
             guard !observing else { return }
