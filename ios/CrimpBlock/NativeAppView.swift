@@ -28,6 +28,7 @@ struct NativeAppView: View {
     @State private var editingExercise: EngineBridge.RenderedExercise?
     @State private var browsedKey: String?
     @State private var pickingDate: String?
+    @State private var celebrationTrigger = 0
 
     var body: some View {
         Group {
@@ -51,7 +52,8 @@ struct NativeAppView: View {
                     weekDays: weekDays(around: state),
                     onTapDay: { date in pickingDate = date },
                     accountEmail: client.session?.email,
-                    onSignOut: { signOut() }
+                    onSignOut: { signOut() },
+                    celebrationTrigger: celebrationTrigger
                 )
             } else {
                 ZStack { SessionColours.bg.ignoresSafeArea(); ProgressView().tint(.white) }
@@ -202,6 +204,7 @@ struct NativeAppView: View {
                     try await loads.set(date: state.today, id: ex.id, kg: kg)
                 }
                 try await store.set(date: state.today, type: state.displayKey, load: nil)
+                celebrationTrigger += 1 // mirrors app.js's finish(): celebrate() fires on logging TODAY, never on undo
             }
             browsedKey = nil // mirrors app.js: logging/undoing TODAY resets browseIndex
             await reload()

@@ -57,6 +57,7 @@ struct DailyCardView: View {
     var onTapDay: ((String) -> Void)? = nil
     var accountEmail: String? = nil
     var onSignOut: (() -> Void)? = nil
+    var celebrationTrigger: Int = 0
     @State private var showPlan = false
     @State private var showAccount = false
     @State private var restTimer = RestTimerController()
@@ -158,6 +159,9 @@ struct DailyCardView: View {
                 }
                 .padding(16)
             }
+            CelebrationOverlay(trigger: celebrationTrigger, accent: state.accent)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+                .allowsHitTesting(false)
         }
         .background(SessionColours.bg)
         .sheet(isPresented: $showPlan) {

@@ -36,6 +36,7 @@
 		1BE5F0074A4FE84A870BDD6E /* IntervalTonePlayer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1D4A93D2E799953023A0D44C /* IntervalTonePlayer.swift */; };
 		2390FE79D020BF8F17F5D6E1 /* IntervalTimerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 509C122BF2A9E23301D7B91B /* IntervalTimerView.swift */; };
 		7E9A3714C664D67E5ACF716B /* WeekStripView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3FA7FBBB61EF7F7994B9DD88 /* WeekStripView.swift */; };
+		DD0A88CD778120CEE40F6DD3 /* CelebrationOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = CBACE466B35EED32AC6748EA /* CelebrationOverlay.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -96,6 +97,7 @@
 		1D4A93D2E799953023A0D44C /* IntervalTonePlayer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IntervalTonePlayer.swift; sourceTree = "<group>"; };
 		509C122BF2A9E23301D7B91B /* IntervalTimerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IntervalTimerView.swift; sourceTree = "<group>"; };
 		3FA7FBBB61EF7F7994B9DD88 /* WeekStripView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeekStripView.swift; sourceTree = "<group>"; };
+		CBACE466B35EED32AC6748EA /* CelebrationOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CelebrationOverlay.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -147,6 +149,7 @@
 				F5A540FD4C82A803A692F59D /* RestTimerOverlay.swift */,
 				509C122BF2A9E23301D7B91B /* IntervalTimerView.swift */,
 				3FA7FBBB61EF7F7994B9DD88 /* WeekStripView.swift */,
+				CBACE466B35EED32AC6748EA /* CelebrationOverlay.swift */,
 				199D95D3AB13E7DF7CB52182 /* Assets.xcassets */,
 				CF2F221A9F4201ED25C77F10 /* Info.plist */,
 				C9376940D0FBDDF94F567CD0 /* CrimpBlock.entitlements */,
@@ -297,6 +300,7 @@
 				1BE5F0074A4FE84A870BDD6E /* IntervalTonePlayer.swift in Sources */,
 				2390FE79D020BF8F17F5D6E1 /* IntervalTimerView.swift in Sources */,
 				7E9A3714C664D67E5ACF716B /* WeekStripView.swift in Sources */,
+				DD0A88CD778120CEE40F6DD3 /* CelebrationOverlay.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
