@@ -26,6 +26,8 @@
 		AACFEF1380425E657C19125C /* NativeStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A1E3A5314507CA61BAB7667 /* NativeStore.swift */; };
 		9B803E261E3B36E9CFA1FB5C /* NativeLoads.swift in Sources */ = {isa = PBXBuildFile; fileRef = 71E89275732D46FBD7443BF9 /* NativeLoads.swift */; };
 		60516990701FBD17659EC968 /* NativeSignInView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E97CE18A5549C249A8732777 /* NativeSignInView.swift */; };
+		206351353A5593FD37787D6B /* DailyCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D91CD9C20065423ECED8B37B /* DailyCardView.swift */; };
+		C31C8D37DC69557CF399AB46 /* NativeAppView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD80D35B8080F7ADFD3179F0 /* NativeAppView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -76,6 +78,8 @@
 		4A1E3A5314507CA61BAB7667 /* NativeStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeStore.swift; sourceTree = "<group>"; };
 		71E89275732D46FBD7443BF9 /* NativeLoads.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeLoads.swift; sourceTree = "<group>"; };
 		E97CE18A5549C249A8732777 /* NativeSignInView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeSignInView.swift; sourceTree = "<group>"; };
+		D91CD9C20065423ECED8B37B /* DailyCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyCardView.swift; sourceTree = "<group>"; };
+		FD80D35B8080F7ADFD3179F0 /* NativeAppView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeAppView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -120,6 +124,8 @@
 				A71E1C741FAD504C1462171B /* ContentView.swift */,
 				149901662BBF4963045E6918 /* NativeEngineDemoView.swift */,
 				E97CE18A5549C249A8732777 /* NativeSignInView.swift */,
+				D91CD9C20065423ECED8B37B /* DailyCardView.swift */,
+				FD80D35B8080F7ADFD3179F0 /* NativeAppView.swift */,
 				199D95D3AB13E7DF7CB52182 /* Assets.xcassets */,
 				CF2F221A9F4201ED25C77F10 /* Info.plist */,
 				C9376940D0FBDDF94F567CD0 /* CrimpBlock.entitlements */,
@@ -257,6 +263,8 @@
 				AACFEF1380425E657C19125C /* NativeStore.swift in Sources */,
 				9B803E261E3B36E9CFA1FB5C /* NativeLoads.swift in Sources */,
 				60516990701FBD17659EC968 /* NativeSignInView.swift in Sources */,
+				206351353A5593FD37787D6B /* DailyCardView.swift in Sources */,
+				C31C8D37DC69557CF399AB46 /* NativeAppView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

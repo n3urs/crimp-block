@@ -11,7 +11,13 @@ private let appURL = URL(string: "https://n3urs.github.io/crimp-block/")!
 
 struct ContentView: View {
     #if DEBUG
-    @State private var showNativeDemo = false
+    @State private var showNativeMenu = false
+    @State private var nativeDestination: NativeDestination?
+
+    private enum NativeDestination: Identifiable {
+        case sample, live
+        var id: Self { self }
+    }
     #endif
 
     var body: some View {
@@ -20,10 +26,20 @@ struct ContentView: View {
         #if DEBUG
             // Phase B proof-of-concept only — compiled out of Release, so
             // this can never reach Oscar/Joe's TestFlight build. Long-press
-            // anywhere to reach the native-engine screen without disturbing
+            // anywhere to reach the native-engine screens without disturbing
             // the WKWebView path everyone actually depends on.
-            .onLongPressGesture(minimumDuration: 1.2) { showNativeDemo = true }
-            .sheet(isPresented: $showNativeDemo) { NativeEngineDemoView() }
+            .onLongPressGesture(minimumDuration: 1.2) { showNativeMenu = true }
+            .confirmationDialog("Native engine (Phase B)", isPresented: $showNativeMenu) {
+                Button("Sample data") { nativeDestination = .sample }
+                Button("Live data (sign in)") { nativeDestination = .live }
+                Button("Cancel", role: .cancel) {}
+            }
+            .sheet(item: $nativeDestination) { dest in
+                switch dest {
+                case .sample: NativeEngineDemoView()
+                case .live: NativeAppView()
+                }
+            }
         #endif
     }
 }
