@@ -137,6 +137,28 @@ final class EngineBridge {
         return v.toString()
     }
 
+    /// The same rolling forecast pushNative() sends the widget from the web
+    /// side — decoded straight into the SAME Forecast/Forecast.Day structs
+    /// Forecast.swift already defines (field names match engine-core.js's
+    /// output exactly), with one adjustment: forecast() returns each day's
+    /// colour as a raw `--variable-name` (engine-core.js never touches the
+    /// DOM, so it can't resolve CSS itself), where Forecast.Day documents
+    /// colour as an already-resolved hex string — same contract the web
+    /// bridge fulfils via v(d.colour) before sending. Resolved here via
+    /// SessionColours.hex() so callers get an object identical in shape to
+    /// what the web app has always written to the shared App Group.
+    func nativeForecast(days: Int) -> Forecast? {
+        guard let rawDays: [Forecast.Day] = decode(engine.invokeMethod("forecast", withArguments: [days])) else { return nil }
+        let resolved = rawDays.map { day in
+            Forecast.Day(
+                date: day.date, key: day.key, name: day.name, where: day.where,
+                colour: SessionColours.hex(day.colour), logged: day.logged,
+                phase: day.phase, cue: day.cue, exercises: day.exercises
+            )
+        }
+        return Forecast(v: 1, generated: today(), days: resolved)
+    }
+
     func isDeload(_ date: String) -> Bool {
         engine.invokeMethod("isDeload", withArguments: [date])?.toBool() ?? false
     }

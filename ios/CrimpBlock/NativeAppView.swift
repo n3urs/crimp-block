@@ -1,4 +1,5 @@
 import SwiftUI
+import WidgetKit
 
 /// The real thing: sign in (or resume a persisted Keychain session), load
 /// actual Store/Loads data over REST, and render + interact with today's
@@ -140,6 +141,18 @@ struct NativeAppView: View {
             ticks = []
             state = s
             loadError = nil
+
+            // Keeps the home-screen widget in sync with whatever the native
+            // app just showed — mirrors pushNative()'s call at the end of
+            // every render() on the web side. Without this, logging a
+            // session natively would leave the widget showing yesterday's
+            // forecast until the WKWebView app was next opened.
+            if let forecast = bridge.nativeForecast(days: 14),
+               let json = try? JSONEncoder().encode(forecast),
+               let jsonString = String(data: json, encoding: .utf8) {
+                SharedStore.save(rawJSON: jsonString)
+                WidgetCenter.shared.reloadAllTimelines()
+            }
         } catch {
             loadError = "\(error)"
         }
