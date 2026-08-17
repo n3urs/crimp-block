@@ -132,3 +132,66 @@ Ask me for that when you get there — it's about forty lines.
 The `anon` key is designed to sit in public client code; RLS is what stops
 anyone reading anyone else's rows. The `service_role` key bypasses RLS entirely
 — it never leaves the server, and never goes in this repo.
+
+## Phase C: templates & profiles
+
+Not run yet — this is the schema `template-resolver.js` and the native intake
+quiz are designed against, for when template-assigned (Standard-tier) users
+are introduced alongside Oscar's and Joe's hand-authored programs. Run this
+when Phase C's quiz/onboarding UI is ready to actually write somewhere real.
+
+```sql
+create table templates (
+  id               text primary key,        -- e.g. 'boulderingBeginner', matches TEMPLATES key in templates.js
+  name             text not null,
+  discipline       text not null,           -- 'bouldering' | 'sport'
+  experience_level text not null,           -- 'beginner' | 'advanced'
+  goal_focus       text not null default 'general',
+  program          jsonb not null,          -- {perWeek, phases, sessions} — same shape as a programs.js entry, minus startDate
+  is_custom        boolean not null default false,  -- true for a one-off Custom-tier program Oscar entered by hand (Phase F)
+  created_at       timestamptz default now()
+);
+
+-- Templates are read by every signed-in user (to resolve their own program)
+-- but never written by them — only Oscar, via the dashboard or a future
+-- admin tool, ever inserts/updates a row here.
+alter table templates enable row level security;
+
+create policy "anyone signed in can read" on templates
+  for select
+  using (auth.role() = 'authenticated');
+
+create table profiles (
+  user_id             uuid primary key references auth.users(id) on delete cascade,
+  assigned_template_id text references templates(id),
+  program_start_date  date not null,        -- becomes the resolved program's startDate — NOT the same as quiz-completion instant, in case that ever needs backdating
+  modifiers           jsonb not null default '{}'::jsonb,  -- {equipment:[...], injuryFlags:[...], weaknesses:[...], tripDate:'YYYY-MM-DD'|null, daysPerWeek:n}
+  tier                text not null default 'standard',    -- 'standard' | 'custom'
+  quiz_completed_at   timestamptz,
+  tutorial_completed_at timestamptz,
+  created_at          timestamptz default now()
+);
+
+alter table profiles enable row level security;
+
+create policy "own row" on profiles
+  for all
+  using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
+```
+
+At load time, a template-assigned user's program is built as:
+
+```
+profile   = select * from profiles where user_id = auth.uid()
+template  = select * from templates where id = profile.assigned_template_id
+program   = TemplateResolver.resolveTemplate(template.program, {
+              startDate: profile.program_start_date,
+              modifiers: profile.modifiers
+            })
+```
+
+— then `program` goes into `createEngine()` exactly like a `programs.js` entry
+does today. Oscar's and Joe's programs are **not** migrated onto this —
+they keep loading straight from `programs.js` as they always have, per the
+plan's explicit call to leave a working thing alone.
