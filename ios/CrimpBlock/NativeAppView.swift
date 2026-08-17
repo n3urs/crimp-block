@@ -26,6 +26,7 @@ struct NativeAppView: View {
     @State private var ticks: Set<String> = []
     @State private var editingExercise: EngineBridge.RenderedExercise?
     @State private var browsedKey: String?
+    @State private var pickingDate: String?
 
     var body: some View {
         Group {
@@ -45,7 +46,9 @@ struct NativeAppView: View {
                     },
                     onTapWeight: { ex in editingExercise = ex },
                     onTapDone: { Task { await toggleDone() } },
-                    onBrowse: { key in browse(to: key) }
+                    onBrowse: { key in browse(to: key) },
+                    weekDays: weekDays(around: state),
+                    onTapDay: { date in pickingDate = date }
                 )
             } else {
                 ZStack { SessionColours.bg.ignoresSafeArea(); ProgressView().tint(.white) }
@@ -57,6 +60,46 @@ struct NativeAppView: View {
                 Task { await saveWeight(id: ex.id, kg: kg) }
             }
         }
+        .sheet(item: Binding(get: { pickingDate.map { PickingDate(date: $0) } }, set: { pickingDate = $0?.date })) { picking in
+            if let state {
+                DayPickerView(
+                    date: picking.date, bridge: state.bridge,
+                    hasExistingEntry: store?.get(picking.date) != nil,
+                    onPick: { key in Task { await logDay(picking.date, key: key) } },
+                    onClear: { Task { await clearDay(picking.date) } }
+                )
+            }
+        }
+    }
+
+    /// The last 7 days including today, coloured by whatever NativeStore
+    /// has for each — mirrors app.js's week-dots loop exactly (7 days back
+    /// from `today()`, using each session's own accent colour).
+    private func weekDays(around state: DailyCardState) -> [WeekDay] {
+        guard let store else { return [] }
+        var out: [WeekDay] = []
+        for i in stride(from: 6, through: 0, by: -1) {
+            let date = state.bridge.addDays(state.today, -i)
+            let entry = store.get(date)
+            let letter = Self.dayLetter(date)
+            out.append(WeekDay(
+                id: date, dayLetter: letter,
+                colourVarName: entry.map { state.bridge.sessionColourVarName($0.t) },
+                isToday: i == 0
+            ))
+        }
+        return out
+    }
+
+    private static func dayLetter(_ date: String) -> String {
+        let inFmt = DateFormatter()
+        inFmt.locale = Locale(identifier: "en_US_POSIX")
+        inFmt.dateFormat = "yyyy-MM-dd"
+        guard let d = inFmt.date(from: date) else { return "" }
+        let out = DateFormatter()
+        out.locale = Locale(identifier: "en_GB")
+        out.dateFormat = "EEE"
+        return String(out.string(from: d).prefix(1))
     }
 
     // MARK: - Loading
@@ -146,6 +189,40 @@ struct NativeAppView: View {
             saveError = "\(error)"
         }
     }
+
+    /// Logging/clearing a PAST day via the week strip — same store call as
+    /// today's Done button, just a different date. Doesn't touch
+    /// ticks/weight auto-recording (that's specific to logging TODAY's
+    /// session as you do it), and only resets browsing if the day in
+    /// question happens to be today, same as toggleDone().
+    private func logDay(_ date: String, key: String) async {
+        guard let store else { return }
+        saveError = nil
+        do {
+            try await store.set(date: date, type: key, load: nil)
+            if date == state?.today { browsedKey = nil }
+            await reload()
+        } catch {
+            saveError = "\(error)"
+        }
+    }
+
+    private func clearDay(_ date: String) async {
+        guard let store else { return }
+        saveError = nil
+        do {
+            try await store.clear(date: date)
+            if date == state?.today { browsedKey = nil }
+            await reload()
+        } catch {
+            saveError = "\(error)"
+        }
+    }
+}
+
+private struct PickingDate: Identifiable {
+    let date: String
+    var id: String { date }
 }
 
 #Preview {

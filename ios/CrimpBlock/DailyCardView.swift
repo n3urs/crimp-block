@@ -30,10 +30,7 @@ struct DailyCardState {
         let key = displayKey ?? d.k
         guard let info = bridge.sessionInfo(key) else { return nil }
 
-        // The session's own colour lives in programs.js as e.g. "--gorse" —
-        // same lookup app.js does via v(s.c), just against the native
-        // palette instead of computed CSS.
-        let varName = bridge.program.forProperty("sessions")?.forProperty(key)?.forProperty("c")?.toString() ?? "--gorse"
+        let varName = bridge.sessionColourVarName(key)
 
         return DailyCardState(
             bridge: bridge, today: today, decision: d, displayKey: key, block: b, phaseName: phase, session: info,
@@ -56,6 +53,8 @@ struct DailyCardView: View {
     var onTapWeight: ((EngineBridge.RenderedExercise) -> Void)? = nil
     var onTapDone: (() -> Void)? = nil
     var onBrowse: ((String) -> Void)? = nil
+    var weekDays: [WeekDay] = []
+    var onTapDay: ((String) -> Void)? = nil
     @State private var showPlan = false
     @State private var restTimer = RestTimerController()
     @State private var intervalTimer = IntervalTimerController()
@@ -106,6 +105,9 @@ struct DailyCardView: View {
         ZStack(alignment: .bottom) {
             ScrollView {
                 VStack(alignment: .leading, spacing: 18) {
+                    if let onTapDay, !weekDays.isEmpty {
+                        WeekStripView(days: weekDays, onTapDay: onTapDay)
+                    }
                     header
                         .contentShape(Rectangle())
                         .onTapGesture { showPlan = true }
@@ -175,7 +177,7 @@ struct DailyCardView: View {
     private var sessionDots: some View {
         HStack(spacing: 10) {
             ForEach(EngineBridge.order, id: \.self) { key in
-                let varName = state.bridge.program.forProperty("sessions")?.forProperty(key)?.forProperty("c")?.toString() ?? "--gorse"
+                let varName = state.bridge.sessionColourVarName(key)
                 let isCurrent = key == state.displayKey
                 let isRecommended = key == state.decision.k && !isLogged
                 Button(action: { onBrowse?(key) }) {

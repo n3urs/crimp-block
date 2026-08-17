@@ -200,6 +200,14 @@ final class EngineBridge {
         return out
     }
 
+    /// The session's own accent, as a raw `--variable-name` — same lookup
+    /// DailyCardState.load() does inline for the current session, exposed
+    /// here for anything that needs it for an arbitrary key (e.g. the
+    /// week-dots strip, which needs a colour per logged day).
+    func sessionColourVarName(_ key: String) -> String {
+        program.forProperty("sessions")?.forProperty(key)?.forProperty("c")?.toString() ?? "--gorse"
+    }
+
     // MARK: - Session content (program.sessions[key] — read directly, not modelled)
 
     /// A session's display metadata (`n`ame, `w`here, `note`) — everything
