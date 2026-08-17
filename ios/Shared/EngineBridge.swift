@@ -235,7 +235,15 @@ final class EngineBridge {
         let weightIsBump: Bool
         let hasWeightTracking: Bool   // true only when `id` is the exercise's REAL id, not the title fallback
         let step: Double              // nudge increment for the weight editor, mirrors e.step (default 2.5)
+        let interval: IntervalConfig? // present only for exercises carrying `interval:{on,off,reps}` in programs.js
     }
+
+    /// on/off/reps per rep — mirrors e.interval in programs.js exactly.
+    /// Set count is deliberately NOT part of this: it's read from the
+    /// CURRENT resolved prescription text at start time (parseInt on `m`),
+    /// same as startIntervalTimer() in app.js, so a deload week runs fewer
+    /// sets for free with zero extra logic.
+    struct IntervalConfig { let on: Int; let off: Int; let reps: Int }
 
     /// Every exercise in `key`'s session for `date`, in order, skipping any
     /// that resolveEx() drops for this phase (its `^skip` convention).
@@ -274,12 +282,20 @@ final class EngineBridge {
                 }
             }
 
+            var interval: IntervalConfig? = nil
+            if let ivProp = e?.forProperty("interval"), !ivProp.isUndefined,
+               let on = ivProp.forProperty("on"), !on.isUndefined,
+               let off = ivProp.forProperty("off"), !off.isUndefined,
+               let reps = ivProp.forProperty("reps"), !reps.isUndefined {
+                interval = IntervalConfig(on: Int(on.toInt32()), off: Int(off.toInt32()), reps: Int(reps.toInt32()))
+            }
+
             out.append(RenderedExercise(
                 id: id, title: title, prescription: m,
                 phaseAdjusted: baseM != nil && baseM != m,
                 description: description, restSeconds: restSeconds,
                 weightKg: weightKg, weightIsBump: weightIsBump,
-                hasWeightTracking: hasID, step: step
+                hasWeightTracking: hasID, step: step, interval: interval
             ))
         }
         return out

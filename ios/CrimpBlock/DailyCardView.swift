@@ -49,6 +49,22 @@ struct DailyCardView: View {
     var onTapDone: (() -> Void)? = nil
     @State private var showPlan = false
     @State private var restTimer = RestTimerController()
+    @State private var intervalTimer = IntervalTimerController()
+    @State private var showIntervalTimer = false
+
+    /// Mirrors JS's `parseInt(string, 10)` — the leading run of digits,
+    /// stopping at the first non-digit character. Used to read the set
+    /// count straight from the currently-resolved prescription text (e.g.
+    /// "5 × (10s on / 5s off × 5)" -> 5), same as startIntervalTimer() in
+    /// app.js, so a deload week's already-cut set count is picked up for
+    /// free with no extra logic here.
+    private static func leadingInt(_ s: String) -> Int? {
+        var digits = ""
+        for ch in s.trimmingCharacters(in: .whitespaces) {
+            if ch.isNumber { digits.append(ch) } else { break }
+        }
+        return Int(digits)
+    }
 
     var body: some View {
         ZStack(alignment: .bottom) {
@@ -115,6 +131,9 @@ struct DailyCardView: View {
         .sheet(isPresented: $showPlan) {
             PlanSheetView(bridge: state.bridge, block: state.block, today: state.today)
         }
+        .fullScreenCover(isPresented: $showIntervalTimer) {
+            IntervalTimerView(controller: intervalTimer, onDismiss: { showIntervalTimer = false })
+        }
         .onAppear { restTimer.requestNotificationPermission() }
     }
 
@@ -162,7 +181,29 @@ struct DailyCardView: View {
                         .font(.system(size: 12.5))
                         .foregroundStyle(SessionColours.dim)
                 }
-                if let r = ex.restSeconds {
+                // An exercise with structured interval data gets the
+                // auto-cycling repeater timer instead of the plain rest
+                // button — that button would be redundant once the
+                // interval timer owns the between-set rest too. Mirrors
+                // app.js's timerBtn logic exactly.
+                if let interval = ex.interval {
+                    Button(action: {
+                        let sets = Self.leadingInt(ex.prescription) ?? 1
+                        intervalTimer.start(
+                            config: interval, setRestSecs: ex.restSeconds ?? 120,
+                            sets: max(1, sets), label: ex.title
+                        )
+                        showIntervalTimer = true
+                    }) {
+                        Text("START")
+                            .font(.system(size: 10, weight: .bold, design: .monospaced))
+                            .foregroundStyle(state.accent)
+                            .padding(.horizontal, 8).padding(.vertical, 4)
+                            .background(SessionColours.s3)
+                            .clipShape(RoundedRectangle(cornerRadius: 5))
+                    }
+                    .buttonStyle(.plain)
+                } else if let r = ex.restSeconds {
                     Button(action: {
                         restTimer.start(secs: r, label: ex.title, colourHex: SessionColours.hex(state.accentVarName))
                     }) {

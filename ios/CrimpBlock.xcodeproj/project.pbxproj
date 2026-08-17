@@ -32,6 +32,9 @@
 		675F957E1CF9CCAAC300BF42 /* PlanSheetView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51653B7E90110D0A36F6CD4E /* PlanSheetView.swift */; };
 		FF6FBE1B4EF6EBFCB8C86BDE /* RestTimerController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 848EFDD47D06730C4D6C96FF /* RestTimerController.swift */; };
 		2FE034EFC23E27BFAB18BA68 /* RestTimerOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5A540FD4C82A803A692F59D /* RestTimerOverlay.swift */; };
+		7AA9902FFAD92DA7F0B9BA02 /* IntervalTimerController.swift in Sources */ = {isa = PBXBuildFile; fileRef = F6C3F6CAFEFBCE196267ACA4 /* IntervalTimerController.swift */; };
+		1BE5F0074A4FE84A870BDD6E /* IntervalTonePlayer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1D4A93D2E799953023A0D44C /* IntervalTonePlayer.swift */; };
+		2390FE79D020BF8F17F5D6E1 /* IntervalTimerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 509C122BF2A9E23301D7B91B /* IntervalTimerView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -88,6 +91,9 @@
 		51653B7E90110D0A36F6CD4E /* PlanSheetView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlanSheetView.swift; sourceTree = "<group>"; };
 		848EFDD47D06730C4D6C96FF /* RestTimerController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RestTimerController.swift; sourceTree = "<group>"; };
 		F5A540FD4C82A803A692F59D /* RestTimerOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RestTimerOverlay.swift; sourceTree = "<group>"; };
+		F6C3F6CAFEFBCE196267ACA4 /* IntervalTimerController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IntervalTimerController.swift; sourceTree = "<group>"; };
+		1D4A93D2E799953023A0D44C /* IntervalTonePlayer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IntervalTonePlayer.swift; sourceTree = "<group>"; };
+		509C122BF2A9E23301D7B91B /* IntervalTimerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IntervalTimerView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -137,6 +143,7 @@
 				EE17BCB5744BA24227CA2B62 /* WeightEditView.swift */,
 				51653B7E90110D0A36F6CD4E /* PlanSheetView.swift */,
 				F5A540FD4C82A803A692F59D /* RestTimerOverlay.swift */,
+				509C122BF2A9E23301D7B91B /* IntervalTimerView.swift */,
 				199D95D3AB13E7DF7CB52182 /* Assets.xcassets */,
 				CF2F221A9F4201ED25C77F10 /* Info.plist */,
 				C9376940D0FBDDF94F567CD0 /* CrimpBlock.entitlements */,
@@ -167,6 +174,8 @@
 				4A1E3A5314507CA61BAB7667 /* NativeStore.swift */,
 				71E89275732D46FBD7443BF9 /* NativeLoads.swift */,
 				848EFDD47D06730C4D6C96FF /* RestTimerController.swift */,
+				F6C3F6CAFEFBCE196267ACA4 /* IntervalTimerController.swift */,
+				1D4A93D2E799953023A0D44C /* IntervalTonePlayer.swift */,
 				BB9B02DBDC4FFE41757FF766 /* engine-core.js */,
 				C2057310DAED31D00943FA48 /* programs.js */,
 			);
@@ -281,6 +290,9 @@
 				675F957E1CF9CCAAC300BF42 /* PlanSheetView.swift in Sources */,
 				FF6FBE1B4EF6EBFCB8C86BDE /* RestTimerController.swift in Sources */,
 				2FE034EFC23E27BFAB18BA68 /* RestTimerOverlay.swift in Sources */,
+				7AA9902FFAD92DA7F0B9BA02 /* IntervalTimerController.swift in Sources */,
+				1BE5F0074A4FE84A870BDD6E /* IntervalTonePlayer.swift in Sources */,
+				2390FE79D020BF8F17F5D6E1 /* IntervalTimerView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

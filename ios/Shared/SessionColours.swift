@@ -15,6 +15,11 @@ enum SessionColours {
     static let dim    = Color(hex: "#9AA0AE")
     static let faint  = Color(hex: "#666C7A")
 
+    // The interval timer's traffic-light phases — --go/--rest-c/--ready-c in index.html.
+    static let go     = Color(hex: "#1FA24A")
+    static let restC  = Color(hex: "#D6383D")
+    static let readyC = Color(hex: "#D69A1F")
+
     private static let namedHex: [String: String] = [
         "--gorse":    "#F2B134",
         "--tidepool": "#4FB3A5",
