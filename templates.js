@@ -164,6 +164,87 @@ return {
         x:[{t:'Mileage and movement',m:'—',d:'Nothing near limit — actively resting the effort spent on your hard days, not adding more of it.'}]},
       rest:{n:'Rest', w:'—', c:'--grey', finger:0, pull:0, note:'Two structured strength/power sessions a week is the target here, not more — Lattice\'s own guidance is that additional volume past that point doesn\'t buy you more adaptation, just more fatigue.', x:[]}
     }
+  },
+
+  /* boulderingAdvanced — for someone climbing V8+ who has already built
+     real finger strength and is chasing the smaller gains that remain.
+     Researched before drafting (same discipline as the other two):
+       - Eva Lopez's 8-week MaxHangs cycle (4 weeks MAW - Maximum
+         Additional Weight - then 4 weeks MED - Minimum Edge Depth)
+         is reported to yield real strength gains in this population,
+         with 48h between sessions being sufficient recovery
+         (strengthclimbing.com's write-up).
+       - A peer-reviewed RCT (Nature Scientific Reports, 2021) studied
+         hangboard training specifically in advanced climbers -
+         confirming this population is exactly who structured max-hang
+         protocols are validated for, unlike beginners/intermediates.
+       - Campus board training has real prerequisites before it's
+         appropriate even at this level - commonly cited gate: a
+         one-arm hang around 20mm for ~20s, and 10 strict pull-ups
+         (climbmaxxing.today's protocol writeup). Gated behind an
+         explicit note here, not assumed.
+       - Real caution worth taking seriously: at V8+, connective
+         tissue is already stiff and recruitment is already high, so
+         the remaining gains are smaller and the risk/reward of
+         chasing them with more max-intensity loading gets worse, not
+         better (CAMP4 Human Performance's writeup on the advanced
+         plateau) - reflected in the Power phase note below.
+       - Lattice's own base->strength->power->deload cycle and
+         2-sessions/week strength-or-power cap apply here too, same
+         as the intermediate template. */
+  boulderingAdvanced: {
+    meta: {
+      name: 'Bouldering — Advanced',
+      discipline: 'bouldering',
+      experienceLevel: 'advanced',
+      goalFocus: 'general',
+      description: 'For someone climbing V8 and above who has already built real finger and pull strength. The gains left at this level are smaller and the risk of chasing them carelessly is higher — this leans on established protocols (Eva López’s MaxHangs cycle, gated campus work) rather than just adding more load.'
+    },
+    perWeek: 4,
+    phases: [
+      {n:'Base', from:1, c:'--tidepool', cue:'Short and submaximal — a reset, not a rebuild', d:'Four weeks, deliberately short — you’re not rebuilding from nothing the way a beginner or intermediate template would be. This is a capacity reset before the MaxHangs cycle below, not a new foundation.'},
+      {n:'Max Strength — MAW', from:2, c:'--gorse', cue:'Added weight, comfortable edge — the first half of Eva López’s 8-week cycle', d:'Four weeks of Maximum Additional Weight hangs: a comfortable edge with weight added to hit near-max effort. The first half of López’s two-block MaxHangs cycle — the edge size stays constant here, only the added weight changes session to session.'},
+      {n:'Max Strength — MED', from:3, c:'--gorse', cue:'Minimum edge depth, bodyweight only — the second half of the cycle', d:'Four weeks of Minimum Edge Depth hangs: drop the added weight, drop the edge size instead — same near-max effort, the other lever. This is what makes it an 8-week CYCLE rather than one protocol repeated for two months straight.'},
+      {n:'Power', from:4, c:'--heather', cue:'Contact strength and campus work — gated, not assumed', d:'Four weeks converting strength into speed. Campus board work is included here on the assumption you already meet the standard prerequisites (a comfortable one-arm hang around 20mm for ~20s, 10 strict pull-ups) — if you don’t, swap it for more limit bouldering and revisit campus once you do. At this level the remaining strength gains are small and the injury risk of chasing them with more raw load is real — this phase is about applying what you have faster, not finding a new ceiling.'},
+      {n:'Performance', from:5, c:'--slate', cue:'Maintain only — climbing is the real work now', d:'One strength and one power-conversion session a week to hold what you built — the rest of your training is climbing itself.'}
+    ],
+    sessions:{
+      maxFingers:{n:'Max Hangs', w:'Home/Gym · 40 min', c:'--gorse', finger:3, pull:0, note:'48 hours between sessions is enough recovery for this protocol — more isn’t automatically better here.',
+        x:[
+          {t:'Warm up',m:'15 min',d:'Pulse raise, then progressively heavier hangs on a jug before touching a smaller edge.'},
+          {t:'MAW hang — added weight',id:'tpl-adv-maw',m:'skip — see Max Strength — MAW / MED phases above for this cycle',ph:{'Base':'4 × 8s — lighter, this phase is a reset','Max Strength — MAW':'5 × 7s — half-crimp, comfortable edge, weight added to reach near-max effort'},d:'Half-crimp, a comfortable edge with weight added to hit near-max at 7s. Full 3–5 minutes between efforts. Active only during the MAW phase — once Max Strength — MED starts, this one stops and the exercise below takes over.',r:210},
+          {t:'MED hang — minimum edge',id:'tpl-adv-med',m:'skip — Max Strength — MED phase only, see MAW hang above',ph:{'Max Strength — MED':'4 × 7s — smallest edge you can hold bodyweight for the full time, no added weight'},d:'Active only during Max Strength — MED: drop the added weight, drop the edge size instead. Same time-under-tension target as the MAW phase, different lever.',r:210},
+          {t:'Recruitment pulls',m:'skip — Power phase only',ph:{'Power':'6 × 3s — fast, hard pull onto the edge, held briefly then released','Performance':'skip — Power phase only, standard repeaters below cover maintenance'},d:'Speed and intensity of contraction rather than sustained load — teaching the nervous system to fire everything quickly, not just hold on longer. Full recovery between reps.',r:150}
+        ]},
+      hangboard:{n:'Repeaters', w:'Home/Gym · 25 min', c:'--slate', finger:2, pull:0, note:'Capacity work — kept in the program year-round even while Max Hangs is the main event, because repeaters and max hangs train different qualities.',
+        x:[
+          {t:'Warm up',m:'8 min',d:'Light priming set at 30–40% before working sets.'},
+          {t:'Repeaters',m:'4 sets',interval:{on:7,off:3,reps:6},ph:{'Power':'2 sets — reduced, priority is recruitment pulls and campus this phase','Performance':'2–3 sets — maintain only'},d:'7s on / 3s off × 6 = one set. Moderate-heavy — this should be genuinely harder than the intermediate version, but still a capacity protocol, not a max effort.',r:120}
+        ]},
+      pull:{n:'Pull & Lock-off', w:'Home/Gym · 45 min', c:'--tidepool', finger:0, pull:3, note:null,
+        x:[
+          {t:'Warm up',m:'8 min',d:'Band pull-aparts and scap pulls before anything heavy.'},
+          {t:'Weighted pull-ups',m:'5 × 4',ph:{'Base':'4 × 6 — lighter','Power':'5 × 3 — heavier, lower reps, save volume for campus/recruitment work','Performance':'3 × 5 — maintain only'},d:'Full dead hang to full lockout. Heavy — this is the main lift of the session.',r:180},
+          {t:'One-arm progression',m:'4 × 6–8s / arm',d:'Whatever your current honest progression is — assisted, negatives, or a real one-arm hang. Alternate arms.',r:90},
+          {t:'Front lever',m:'4 × 10–12s',d:'Hardest clean variation you hold — straddle, single-leg, or full.',r:75},
+          {t:'Antagonists',m:'3 supersets',d:'Reverse wrist curls 3×15 · finger extensors 3×20 · external rotation 3×12 · dips 3×10. Non-negotiable at this training load — skipping this is how the imbalances that cause injury actually happen.'}
+        ]},
+      climbHard:{n:'Bouldering Session', w:'Gym · 90 min', c:'--heather', finger:3, pull:3, climb:1,
+        x:[
+          {t:'Warm up',m:'20 min',d:'Full pyramid to your ceiling before anything at your limit.'},
+          {t:'Limit bouldering',m:'40 min',ph:{'Base':'50 min — volume-leaning reset','Power':'25 min — fewer, higher-quality attempts'},d:'At or near your limit — steep terrain specifically, where power and contact strength actually transfer.',r:180},
+          {t:'Campus board',m:'skip — Power phase only, and only if you meet the prerequisites in this phase’s description',ph:{'Power':'20 min — short ladders, full recovery between'},d:'Standard prerequisite before attempting this: a comfortable one-arm hang around 20mm for ~20s, and 10 strict pull-ups. If that’s not honestly true yet, skip this and add more limit bouldering instead — campus is a precision tool for people who’ve already built the base it assumes.',r:180},
+          {t:'Cool down',m:'10 min',d:'Easy traversing.'}
+        ]},
+      outdoorHard:{n:'Outdoor', w:'Crag', c:'--heather', finger:3, pull:3, climb:1,
+        x:[
+          {t:'Warm up properly',m:'25 min',d:'Cold rock and cold tendons at this training load is a real injury risk, not a formality.'},
+          {t:'Project',m:'—',d:'Pick something at your limit — outdoor grades rarely match gym grades directly.'}
+        ]},
+      climbEasy:{n:'Easy Climbing', w:'Anywhere', c:'--tidepool', finger:1, pull:1, climb:1,
+        x:[{t:'Mileage and movement',m:'—',d:'Nothing near limit — actively resting the effort spent on your hard days.'}]},
+      rest:{n:'Rest', w:'—', c:'--grey', finger:0, pull:0, note:'At this training load, skipping a rest day is one of the more common ways advanced climbers hurt themselves — the fatigue is real even when it doesn’t feel like it yet.', x:[]}
+    }
   }
 };
 });
