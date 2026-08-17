@@ -178,33 +178,55 @@ describe('resolveTemplate — trip taper', function(){
   });
 });
 
-describe('the real boulderingBeginner template', function(){
-  test('resolves cleanly with no modifiers and is accepted by createEngine', function(){
-    var program = TemplateResolver.resolveTemplate(TEMPLATES.boulderingBeginner, {startDate:'2026-01-01', modifiers:{}});
-    expect(function(){ EngineCore.createEngine(program, {sessionLog:{}, loadLog:{}}); }).not.toThrow();
-  });
+Object.keys(TEMPLATES).forEach(function(templateId){
+  describe('the real ' + templateId + ' template', function(){
+    test('resolves cleanly with no modifiers and is accepted by createEngine', function(){
+      var program = TemplateResolver.resolveTemplate(TEMPLATES[templateId], {startDate:'2026-01-01', modifiers:{}});
+      expect(function(){ EngineCore.createEngine(program, {sessionLog:{}, loadLog:{}}); }).not.toThrow();
+    });
 
-  test('defines all seven session keys engine-core.js requires', function(){
-    var program = TemplateResolver.resolveTemplate(TEMPLATES.boulderingBeginner, {startDate:'2026-01-01', modifiers:{}});
-    ['maxFingers','hangboard','pull','climbHard','outdoorHard','climbEasy','rest'].forEach(function(key){
-      expect(program.sessions[key]).toBeDefined();
+    test('defines all seven session keys engine-core.js requires', function(){
+      var program = TemplateResolver.resolveTemplate(TEMPLATES[templateId], {startDate:'2026-01-01', modifiers:{}});
+      ['maxFingers','hangboard','pull','climbHard','outdoorHard','climbEasy','rest'].forEach(function(key){
+        expect(program.sessions[key]).toBeDefined();
+      });
+    });
+
+    test('produces a decision on day one with an empty history, same as a real new user would see', function(){
+      var program = TemplateResolver.resolveTemplate(TEMPLATES[templateId], {startDate:'2026-01-01', modifiers:{}});
+      var engine = EngineCore.createEngine(program, {sessionLog:{}, loadLog:{}});
+      var d = engine.decide('2026-01-01');
+      expect(d).toBeTruthy();
+      expect(typeof d.k).toBe('string');
+    });
+
+    test('resolves cleanly with every seed modifier applied at once, against the real template content (not the synthetic test one)', function(){
+      var program = TemplateResolver.resolveTemplate(TEMPLATES[templateId], {
+        startDate:'2026-01-01',
+        modifiers:{equipment:['hangboard'], injuryFlags:['fingerPulley'], weaknesses:['slopers'], tripDate:'2026-04-01'}
+      });
+      expect(function(){ EngineCore.createEngine(program, {sessionLog:{}, loadLog:{}}); }).not.toThrow();
+      expect(program.sessions.maxFingers.note).toMatch(/finger or pulley/);
+    });
+
+    test('every ph override key matches a real phase name in this template (a typo\'d phase name silently never applies)', function(){
+      var tpl = TEMPLATES[templateId];
+      var phaseNames = {};
+      tpl.phases.forEach(function(p){ phaseNames[p.n] = true; });
+      Object.keys(tpl.sessions).forEach(function(sessionKey){
+        (tpl.sessions[sessionKey].x || []).forEach(function(ex){
+          Object.keys(ex.ph || {}).forEach(function(phaseName){
+            expect(phaseNames[phaseName]).toBe(true);
+          });
+        });
+      });
     });
   });
+});
 
-  test('produces a decision on day one with an empty history, same as a real new user would see', function(){
-    var program = TemplateResolver.resolveTemplate(TEMPLATES.boulderingBeginner, {startDate:'2026-01-01', modifiers:{}});
-    var engine = EngineCore.createEngine(program, {sessionLog:{}, loadLog:{}});
-    var d = engine.decide('2026-01-01');
-    expect(d).toBeTruthy();
-    expect(typeof d.k).toBe('string');
-  });
-
-  test('resolves cleanly with every seed modifier applied at once, against the real template content (not the synthetic test one)', function(){
-    var program = TemplateResolver.resolveTemplate(TEMPLATES.boulderingBeginner, {
-      startDate:'2026-01-01',
-      modifiers:{equipment:['hangboard'], injuryFlags:['fingerPulley'], weaknesses:['slopers'], tripDate:'2026-04-01'}
-    });
-    expect(function(){ EngineCore.createEngine(program, {sessionLog:{}, loadLog:{}}); }).not.toThrow();
-    expect(program.sessions.maxFingers.note).toMatch(/finger or pulley/);
-  });
+test('boulderingIntermediate\'s Power-phase-only exercises (base text is "skip") correctly activate once a program actually reaches Power', function(){
+  var program = TemplateResolver.resolveTemplate(TEMPLATES.boulderingIntermediate, {startDate:'2026-01-01', modifiers:{}});
+  var explosive = program.sessions.pull.x.filter(function(ex){ return ex.t === 'Explosive pull-ups'; })[0];
+  expect(explosive.m).toMatch(/^skip/);        // base/fallback text, used in Strength Base
+  expect(explosive.ph['Power']).toBe('4 × 3 — explosive, as much height as you can generate cleanly');
 });

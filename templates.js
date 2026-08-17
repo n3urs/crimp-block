@@ -6,22 +6,23 @@
    and missing `startDate` (assigned per-user by template-resolver.js
    at quiz-completion time, not baked into the template itself).
 
-   THIS FILE CONTAINS ONE DRAFT TEMPLATE, DELIBERATELY. Per the
-   commercial-relaunch plan, the template matrix (discipline x
-   experience-level x goal-focus) is real content-authoring work that
-   belongs to Oscar's coaching judgement, not something to generate
-   wholesale. `boulderingBeginner` below is a first, reviewable draft
-   — grounded in generally-published climbing-training principles
-   (progressive tendon/pulley loading, general-strength-before-
-   finger-specific-load for true beginners — the kind of guidance
-   found across mainstream climbing coaching literature, e.g. Eric
-   Hörst's "Training for Climbing", Steve Bechtel, Lattice's public
-   content) and the same structural shape as Oscar's and Joe's own
-   programs, NOT copied from any specific paid program's proprietary
-   content. Treat every number and exercise choice in here as a
-   starting point to correct, not a finished product — it hasn't been
-   run past a single real athlete the way Oscar's and Joe's programs
-   have.
+   THIS FILE CONTAINS DRAFT TEMPLATES, DELIBERATELY, ONE AT A TIME.
+   Per the commercial-relaunch plan, the template matrix (discipline x
+   experience-level, 6 cells minimum, each further tuned by a
+   goal-focus/equipment/injury modifier layer rather than more grid
+   cells — see template-resolver.js) is real content-authoring work
+   that belongs to Oscar's coaching judgement, not something to
+   generate wholesale. Every template below is a first, reviewable
+   draft, checked against real published sources (cited inline per
+   template, not just generic "coaching literature" hand-waving —
+   `boulderingBeginner`'s Foundation phase was corrected once after
+   the first draft turned out to be too aggressive on fingerboard
+   timing versus what those sources actually say) and the same
+   structural shape as Oscar's and Joe's own programs, NOT copied from
+   any specific paid program's proprietary content. Treat every number
+   and exercise choice as a starting point to correct, not a finished
+   product — none of this has been run past a real athlete the way
+   Oscar's and Joe's programs have.
    ------------------------------------------------------------ */
 (function(root, factory){
   if(typeof module !== 'undefined' && module.exports) module.exports = factory();
@@ -79,6 +80,89 @@ return {
       climbEasy:{n:'Easy Climbing', w:'Anywhere', c:'--tidepool', finger:1, pull:1, climb:1,
         x:[{t:'Mileage and movement',m:'—',d:'Nothing near limit — footwork and reading movement, actively resting the effort you spent on your hard day.'}]},
       rest:{n:'Rest', w:'—', c:'--grey', finger:0, pull:0, note:'Full rest matters more early on than it will later — this is exactly the tissue-adaptation window this whole plan is designed around.', x:[]}
+    }
+  },
+
+  /* boulderingIntermediate — for someone roughly a couple of years
+     into climbing who has hit the well-documented V3-V4 plateau:
+     technique gains from pure volume have slowed, and real
+     specific-strength work now pays off in a way it doesn't for a
+     true beginner. Checked against real sources BEFORE drafting this
+     time (see boulderingBeginner's history above for why that order
+     matters):
+       - Max hangs are appropriate now ("works best for intermediate
+         climbers with a couple years of climbing behind them" —
+         strengthclimbing.com's write-up of Eva López's protocol),
+         using her margin-before-failure approach: pick a load/edge
+         where your true max would be about 3s longer than the
+         prescribed hang time, not a true 1RM attempt every session.
+       - Repeaters stay in the standard 7s-on/3s-off x6 protocol,
+         lower relative load than max hangs, primed with a light
+         30-40%-max warm-up set first.
+       - Lattice Training: strength work belongs in a base period
+         (slowest to adapt, sets up power later), power work gets
+         introduced 2-6 weeks before a goal, and even in-season only
+         2 strength/power sessions a week are needed — more isn't
+         better here.
+       - Lattice explicitly cautions intermediates against jumping
+         into campus board training without a coach's direct
+         guidance — this template deliberately uses explosive
+         pull-ups for power conversion instead, not campus moves.
+       - The plateau itself is often as much about technique and
+         session structure (consistent 3-4x/week, dedicated bouldering
+         AND climbing-volume sessions rather than undifferentiated
+         "just climbing") as it is about raw strength — kept the
+         Bouldering Session's own volume/limit-attempt split rather
+         than making this purely a strength-and-hangboard plan. */
+  boulderingIntermediate: {
+    meta: {
+      name: 'Bouldering — Intermediate',
+      discipline: 'bouldering',
+      experienceLevel: 'intermediate',
+      goalFocus: 'general',
+      description: 'For someone a couple of years into bouldering who has hit the classic V3–V4 plateau — pure volume has stopped moving the needle, and real structured finger and power work is now appropriate in a way it isn\'t for a true beginner.'
+    },
+    perWeek: 4,
+    phases: [
+      {n:'Strength Base', from:1, c:'--gorse', cue:'Build real strength — this is where the slow adaptations happen', d:'Eight weeks establishing real finger and pull strength. Strength training takes the longest to produce adaptations of anything in this plan, which is exactly why it goes first and gets the most time — everything in the Power phase depends on the base built here.'},
+      {n:'Power', from:3, c:'--heather', cue:'Convert strength into speed — introduced 2–6 weeks before it matters most', d:'Same lifts, less load, moved faster — converting the strength you just built into the explosiveness that actually breaks a plateau. Contact strength on the fingers rather than long holds; explosive pulling rather than grinding reps.'},
+      {n:'Performance', from:5, c:'--slate', cue:'Maintain only — climbing is the real work now', d:'One strength session and one power-conversion session a week to hold what you built (Lattice\'s own guidance: even in-season, two sessions a week is enough) — the rest of your training is climbing itself.'}
+    ],
+    sessions:{
+      maxFingers:{n:'Max Hangs', w:'Home/Gym · 35 min', c:'--gorse', finger:2, pull:0, note:'Margin-before-failure, not a true 1-rep max — pick a load or edge where your absolute limit would be a few seconds past the prescribed time, not exactly at it.',
+        x:[
+          {t:'Warm up',m:'15 min',d:'Pulse raise, then progressively heavier hangs on a jug before touching a smaller edge — never load a cold tendon.'},
+          {t:'Weighted or edge max hang',id:'tpl-int-maxhang',m:'4 × 8s',ph:{'Power':'5 × 5s — shorter, sharper, contact-focused rather than time-under-tension','Performance':'skip — hold what you built, repeaters only'},d:'Half-crimp or open-hand, whichever you climb more on. Add weight if the edge alone isn\'t enough to hit the target time near your limit; take it off an edge size instead if it is. Full 3–5 minutes between efforts — this is near-max work and stops being near-max without real rest.',r:210},
+          {t:'Secondary position hang',m:'3 × 6s',ph:{'Power':'skip — one hang variation is enough intensity work this phase'},d:'Whichever grip position you didn\'t just train above (open-hand if you did half-crimp, or vice versa) — submaximal, this is coverage, not the main event.',r:120}
+        ]},
+      hangboard:{n:'Repeaters', w:'Home/Gym · 25 min', c:'--slate', finger:2, pull:0, note:'Lower load than the Max Hangs session by design — prime with an easy warm-up set at 30–40% before your first working set.',
+        x:[
+          {t:'Warm up',m:'10 min',d:'Pulse raise, then one light priming set of repeaters at roughly 30–40% of what you expect your working load to be.'},
+          {t:'Repeaters',id:'tpl-int-rep',m:'4 sets',interval:{on:7,off:3,reps:6},ph:{'Power':'2 sets — reduced, priority is the contact-strength work in Max Hangs this phase','Performance':'2–3 sets — maintain only'},d:'7s on / 3s off × 6 = one set. Moderate load — if the last couple of reps in a set are genuinely maximal, the load is too high for this protocol, size down. Press Start below and just hang.',r:120}
+        ]},
+      pull:{n:'Pull & Power', w:'Home/Gym · 40 min', c:'--tidepool', finger:0, pull:2, note:'Deliberately not campus board work — Lattice\'s own guidance is that intermediate climbers trying campus training should get a trusted coach\'s direct guidance first. Explosive pull-ups get a similar power-conversion stimulus without that specific risk.',
+        x:[
+          {t:'Warm up',m:'8 min',d:'Band pull-aparts and scap pulls before anything weighted or explosive.'},
+          {t:'Pull-ups',m:'4 × 6',ph:{'Strength Base':'4 × 6','Power':'4 × 4 — lower reps, save the effort for the explosive set below','Performance':'3 × 6 — maintain only'},d:'Weighted if 6 clean reps is comfortable at bodyweight; bodyweight otherwise. Full range, controlled — this is the strength half of the session, not the power half.',r:150},
+          {t:'Explosive pull-ups',m:'skip — Strength Base phase, save this for Power',ph:{'Power':'4 × 3 — explosive, as much height as you can generate cleanly','Performance':'skip — maintain phase, standard pull-ups above cover this'},d:'As much upward speed as you can generate without losing form — the power-conversion piece of this phase. Full rest between reps, this is quality over quantity.',r:150},
+          {t:'Core — front lever progression or hanging leg raises',m:'4 sets',d:'Whichever you\'re closer to holding cleanly — straight into failure on the harder one, or higher volume on the easier one.',r:75},
+          {t:'Antagonists',m:'2 supersets',d:'Reverse wrist curls 3×15 · finger extensors 3×15 · external rotation 2×12. Cheap insurance while everything else in this program loads the fingers and pulling muscles hard.'}
+        ]},
+      climbHard:{n:'Bouldering Session', w:'Gym · 90 min', c:'--heather', finger:2, pull:2, climb:1,
+        x:[
+          {t:'Warm up',m:'20 min',d:'Full pyramid — easy, moderate, then a couple of hard-but-not-limit problems before anything at your ceiling.'},
+          {t:'Limit bouldering',m:'40 min',ph:{'Strength Base':'50 min — volume-leaning, this phase blends strength work with still-substantial mileage','Power':'25 min — fewer attempts, full power between each one','Performance':'projecting — no fixed time'},d:'At or near your limit, on steep/overhanging terrain specifically — this is where climbing-specific power actually transfers, and where a plateau built on flat-wall volume tends to break.',r:180},
+          {t:'Volume on a new style',m:'20 min',ph:{'Power':'skip — this phase is about quality attempts, not added volume'},d:'Whatever style you gravitate away from — slopers if you\'re a crimper, compression if you\'re a slab climber. The plateau is as often a style gap as a strength gap.'},
+          {t:'Cool down',m:'10 min',d:'Easy traversing.'}
+        ]},
+      outdoorHard:{n:'Outdoor', w:'Crag', c:'--heather', finger:2, pull:2, climb:1,
+        x:[
+          {t:'Warm up properly',m:'20 min',d:'Cold rock and cold tendons is how the injuries in this phase of training actually happen.'},
+          {t:'Project',m:'—',d:'Pick something that pushes you — outdoor grades rarely match gym grades directly, treat the first attempt as calibration.'}
+        ]},
+      climbEasy:{n:'Easy Climbing', w:'Anywhere', c:'--tidepool', finger:1, pull:1, climb:1,
+        x:[{t:'Mileage and movement',m:'—',d:'Nothing near limit — actively resting the effort spent on your hard days, not adding more of it.'}]},
+      rest:{n:'Rest', w:'—', c:'--grey', finger:0, pull:0, note:'Two structured strength/power sessions a week is the target here, not more — Lattice\'s own guidance is that additional volume past that point doesn\'t buy you more adaptation, just more fatigue.', x:[]}
     }
   }
 };
