@@ -25,6 +25,7 @@
 		EF25E52A1F6BD425B6B41F95 /* SupabaseClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9C890FA1E5A9CD2C0A9F87F /* SupabaseClient.swift */; };
 		AACFEF1380425E657C19125C /* NativeStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A1E3A5314507CA61BAB7667 /* NativeStore.swift */; };
 		9B803E261E3B36E9CFA1FB5C /* NativeLoads.swift in Sources */ = {isa = PBXBuildFile; fileRef = 71E89275732D46FBD7443BF9 /* NativeLoads.swift */; };
+		60516990701FBD17659EC968 /* NativeSignInView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E97CE18A5549C249A8732777 /* NativeSignInView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -74,6 +75,7 @@
 		A9C890FA1E5A9CD2C0A9F87F /* SupabaseClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupabaseClient.swift; sourceTree = "<group>"; };
 		4A1E3A5314507CA61BAB7667 /* NativeStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeStore.swift; sourceTree = "<group>"; };
 		71E89275732D46FBD7443BF9 /* NativeLoads.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeLoads.swift; sourceTree = "<group>"; };
+		E97CE18A5549C249A8732777 /* NativeSignInView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeSignInView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -117,6 +119,7 @@
 				3D6C85DA89BAAA37248F4D4C /* CrimpBlockApp.swift */,
 				A71E1C741FAD504C1462171B /* ContentView.swift */,
 				149901662BBF4963045E6918 /* NativeEngineDemoView.swift */,
+				E97CE18A5549C249A8732777 /* NativeSignInView.swift */,
 				199D95D3AB13E7DF7CB52182 /* Assets.xcassets */,
 				CF2F221A9F4201ED25C77F10 /* Info.plist */,
 				C9376940D0FBDDF94F567CD0 /* CrimpBlock.entitlements */,
@@ -253,6 +256,7 @@
 				EF25E52A1F6BD425B6B41F95 /* SupabaseClient.swift in Sources */,
 				AACFEF1380425E657C19125C /* NativeStore.swift in Sources */,
 				9B803E261E3B36E9CFA1FB5C /* NativeLoads.swift in Sources */,
+				60516990701FBD17659EC968 /* NativeSignInView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
