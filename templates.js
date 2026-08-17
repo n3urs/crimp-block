@@ -245,6 +245,222 @@ return {
         x:[{t:'Mileage and movement',m:'—',d:'Nothing near limit — actively resting the effort spent on your hard days.'}]},
       rest:{n:'Rest', w:'—', c:'--grey', finger:0, pull:0, note:'At this training load, skipping a rest day is one of the more common ways advanced climbers hurt themselves — the fatigue is real even when it doesn’t feel like it yet.', x:[]}
     }
+  },
+
+  /* sportBeginner — a genuinely different discipline from the three
+     bouldering templates above, not just bouldering content relabeled.
+     Sport climbing's central quality is endurance, not pure power, so
+     the main session here is built around ARC training and 4x4s
+     rather than limit bouldering. Researched before drafting:
+       - ARC (Aerobic, Respiration, Capillarity) training is widely
+         described as the base everything else sits on - low-intensity,
+         sustained climbing, light pump throughout (mojagear.com,
+         uphillathlete.com). For a genuine first-timer, continuous
+         movement for even 10 minutes can be unrealistic, so this
+         starts as intervals (5 min on / 5 min off) building toward
+         continuous time on the wall, not a fixed-duration prescription
+         from day one.
+       - 4x4s (climb a boulder problem 4x back-to-back, rest, repeat
+         for 4 sets) are specifically described as good for NEW and
+         intermediate climbers, safer than constant limit-level
+         attempts (mojagear.com) - introduced here once Foundation is
+         behind you, same reasoning as bouldering-beginner's fingerboard
+         gate: this is genuinely a different discipline's version of
+         "don't load the hard stimulus on day one."
+       - The same finger/pulley tendon-adaptation caution from
+         boulderingBeginner applies identically here - sport climbing
+         doesn't change how fast tendons adapt - so Foundation keeps
+         the same edge-specific-work-deferred structure. */
+  sportBeginner: {
+    meta: {
+      name: 'Sport — Beginner',
+      discipline: 'sport',
+      experienceLevel: 'beginner',
+      goalFocus: 'general',
+      description: 'For someone newer to sport climbing. Endurance — not power — is the central quality here, so the main session builds from continuous easy mileage (ARC training) toward structured 4x4s, while finger-specific loading stays deliberately light for the same tendon-adaptation reasons as the beginner bouldering template.'
+    },
+    perWeek: 3,
+    phases: [
+      {n:'Foundation', from:1, c:'--tidepool', cue:'Aerobic base and movement — fingers stay light', d:'Four weeks building the aerobic base everything else sits on — continuous easy mileage, not hard moves. Finger-specific loading stays deliberately light for the same reason as any true beginner: tendons adapt slower than muscle, so this month gives them a head start rather than rushing in.'},
+      {n:'Base Strength', from:2, c:'--gorse', cue:'4x4s begin — power endurance without limit-level risk', d:'The main block, twelve weeks. 4x4s are introduced here — a genuinely effective power-endurance stimulus that stays well short of constant limit-level attempts, which is exactly why it suits this stage. Finger conditioning steps up gradually alongside it.'},
+      {n:'Performance', from:5, c:'--slate', cue:'Maintain only — climbing is the real work now', d:'Structured training steps back and route mileage takes over. One finger-conditioning session and one endurance session a week to hold what you built; the rest is climbing itself.'}
+    ],
+    sessions:{
+      maxFingers:{n:'Finger Conditioning', w:'Home/Gym · 30 min', c:'--gorse', finger:1, pull:0, note:'Deliberately light, same reasoning as any true beginner\'s fingerboard work regardless of discipline — this is about teaching tendons to tolerate load consistently, not finding a ceiling. Skipped entirely during Foundation.',
+        x:[
+          {t:'Warm up',m:'10 min',d:'Pulse raise, then two progressively firmer two-hand jug hangs before touching an edge.'},
+          {t:'Open-hand hang — largest comfortable edge',m:'4 × 8s',ph:{'Foundation':'skip — edge-specific loading starts once Base Strength does','Performance':'3 × 8s — maintain only'},d:'Two hands, open-hand, an edge size you can hold for the full 8 seconds without your form breaking down.',r:90},
+          {t:'Dead hang or top-of-pull-up hold',m:'3 × 10s',d:'Jug or bar, whichever you have — general grip and shoulder conditioning, nothing finger-specific yet.',r:60}
+        ]},
+      hangboard:{n:'Repeaters', w:'Home/Gym · 25 min', c:'--slate', finger:1, pull:0, note:'Light, submaximal — skipped entirely during Foundation, same as Finger Conditioning.',
+        x:[
+          {t:'Warm up',m:'8 min',d:'Pulse raise, then a couple of easy jug hangs.'},
+          {t:'Repeaters — largest comfortable edge',m:'3 sets',interval:{on:7,off:3,reps:5},ph:{'Foundation':'skip — edge-specific loading starts once Base Strength does','Base Strength':'4 sets','Performance':'2–3 sets — maintain only'},d:'7s on / 3s off. Should feel moderate throughout. Press Start below and just hang.',r:120}
+        ]},
+      pull:{n:'General Strength', w:'Home/Gym · 35 min', c:'--tidepool', finger:0, pull:2, note:'No finger loading in this session by design.',
+        x:[
+          {t:'Warm up',m:'5 min',d:'Band pull-aparts and scap pulls before anything weighted.'},
+          {t:'Pull-ups (or assisted/negatives)',m:'4 × 6',ph:{'Foundation':'4 × 4 (or negatives) — building toward this','Performance':'3 × 6 — maintain only'},d:'Full range. Use a band, an assisted machine, or slow negatives if a clean pull-up isn’t there yet.',r:120},
+          {t:'Core — hanging knee raises or plank',m:'3 sets',d:'Hanging knee raises if you can hang comfortably; a hard plank progression otherwise.',r:60},
+          {t:'Antagonists',m:'2 supersets',d:'Reverse wrist curls 2×15 · finger extensors 2×15. Cheap insurance while you’re building load elsewhere in the week.'}
+        ]},
+      climbHard:{n:'ARC + 4x4s Session', w:'Gym · 60–75 min', c:'--heather', finger:2, pull:2, climb:1,
+        x:[
+          {t:'Warm up',m:'10 min',d:'Easy movement before any sustained climbing.'},
+          {t:'ARC intervals — easy terrain',m:'5 min on / 5 min off × 3',ph:{'Base Strength':'10 min on / 10 min off × 2 — building toward continuous time on the wall','Performance':'20 min continuous — maintain only'},d:'Continuous easy movement — traverse or top-rope terrain well below your limit, aiming for a light, sustained pump rather than pushing through a hard one. If 5 minutes continuous feels impossible right now, that’s exactly why this starts as intervals rather than a fixed block.',r:0},
+          {t:'4x4s',m:'skip — Foundation phase, ARC intervals above are the whole session',ph:{'Base Strength':'4 boulders × 4 reps each, 5 min rest between sets','Performance':'2 boulders × 4 reps — maintain only'},d:'Pick an easy-to-moderate boulder, climb it 4 times back-to-back with minimal rest between reps, then rest 5 full minutes before the next set. Aim to still complete a clean 4th rep of the final set — if you can\'t, the boulder was too hard for this exercise, size down next time.',r:300},
+          {t:'Cool down',m:'10 min',d:'Easy traversing.'}
+        ]},
+      outdoorHard:{n:'Outdoor Route', w:'Crag', c:'--heather', finger:2, pull:2, climb:1,
+        x:[
+          {t:'Warm up properly',m:'20 min',d:'Outdoor holds and cold rock are less forgiving than a gym.'},
+          {t:'Climb within yourself',m:'—',d:'Outdoor grades rarely match gym grades at first — treat today as calibration, not a number to hit.'}
+        ]},
+      climbEasy:{n:'Easy Mileage', w:'Anywhere', c:'--tidepool', finger:1, pull:1, climb:1,
+        x:[{t:'Continuous easy movement',m:'—',d:'Nothing near limit — this is aerobic-base work, actively resting the effort you spent on your hard day.'}]},
+      rest:{n:'Rest', w:'—', c:'--grey', finger:0, pull:0, note:'Full rest matters more early on than it will later — this is exactly the tissue-adaptation window this whole plan is designed around.', x:[]}
+    }
+  },
+
+  /* sportIntermediate — someone a couple of years into sport climbing
+     ready for real power-endurance work. Lattice Training splits
+     power endurance into two distinct qualities (latticetraining.com /
+     UKC's Lattice series): Aerobic Power (mid-to-high intensity,
+     moderate volume — you build toward continuous pump tolerance) and
+     Anaerobic Capacity (much higher intensity, short duration — you
+     get "powered out" rather than pumped). Volume develops the
+     aerobic system, intensity develops the anaerobic one - both get
+     their own exercise here rather than being blended into one vague
+     "endurance" session. 4x4s (mojagear.com) step up from the beginner
+     template's easier version. Redpoint tactics (the "three clean
+     burns on the crux before redpoint-ready" rule, rehearsal-focused
+     practice - rockclimberstrainingmanual.com, climbing.com) inform
+     the Outdoor session's approach rather than just "go climb hard". */
+  sportIntermediate: {
+    meta: {
+      name: 'Sport — Intermediate',
+      discipline: 'sport',
+      experienceLevel: 'intermediate',
+      goalFocus: 'general',
+      description: 'For someone a couple of years into sport climbing ready for structured power-endurance work — aerobic power and anaerobic capacity trained as the two distinct qualities they are, not blended into one vague "endurance" session.'
+    },
+    perWeek: 4,
+    phases: [
+      {n:'Aerobic Base', from:1, c:'--tidepool', cue:'Volume builds the aerobic system — this phase is about capacity, not intensity', d:'Eight weeks building real aerobic capacity in the forearms — volume is what develops this system, not intensity. Everything in the Power Endurance phase that follows depends on the base built here.'},
+      {n:'Power Endurance', from:3, c:'--gorse', cue:'Aerobic power and anaerobic capacity — two distinct qualities, trained separately', d:'Eight weeks of the main event: aerobic power (moderate-high intensity, moderate volume, building toward sustained pump tolerance) and anaerobic capacity (much higher intensity, short duration — you finish powered out, not pumped) each get dedicated work, not one blended session.'},
+      {n:'Performance', from:5, c:'--slate', cue:'Route-specific and maintain only — climbing is the real work now', d:'One power-endurance session and one finger session a week to hold what you built (Lattice’s own guidance: two sessions is enough, even in-season) — the rest of your training is route mileage and redpoint attempts.'}
+    ],
+    sessions:{
+      maxFingers:{n:'Max Hangs', w:'Home/Gym · 35 min', c:'--gorse', finger:2, pull:0, note:'Margin-before-failure, not a true 1-rep max — finger strength still underlies everything here, sport climbing doesn’t change that.',
+        x:[
+          {t:'Warm up',m:'15 min',d:'Pulse raise, then progressively heavier hangs on a jug before touching a smaller edge.'},
+          {t:'Weighted or edge max hang',m:'4 × 8s',ph:{'Power Endurance':'4 × 6s — slightly shorter, this phase’s priority is the sessions below','Performance':'skip — hold what you built, repeaters only'},d:'Half-crimp or open-hand, whichever you climb more on. Full 3–5 minutes between efforts.',r:210}
+        ]},
+      hangboard:{n:'Repeaters', w:'Home/Gym · 25 min', c:'--slate', finger:2, pull:0, note:'Prime with an easy warm-up set at 30–40% before your first working set.',
+        x:[
+          {t:'Warm up',m:'10 min',d:'Light priming set at 30–40% before working sets.'},
+          {t:'Repeaters',m:'4 sets',interval:{on:7,off:3,reps:6},ph:{'Performance':'2–3 sets — maintain only'},d:'7s on / 3s off × 6 = one set. Moderate load. Press Start below and just hang.',r:120}
+        ]},
+      pull:{n:'Pull & Power', w:'Home/Gym · 40 min', c:'--tidepool', finger:0, pull:2, note:null,
+        x:[
+          {t:'Warm up',m:'8 min',d:'Band pull-aparts and scap pulls before anything weighted.'},
+          {t:'Pull-ups',m:'4 × 6',ph:{'Performance':'3 × 6 — maintain only'},d:'Weighted if 6 clean reps is comfortable at bodyweight; bodyweight otherwise.',r:150},
+          {t:'Core — front lever progression or hanging leg raises',m:'4 sets',d:'Whichever you’re closer to holding cleanly.',r:75},
+          {t:'Antagonists',m:'2 supersets',d:'Reverse wrist curls 3×15 · finger extensors 3×15 · external rotation 2×12.'}
+        ]},
+      climbHard:{n:'Power Endurance Session', w:'Gym · 90 min', c:'--heather', finger:2, pull:2, climb:1,
+        x:[
+          {t:'Warm up',m:'15 min',d:'Easy movement, building toward moderate before anything sustained.'},
+          {t:'Aerobic power intervals',m:'skip — Aerobic Base phase, ARC volume below is the whole session',ph:{'Power Endurance':'4 × 4 min on / 4 min off, moderate-high intensity','Performance':'2 × 4 min on / 4 min off — maintain only'},d:'Moderate-to-hard terrain, sustained — building toward continuous pump tolerance. This is a volume-and-intensity blend, not a true max effort.',r:240},
+          {t:'Anaerobic capacity intervals',m:'skip — introduced in Power Endurance phase, see above',ph:{'Power Endurance':'4 × 90s on / 3 min off, much higher intensity'},d:'Genuinely hard terrain, short duration — you should finish each interval powered out rather than deeply pumped. Full recovery between efforts, this is intensity work, not volume work.',r:180},
+          {t:'ARC volume',m:'20 min continuous',ph:{'Power Endurance':'10 min — reduced, priority is the intervals above','Performance':'15 min — maintain'},d:'Easy terrain, continuous — the aerobic base this whole phase is built on. Keep the pump light throughout.',r:0},
+          {t:'Cool down',m:'10 min',d:'Easy traversing.'}
+        ]},
+      outdoorHard:{n:'Outdoor Route', w:'Crag', c:'--heather', finger:2, pull:2, climb:1, note:'Redpoint-ready is a useful bar, not a formality: a common rule of thumb is being able to do the crux sequence cleanly three times before expecting a full clean burn to stick. Rehearsal beats repeated failed attempts at this stage.',
+        x:[
+          {t:'Warm up properly',m:'20 min',d:'Cold rock and cold tendons is how injuries in this phase actually happen.'},
+          {t:'Project',m:'—',d:'Work the crux in isolation before linking — proprioceptive rehearsal (focusing on the feeling of doing the move right) tends to transfer better than just repeating failed link attempts.'}
+        ]},
+      climbEasy:{n:'Easy Mileage', w:'Anywhere', c:'--tidepool', finger:1, pull:1, climb:1,
+        x:[{t:'Continuous easy movement',m:'—',d:'Nothing near limit — actively resting the effort spent on your hard days, not adding more of it.'}]},
+      rest:{n:'Rest', w:'—', c:'--grey', finger:0, pull:0, note:'Two structured power-endurance/strength sessions a week is the target, not more — additional volume past that point doesn’t buy more adaptation, just more fatigue.', x:[]}
+    }
+  },
+
+  /* sportAdvanced — completes the 2x3 matrix. The one finding from
+     this template's research worth taking seriously: power-endurance
+     training extended past 2-4 weeks is repeatedly and specifically
+     linked to overtraining syndrome and elevated injury/illness risk
+     in advanced sport climbers (trainingforclimbing.com's
+     power-endurance protocols writeup) - this is a materially
+     different caution from the earlier, more moderate tiers, and it's
+     the reason the Power Endurance phase below is deliberately SHORT
+     (one 4-week block, not extended for "more gains"), not a
+     conservative choice made without a source behind it.
+       - Weekly session distribution during a power-endurance block
+         (1 max-strength / 2 power-endurance / 1 aerobic-capacity per
+         week) and the "max 4 climbing-specific days a week, less if
+         also climbing outdoors" cap both come from the same source.
+       - Block periodization for a trip (6wk strength -> 6wk power ->
+         4wk performance-simulation/taper, with volume cut 60->41%
+         over the final 4 weeks) comes from rockclimbingrealms.com's
+         periodization framework piece - reflected in this template's
+         own Redpoint/Taper phase, which is the template's built-in
+         version of exactly what template-resolver.js's tripDate
+         modifier does automatically when a real date is set via the
+         quiz. If you set a trip date, the modifier's estimate takes
+         over; this phase is what the plan looks like by default when
+         you haven't. */
+  sportAdvanced: {
+    meta: {
+      name: 'Sport — Advanced',
+      discipline: 'sport',
+      experienceLevel: 'advanced',
+      goalFocus: 'general',
+      description: 'For an established sport climber training power-endurance deliberately rather than constantly — this template keeps the highest-intensity block genuinely short, because the research on extending it past 2–4 weeks points at overtraining and injury, not more gains.'
+    },
+    perWeek: 4,
+    phases: [
+      {n:'Base — Strength & Aerobic', from:1, c:'--tidepool', cue:'Build both — this is where the slow adaptations happen', d:'Eight weeks building real finger/pull strength alongside real aerobic capacity. Both take longer to adapt than power-endurance work does, which is exactly why they come first and get the most time.'},
+      {n:'Power Endurance', from:3, c:'--gorse', cue:'Deliberately short — four weeks, not extended', d:'One block, four weeks, on purpose. Power-endurance training pays off fast but extending this phase for "more gains" is specifically linked to overtraining syndrome and elevated injury risk in this population — this is the one place in the whole plan where more is a documented worse idea, not just an unnecessary one.'},
+      {n:'Redpoint — Taper', from:4, c:'--heather', cue:'Volume down, intensity holds — arrive fresh', d:'Four weeks of performance simulation: linking, rehearsal, and a real volume cut (roughly 60% down to 40% of peak by the end) while intensity stays. Fitness gained this late is negligible; fatigue carried in is not.'},
+      {n:'Performance', from:5, c:'--slate', cue:'Maintain only — climbing is the real work now', d:'One strength and one power-endurance session a week to hold what you built — the rest of your training is redpoint attempts and mileage.'}
+    ],
+    sessions:{
+      maxFingers:{n:'Max Hangs', w:'Home/Gym · 40 min', c:'--gorse', finger:3, pull:0, note:'Same protocol as the advanced bouldering template — finger strength requirements don’t fundamentally change between disciplines at this level, so this deliberately isn’t reinvented here.',
+        x:[
+          {t:'Warm up',m:'15 min',d:'Pulse raise, then progressively heavier hangs on a jug before touching a smaller edge.'},
+          {t:'Weighted or edge max hang',m:'5 × 7s',ph:{'Power Endurance':'skip — this block is fully committed to power-endurance work, see the caution in this phase’s description','Redpoint — Taper':'3 × 7s — maintain, volume down','Performance':'skip — hold what you built, repeaters only'},d:'Half-crimp or open-hand, whichever you climb more on. Full 3–5 minutes between efforts.',r:210}
+        ]},
+      hangboard:{n:'Repeaters', w:'Home/Gym · 25 min', c:'--slate', finger:2, pull:0, note:'Capacity work — kept year-round because repeaters and max hangs train different qualities.',
+        x:[
+          {t:'Warm up',m:'8 min',d:'Light priming set at 30–40% before working sets.'},
+          {t:'Repeaters',m:'4 sets',interval:{on:7,off:3,reps:6},ph:{'Power Endurance':'2 sets — reduced, this block’s priority is the power-endurance sessions below','Performance':'2–3 sets — maintain only'},d:'7s on / 3s off × 6 = one set. Moderate-heavy.',r:120}
+        ]},
+      pull:{n:'Pull & Lock-off', w:'Home/Gym · 45 min', c:'--tidepool', finger:0, pull:3, note:null,
+        x:[
+          {t:'Warm up',m:'8 min',d:'Band pull-aparts and scap pulls before anything heavy.'},
+          {t:'Weighted pull-ups',m:'5 × 4',ph:{'Power Endurance':'3 × 5 — reduced, priority is climbing-specific work this block','Performance':'3 × 5 — maintain only'},d:'Full dead hang to full lockout. Heavy — the main lift of the session.',r:180},
+          {t:'Front lever',m:'4 × 10–12s',d:'Hardest clean variation you hold.',r:75},
+          {t:'Antagonists',m:'3 supersets',d:'Reverse wrist curls 3×15 · finger extensors 3×20 · external rotation 3×12 · dips 3×10. Non-negotiable at this training load.'}
+        ]},
+      climbHard:{n:'Power Endurance / Redpoint Session', w:'Gym · 90 min', c:'--heather', finger:3, pull:2, climb:1, note:'During the Power Endurance phase specifically, this session is the priority twice a week — the aim documented in the research is one max-strength day, two power-endurance days, one aerobic day, not power-endurance added on top of an unchanged strength week.',
+        x:[
+          {t:'Warm up',m:'20 min',d:'Full pyramid, easy to moderate, before anything sustained or maximal.'},
+          {t:'Aerobic capacity',m:'25 min continuous, moderate',ph:{'Power Endurance':'15 min — reduced, this block’s priority is below','Redpoint — Taper':'15 min — volume down, intensity held on the harder pieces'},d:'Sustained moderate terrain — the aerobic system this whole plan sits on.',r:0},
+          {t:'Anaerobic capacity intervals',m:'skip — Base phase, aerobic work above is the priority',ph:{'Power Endurance':'4 × 90s on / 3 min off, near-maximal intensity','Redpoint — Taper':'2 × 90s on / 3 min off — maintain, reduced volume'},d:'Genuinely hard terrain, short duration, near-maximal — powered out at the end, not just pumped. This is the specific stimulus the 4-week cap exists for; do not run this longer without a real reason to.',r:180},
+          {t:'Route simulation / linking',m:'skip — earlier phases, this is Redpoint-Taper-specific work',ph:{'Redpoint — Taper':'40 min — link crux sections, rehearse specific sequences, simulate the real attempt'},d:'This is where fitness turns into an actual send — top-down projecting on sustained routes, ruthlessly wiring the crux, rehearsing the exact sequence rather than just trying hard repeatedly.'},
+          {t:'Cool down',m:'10 min',d:'Easy traversing.'}
+        ]},
+      outdoorHard:{n:'Outdoor Route', w:'Crag', c:'--heather', finger:3, pull:2, climb:1, note:'A common rule of thumb: clean the crux sequence three times in isolation before expecting a full send to stick. Rehearsal and proprioceptive cueing (focusing on the feeling of the move done right) tend to transfer better than repeated failed link attempts.',
+        x:[
+          {t:'Warm up properly',m:'25 min',d:'Cold rock and cold tendons at this training load is a real injury risk.'},
+          {t:'Project',m:'—',d:'Top-down projecting suits sustained power-endurance routes especially well — working from a succession of lower bolts dials in the crucial top section AND builds the specific fitness to arrive there fresh.'}
+        ]},
+      climbEasy:{n:'Easy Mileage', w:'Anywhere', c:'--tidepool', finger:1, pull:1, climb:1,
+        x:[{t:'Continuous easy movement',m:'—',d:'Nothing near limit — actively resting the effort spent on your hard days.'}]},
+      rest:{n:'Rest', w:'—', c:'--grey', finger:0, pull:0, note:'Cap climbing-specific training at 4 days a week — fewer if you’re also climbing outdoors that week. At this training load, that cap is what keeps the Power Endurance block’s intensity from tipping into overtraining.', x:[]}
+    }
   }
 };
 });
