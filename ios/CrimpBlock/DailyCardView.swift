@@ -13,6 +13,7 @@ struct DailyCardState {
     let session: EngineBridge.SessionInfo
     let exercises: [EngineBridge.RenderedExercise]
     let accent: Color
+    let accentVarName: String
 
     static func load(bridge: EngineBridge) -> DailyCardState? {
         let today = bridge.today()
@@ -21,18 +22,15 @@ struct DailyCardState {
               let phase = bridge.phaseNameAt(today),
               let info = bridge.sessionInfo(d.k) else { return nil }
 
-        var accent = SessionColours.resolve("--gorse")
         // The session's own colour lives in programs.js as e.g. "--gorse" —
         // same lookup app.js does via v(s.c), just against the native
         // palette instead of computed CSS.
-        if let c = bridge.program.forProperty("sessions")?.forProperty(d.k)?.forProperty("c")?.toString() {
-            accent = SessionColours.resolve(c)
-        }
+        let varName = bridge.program.forProperty("sessions")?.forProperty(d.k)?.forProperty("c")?.toString() ?? "--gorse"
 
         return DailyCardState(
             bridge: bridge, today: today, decision: d, block: b, phaseName: phase, session: info,
             exercises: bridge.resolveExercises(for: d.k, date: today, phaseName: phase),
-            accent: accent
+            accent: SessionColours.resolve(varName), accentVarName: varName
         )
     }
 }
@@ -50,6 +48,7 @@ struct DailyCardView: View {
     var onTapWeight: ((EngineBridge.RenderedExercise) -> Void)? = nil
     var onTapDone: (() -> Void)? = nil
     @State private var showPlan = false
+    @State private var restTimer = RestTimerController()
 
     var body: some View {
         ZStack(alignment: .bottom) {
@@ -92,6 +91,13 @@ struct DailyCardView: View {
                 }
                 .padding(20)
             }
+            .safeAreaInset(edge: .top) {
+                if restTimer.endDate != nil {
+                    RestTimerOverlay(controller: restTimer, accent: state.accent)
+                        .padding(.horizontal, 16)
+                        .padding(.top, 8)
+                }
+            }
             if let onTapDone {
                 Button(action: onTapDone) {
                     Text(isLogged ? "UNDO" : "DONE THIS WORKOUT")
@@ -109,6 +115,7 @@ struct DailyCardView: View {
         .sheet(isPresented: $showPlan) {
             PlanSheetView(bridge: state.bridge, block: state.block, today: state.today)
         }
+        .onAppear { restTimer.requestNotificationPermission() }
     }
 
     private var header: some View {
@@ -156,9 +163,17 @@ struct DailyCardView: View {
                         .foregroundStyle(SessionColours.dim)
                 }
                 if let r = ex.restSeconds {
-                    Text("Rest \(r / 60):\(String(format: "%02d", r % 60))")
-                        .font(.system(size: 10, design: .monospaced))
-                        .foregroundStyle(SessionColours.faint)
+                    Button(action: {
+                        restTimer.start(secs: r, label: ex.title, colourHex: SessionColours.hex(state.accentVarName))
+                    }) {
+                        Text("Rest \(r / 60):\(String(format: "%02d", r % 60))")
+                            .font(.system(size: 10, weight: .semibold, design: .monospaced))
+                            .foregroundStyle(state.accent)
+                            .padding(.horizontal, 8).padding(.vertical, 4)
+                            .background(SessionColours.s3)
+                            .clipShape(RoundedRectangle(cornerRadius: 5))
+                    }
+                    .buttonStyle(.plain)
                 }
             }
         }

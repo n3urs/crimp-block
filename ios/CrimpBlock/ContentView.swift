@@ -1,8 +1,6 @@
 import SwiftUI
 import WebKit
 import WidgetKit
-import ActivityKit
-import UserNotifications
 
 /// The app is deliberately a thin shell around the live web app rather than a
 /// reimplementation: pushing to GitHub Pages updates the phone with no
@@ -175,6 +173,10 @@ struct WebView: UIViewRepresentable {
         }
 
         // MARK: - Rest timer: Live Activity + completion notification
+        // (RestTimerController.swift owns the actual ActivityKit lifecycle —
+        // shared with the native rest-timer UI so there's one implementation,
+        // not two. This Coordinator just translates web-bridge messages into
+        // calls on it.)
 
         private struct TimerMessage: Decodable {
             var action: String
@@ -184,21 +186,19 @@ struct WebView: UIViewRepresentable {
             var cancelNotification: Bool?
         }
 
-        private var restActivity: Activity<RestTimerAttributes>?
-        private let notificationID = "rest-timer"
+        private let restTimer = RestTimerController()
 
         func requestNotificationPermission() {
-            UNUserNotificationCenter.current()
-                .requestAuthorization(options: [.alert, .sound]) { _, _ in }
+            restTimer.requestNotificationPermission()
         }
 
         private func handleTimerMessage(_ msg: TimerMessage) {
             switch msg.action {
             case "start":
                 guard let secs = msg.secs, let label = msg.label, let colour = msg.colour else { return }
-                startRestActivity(secs: secs, label: label, colour: colour)
+                restTimer.start(secs: secs, label: label, colourHex: colour)
             case "stop":
-                endRestActivity(cancelNotification: msg.cancelNotification ?? false)
+                restTimer.end(cancelNotification: msg.cancelNotification ?? false)
             case "keepAwake":
                 // The interval repeater timer — screen stays on and unlocked
                 // for its whole run, which is the opposite situation to the
@@ -211,56 +211,6 @@ struct WebView: UIViewRepresentable {
             default:
                 break
             }
-        }
-
-        /// Ends whatever activity is already running first — restarting a
-        /// timer (a new exercise, or the same one again) must never leave a
-        /// stale one showing alongside the new one.
-        private func startRestActivity(secs: Int, label: String, colour: String) {
-            endRestActivity(cancelNotification: true)
-
-            let end = Date().addingTimeInterval(TimeInterval(secs))
-            let attrs = RestTimerAttributes(label: label, totalSeconds: secs, colour: colour)
-            let state = RestTimerAttributes.ContentState(endDate: end)
-            // A generous stale date, not a hard timeout: if the "stop"
-            // message is ever lost (the app was force-quit mid-rest), this
-            // is what keeps an expired countdown from just sitting there —
-            // the system marks it stale rather than this code having to
-            // guess when to tidy up.
-            let stale = end.addingTimeInterval(5 * 60)
-
-            restActivity = try? Activity.request(
-                attributes: attrs,
-                content: .init(state: state, staleDate: stale),
-                pushType: nil
-            )
-
-            scheduleCompletionNotification(secs: secs, label: label)
-        }
-
-        private func endRestActivity(cancelNotification: Bool) {
-            if let activity = restActivity {
-                Task { await activity.end(nil, dismissalPolicy: .immediate) }
-                restActivity = nil
-            }
-            if cancelNotification {
-                UNUserNotificationCenter.current()
-                    .removePendingNotificationRequests(withIdentifiers: [notificationID])
-            }
-        }
-
-        private func scheduleCompletionNotification(secs: Int, label: String) {
-            let content = UNMutableNotificationContent()
-            content.title = "Rest over"
-            content.body = label
-            content.sound = .default
-
-            let trigger = UNTimeIntervalNotificationTrigger(timeInterval: TimeInterval(secs), repeats: false)
-            let request = UNNotificationRequest(identifier: notificationID, content: content, trigger: trigger)
-
-            let center = UNUserNotificationCenter.current()
-            center.removePendingNotificationRequests(withIdentifiers: [notificationID])
-            center.add(request)
         }
     }
 }

@@ -15,18 +15,26 @@ enum SessionColours {
     static let dim    = Color(hex: "#9AA0AE")
     static let faint  = Color(hex: "#666C7A")
 
-    private static let named: [String: Color] = [
-        "--gorse":    Color(hex: "#F2B134"),
-        "--tidepool": Color(hex: "#4FB3A5"),
-        "--slate":    Color(hex: "#7B93E0"),
-        "--heather":  Color(hex: "#C9739B"),
-        "--grey":     Color(hex: "#5A6069"),
+    private static let namedHex: [String: String] = [
+        "--gorse":    "#F2B134",
+        "--tidepool": "#4FB3A5",
+        "--slate":    "#7B93E0",
+        "--heather":  "#C9739B",
+        "--grey":     "#5A6069",
     ]
 
     /// Falls back to --gorse for anything unrecognised, same as
     /// parseHexColour() in Forecast.swift does for a malformed hex string.
     static func resolve(_ variableName: String) -> Color {
-        named[variableName] ?? named["--gorse"]!
+        Color(hex: hex(variableName))
+    }
+
+    /// The resolved hex string rather than a SwiftUI Color — needed
+    /// wherever a colour crosses into something that isn't SwiftUI, e.g.
+    /// RestTimerAttributes (ActivityKit, parses hex the same way the web
+    /// bridge's already-resolved `v('--c')` string does).
+    static func hex(_ variableName: String) -> String {
+        namedHex[variableName] ?? namedHex["--gorse"]!
     }
 }
 

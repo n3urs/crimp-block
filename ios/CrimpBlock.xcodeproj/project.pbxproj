@@ -30,6 +30,8 @@
 		C31C8D37DC69557CF399AB46 /* NativeAppView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD80D35B8080F7ADFD3179F0 /* NativeAppView.swift */; };
 		A363D63028FA38AF3FCC4348 /* WeightEditView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE17BCB5744BA24227CA2B62 /* WeightEditView.swift */; };
 		675F957E1CF9CCAAC300BF42 /* PlanSheetView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51653B7E90110D0A36F6CD4E /* PlanSheetView.swift */; };
+		FF6FBE1B4EF6EBFCB8C86BDE /* RestTimerController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 848EFDD47D06730C4D6C96FF /* RestTimerController.swift */; };
+		2FE034EFC23E27BFAB18BA68 /* RestTimerOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5A540FD4C82A803A692F59D /* RestTimerOverlay.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -84,6 +86,8 @@
 		FD80D35B8080F7ADFD3179F0 /* NativeAppView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeAppView.swift; sourceTree = "<group>"; };
 		EE17BCB5744BA24227CA2B62 /* WeightEditView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeightEditView.swift; sourceTree = "<group>"; };
 		51653B7E90110D0A36F6CD4E /* PlanSheetView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlanSheetView.swift; sourceTree = "<group>"; };
+		848EFDD47D06730C4D6C96FF /* RestTimerController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RestTimerController.swift; sourceTree = "<group>"; };
+		F5A540FD4C82A803A692F59D /* RestTimerOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RestTimerOverlay.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -132,6 +136,7 @@
 				FD80D35B8080F7ADFD3179F0 /* NativeAppView.swift */,
 				EE17BCB5744BA24227CA2B62 /* WeightEditView.swift */,
 				51653B7E90110D0A36F6CD4E /* PlanSheetView.swift */,
+				F5A540FD4C82A803A692F59D /* RestTimerOverlay.swift */,
 				199D95D3AB13E7DF7CB52182 /* Assets.xcassets */,
 				CF2F221A9F4201ED25C77F10 /* Info.plist */,
 				C9376940D0FBDDF94F567CD0 /* CrimpBlock.entitlements */,
@@ -161,6 +166,7 @@
 				A9C890FA1E5A9CD2C0A9F87F /* SupabaseClient.swift */,
 				4A1E3A5314507CA61BAB7667 /* NativeStore.swift */,
 				71E89275732D46FBD7443BF9 /* NativeLoads.swift */,
+				848EFDD47D06730C4D6C96FF /* RestTimerController.swift */,
 				BB9B02DBDC4FFE41757FF766 /* engine-core.js */,
 				C2057310DAED31D00943FA48 /* programs.js */,
 			);
@@ -273,6 +279,8 @@
 				C31C8D37DC69557CF399AB46 /* NativeAppView.swift in Sources */,
 				A363D63028FA38AF3FCC4348 /* WeightEditView.swift in Sources */,
 				675F957E1CF9CCAAC300BF42 /* PlanSheetView.swift in Sources */,
+				FF6FBE1B4EF6EBFCB8C86BDE /* RestTimerController.swift in Sources */,
+				2FE034EFC23E27BFAB18BA68 /* RestTimerOverlay.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
