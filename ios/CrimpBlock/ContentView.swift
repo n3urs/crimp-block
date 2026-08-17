@@ -10,9 +10,21 @@ import UserNotifications
 private let appURL = URL(string: "https://n3urs.github.io/crimp-block/")!
 
 struct ContentView: View {
+    #if DEBUG
+    @State private var showNativeDemo = false
+    #endif
+
     var body: some View {
         WebView()
             .background(Color(red: 0.094, green: 0.106, blue: 0.133)) // --bg #181B22
+        #if DEBUG
+            // Phase B proof-of-concept only — compiled out of Release, so
+            // this can never reach Oscar/Joe's TestFlight build. Long-press
+            // anywhere to reach the native-engine screen without disturbing
+            // the WKWebView path everyone actually depends on.
+            .onLongPressGesture(minimumDuration: 1.2) { showNativeDemo = true }
+            .sheet(isPresented: $showNativeDemo) { NativeEngineDemoView() }
+        #endif
     }
 }
 

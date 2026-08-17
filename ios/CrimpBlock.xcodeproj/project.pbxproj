@@ -16,6 +16,11 @@
 		AEC822403A5642948B8D9C5F /* TimerActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 93BCB9F1D7CF4014B151F718 /* TimerActivity.swift */; };
 		61652ECF514B444A8CC3E87F /* RestTimerLiveActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B8D0DA2E6DD472694D85D8B /* RestTimerLiveActivity.swift */; };
 		128EBBE24588227ABA28C1CD /* CrimpBlockWidgetExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = A5221723F055193DCAAC847A /* CrimpBlockWidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		DAB2C34289EDD2382CACDE77 /* EngineBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5595828F60D61130A784138 /* EngineBridge.swift */; };
+		13D240EE4DA498EFD5E89BE8 /* SessionColours.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA14AB8F8FFE96BF688A5924 /* SessionColours.swift */; };
+		645188D9954787F4D2889374 /* NativeEngineDemoView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 149901662BBF4963045E6918 /* NativeEngineDemoView.swift */; };
+		A373515748483D2A13434CDA /* engine-core.js in Resources */ = {isa = PBXBuildFile; fileRef = BB9B02DBDC4FFE41757FF766 /* engine-core.js */; };
+		FCF14DD78AD6CB70AFB76DA9 /* programs.js in Resources */ = {isa = PBXBuildFile; fileRef = C2057310DAED31D00943FA48 /* programs.js */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -56,6 +61,11 @@
 		C43BD3E3C9BDFB29CC44AD87 /* Forecast.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Forecast.swift; sourceTree = "<group>"; };
 		93BCB9F1D7CF4014B151F718 /* TimerActivity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimerActivity.swift; sourceTree = "<group>"; };
 		0B8D0DA2E6DD472694D85D8B /* RestTimerLiveActivity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RestTimerLiveActivity.swift; sourceTree = "<group>"; };
+		A5595828F60D61130A784138 /* EngineBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EngineBridge.swift; sourceTree = "<group>"; };
+		FA14AB8F8FFE96BF688A5924 /* SessionColours.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionColours.swift; sourceTree = "<group>"; };
+		149901662BBF4963045E6918 /* NativeEngineDemoView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeEngineDemoView.swift; sourceTree = "<group>"; };
+		BB9B02DBDC4FFE41757FF766 /* engine-core.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; name = "engine-core.js"; path = "../engine-core.js"; sourceTree = SOURCE_ROOT; };
+		C2057310DAED31D00943FA48 /* programs.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; name = "programs.js"; path = "../programs.js"; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -98,6 +108,7 @@
 			children = (
 				3D6C85DA89BAAA37248F4D4C /* CrimpBlockApp.swift */,
 				A71E1C741FAD504C1462171B /* ContentView.swift */,
+				149901662BBF4963045E6918 /* NativeEngineDemoView.swift */,
 				199D95D3AB13E7DF7CB52182 /* Assets.xcassets */,
 				CF2F221A9F4201ED25C77F10 /* Info.plist */,
 				C9376940D0FBDDF94F567CD0 /* CrimpBlock.entitlements */,
@@ -121,6 +132,10 @@
 			children = (
 				C43BD3E3C9BDFB29CC44AD87 /* Forecast.swift */,
 				93BCB9F1D7CF4014B151F718 /* TimerActivity.swift */,
+				A5595828F60D61130A784138 /* EngineBridge.swift */,
+				FA14AB8F8FFE96BF688A5924 /* SessionColours.swift */,
+				BB9B02DBDC4FFE41757FF766 /* engine-core.js */,
+				C2057310DAED31D00943FA48 /* programs.js */,
 			);
 			path = Shared;
 			sourceTree = "<group>";
@@ -197,6 +212,8 @@
 			buildActionMask = 2147483647;
 			files = (
 				2D0DBF68350AF3995662E19C /* Assets.xcassets in Resources */,
+				A373515748483D2A13434CDA /* engine-core.js in Resources */,
+				FCF14DD78AD6CB70AFB76DA9 /* programs.js in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -217,6 +234,9 @@
 				A658403534DCDFAE75701C4B /* CrimpBlockApp.swift in Sources */,
 				B36DCB53FC740A4DA5EB8BCE /* Forecast.swift in Sources */,
 				7B005C51A8BC4875A33CDBFE /* TimerActivity.swift in Sources */,
+				DAB2C34289EDD2382CACDE77 /* EngineBridge.swift in Sources */,
+				13D240EE4DA498EFD5E89BE8 /* SessionColours.swift in Sources */,
+				645188D9954787F4D2889374 /* NativeEngineDemoView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
