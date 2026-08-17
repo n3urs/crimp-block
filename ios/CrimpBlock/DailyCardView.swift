@@ -5,6 +5,7 @@ import SwiftUI
 /// and NativeAppView (real Supabase-backed data), so the two don't drift
 /// into two different renderings of the same thing.
 struct DailyCardState {
+    let bridge: EngineBridge
     let today: String
     let decision: EngineBridge.Decision
     let block: EngineBridge.BlockInfo
@@ -29,7 +30,7 @@ struct DailyCardState {
         }
 
         return DailyCardState(
-            today: today, decision: d, block: b, phaseName: phase, session: info,
+            bridge: bridge, today: today, decision: d, block: b, phaseName: phase, session: info,
             exercises: bridge.resolveExercises(for: d.k, date: today, phaseName: phase),
             accent: accent
         )
@@ -48,12 +49,15 @@ struct DailyCardView: View {
     var onToggleTick: ((String) -> Void)? = nil
     var onTapWeight: ((EngineBridge.RenderedExercise) -> Void)? = nil
     var onTapDone: (() -> Void)? = nil
+    @State private var showPlan = false
 
     var body: some View {
         ZStack(alignment: .bottom) {
             ScrollView {
                 VStack(alignment: .leading, spacing: 18) {
                     header
+                        .contentShape(Rectangle())
+                        .onTapGesture { showPlan = true }
                     VStack(alignment: .leading, spacing: 4) {
                         Text(state.session.name.uppercased())
                             .font(.system(size: 32, weight: .heavy))
@@ -102,6 +106,9 @@ struct DailyCardView: View {
             }
         }
         .background(SessionColours.bg)
+        .sheet(isPresented: $showPlan) {
+            PlanSheetView(bridge: state.bridge, block: state.block, today: state.today)
+        }
     }
 
     private var header: some View {

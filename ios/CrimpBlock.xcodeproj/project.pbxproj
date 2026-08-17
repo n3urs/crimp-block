@@ -29,6 +29,7 @@
 		206351353A5593FD37787D6B /* DailyCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D91CD9C20065423ECED8B37B /* DailyCardView.swift */; };
 		C31C8D37DC69557CF399AB46 /* NativeAppView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD80D35B8080F7ADFD3179F0 /* NativeAppView.swift */; };
 		A363D63028FA38AF3FCC4348 /* WeightEditView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE17BCB5744BA24227CA2B62 /* WeightEditView.swift */; };
+		675F957E1CF9CCAAC300BF42 /* PlanSheetView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51653B7E90110D0A36F6CD4E /* PlanSheetView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -82,6 +83,7 @@
 		D91CD9C20065423ECED8B37B /* DailyCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyCardView.swift; sourceTree = "<group>"; };
 		FD80D35B8080F7ADFD3179F0 /* NativeAppView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeAppView.swift; sourceTree = "<group>"; };
 		EE17BCB5744BA24227CA2B62 /* WeightEditView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeightEditView.swift; sourceTree = "<group>"; };
+		51653B7E90110D0A36F6CD4E /* PlanSheetView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlanSheetView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -129,6 +131,7 @@
 				D91CD9C20065423ECED8B37B /* DailyCardView.swift */,
 				FD80D35B8080F7ADFD3179F0 /* NativeAppView.swift */,
 				EE17BCB5744BA24227CA2B62 /* WeightEditView.swift */,
+				51653B7E90110D0A36F6CD4E /* PlanSheetView.swift */,
 				199D95D3AB13E7DF7CB52182 /* Assets.xcassets */,
 				CF2F221A9F4201ED25C77F10 /* Info.plist */,
 				C9376940D0FBDDF94F567CD0 /* CrimpBlock.entitlements */,
@@ -269,6 +272,7 @@
 				206351353A5593FD37787D6B /* DailyCardView.swift in Sources */,
 				C31C8D37DC69557CF399AB46 /* NativeAppView.swift in Sources */,
 				A363D63028FA38AF3FCC4348 /* WeightEditView.swift in Sources */,
+				675F957E1CF9CCAAC300BF42 /* PlanSheetView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

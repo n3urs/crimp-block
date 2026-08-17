@@ -145,6 +145,61 @@ final class EngineBridge {
         engine.invokeMethod("isReturning", withArguments: [date])?.toBool() ?? false
     }
 
+    struct ReturnInfo: Codable { let gap: Int; let resumed: String; let session: Int }
+
+    func returnInfo(date: String) -> ReturnInfo? {
+        decode(engine.invokeMethod("returnInfo", withArguments: [date]))
+    }
+
+    func phaseIndexAt(block b: Int) -> Int {
+        Int(engine.invokeMethod("phaseIndexAt", withArguments: [b])?.toInt32() ?? 0)
+    }
+
+    func phaseRange(_ index: Int) -> String {
+        engine.invokeMethod("phaseRange", withArguments: [index])?.toString() ?? ""
+    }
+
+    // MARK: - Plan (program.phases — read directly; ORDER is the fixed
+    // session-key vocabulary every program shares, mirrors ORDER in
+    // engine-core.js since that's not exposed as data on the engine instance)
+
+    static let order = ["maxFingers", "hangboard", "pull", "climbHard", "outdoorHard", "climbEasy", "rest"]
+
+    struct Phase: Codable, Identifiable {
+        let n: String; let from: Int; let c: String; let d: String
+        var id: String { "\(from)-\(n)" }
+    }
+
+    var phases: [Phase] {
+        decode(program.forProperty("phases")) ?? []
+    }
+
+    struct PhaseChange { let sessionName: String; let title: String; let prescription: String }
+
+    /// Mirrors phaseChanges(name) in app.js: every exercise, across every
+    /// session, that carries a `ph` override for this specific phase name —
+    /// derived from the data rather than written out by hand, so it can
+    /// never drift from what resolveEx() actually applies.
+    func phaseChanges(_ phaseName: String) -> [PhaseChange] {
+        var out: [PhaseChange] = []
+        guard let sessions = program.forProperty("sessions") else { return out }
+        for key in Self.order {
+            guard let session = sessions.forProperty(key), !session.isUndefined,
+                  let sessionName = session.forProperty("n")?.toString(),
+                  let x = session.forProperty("x"), !x.isUndefined else { continue }
+            let count = Int(x.forProperty("length")?.toInt32() ?? 0)
+            for i in 0..<count {
+                guard let e = x.atIndex(i) else { continue }
+                guard let ph = e.forProperty("ph"), !ph.isUndefined else { continue }
+                guard let override = ph.forProperty(phaseName), !override.isUndefined,
+                      let text = override.toString() else { continue }
+                let title = e.forProperty("t")?.toString() ?? "?"
+                out.append(PhaseChange(sessionName: sessionName, title: title, prescription: text))
+            }
+        }
+        return out
+    }
+
     // MARK: - Session content (program.sessions[key] — read directly, not modelled)
 
     /// A session's display metadata (`n`ame, `w`here, `note`) — everything
