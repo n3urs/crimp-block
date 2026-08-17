@@ -9,9 +9,15 @@ import SwiftUI
 /// rather than real logged data, so this view works standalone without
 /// signing in — see NativeAppView for the real-data version, built once
 /// this proved the architecture worked.
+///
+/// Week strip and account button are faked here too (no real NativeStore or
+/// SupabaseClient backing this view) purely so they're visible without
+/// needing a real sign-in — tapping a day or Sign Out here doesn't persist
+/// anything, it just re-renders against the same fixed sample data.
 struct NativeEngineDemoView: View {
     @State private var state: DailyCardState?
     @State private var loadError: String?
+    @State private var sampleSessionLog: [String: Any] = [:]
 
     var body: some View {
         Group {
@@ -21,7 +27,11 @@ struct NativeEngineDemoView: View {
                 DailyCardView(
                     state: state,
                     footerNote: "Native SwiftUI (sample data) · engine-core.js via JavaScriptCore · \(state.today)",
-                    onBrowse: { key in browse(to: key) }
+                    onBrowse: { key in browse(to: key) },
+                    weekDays: weekDays(bridge: state.bridge, today: state.today),
+                    onTapDay: { _ in }, // sample data isn't editable — nowhere real to write a change to
+                    accountEmail: "oscar@sullivanltd.co.uk (sample)",
+                    onSignOut: { load() } // nothing to sign out of here — just re-rolls the same sample data
                 )
             } else {
                 ZStack { SessionColours.bg.ignoresSafeArea(); ProgressView().tint(.white) }
@@ -33,6 +43,7 @@ struct NativeEngineDemoView: View {
     private func load() {
         do {
             let (sessionLog, loadLog) = Self.sampleData()
+            sampleSessionLog = sessionLog
             let bridge = try EngineBridge(email: "oscar@sullivanltd.co.uk", sessionLog: sessionLog, loadLog: loadLog)
             guard let s = DailyCardState.load(bridge: bridge) else {
                 loadError = "engine returned incomplete data"; return
@@ -46,6 +57,33 @@ struct NativeEngineDemoView: View {
     private func browse(to key: String) {
         guard let bridge = state?.bridge, key != state?.displayKey else { return }
         if let s = DailyCardState.load(bridge: bridge, displayKey: key) { state = s }
+    }
+
+    /// Same idea as NativeAppView.weekDays(around:), just reading the fixed
+    /// sample sessionLog directly instead of a real NativeStore.
+    private func weekDays(bridge: EngineBridge, today: String) -> [WeekDay] {
+        var out: [WeekDay] = []
+        for i in stride(from: 6, through: 0, by: -1) {
+            let date = bridge.addDays(today, -i)
+            let type = (sampleSessionLog[date] as? [String: Any])?["t"] as? String
+            out.append(WeekDay(
+                id: date, dayLetter: Self.dayLetter(date),
+                colourVarName: type.map { bridge.sessionColourVarName($0) },
+                isToday: i == 0
+            ))
+        }
+        return out
+    }
+
+    private static func dayLetter(_ date: String) -> String {
+        let inFmt = DateFormatter()
+        inFmt.locale = Locale(identifier: "en_US_POSIX")
+        inFmt.dateFormat = "yyyy-MM-dd"
+        guard let d = inFmt.date(from: date) else { return "" }
+        let out = DateFormatter()
+        out.locale = Locale(identifier: "en_GB")
+        out.dateFormat = "EEE"
+        return String(out.string(from: d).prefix(1))
     }
 
     /// Mirrors the fake-Supabase harness (scratchpad/harness/stub.js) used
