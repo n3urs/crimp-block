@@ -66,6 +66,33 @@ struct DailyCardView: View {
         return Int(digits)
     }
 
+    /// Mirrors app.js render()'s `msg` computation exactly — and
+    /// deliberately does NOT include decision.why (the recommendation's
+    /// own reasoning). Oscar was explicit about this: the daily card shows
+    /// session + exercises only, zero behind-the-scenes narration on why
+    /// THIS session got picked. The only things ever shown here are logged
+    /// confirmation, deload/easing-back guidance, or the session's own
+    /// `note` (e.g. climb-before-or-after ordering) — in that priority
+    /// order, never combined with the note.
+    private var cardMessage: String {
+        let key = state.decision.k
+        let isDeload = state.block.w == 4
+        let isReturning = !isDeload && state.bridge.isReturning(state.today)
+
+        var msg = isLogged ? "Logged. " : ""
+        if isDeload && key != "rest" {
+            msg += "Deload week — " + (state.session.isClimb
+                ? "fewer hard attempts, and stop well short of failure. Times below are already cut."
+                : "same weights as usual, fewer sets. The numbers below are already cut.")
+        } else if isReturning && key != "rest" {
+            msg += "Easing back in after a break — weights are cut, not just sets. Go by feel: back off further if anything below feels off, this is not the week to chase the number."
+        }
+        if msg.isEmpty, !isLogged, let note = state.session.note {
+            msg = note
+        }
+        return msg
+    }
+
     var body: some View {
         ZStack(alignment: .bottom) {
             ScrollView {
@@ -82,19 +109,11 @@ struct DailyCardView: View {
                             .font(.system(size: 13, weight: .medium, design: .monospaced))
                             .foregroundStyle(state.accent)
                     }
-                    if isLogged {
-                        Text("Logged.")
-                            .font(.system(size: 14, weight: .semibold))
-                            .foregroundStyle(state.accent)
-                    } else if let note = state.session.note {
-                        Text(note)
-                            .font(.system(size: 14))
-                            .foregroundStyle(SessionColours.dim)
+                    if !cardMessage.isEmpty {
+                        Text(cardMessage)
+                            .font(.system(size: 14, weight: isLogged ? .semibold : .regular))
+                            .foregroundStyle(isLogged ? state.accent : SessionColours.dim)
                     }
-                    Text(state.decision.why)
-                        .font(.system(size: 12))
-                        .foregroundStyle(SessionColours.faint)
-                        .italic()
 
                     VStack(spacing: 10) {
                         ForEach(state.exercises) { ex in

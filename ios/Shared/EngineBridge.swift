@@ -209,15 +209,18 @@ final class EngineBridge {
         let name: String
         let where_: String
         let note: String?
+        let isClimb: Bool   // true for climbHard/outdoorHard/climbEasy — mirrors s.climb in app.js
     }
 
     func sessionInfo(_ key: String) -> SessionInfo? {
         guard let s = program.forProperty("sessions")?.forProperty(key), !s.isUndefined else { return nil }
         let note = s.forProperty("note")
+        let climbProp = s.forProperty("climb")
         return SessionInfo(
             name: s.forProperty("n")?.toString() ?? key,
             where_: s.forProperty("w")?.toString() ?? "",
-            note: (note == nil || note!.isUndefined) ? nil : note?.toString()
+            note: (note == nil || note!.isUndefined) ? nil : note?.toString(),
+            isClimb: !(climbProp == nil || climbProp!.isUndefined)
         )
     }
 
