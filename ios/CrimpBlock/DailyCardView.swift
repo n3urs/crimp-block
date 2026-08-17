@@ -55,7 +55,10 @@ struct DailyCardView: View {
     var onBrowse: ((String) -> Void)? = nil
     var weekDays: [WeekDay] = []
     var onTapDay: ((String) -> Void)? = nil
+    var accountEmail: String? = nil
+    var onSignOut: (() -> Void)? = nil
     @State private var showPlan = false
+    @State private var showAccount = false
     @State private var restTimer = RestTimerController()
     @State private var intervalTimer = IntervalTimerController()
     @State private var showIntervalTimer = false
@@ -109,8 +112,6 @@ struct DailyCardView: View {
                         WeekStripView(days: weekDays, onTapDay: onTapDay)
                     }
                     header
-                        .contentShape(Rectangle())
-                        .onTapGesture { showPlan = true }
                     if onBrowse != nil { sessionDots }
                     VStack(alignment: .leading, spacing: 4) {
                         Text(state.session.name.uppercased())
@@ -204,16 +205,30 @@ struct DailyCardView: View {
 
     private var header: some View {
         HStack {
-            Text("\(state.phaseName.uppercased()) · WK \(state.block.w)" + (state.block.w == 4 ? " · DELOAD" : ""))
-                .font(.system(size: 11, weight: .bold, design: .monospaced))
-                .foregroundStyle(SessionColours.bg)
-                .padding(.horizontal, 10).padding(.vertical, 5)
-                .background(state.accent)
-                .clipShape(Capsule())
+            Button(action: { showPlan = true }) {
+                Text("\(state.phaseName.uppercased()) · WK \(state.block.w)" + (state.block.w == 4 ? " · DELOAD" : ""))
+                    .font(.system(size: 11, weight: .bold, design: .monospaced))
+                    .foregroundStyle(SessionColours.bg)
+                    .padding(.horizontal, 10).padding(.vertical, 5)
+                    .background(state.accent)
+                    .clipShape(Capsule())
+            }
+            .buttonStyle(.plain)
             Spacer()
             Text("\(state.block.done)/\(state.block.per) this week")
                 .font(.system(size: 11, design: .monospaced))
                 .foregroundStyle(SessionColours.faint)
+            if let accountEmail {
+                Button(action: { showAccount = true }) {
+                    Image(systemName: "person.crop.circle")
+                        .font(.system(size: 17))
+                        .foregroundStyle(SessionColours.dim)
+                }
+                .buttonStyle(.plain)
+                .confirmationDialog(accountEmail, isPresented: $showAccount, titleVisibility: .visible) {
+                    Button("Sign Out", role: .destructive) { onSignOut?() }
+                }
+            }
         }
     }
 

@@ -48,7 +48,9 @@ struct NativeAppView: View {
                     onTapDone: { Task { await toggleDone() } },
                     onBrowse: { key in browse(to: key) },
                     weekDays: weekDays(around: state),
-                    onTapDay: { date in pickingDate = date }
+                    onTapDay: { date in pickingDate = date },
+                    accountEmail: client.session?.email,
+                    onSignOut: { signOut() }
                 )
             } else {
                 ZStack { SessionColours.bg.ignoresSafeArea(); ProgressView().tint(.white) }
@@ -149,6 +151,22 @@ struct NativeAppView: View {
         guard key != state?.displayKey else { return }
         browsedKey = key
         Task { await reload() }
+    }
+
+    /// Mirrors app.js's signOutBtn handler (sb.auth.signOut().then(() =>
+    /// location.reload())) — client.signOut() clears the Keychain session,
+    /// and every piece of THIS user's data is dropped too, not just left
+    /// stale for whoever signs in next.
+    private func signOut() {
+        client.signOut()
+        store = nil
+        loads = nil
+        state = nil
+        ticks = []
+        browsedKey = nil
+        pickingDate = nil
+        loadError = nil
+        saveError = nil
     }
 
     // MARK: - Writes
