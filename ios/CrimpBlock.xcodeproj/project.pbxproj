@@ -21,6 +21,10 @@
 		645188D9954787F4D2889374 /* NativeEngineDemoView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 149901662BBF4963045E6918 /* NativeEngineDemoView.swift */; };
 		A373515748483D2A13434CDA /* engine-core.js in Resources */ = {isa = PBXBuildFile; fileRef = BB9B02DBDC4FFE41757FF766 /* engine-core.js */; };
 		FCF14DD78AD6CB70AFB76DA9 /* programs.js in Resources */ = {isa = PBXBuildFile; fileRef = C2057310DAED31D00943FA48 /* programs.js */; };
+		07DDDF60CACE6C718CF96CFC /* Keychain.swift in Sources */ = {isa = PBXBuildFile; fileRef = 873E19C52DC25530CF500AD9 /* Keychain.swift */; };
+		EF25E52A1F6BD425B6B41F95 /* SupabaseClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9C890FA1E5A9CD2C0A9F87F /* SupabaseClient.swift */; };
+		AACFEF1380425E657C19125C /* NativeStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A1E3A5314507CA61BAB7667 /* NativeStore.swift */; };
+		9B803E261E3B36E9CFA1FB5C /* NativeLoads.swift in Sources */ = {isa = PBXBuildFile; fileRef = 71E89275732D46FBD7443BF9 /* NativeLoads.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -66,6 +70,10 @@
 		149901662BBF4963045E6918 /* NativeEngineDemoView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeEngineDemoView.swift; sourceTree = "<group>"; };
 		BB9B02DBDC4FFE41757FF766 /* engine-core.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; name = "engine-core.js"; path = "../engine-core.js"; sourceTree = SOURCE_ROOT; };
 		C2057310DAED31D00943FA48 /* programs.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; name = "programs.js"; path = "../programs.js"; sourceTree = SOURCE_ROOT; };
+		873E19C52DC25530CF500AD9 /* Keychain.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Keychain.swift; sourceTree = "<group>"; };
+		A9C890FA1E5A9CD2C0A9F87F /* SupabaseClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupabaseClient.swift; sourceTree = "<group>"; };
+		4A1E3A5314507CA61BAB7667 /* NativeStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeStore.swift; sourceTree = "<group>"; };
+		71E89275732D46FBD7443BF9 /* NativeLoads.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeLoads.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -134,6 +142,10 @@
 				93BCB9F1D7CF4014B151F718 /* TimerActivity.swift */,
 				A5595828F60D61130A784138 /* EngineBridge.swift */,
 				FA14AB8F8FFE96BF688A5924 /* SessionColours.swift */,
+				873E19C52DC25530CF500AD9 /* Keychain.swift */,
+				A9C890FA1E5A9CD2C0A9F87F /* SupabaseClient.swift */,
+				4A1E3A5314507CA61BAB7667 /* NativeStore.swift */,
+				71E89275732D46FBD7443BF9 /* NativeLoads.swift */,
 				BB9B02DBDC4FFE41757FF766 /* engine-core.js */,
 				C2057310DAED31D00943FA48 /* programs.js */,
 			);
@@ -237,6 +249,10 @@
 				DAB2C34289EDD2382CACDE77 /* EngineBridge.swift in Sources */,
 				13D240EE4DA498EFD5E89BE8 /* SessionColours.swift in Sources */,
 				645188D9954787F4D2889374 /* NativeEngineDemoView.swift in Sources */,
+				07DDDF60CACE6C718CF96CFC /* Keychain.swift in Sources */,
+				EF25E52A1F6BD425B6B41F95 /* SupabaseClient.swift in Sources */,
+				AACFEF1380425E657C19125C /* NativeStore.swift in Sources */,
+				9B803E261E3B36E9CFA1FB5C /* NativeLoads.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
