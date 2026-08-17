@@ -7,8 +7,8 @@
    actually matters (logging a session at the crag with no signal).
 
    Bump CACHE when you change any file. */
-var CACHE = 'crimp-v53';
-var FILES = ['./','./index.html','./app.js','./manifest.json','./icon.svg'];
+var CACHE = 'crimp-v54';
+var FILES = ['./','./index.html','./engine-core.js','./programs.js','./app.js','./manifest.json','./icon.svg'];
 var NET_TIMEOUT = 4000;
 
 self.addEventListener('install', function(e){

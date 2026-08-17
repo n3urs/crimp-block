@@ -1,0 +1,12 @@
+{
+  "name": "crimp-block",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Rules-engine regression tests for engine-core.js, run headless via Jest/Node.",
+  "scripts": {
+    "test": "jest"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0"
+  }
+}
