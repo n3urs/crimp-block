@@ -345,6 +345,28 @@ struct DailyCardView: View {
     }
 }
 
+/// Direct feedback: "3 × 8" doesn't say which number is sets and which is
+/// reps. Prescription text is free-form across templates.js/programs.js,
+/// not structured {sets, reps} data, and genuinely inconsistent in ways
+/// that make a blind "first number is always sets" transform actively
+/// wrong for some real entries — "10s × 5" (a hold duration FIRST, sets
+/// second) and "5 min on / 5 min off × 3" (a cycle description, no set
+/// count up front at all) both exist in the real template data. So this
+/// only touches the one pattern that's genuinely unambiguous: a plain
+/// leading integer immediately followed by "×" (only whitespace allowed
+/// between them, no "s" or other character) — checked against every real
+/// prescription string in the template library, and independently
+/// verified against this exact Swift implementation, before trusting it.
+/// Anything else (durations-first, cycle descriptions, already-explicit
+/// "3 sets" text) is left exactly as-is rather than risk a wrong label.
+private func clarifySets(_ s: String) -> String {
+    guard s.range(of: #"^\d+\s*×"#, options: .regularExpression) != nil,
+          let crossRange = s.range(of: "×") else { return s }
+    let count = s.prefix(while: \.isNumber)
+    let rest = s[crossRange.lowerBound...].dropFirst() // everything after "×"
+    return "\(count) sets ×\(rest)"
+}
+
 /// One exercise on the daily card. Owns its own local "show full detail"
 /// toggle — purely ephemeral display state, nothing else on the card needs
 /// to know about it — so title + prescription stay the only things visible
@@ -415,7 +437,7 @@ private struct ExerciseRowView: View {
                     if !isTicked {
                         Spacer()
                         VStack(alignment: .trailing, spacing: 5) {
-                            Text(ex.prescription)
+                            Text(clarifySets(ex.prescription))
                                 .font(.system(size: 12, design: .monospaced))
                                 .foregroundStyle(ex.phaseAdjusted ? accent : SessionColours.faint)
                                 .multilineTextAlignment(.trailing)

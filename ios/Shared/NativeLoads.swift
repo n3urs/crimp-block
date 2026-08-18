@@ -38,9 +38,16 @@ final class NativeLoads {
             var grouped: [String: [Entry]] = [:]
             for r in rows { grouped[r.ex, default: []].append(Entry(date: r.date, kg: r.kg)) }
             byExercise = grouped
-        } catch {
-            // Missing table (migration not run) must not take the app down —
-            // weights just don't appear, same as app.js's res.error branch.
+        } catch SupabaseClient.ClientError.http(404, let message) where message.contains("PGRST205") {
+            // Genuinely missing table (migration not run yet) must not take
+            // the app down — weights just don't appear, same as app.js's
+            // res.error branch. This used to catch every failure the same
+            // way, which is exactly how a real bug (the URL-construction
+            // bug elsewhere in this project, before it was found and
+            // fixed) can hide behind "must be a missing-table thing" and
+            // silently show empty instead of surfacing as a real error —
+            // narrowed to the one specific case this was actually written
+            // for.
             byExercise = [:]
         }
     }
