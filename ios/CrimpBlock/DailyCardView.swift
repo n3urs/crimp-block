@@ -117,7 +117,14 @@ struct DailyCardView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 18) {
                     if let onTapDay, !weekDays.isEmpty {
+                        // Extra breathing room beyond the VStack's normal
+                        // 18pt gap: this dot row and sessionDots below are
+                        // both plain circular dots of a similar size, close
+                        // enough in style that they read as one continuous
+                        // strip rather than two separate controls without
+                        // more separation than the header row alone gives.
                         WeekStripView(days: weekDays, onTapDay: onTapDay)
+                            .padding(.bottom, 10)
                     }
                     header
                     if onBrowse != nil { sessionDots }
@@ -303,7 +310,8 @@ private struct ExerciseRowView: View {
                 HStack(alignment: .firstTextBaseline, spacing: 6) {
                     Text(ex.title.uppercased())
                         .font(.system(size: 14, weight: .semibold))
-                        .foregroundStyle(.white)
+                        .foregroundStyle(isTicked ? SessionColours.faint : .white)
+                        .strikethrough(isTicked)
                     if ex.description != nil {
                         Button(action: {
                             withAnimation(.easeInOut(duration: 0.15)) { showDetail.toggle() }
