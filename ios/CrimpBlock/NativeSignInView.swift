@@ -69,8 +69,13 @@ struct NativeSignInView: View {
             : "Sign-in code sent to \(email). Typing it here signs you in on this device."
     }
 
+    /// A real inbox can't be confirmed client-side — this only rules out
+    /// obviously malformed input (no @, no domain, stray spaces) before
+    /// wasting a network round trip. sendOTP() below still hits Supabase's
+    /// real auth endpoint, which is the authoritative check; its rejection
+    /// already surfaces through the existing catch block in sendCode().
     private var emailLooksValid: Bool {
-        email.contains("@") && email.contains(".") && !email.contains(" ")
+        email.range(of: #"^[^\s@]+@[^\s@]+\.[^\s@]+$"#, options: .regularExpression) != nil
     }
 
     private func sendCode() {
