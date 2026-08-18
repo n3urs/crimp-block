@@ -162,13 +162,6 @@ struct DailyCardView: View {
                 }
                 .padding(20)
             }
-            .safeAreaInset(edge: .top) {
-                if restTimer.endDate != nil {
-                    RestTimerOverlay(controller: restTimer, accent: state.accent)
-                        .padding(.horizontal, 16)
-                        .padding(.top, 8)
-                }
-            }
             if let onTapDone {
                 Button(action: onTapDone) {
                     Text(isLogged ? "UNDO" : "DONE THIS WORKOUT")
@@ -181,6 +174,15 @@ struct DailyCardView: View {
                 }
                 .padding(16)
                 .tutorialTarget("doneButton")
+            }
+            // Fixed to the bottom, full-width, matching #tm's own
+            // position:fixed;bottom:0 exactly — drawn after (so on top of)
+            // the Done button above, same as .tm's higher z-index over
+            // .bar in the web app: a running rest timer covers the Done
+            // button rather than floating as a separate top banner, which
+            // is where this previously lived.
+            if restTimer.endDate != nil {
+                RestTimerOverlay(controller: restTimer, accent: state.accent)
             }
             CelebrationOverlay(trigger: celebrationTrigger, accent: state.accent)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
