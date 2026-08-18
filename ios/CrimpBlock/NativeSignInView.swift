@@ -23,7 +23,7 @@ struct NativeSignInView: View {
                 Text(step == .email ? "SIGN IN" : "ENTER CODE")
                     .font(.system(size: 32, weight: .heavy))
                     .foregroundStyle(.white)
-                Text(step == .email ? "Crimp Block" : "Sign-in")
+                Text(step == .email ? "Deadpoint" : "Sign-in")
                     .font(.system(size: 13, weight: .medium, design: .monospaced))
                     .foregroundStyle(SessionColours.resolve("--gorse"))
 

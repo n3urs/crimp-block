@@ -255,7 +255,7 @@ struct WidgetView: View {
 
     private var empty: some View {
         VStack(alignment: .leading, spacing: 5) {
-            Text("CRIMP BLOCK")
+            Text("DEADPOINT")
                 .font(.system(size: 10, weight: .bold, design: .monospaced))
                 .foregroundStyle(faint)
             Text(entry.stale ? "Open the app to refresh" : "Open the app to get started")
@@ -286,7 +286,7 @@ struct CrimpBlockWidget: Widget {
             WidgetView(entry: entry)
         }
         .configurationDisplayName("Today's Session")
-        .description("What Crimp Block recommends you train today.")
+        .description("What Deadpoint recommends you train today.")
         .supportedFamilies([.systemSmall, .systemMedium])
     }
 }

@@ -1,4 +1,8 @@
-# Crimp Block — iOS app & home-screen widget
+# Deadpoint — iOS app & home-screen widget
+
+(Xcode project/target/bundle-ID names below still say "CrimpBlock" — that's
+the pre-rebrand internal name, not yet renamed; see the paths and IDs as
+written when following these instructions.)
 
 A thin native shell around the existing web app, plus a WidgetKit widget.
 
@@ -42,7 +46,7 @@ widget silently reads nothing.
    the existing group.
 4. Plug the phone in, pick it as the run destination, hit run.
 5. Sign in once in the app. That populates the widget.
-6. Long-press the home screen → **+** → Crimp Block → add the widget.
+6. Long-press the home screen → **+** → Deadpoint → add the widget.
 
 ## Notes
 

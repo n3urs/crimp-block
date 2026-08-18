@@ -1,4 +1,4 @@
-# Crimp Block
+# Deadpoint
 
 A six-month climbing training scheduler. No fixed weekdays — it works from
 rolling seven-day quotas plus recovery gaps, so a spontaneous day at the crag

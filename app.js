@@ -1,5 +1,5 @@
 /* ============================================================
-   CRIMP BLOCK
+   DEADPOINT
    Rules-based training scheduler. No fixed weekdays — rolling
    7-day quotas plus recovery gaps, so a spontaneous crag day
    reshuffles the week instead of breaking it.
@@ -917,7 +917,7 @@ var sessionReady = false;
 
 function showLogin(msg){
   $('h1').textContent='Sign in';
-  $('where').textContent='Crimp Block';
+  $('where').textContent='Deadpoint';
   $('why').textContent = msg || 'Enter your email. Each email gets its own private log — share the URL, everyone keeps their own data.';
   $('bar').style.display='none';
   $('list').innerHTML =
