@@ -185,7 +185,7 @@ struct DailyCardView: View {
             // (matching #tm's own transform .2s), not just pop in — a bare
             // `if` with no transition snaps instantly either way.
             if restTimer.endDate != nil {
-                RestTimerOverlay(controller: restTimer, accent: state.accent)
+                RestTimerOverlay(controller: restTimer, accent: state.accent, onTutorialSignal: onTutorialSignal)
                     .transition(.move(edge: .bottom))
             }
             CelebrationOverlay(trigger: celebrationTrigger, accent: state.accent, nextUp: nextUp)
@@ -259,6 +259,7 @@ struct DailyCardView: View {
                 .buttonStyle(.plain)
             }
         }
+        .tutorialTarget("sessionDots")
     }
 
     /// Mirrors #upnext in app.js exactly: EngineBridge.upNext() is

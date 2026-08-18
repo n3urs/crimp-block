@@ -33,8 +33,12 @@ struct TutorialDemoCardView: View {
                      body: "Tap a weight to log a different one for today. The app remembers it and adjusts future targets on its own."),
         TutorialStep(targetID: "restTimerButton", title: "Built-in timers",
                      body: "Every timed exercise has a rest timer wired in — tap to start it, right from here."),
+        TutorialStep(targetID: "restTimerStop", title: "Stop anytime",
+                     body: "Rest timers count down on their own, but you're never stuck waiting — tap STOP whenever you're ready to move on."),
+        TutorialStep(targetID: "sessionDots", title: "Every session, one tap away",
+                     body: "Tap any dot to preview a different session — an outdoor day, a rest day, whatever's coming up. Nothing here is locked to just today's pick."),
         TutorialStep(targetID: "doneButton", title: "Log as you go",
-                     body: "Tick exercises off as you do them, then mark today done here. Tap any other session dot to log something different instead."),
+                     body: "Tick exercises off as you do them, then mark today done here."),
     ])
 
     var body: some View {
@@ -52,6 +56,10 @@ struct TutorialDemoCardView: View {
                             isLogged.toggle()
                             controller.handleTap("doneButton")
                         },
+                        onBrowse: { key in
+                            browse(to: key)
+                            controller.handleTap("sessionDots")
+                        },
                         onTutorialSignal: { controller.handleTap($0) }
                     )
                 } else {
@@ -63,7 +71,7 @@ struct TutorialDemoCardView: View {
             if stage == .intro {
                 messageCard(
                     title: "Quick look around",
-                    body: "Five things worth knowing before your first session — tap through them on the real card.",
+                    body: "A few things worth knowing before your first session — tap through them on the real card.",
                     buttonLabel: "START",
                     skipAction: { onDone() }
                 ) { stage = .walkthrough }
@@ -145,6 +153,14 @@ struct TutorialDemoCardView: View {
         } catch {
             loadError = "\(error)"
         }
+    }
+
+    /// Same idea as NativeEngineDemoView.browse(to:) — a real re-decide
+    /// against the tutorial's own bridge, not a fake preview, so tapping a
+    /// dot here shows the same thing it would for a real user.
+    private func browse(to key: String) {
+        guard let bridge = state?.bridge, key != state?.displayKey else { return }
+        if let s = DailyCardState.load(bridge: bridge, displayKey: key) { state = s }
     }
 }
 

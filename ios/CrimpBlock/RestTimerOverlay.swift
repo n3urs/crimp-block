@@ -11,6 +11,10 @@ import SwiftUI
 struct RestTimerOverlay: View {
     @Bindable var controller: RestTimerController
     var accent: Color
+    /// See DailyCardView's own onTutorialSignal doc — the tutorial needs to
+    /// know when STOP gets tapped so it can advance past this timer instead
+    /// of leaving it running and covering the Done button spotlight below.
+    var onTutorialSignal: ((String) -> Void)? = nil
 
     @State private var now = Date()
     private let tick = Timer.publish(every: 0.2, on: .main, in: .common).autoconnect()
@@ -35,7 +39,10 @@ struct RestTimerOverlay: View {
                             .foregroundStyle(SessionColours.faint)
                             .lineLimit(1)
                             .frame(maxWidth: .infinity, alignment: .leading)
-                        Button(action: { controller.end(cancelNotification: true) }) {
+                        Button(action: {
+                            controller.end(cancelNotification: true)
+                            onTutorialSignal?("restTimerStop")
+                        }) {
                             Text("STOP")
                                 .font(.system(size: 13, weight: .semibold, design: .monospaced))
                                 .foregroundStyle(SessionColours.dim)
@@ -43,6 +50,7 @@ struct RestTimerOverlay: View {
                                 .overlay(RoundedRectangle(cornerRadius: 3).stroke(SessionColours.s3, lineWidth: 1))
                         }
                         .buttonStyle(.plain)
+                        .tutorialTarget("restTimerStop")
                     }
                     .padding(16)
                 }
