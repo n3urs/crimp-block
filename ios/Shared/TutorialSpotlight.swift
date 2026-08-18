@@ -44,6 +44,12 @@ struct TutorialStep {
     let targetID: String
     let title: String
     let body: String
+    /// Shows a small bouncing "‹ SWIPE ›" badge above the spotlighted
+    /// target — for a step whose real control is a gesture rather than a
+    /// tap target, where the caption text alone doesn't make the motion
+    /// obvious. Kept as a bool rather than a richer hint type: there's
+    /// only ever been the one gesture worth calling out this way so far.
+    var showsSwipeHint: Bool = false
 }
 
 /// Owns which step is showing. The tutorial's host view wires each real
@@ -158,6 +164,12 @@ private struct TutorialOverlayModifier: ViewModifier {
                 .position(x: rect.midX, y: rect.midY)
                 .allowsHitTesting(false)
 
+            if step.showsSwipeHint {
+                SwipeHintBadge()
+                    .position(x: rect.midX, y: max(30, rect.minY - 30))
+                    .allowsHitTesting(false)
+            }
+
             captionCard(step: step, rect: rect, screenSize: screenSize)
                 .allowsHitTesting(true)
         }
@@ -203,5 +215,36 @@ private struct TutorialOverlayModifier: ViewModifier {
         let fitsBelow = rect.maxY + cardHalfHeight * 2 < screenSize.height
         let y = fitsBelow ? rect.maxY + cardHalfHeight : rect.minY - cardHalfHeight
         return CGPoint(x: screenSize.width / 2, y: min(max(y, cardHalfHeight + 20), screenSize.height - cardHalfHeight - 20))
+    }
+}
+
+/// A small rocking "‹ SWIPE ›" pill — purely decorative, gestures have no
+/// tap target of their own to circle the way every other step's real
+/// control does, so this is the substitute for "here's the thing to try."
+private struct SwipeHintBadge: View {
+    @State private var rocked = false
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "chevron.left")
+            Text("SWIPE")
+                .font(.system(size: 11, weight: .bold, design: .monospaced))
+                .tracking(1.5)
+            Image(systemName: "chevron.right")
+        }
+        .font(.system(size: 12, weight: .bold))
+        .foregroundStyle(SessionColours.fg)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 7)
+        .background(SessionColours.s1)
+        .clipShape(Capsule())
+        .overlay(Capsule().stroke(SessionColours.fg.opacity(0.4), lineWidth: 1))
+        .shadow(color: .black.opacity(0.3), radius: 8, y: 3)
+        .offset(x: rocked ? 6 : -6)
+        .onAppear {
+            withAnimation(.easeInOut(duration: 0.7).repeatForever(autoreverses: true)) {
+                rocked = true
+            }
+        }
     }
 }

@@ -162,6 +162,17 @@ struct DailyCardView: View {
                 }
                 .padding(20)
             }
+            // .simultaneousGesture (not .gesture) so this never competes
+            // with the ScrollView's own vertical pan for recognition —
+            // both see every touch, and this one only acts in onEnded, on
+            // whichever swipes turn out to be clearly horizontal.
+            // minimumDistance 24 is enough that a tap on a button
+            // underneath (near-zero translation) never begins this
+            // gesture at all. onBrowse==nil is guarded inside the handler
+            // itself, not here — Gesture is a protocol with an associated
+            // type, so the modifier can't be made conditional/optional at
+            // the call site the way a plain view modifier could.
+            .simultaneousGesture(swipeGesture)
             if let onTapDone {
                 Button(action: onTapDone) {
                     Text(isLogged ? "UNDO" : "DONE THIS WORKOUT")
@@ -270,6 +281,26 @@ struct DailyCardView: View {
     private var nextUp: (key: String, name: String)? {
         guard let un = state.bridge.upNext(), let info = state.bridge.sessionInfo(un.key) else { return nil }
         return (un.key, info.name)
+    }
+
+    /// Swipe left/right anywhere on the card to step through
+    /// EngineBridge.order — the same fixed session order sessionDots
+    /// already browses by tap, just a second way to reach it. Clamped at
+    /// the ends rather than wrapping: looping from "rest" back around to
+    /// "max fingers" reads as a bug the first time it happens, not a
+    /// feature, and the dots row is right there for jumping further.
+    private var swipeGesture: some Gesture {
+        DragGesture(minimumDistance: 24)
+            .onEnded { value in
+                guard let onBrowse else { return }
+                let dx = value.translation.width
+                let dy = value.translation.height
+                guard abs(dx) > 60, abs(dx) > abs(dy) * 1.5 else { return }
+                guard let index = EngineBridge.order.firstIndex(of: state.displayKey) else { return }
+                let nextIndex = dx < 0 ? index + 1 : index - 1
+                guard EngineBridge.order.indices.contains(nextIndex) else { return }
+                onBrowse(EngineBridge.order[nextIndex])
+            }
     }
 
     /// Matches the web app's .top row exactly: phase badge (an outlined
