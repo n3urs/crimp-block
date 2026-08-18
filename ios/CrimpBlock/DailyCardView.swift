@@ -114,64 +114,78 @@ struct DailyCardView: View {
 
     var body: some View {
         ZStack(alignment: .bottom) {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 18) {
-                    if let onTapDay, !weekDays.isEmpty {
-                        // Extra breathing room beyond the VStack's normal
-                        // 18pt gap: this dot row and sessionDots below are
-                        // both plain circular dots of a similar size, close
-                        // enough in style that they read as one continuous
-                        // strip rather than two separate controls without
-                        // more separation than the header row alone gives.
-                        WeekStripView(days: weekDays, onTapDay: onTapDay)
-                            .padding(.bottom, 10)
-                    }
-                    header
-                    if onBrowse != nil { sessionDots }
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(state.session.name.uppercased())
-                            .font(.system(size: 32, weight: .heavy))
-                            .foregroundStyle(.white)
-                            .strikethrough(isLogged, color: state.accent)
-                        Text(state.session.where_)
-                            .font(.system(size: 13, weight: .medium, design: .monospaced))
-                            .foregroundStyle(state.accent)
-                    }
-                    if !cardMessage.isEmpty {
-                        Text(cardMessage)
-                            .font(.system(size: 14, weight: isLogged ? .semibold : .regular))
-                            .foregroundStyle(isLogged ? state.accent : SessionColours.dim)
-                    }
+            // Only the exercise list scrolls — the header/dots/title stay
+            // put. Previously this whole card (header included) was one
+            // big ScrollView, which meant a long session (more exercises
+            // than fit on screen, e.g. a Pull day) could scroll the title
+            // itself out of view, and made the new swipe gesture feel
+            // inconsistent depending on how far you'd scrolled. A plain
+            // VStack sizes to its content by default, but a ScrollView
+            // inside one still expands to fill whatever space is left —
+            // that's what actually pins everything above it.
+            VStack(alignment: .leading, spacing: 18) {
+                if let onTapDay, !weekDays.isEmpty {
+                    // Extra breathing room beyond the VStack's normal
+                    // 18pt gap: this dot row and sessionDots below are
+                    // both plain circular dots of a similar size, close
+                    // enough in style that they read as one continuous
+                    // strip rather than two separate controls without
+                    // more separation than the header row alone gives.
+                    WeekStripView(days: weekDays, onTapDay: onTapDay)
+                        .padding(.bottom, 10)
+                }
+                header
+                if onBrowse != nil { sessionDots }
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(state.session.name.uppercased())
+                        .font(.system(size: 32, weight: .heavy))
+                        .foregroundStyle(.white)
+                        .strikethrough(isLogged, color: state.accent)
+                    Text(state.session.where_)
+                        .font(.system(size: 13, weight: .medium, design: .monospaced))
+                        .foregroundStyle(state.accent)
+                }
+                if !cardMessage.isEmpty {
+                    Text(cardMessage)
+                        .font(.system(size: 14, weight: isLogged ? .semibold : .regular))
+                        .foregroundStyle(isLogged ? state.accent : SessionColours.dim)
+                }
 
-                    // Flat list with thin dividers between rows, matching
-                    // .ex{border-bottom:1px solid var(--s2)} — the previous
-                    // per-row card treatment (rounded background, gap
-                    // between cards) was this native port's own addition,
-                    // not something carried over from the original.
-                    VStack(spacing: 0) {
-                        ForEach(Array(state.exercises.enumerated()), id: \.element.id) { index, ex in
-                            exerciseRow(ex)
-                            if index < state.exercises.count - 1 {
-                                Rectangle().fill(SessionColours.s2).frame(height: 1)
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 18) {
+                        // Flat list with thin dividers between rows, matching
+                        // .ex{border-bottom:1px solid var(--s2)} — the previous
+                        // per-row card treatment (rounded background, gap
+                        // between cards) was this native port's own addition,
+                        // not something carried over from the original.
+                        VStack(spacing: 0) {
+                            ForEach(Array(state.exercises.enumerated()), id: \.element.id) { index, ex in
+                                exerciseRow(ex)
+                                if index < state.exercises.count - 1 {
+                                    Rectangle().fill(SessionColours.s2).frame(height: 1)
+                                }
                             }
                         }
-                    }
 
-                    footer
-                    if onTapDone != nil { Color.clear.frame(height: 64) } // room for the floating button
+                        footer
+                        if onTapDone != nil { Color.clear.frame(height: 64) } // room for the floating button
+                    }
                 }
-                .padding(20)
             }
+            .padding(20)
             // .simultaneousGesture (not .gesture) so this never competes
-            // with the ScrollView's own vertical pan for recognition —
-            // both see every touch, and this one only acts in onEnded, on
-            // whichever swipes turn out to be clearly horizontal.
-            // minimumDistance 24 is enough that a tap on a button
-            // underneath (near-zero translation) never begins this
-            // gesture at all. onBrowse==nil is guarded inside the handler
-            // itself, not here — Gesture is a protocol with an associated
-            // type, so the modifier can't be made conditional/optional at
-            // the call site the way a plain view modifier could.
+            // with the inner ScrollView's own vertical pan for
+            // recognition — both see every touch, and this one only acts
+            // in onEnded, on whichever swipes turn out to be clearly
+            // horizontal. Attached to the whole card (not just the
+            // scrollable part) so it still works from the header/title
+            // area, not only over the exercise list. minimumDistance 24
+            // is enough that a tap on a button underneath (near-zero
+            // translation) never begins this gesture at all. onBrowse==nil
+            // is guarded inside the handler itself, not here — Gesture is
+            // a protocol with an associated type, so the modifier can't
+            // be made conditional/optional at the call site the way a
+            // plain view modifier could.
             .simultaneousGesture(swipeGesture)
             if let onTapDone {
                 Button(action: onTapDone) {
