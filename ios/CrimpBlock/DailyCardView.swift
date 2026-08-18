@@ -143,9 +143,17 @@ struct DailyCardView: View {
                             .foregroundStyle(isLogged ? state.accent : SessionColours.dim)
                     }
 
-                    VStack(spacing: 10) {
-                        ForEach(state.exercises) { ex in
+                    // Flat list with thin dividers between rows, matching
+                    // .ex{border-bottom:1px solid var(--s2)} — the previous
+                    // per-row card treatment (rounded background, gap
+                    // between cards) was this native port's own addition,
+                    // not something carried over from the original.
+                    VStack(spacing: 0) {
+                        ForEach(Array(state.exercises.enumerated()), id: \.element.id) { index, ex in
                             exerciseRow(ex)
+                            if index < state.exercises.count - 1 {
+                                Rectangle().fill(SessionColours.s2).frame(height: 1)
+                            }
                         }
                     }
 
@@ -188,56 +196,103 @@ struct DailyCardView: View {
         .onAppear { restTimer.requestNotificationPermission() }
     }
 
-    /// Native equivalent of #sdots in app.js — every session stays
-    /// reachable by hand (including the climbing ones decide() never
-    /// recommends), tap to browse and preview a different one than the
-    /// recommendation. A ring marks the one currently on screen; a small
-    /// dot marks the actual recommendation, but only while today is
-    /// unlogged — mirrors `k===d.k && !logged` exactly.
+    /// Native equivalent of #sdots + #upnext in app.js, sharing a row same
+    /// as the web app: every session stays reachable by hand (including the
+    /// climbing ones decide() never recommends), tap to browse and preview
+    /// a different one than the recommendation. Matches .sdot's own visual
+    /// language exactly — outline-only by default (.sdot{border,
+    /// background:none}), filled only for whichever one is actually on
+    /// screen (.sdot.cur), with a separate outer ring marking the real
+    /// recommendation (.sdot.rec::after) rather than native's previous
+    /// small-dot-underneath approach. "Current" and "recommended" are
+    /// independent signals — you can browse away from the recommendation
+    /// without it stopping being the recommendation, mirrors `k===d.k &&
+    /// !logged` exactly.
     private var sessionDots: some View {
         HStack(spacing: 10) {
-            ForEach(EngineBridge.order, id: \.self) { key in
-                let varName = state.bridge.sessionColourVarName(key)
-                let isCurrent = key == state.displayKey
-                let isRecommended = key == state.decision.k && !isLogged
-                Button(action: { onBrowse?(key) }) {
-                    ZStack {
-                        Circle()
-                            .strokeBorder(.white, lineWidth: isCurrent ? 2 : 0)
-                            .frame(width: 16, height: 16)
-                        Circle()
-                            .fill(SessionColours.resolve(varName))
-                            .frame(width: 11, height: 11)
-                        if isRecommended {
+            HStack(spacing: 9) {
+                ForEach(EngineBridge.order, id: \.self) { key in
+                    let varName = state.bridge.sessionColourVarName(key)
+                    let colour = SessionColours.resolve(varName)
+                    let isCurrent = key == state.displayKey
+                    let isRecommended = key == state.decision.k && !isLogged
+                    Button(action: { onBrowse?(key) }) {
+                        ZStack {
+                            if isRecommended {
+                                Circle()
+                                    .strokeBorder(colour, lineWidth: 1.5)
+                                    .frame(width: 22, height: 22)
+                            }
                             Circle()
-                                .fill(.white)
-                                .frame(width: 4, height: 4)
-                                .offset(y: 11)
+                                .strokeBorder(isCurrent ? colour : SessionColours.s4, lineWidth: 1.5)
+                                .background(Circle().fill(isCurrent ? colour : .clear))
+                                .frame(width: 14, height: 14)
                         }
+                        .frame(width: 22, height: 22)
                     }
-                    .frame(width: 20, height: 20)
+                    .buttonStyle(.plain)
+                }
+            }
+            Spacer(minLength: 0)
+            if let next = nextUp {
+                Button(action: { onBrowse?(next.key) }) {
+                    HStack(spacing: 6) {
+                        Text("NEXT")
+                            .font(.system(size: 9, weight: .medium, design: .monospaced))
+                            .foregroundStyle(SessionColours.faint)
+                        Circle()
+                            .fill(SessionColours.resolve(state.bridge.sessionColourVarName(next.key)))
+                            .frame(width: 7, height: 7)
+                        Text(next.name.uppercased())
+                            .font(.system(size: 13.5, weight: .bold))
+                            .foregroundStyle(SessionColours.dim)
+                            .lineLimit(1)
+                    }
                 }
                 .buttonStyle(.plain)
             }
         }
     }
 
+    /// Mirrors #upnext in app.js exactly: EngineBridge.upNext() is
+    /// tomorrow's real projected recommendation (see its own doc comment),
+    /// not just "the next session type in a fixed list" — shown purely as
+    /// a preview/shortcut, tapping it browses today's card to that session
+    /// without implying today itself gets logged as anything.
+    private var nextUp: (key: String, name: String)? {
+        guard let un = state.bridge.upNext(), let info = state.bridge.sessionInfo(un.key) else { return nil }
+        return (un.key, info.name)
+    }
+
+    /// Matches the web app's .top row exactly: phase badge (an outlined
+    /// pill, not filled — the accent shows in the text/border, not as a
+    /// background) and the date, nothing else. "X/Y this week" used to
+    /// live here too, but the web app never puts it in the top bar at all
+    /// — it's plan-sheet-only content (see PlanSheetView's own "X of Y
+    /// sessions into this week" line), so showing it twice was this native
+    /// port's own addition, not something carried over from the original.
     private var header: some View {
         HStack {
             Button(action: { showPlan = true; onTutorialSignal?("phaseBadge") }) {
-                Text("\(state.phaseName.uppercased()) · WK \(state.block.w)" + (state.block.w == 4 ? " · DELOAD" : ""))
-                    .font(.system(size: 11, weight: .bold, design: .monospaced))
-                    .foregroundStyle(SessionColours.bg)
-                    .padding(.horizontal, 10).padding(.vertical, 5)
-                    .background(state.accent)
-                    .clipShape(Capsule())
+                HStack(spacing: 4) {
+                    Text("\(state.phaseName.uppercased()) · WK \(state.block.w)" + (state.block.w == 4 ? " · DELOAD" : ""))
+                    Image(systemName: "chevron.down")
+                        .font(.system(size: 8, weight: .bold))
+                }
+                .font(.system(size: 12, weight: .bold, design: .monospaced))
+                .foregroundStyle(state.accent)
+                .padding(.horizontal, 10).padding(.vertical, 6)
+                .background(SessionColours.s1)
+                .overlay(Capsule().stroke(SessionColours.s3, lineWidth: 1))
+                .clipShape(Capsule())
             }
             .buttonStyle(.plain)
             .tutorialTarget("phaseBadge")
             Spacer()
-            Text("\(state.block.done)/\(state.block.per) this week")
-                .font(.system(size: 11, design: .monospaced))
+            Text(formattedDate)
+                .font(.system(size: 10.5, design: .monospaced))
                 .foregroundStyle(SessionColours.faint)
+                .textCase(.uppercase)
             if let accountEmail {
                 Button(action: { showAccount = true }) {
                     Image(systemName: "person.crop.circle")
@@ -245,11 +300,23 @@ struct DailyCardView: View {
                         .foregroundStyle(SessionColours.dim)
                 }
                 .buttonStyle(.plain)
+                .padding(.leading, 8)
                 .confirmationDialog(accountEmail, isPresented: $showAccount, titleVisibility: .visible) {
                     Button("Sign Out", role: .destructive) { onSignOut?() }
                 }
             }
         }
+    }
+
+    private var formattedDate: String {
+        let inFmt = DateFormatter()
+        inFmt.locale = Locale(identifier: "en_US_POSIX")
+        inFmt.dateFormat = "yyyy-MM-dd"
+        guard let d = inFmt.date(from: state.today) else { return state.today }
+        let out = DateFormatter()
+        out.locale = Locale(identifier: "en_GB")
+        out.dateFormat = "EEE, d MMM"
+        return out.string(from: d)
     }
 
     private func exerciseRow(_ ex: EngineBridge.RenderedExercise) -> some View {
@@ -295,24 +362,38 @@ private struct ExerciseRowView: View {
 
     @State private var showDetail = false
 
+    /// Matches .ex.checked exactly: ticking an exercise off doesn't just
+    /// strike its title through, it collapses the WHOLE row down to just
+    /// the checkbox + title — prescription, weight, description, and any
+    /// timer button all disappear and the row's own padding tightens. The
+    /// list visibly gets shorter as you go rather than every done row
+    /// still taking full room, which is the actual point of it.
     var body: some View {
-        HStack(alignment: .top, spacing: 10) {
+        HStack(alignment: .top, spacing: 14) {
             if let onToggleTick {
                 Button(action: { onToggleTick(ex.id) }) {
-                    Image(systemName: isTicked ? "checkmark.circle.fill" : "circle")
-                        .font(.system(size: 20))
-                        .foregroundStyle(isTicked ? accent : SessionColours.faint)
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 3)
+                            .strokeBorder(isTicked ? .clear : SessionColours.s4, lineWidth: 1.5)
+                        if isTicked {
+                            RoundedRectangle(cornerRadius: 3).fill(accent)
+                            Image(systemName: "checkmark")
+                                .font(.system(size: 13, weight: .bold))
+                                .foregroundStyle(SessionColours.bg)
+                        }
+                    }
+                    .frame(width: 26, height: 26)
                 }
                 .buttonStyle(.plain)
-                .padding(.top, 2)
+                .padding(.top, 1)
             }
             VStack(alignment: .leading, spacing: 4) {
                 HStack(alignment: .firstTextBaseline, spacing: 6) {
                     Text(ex.title.uppercased())
-                        .font(.system(size: 14, weight: .semibold))
+                        .font(.system(size: 19, weight: .bold))
                         .foregroundStyle(isTicked ? SessionColours.faint : .white)
                         .strikethrough(isTicked)
-                    if ex.description != nil {
+                    if !isTicked, ex.description != nil {
                         Button(action: {
                             withAnimation(.easeInOut(duration: 0.15)) { showDetail.toggle() }
                             onTutorialSignal?("exerciseInfo")
@@ -324,58 +405,64 @@ private struct ExerciseRowView: View {
                         .buttonStyle(.plain)
                         .tutorialTarget(showDetail ? nil : "exerciseInfo")
                     }
-                    Spacer()
-                    Text(ex.prescription)
-                        .font(.system(size: 11, design: .monospaced))
-                        .foregroundStyle(ex.phaseAdjusted ? accent : SessionColours.faint)
-                    if let kg = ex.weightKg {
-                        weightBadge(kg: kg)
+                    if !isTicked {
+                        Spacer()
+                        VStack(alignment: .trailing, spacing: 5) {
+                            Text(ex.prescription)
+                                .font(.system(size: 12, design: .monospaced))
+                                .foregroundStyle(ex.phaseAdjusted ? accent : SessionColours.faint)
+                                .multilineTextAlignment(.trailing)
+                            if let kg = ex.weightKg {
+                                weightBadge(kg: kg)
+                            }
+                        }
                     }
                 }
-                if showDetail, let d = ex.description {
-                    Text(d)
-                        .font(.system(size: 12.5))
-                        .foregroundStyle(SessionColours.dim)
-                        .transition(.opacity)
-                }
-                if let interval = ex.interval {
-                    Button(action: {
-                        let sets = leadingInt(ex.prescription) ?? 1
-                        intervalTimer.start(
-                            config: interval, setRestSecs: ex.restSeconds ?? 120,
-                            sets: max(1, sets), label: ex.title
-                        )
-                        showIntervalTimer = true
-                    }) {
-                        Text("START")
-                            .font(.system(size: 10, weight: .bold, design: .monospaced))
-                            .foregroundStyle(accent)
-                            .padding(.horizontal, 8).padding(.vertical, 4)
-                            .background(SessionColours.s3)
-                            .clipShape(RoundedRectangle(cornerRadius: 5))
+                if !isTicked {
+                    if showDetail, let d = ex.description {
+                        Text(d)
+                            .font(.system(size: 12.5))
+                            .foregroundStyle(SessionColours.dim)
+                            .transition(.opacity)
                     }
-                    .buttonStyle(.plain)
-                } else if let r = ex.restSeconds {
-                    Button(action: {
-                        restTimer.start(secs: r, label: ex.title, colourHex: SessionColours.hex(accentVarName))
-                        onTutorialSignal?("restTimerButton")
-                    }) {
-                        Text("Rest \(r / 60):\(String(format: "%02d", r % 60))")
-                            .font(.system(size: 10, weight: .semibold, design: .monospaced))
-                            .foregroundStyle(accent)
-                            .padding(.horizontal, 8).padding(.vertical, 4)
-                            .background(SessionColours.s3)
-                            .clipShape(RoundedRectangle(cornerRadius: 5))
+                    if let interval = ex.interval {
+                        Button(action: {
+                            let sets = leadingInt(ex.prescription) ?? 1
+                            intervalTimer.start(
+                                config: interval, setRestSecs: ex.restSeconds ?? 120,
+                                sets: max(1, sets), label: ex.title
+                            )
+                            showIntervalTimer = true
+                        }) {
+                            Text("START")
+                                .font(.system(size: 10.5, weight: .semibold, design: .monospaced))
+                                .foregroundStyle(SessionColours.bg)
+                                .padding(.horizontal, 10).padding(.vertical, 6)
+                                .background(accent)
+                                .clipShape(RoundedRectangle(cornerRadius: 3))
+                        }
+                        .buttonStyle(.plain)
+                        .padding(.top, 2)
+                    } else if let r = ex.restSeconds {
+                        Button(action: {
+                            restTimer.start(secs: r, label: ex.title, colourHex: SessionColours.hex(accentVarName))
+                            onTutorialSignal?("restTimerButton")
+                        }) {
+                            Text("Rest \(r / 60):\(String(format: "%02d", r % 60))")
+                                .font(.system(size: 10.5, weight: .medium, design: .monospaced))
+                                .foregroundStyle(SessionColours.dim)
+                                .padding(.horizontal, 10).padding(.vertical, 6)
+                                .overlay(RoundedRectangle(cornerRadius: 3).stroke(SessionColours.s3, lineWidth: 1))
+                        }
+                        .buttonStyle(.plain)
+                        .padding(.top, 2)
+                        .tutorialTarget("restTimerButton")
                     }
-                    .buttonStyle(.plain)
-                    .tutorialTarget("restTimerButton")
                 }
             }
         }
-        .padding(12)
+        .padding(.vertical, isTicked ? 11 : 16)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(SessionColours.s1)
-        .clipShape(RoundedRectangle(cornerRadius: 10))
     }
 
     @ViewBuilder

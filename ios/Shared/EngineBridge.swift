@@ -226,6 +226,21 @@ final class EngineBridge {
         return Forecast(v: 1, generated: today(), days: resolved)
     }
 
+    /// Tomorrow's forecast — decide() is a pure function of the last 7
+    /// days, so this asks it about tomorrow with one hypothetical day
+    /// patched in for today (whatever's actually logged, or today's own
+    /// current recommendation if nothing's logged yet). `provisional`
+    /// means today hasn't actually been logged, so this is only accurate
+    /// if today goes to plan — mirrors upNext() in engine-core.js exactly,
+    /// reusing its own history-patching logic rather than approximating it
+    /// in Swift (which would mean re-deriving recovery caps and rotation
+    /// state, not just picking "the next session type in order").
+    struct UpNext: Codable { let date: String; let key: String; let provisional: Bool }
+
+    func upNext() -> UpNext? {
+        decode(engine.invokeMethod("upNext", withArguments: []))
+    }
+
     func isDeload(_ date: String) -> Bool {
         engine.invokeMethod("isDeload", withArguments: [date])?.toBool() ?? false
     }

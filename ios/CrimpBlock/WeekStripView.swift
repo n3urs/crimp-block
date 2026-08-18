@@ -26,9 +26,20 @@ struct WeekStripView: View {
                             Circle()
                                 .strokeBorder(day.isToday ? .white.opacity(0.7) : .clear, lineWidth: 1.5)
                                 .frame(width: 20, height: 20)
-                            Circle()
-                                .fill(day.colourVarName.map { SessionColours.resolve($0) } ?? SessionColours.s2)
-                                .frame(width: 14, height: 14)
+                            // Outline-only (border, no fill) when nothing's
+                            // logged, matching .dot i's default state —
+                            // filling every empty day with a solid grey
+                            // circle read as "something's there" even when
+                            // nothing was logged.
+                            if let colourVarName = day.colourVarName {
+                                Circle()
+                                    .fill(SessionColours.resolve(colourVarName))
+                                    .frame(width: 14, height: 14)
+                            } else {
+                                Circle()
+                                    .strokeBorder(SessionColours.s4, lineWidth: 1.5)
+                                    .frame(width: 11, height: 11)
+                            }
                         }
                     }
                     .buttonStyle(.plain)
