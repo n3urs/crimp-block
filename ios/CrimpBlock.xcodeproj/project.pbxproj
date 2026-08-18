@@ -49,6 +49,12 @@
 		9114471F6CC9B7B8C7CC73E7 /* SubscriptionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B049305DF0E1F1019FA504D /* SubscriptionManager.swift */; };
 		88FC735FC1529F75241FC8FC /* PaywallView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6BAF3BF5EDE2F9F914B17F74 /* PaywallView.swift */; };
 		35775A981D10FC0E1F96C594 /* EngineBridgeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 197A4F82238FA8B7F69C0F03 /* EngineBridgeTests.swift */; };
+		CFFF774C76DC4B7F69690814 /* AppFontsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 489BD36286931FA66C1887D1 /* AppFontsTests.swift */; };
+		05600B6CF922DD06F3F41C91 /* AppFonts.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB3FCA4CF861990D4A4B8EB8 /* AppFonts.swift */; };
+		4E768D93DE152883AAA409DA /* ArchivoBlack-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = AEBF87987DA4E8C7B28BA652 /* ArchivoBlack-Regular.ttf */; };
+		E5C815493158B4F02E2E3A52 /* RobotoMono-Bold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 79BF5ED08962C31BD8C9EA21 /* RobotoMono-Bold.ttf */; };
+		868F5E8DEBB1A14CEA6864FB /* RobotoMono-Medium.ttf in Resources */ = {isa = PBXBuildFile; fileRef = C4FF926E9403088949956AF4 /* RobotoMono-Medium.ttf */; };
+		10AD4C74FCFA584F7AC80F64 /* SpaceMono-Bold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 35EB64115792A9F62026E0BB /* SpaceMono-Bold.ttf */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -131,6 +137,12 @@
 		C06D252FF6119CF766FDEF28 /* TutorialDemoCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TutorialDemoCardView.swift; sourceTree = "<group>"; };
 		7A54C7DB75AADA0959652ECE /* CrimpBlockTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = CrimpBlockTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		197A4F82238FA8B7F69C0F03 /* EngineBridgeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EngineBridgeTests.swift; sourceTree = "<group>"; };
+		489BD36286931FA66C1887D1 /* AppFontsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppFontsTests.swift; sourceTree = "<group>"; };
+		BB3FCA4CF861990D4A4B8EB8 /* AppFonts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppFonts.swift; sourceTree = "<group>"; };
+		AEBF87987DA4E8C7B28BA652 /* ArchivoBlack-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "ArchivoBlack-Regular.ttf"; sourceTree = "<group>"; };
+		79BF5ED08962C31BD8C9EA21 /* RobotoMono-Bold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "RobotoMono-Bold.ttf"; sourceTree = "<group>"; };
+		C4FF926E9403088949956AF4 /* RobotoMono-Medium.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "RobotoMono-Medium.ttf"; sourceTree = "<group>"; };
+		35EB64115792A9F62026E0BB /* SpaceMono-Bold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "SpaceMono-Bold.ttf"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -197,11 +209,23 @@
 				C06D252FF6119CF766FDEF28 /* TutorialDemoCardView.swift */,
 				6BAF3BF5EDE2F9F914B17F74 /* PaywallView.swift */,
 				7FD6ED3669946CDCDC757C90 /* Configuration.storekit */,
+				D709A8D65E217A9DE152951C /* Fonts */,
 				199D95D3AB13E7DF7CB52182 /* Assets.xcassets */,
 				CF2F221A9F4201ED25C77F10 /* Info.plist */,
 				C9376940D0FBDDF94F567CD0 /* CrimpBlock.entitlements */,
 			);
 			path = CrimpBlock;
+			sourceTree = "<group>";
+		};
+		D709A8D65E217A9DE152951C /* Fonts */ = {
+			isa = PBXGroup;
+			children = (
+				AEBF87987DA4E8C7B28BA652 /* ArchivoBlack-Regular.ttf */,
+				79BF5ED08962C31BD8C9EA21 /* RobotoMono-Bold.ttf */,
+				C4FF926E9403088949956AF4 /* RobotoMono-Medium.ttf */,
+				35EB64115792A9F62026E0BB /* SpaceMono-Bold.ttf */,
+			);
+			path = Fonts;
 			sourceTree = "<group>";
 		};
 		5296CA2E8A3BB2E37124A76C /* CrimpBlockWidget */ = {
@@ -222,6 +246,7 @@
 				93BCB9F1D7CF4014B151F718 /* TimerActivity.swift */,
 				A5595828F60D61130A784138 /* EngineBridge.swift */,
 				FA14AB8F8FFE96BF688A5924 /* SessionColours.swift */,
+				BB3FCA4CF861990D4A4B8EB8 /* AppFonts.swift */,
 				873E19C52DC25530CF500AD9 /* Keychain.swift */,
 				A9C890FA1E5A9CD2C0A9F87F /* SupabaseClient.swift */,
 				4A1E3A5314507CA61BAB7667 /* NativeStore.swift */,
@@ -245,6 +270,7 @@
 			isa = PBXGroup;
 			children = (
 				197A4F82238FA8B7F69C0F03 /* EngineBridgeTests.swift */,
+				489BD36286931FA66C1887D1 /* AppFontsTests.swift */,
 			);
 			path = CrimpBlockTests;
 			sourceTree = "<group>";
@@ -344,6 +370,10 @@
 				FCF14DD78AD6CB70AFB76DA9 /* programs.js in Resources */,
 				E23831851C2A4FB380A76BAF /* template-resolver.js in Resources */,
 				B50A1C9DA6456982DA7AA621 /* templates.js in Resources */,
+				4E768D93DE152883AAA409DA /* ArchivoBlack-Regular.ttf in Resources */,
+				E5C815493158B4F02E2E3A52 /* RobotoMono-Bold.ttf in Resources */,
+				868F5E8DEBB1A14CEA6864FB /* RobotoMono-Medium.ttf in Resources */,
+				10AD4C74FCFA584F7AC80F64 /* SpaceMono-Bold.ttf in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -371,6 +401,7 @@
 				B36DCB53FC740A4DA5EB8BCE /* Forecast.swift in Sources */,
 				7B005C51A8BC4875A33CDBFE /* TimerActivity.swift in Sources */,
 				DAB2C34289EDD2382CACDE77 /* EngineBridge.swift in Sources */,
+				05600B6CF922DD06F3F41C91 /* AppFonts.swift in Sources */,
 				13D240EE4DA498EFD5E89BE8 /* SessionColours.swift in Sources */,
 				645188D9954787F4D2889374 /* NativeEngineDemoView.swift in Sources */,
 				07DDDF60CACE6C718CF96CFC /* Keychain.swift in Sources */,
@@ -417,6 +448,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				35775A981D10FC0E1F96C594 /* EngineBridgeTests.swift in Sources */,
+				CFFF774C76DC4B7F69690814 /* AppFontsTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

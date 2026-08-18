@@ -36,7 +36,7 @@ struct IntervalTimerView: View {
                         .foregroundStyle(.white)
                 } else {
                     Text(fmt(controller.remainingSeconds))
-                        .font(.system(size: 96, weight: .heavy, design: .monospaced))
+                        .font(AppFonts.timerDigits(96))
                         .foregroundStyle(.white)
                         .monospacedDigit()
                         .contentTransition(.numericText(countsDown: true))
@@ -44,7 +44,7 @@ struct IntervalTimerView: View {
                 }
 
                 Text(controller.statusText)
-                    .font(.system(size: 15, weight: .bold, design: .monospaced))
+                    .font(AppFonts.mono(15, weight: .bold))
                     .foregroundStyle(.white.opacity(0.85))
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 24)
@@ -71,7 +71,7 @@ struct IntervalTimerView: View {
 
                     Button(action: { controller.stop(); onDismiss() }) {
                         Text("STOP")
-                            .font(.system(size: 13, weight: .bold, design: .monospaced))
+                            .font(AppFonts.mono(13, weight: .bold))
                             .foregroundStyle(.white)
                             .padding(.horizontal, 24).padding(.vertical, 12)
                             .background(.white.opacity(0.15))

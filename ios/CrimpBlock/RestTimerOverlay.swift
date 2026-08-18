@@ -32,7 +32,7 @@ struct RestTimerOverlay: View {
                     .frame(height: 3)
                     HStack(alignment: .center, spacing: 16) {
                         Text(format(remaining))
-                            .font(.system(size: 34, weight: .bold, design: .monospaced))
+                            .font(AppFonts.timerDigits(34))
                             .foregroundStyle(accent)
                         Text(controller.label.uppercased())
                             .font(.system(size: 14, weight: .semibold))
@@ -44,7 +44,7 @@ struct RestTimerOverlay: View {
                             onTutorialSignal?("restTimerStop")
                         }) {
                             Text("STOP")
-                                .font(.system(size: 13, weight: .semibold, design: .monospaced))
+                                .font(AppFonts.mono(13, weight: .semibold))
                                 .foregroundStyle(SessionColours.dim)
                                 .padding(.horizontal, 14).padding(.vertical, 9)
                                 .overlay(RoundedRectangle(cornerRadius: 3).stroke(SessionColours.s3, lineWidth: 1))

@@ -138,11 +138,11 @@ struct DailyCardView: View {
                 if onBrowse != nil { sessionDots }
                 VStack(alignment: .leading, spacing: 4) {
                     Text(state.session.name.uppercased())
-                        .font(.system(size: 32, weight: .heavy))
+                        .font(AppFonts.heading(32))
                         .foregroundStyle(.white)
                         .strikethrough(isLogged, color: state.accent)
                     Text(state.session.where_)
-                        .font(.system(size: 13, weight: .medium, design: .monospaced))
+                        .font(AppFonts.mono(13, weight: .medium))
                         .foregroundStyle(state.accent)
                 }
                 if !cardMessage.isEmpty {
@@ -190,7 +190,7 @@ struct DailyCardView: View {
             if let onTapDone {
                 Button(action: onTapDone) {
                     Text(isLogged ? "UNDO" : "DONE THIS WORKOUT")
-                        .font(.system(size: 14, weight: .bold, design: .monospaced))
+                        .font(AppFonts.mono(14, weight: .bold))
                         .foregroundStyle(isLogged ? SessionColours.dim : SessionColours.bg)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 16)
@@ -270,7 +270,7 @@ struct DailyCardView: View {
                 Button(action: { onBrowse?(next.key) }) {
                     HStack(spacing: 6) {
                         Text("NEXT")
-                            .font(.system(size: 9, weight: .medium, design: .monospaced))
+                            .font(AppFonts.mono(9, weight: .medium))
                             .foregroundStyle(SessionColours.faint)
                         Circle()
                             .fill(SessionColours.resolve(state.bridge.sessionColourVarName(next.key)))
@@ -332,7 +332,7 @@ struct DailyCardView: View {
                     Image(systemName: "chevron.down")
                         .font(.system(size: 8, weight: .bold))
                 }
-                .font(.system(size: 12, weight: .bold, design: .monospaced))
+                .font(AppFonts.mono(12, weight: .bold))
                 .foregroundStyle(state.accent)
                 .padding(.horizontal, 10).padding(.vertical, 6)
                 .background(SessionColours.s1)
@@ -343,7 +343,7 @@ struct DailyCardView: View {
             .tutorialTarget("phaseBadge")
             Spacer()
             Text(formattedDate)
-                .font(.system(size: 10.5, design: .monospaced))
+                .font(AppFonts.mono(10.5, weight: .medium))
                 .foregroundStyle(SessionColours.faint)
                 .textCase(.uppercase)
             if let accountEmail {
@@ -384,7 +384,7 @@ struct DailyCardView: View {
 
     private var footer: some View {
         Text(footerNote)
-            .font(.system(size: 10, design: .monospaced))
+            .font(AppFonts.mono(10, weight: .medium))
             .foregroundStyle(SessionColours.faint)
             .frame(maxWidth: .infinity, alignment: .center)
             .padding(.top, 12)
@@ -494,7 +494,7 @@ private struct ExerciseRowView: View {
                         Spacer()
                         VStack(alignment: .trailing, spacing: 5) {
                             Text(clarifySets(ex.prescription))
-                                .font(.system(size: 12, design: .monospaced))
+                                .font(AppFonts.mono(12, weight: .medium))
                                 .foregroundStyle(ex.phaseAdjusted ? accent : SessionColours.faint)
                                 .multilineTextAlignment(.trailing)
                             if let kg = ex.weightKg {
@@ -520,7 +520,7 @@ private struct ExerciseRowView: View {
                             showIntervalTimer = true
                         }) {
                             Text("START")
-                                .font(.system(size: 10.5, weight: .semibold, design: .monospaced))
+                                .font(AppFonts.mono(10.5, weight: .semibold))
                                 .foregroundStyle(SessionColours.bg)
                                 .padding(.horizontal, 10).padding(.vertical, 6)
                                 .background(accent)
@@ -534,7 +534,7 @@ private struct ExerciseRowView: View {
                             onTutorialSignal?("restTimerButton")
                         }) {
                             Text("Rest \(r / 60):\(String(format: "%02d", r % 60))")
-                                .font(.system(size: 10.5, weight: .medium, design: .monospaced))
+                                .font(AppFonts.mono(10.5, weight: .medium))
                                 .foregroundStyle(SessionColours.dim)
                                 .padding(.horizontal, 10).padding(.vertical, 6)
                                 .overlay(RoundedRectangle(cornerRadius: 3).stroke(SessionColours.s3, lineWidth: 1))
@@ -560,7 +560,7 @@ private struct ExerciseRowView: View {
     @ViewBuilder
     private func weightBadge(kg: Double) -> some View {
         let label = Text("\(kg.formatted(.number.precision(.fractionLength(0...2))))kg")
-            .font(.system(size: 12, weight: .bold, design: .monospaced))
+            .font(AppFonts.mono(12, weight: .bold))
             .foregroundStyle(ex.weightIsBump ? accent : SessionColours.dim)
             .padding(.horizontal, 6).padding(.vertical, 2)
             .background(SessionColours.s3)

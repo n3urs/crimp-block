@@ -17,5 +17,12 @@
   <false/>
   <key>NSSupportsLiveActivities</key>
   <true/>
+  <key>UIAppFonts</key>
+  <array>
+    <string>ArchivoBlack-Regular.ttf</string>
+    <string>RobotoMono-Bold.ttf</string>
+    <string>RobotoMono-Medium.ttf</string>
+    <string>SpaceMono-Bold.ttf</string>
+  </array>
 </dict>
 </plist>
