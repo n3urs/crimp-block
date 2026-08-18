@@ -200,10 +200,9 @@ struct DailyCardView: View {
                             // closed rather than just quietly unchanged —
                             // dimmed and untappable (ticking/timers/weights
                             // don't make sense to poke at anymore), with the
-                            // LOGGED stamp doing the actual talking below.
-                            // Still scrollable, so you can look back over what
-                            // you did, just not interact with it — only UNDO
-                            // (the actual escape hatch) stays fully live.
+                            // LOGGED stamp doing the actual talking over the
+                            // top of it. Only UNDO (the actual escape hatch)
+                            // stays fully live.
                             .opacity(isLogged ? 0.35 : 1)
                             .allowsHitTesting(!isLogged)
 
@@ -217,6 +216,13 @@ struct DailyCardView: View {
                     // this list is short enough that "there's more below" is
                     // already obvious without one.
                     .scrollIndicators(.hidden)
+                    // Content behind the LOGGED stamp scrolling around
+                    // underneath it — while the stamp itself stays fixed in
+                    // the center — read as broken rather than "disabled".
+                    // Freezing scroll position here alongside the dimming
+                    // and disabled taps above makes the whole card actually
+                    // stop responding once you're done, not just partially.
+                    .scrollDisabled(isLogged)
                 }
                 .id(state.displayKey)
                 .transition(.asymmetric(
