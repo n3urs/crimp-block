@@ -67,8 +67,16 @@ final class IntervalTimerController {
         UIApplication.shared.isIdleTimerDisabled = false
     }
 
+    /// Ceiling, not nearest-rounding: with .rounded(), the exact instant a
+    /// phase starts (remainingSeconds set to e.g. 8 directly in advance())
+    /// only reads "8" until real elapsed time passes the half-second mark,
+    /// then drops to "7" — so the FIRST second of every hang/rest phase
+    /// was only ever on screen for ~0.5s instead of a full second, while
+    /// every second after that got a full ~1s. That's the "short second on
+    /// the changeover" — ceiling gives every integer a full [N-1, N)
+    /// window instead.
     private func tick() {
-        let left = max(0, Int(tEnd.timeIntervalSinceNow.rounded()))
+        let left = max(0, Int(tEnd.timeIntervalSinceNow.rounded(.up)))
         remainingSeconds = left
         if left <= 0 { advance() }
     }
