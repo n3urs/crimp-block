@@ -46,6 +46,16 @@ final class EngineBridge {
     /// exercise-specific fields (rotate, interval, ph, dl, step...) to be
     /// worth modelling fully in Swift when the JS engine already owns them.
     let program: JSValue
+    /// True only when `email` had a REAL, hand-authored entry in PROGRAMS
+    /// (programs.js) — Oscar and Joe today. False for the 'default'
+    /// fallback and for anything built via the template initializer
+    /// below. This is the one signal the real app needs to answer "does
+    /// this person ever see the quiz or the paywall" — hand-authored
+    /// athletes are Deadpoint's own team, not customers, and should never
+    /// hit either (see the plan's Phase C: "Oscar's and Joe's existing
+    /// hand-authored programs are left exactly as they are... not
+    /// customers of the template system").
+    let isBuiltInProgram: Bool
     private let engine: JSValue
     private let engineCore: JSValue
 
@@ -78,11 +88,13 @@ final class EngineBridge {
         }
 
         let chosen = programs.forProperty(email.lowercased())
-        let resolvedProgram = (chosen == nil || chosen!.isUndefined) ? programs.forProperty("default") : chosen
+        let hasRealEntry = !(chosen == nil || chosen!.isUndefined)
+        let resolvedProgram = hasRealEntry ? chosen : programs.forProperty("default")
         guard let resolvedProgram, !resolvedProgram.isUndefined else {
             throw BridgeError.missingGlobal("PROGRAMS['default']")
         }
         program = resolvedProgram
+        isBuiltInProgram = hasRealEntry
 
         let data: [String: Any] = ["sessionLog": sessionLog, "loadLog": loadLog]
         guard let created = core.invokeMethod("createEngine", withArguments: [program as Any, data]),
@@ -137,6 +149,7 @@ final class EngineBridge {
         }
         if let thrown { throw BridgeError.jsException(thrown) }
         program = resolved
+        isBuiltInProgram = false
 
         let data: [String: Any] = ["sessionLog": sessionLog, "loadLog": loadLog]
         guard let created = core.invokeMethod("createEngine", withArguments: [program as Any, data]),

@@ -7,6 +7,21 @@ import WidgetKit
 /// data. Reached only via the same DEBUG-only long-press as the demo, not
 /// wired in as the app's default.
 ///
+/// Two account kinds, one flow: `EngineBridge.isBuiltInProgram` (see
+/// EngineBridge.swift) tells `reload()` which path a signed-in email takes.
+/// Oscar and Joe are Deadpoint's own hand-authored athletes, not customers
+/// of the template system (per the plan's Phase C) — they go straight to
+/// their PROGRAMS entry, no quiz, no paywall, ever. Everyone else is a
+/// Standard-tier template user: no `profiles` row yet means the quiz hasn't
+/// been done (`needsQuiz`), a row with no `tutorialCompletedAt` means the
+/// one-time walkthrough hasn't run (`needsTutorial`), and no active
+/// StoreKit entitlement means the paywall blocks the card (`needsPaywall`)
+/// — an Offer-Code redemption satisfies this the same as a paid purchase,
+/// since StoreKit doesn't distinguish the two (see PaywallView's "Have a
+/// code?" button). `reload()` is the one place all of this is decided, so
+/// there's exactly one source of truth for "what should this person see
+/// right now" — not scattered across the view.
+///
 /// EngineBridge takes a data SNAPSHOT at construction (createEngine() in
 /// engine-core.js doesn't mutate live like the web version's Store/Loads
 /// do) — so every write here rebuilds the bridge from the just-updated
@@ -20,6 +35,12 @@ struct NativeAppView: View {
     )
     @State private var store: NativeStore?
     @State private var loads: NativeLoads?
+    @State private var profile: NativeProfile?
+    @State private var isBuiltInProgram = false
+    @State private var subscriptionManager = SubscriptionManager()
+    @State private var needsQuiz = false
+    @State private var needsTutorial = false
+    @State private var needsPaywall = false
     @State private var state: DailyCardState?
     @State private var loadError: String?
     @State private var saveError: String?
@@ -34,6 +55,12 @@ struct NativeAppView: View {
         Group {
             if client.session == nil {
                 NativeSignInView(client: client, onSignedIn: { Task { await reload() } })
+            } else if needsQuiz {
+                IntakeQuizView(onComplete: { answers in Task { await completeQuiz(answers) } })
+            } else if needsTutorial {
+                TutorialDemoCardView(onDone: { Task { await completeTutorial() } })
+            } else if needsPaywall {
+                PaywallView(onSubscribed: { Task { await reload() } }, onCancel: { signOut() })
             } else if let loadError {
                 engineBridgeErrorView(loadError)
             } else if let state {
@@ -109,55 +136,141 @@ struct NativeAppView: View {
 
     // MARK: - Loading
 
-    /// Rebuilds the EngineBridge from whatever NativeStore/NativeLoads
-    /// currently hold — the one path both initial load AND every write
-    /// funnel through, so there's exactly one place "recompute today's
-    /// card" happens.
+    /// The single place "what should this account see right now" is
+    /// decided (see the type doc comment above) AND the place that rebuilds
+    /// the EngineBridge from whatever NativeStore/NativeLoads currently
+    /// hold — every write in this file funnels back through here, so
+    /// there's exactly one place "recompute today's card" happens.
     private func reload() async {
         guard let session = client.session, !loading else { return }
         loading = true
         defer { loading = false }
         do {
-            if store == nil || loads == nil {
-                let probe = try EngineBridge(email: session.email, sessionLog: [:], loadLog: [:])
+            let probe = try EngineBridge(email: session.email, sessionLog: [:], loadLog: [:])
+            isBuiltInProgram = probe.isBuiltInProgram
+
+            if probe.isBuiltInProgram {
+                needsQuiz = false; needsTutorial = false; needsPaywall = false
                 let startDate = probe.program.forProperty("startDate")?.toString() ?? probe.today()
-                let newStore = NativeStore(client: client, startDate: startDate)
-                try await newStore.load(engineCore: probe)
-                let newLoads = NativeLoads(client: client)
-                try await newLoads.load()
-                store = newStore
-                loads = newLoads
-            } else {
-                let probe = try EngineBridge(email: session.email, sessionLog: [:], loadLog: [:])
-                try await store?.load(engineCore: probe)
-                try await loads?.load()
+                try await ensureStoreAndLoadsLoaded(startDate: startDate, dateHelper: probe)
+                let bridge = try EngineBridge(email: session.email, sessionLog: currentSessionLogPayload(), loadLog: loads?.all() ?? [:])
+                try finishLoad(bridge: bridge, label: session.email)
+                return
             }
 
-            var sessionLog: [String: Any] = [:]
-            for (date, entry) in store?.all() ?? [:] { sessionLog[date] = ["t": entry.t] }
-
-            let bridge = try EngineBridge(email: session.email, sessionLog: sessionLog, loadLog: loads?.all() ?? [:])
-            guard let s = DailyCardState.load(bridge: bridge, displayKey: browsedKey) else {
-                loadError = "engine returned incomplete data for \(session.email)"; return
+            if profile == nil {
+                let p = NativeProfile(client: client)
+                try await p.load()
+                profile = p
             }
-            ticks = []
-            state = s
-            loadError = nil
 
-            // Keeps the home-screen widget in sync with whatever the native
-            // app just showed — mirrors pushNative()'s call at the end of
-            // every render() on the web side. Without this, logging a
-            // session natively would leave the widget showing yesterday's
-            // forecast until the WKWebView app was next opened.
-            if let forecast = bridge.nativeForecast(days: 14),
-               let json = try? JSONEncoder().encode(forecast),
-               let jsonString = String(data: json, encoding: .utf8) {
-                SharedStore.save(rawJSON: jsonString)
-                WidgetCenter.shared.reloadAllTimelines()
+            guard let assignedTemplateID = profile?.row?.assignedTemplateID,
+                  let startDate = profile?.row?.programStartDate else {
+                needsQuiz = true
+                return
             }
+            needsQuiz = false
+
+            guard profile?.row?.tutorialCompletedAt != nil else {
+                needsTutorial = true
+                return
+            }
+            needsTutorial = false
+
+            await subscriptionManager.loadProduct()
+            await subscriptionManager.refreshEntitlement()
+            guard subscriptionManager.isSubscribed else {
+                needsPaywall = true
+                return
+            }
+            needsPaywall = false
+
+            let modifiers = (profile?.row?.modifiers ?? [:]).mapValues { $0.value }
+            let templateProbe = try EngineBridge(templateId: assignedTemplateID, startDate: startDate, modifiers: modifiers, sessionLog: [:], loadLog: [:])
+            try await ensureStoreAndLoadsLoaded(startDate: startDate, dateHelper: templateProbe)
+            let bridge = try EngineBridge(templateId: assignedTemplateID, startDate: startDate, modifiers: modifiers, sessionLog: currentSessionLogPayload(), loadLog: loads?.all() ?? [:])
+            try finishLoad(bridge: bridge, label: session.email)
         } catch {
             loadError = "\(error)"
         }
+    }
+
+    /// Shared by both the built-in and template paths: loads NativeStore
+    /// (first time) / refreshes it (subsequent reloads), same for
+    /// NativeLoads — identical either way since both just read the
+    /// `sessions`/`loads` tables for whoever is signed in.
+    private func ensureStoreAndLoadsLoaded(startDate: String, dateHelper: EngineBridgeDateHelper) async throws {
+        if store == nil || loads == nil {
+            let newStore = NativeStore(client: client, startDate: startDate)
+            try await newStore.load(engineCore: dateHelper)
+            let newLoads = NativeLoads(client: client)
+            try await newLoads.load()
+            store = newStore
+            loads = newLoads
+        } else {
+            try await store?.load(engineCore: dateHelper)
+            try await loads?.load()
+        }
+    }
+
+    private func currentSessionLogPayload() -> [String: Any] {
+        var sessionLog: [String: Any] = [:]
+        for (date, entry) in store?.all() ?? [:] { sessionLog[date] = ["t": entry.t] }
+        return sessionLog
+    }
+
+    private struct EngineOutOfSyncError: Error, CustomStringConvertible {
+        let label: String
+        var description: String { "engine returned incomplete data for \(label)" }
+    }
+
+    private func finishLoad(bridge: EngineBridge, label: String) throws {
+        guard let s = DailyCardState.load(bridge: bridge, displayKey: browsedKey) else {
+            throw EngineOutOfSyncError(label: label)
+        }
+        ticks = []
+        state = s
+        loadError = nil
+
+        // Keeps the home-screen widget in sync with whatever the native
+        // app just showed — mirrors pushNative()'s call at the end of
+        // every render() on the web side. Without this, logging a
+        // session natively would leave the widget showing yesterday's
+        // forecast until the WKWebView app was next opened.
+        if let forecast = bridge.nativeForecast(days: 14),
+           let json = try? JSONEncoder().encode(forecast),
+           let jsonString = String(data: json, encoding: .utf8) {
+            SharedStore.save(rawJSON: jsonString)
+            WidgetCenter.shared.reloadAllTimelines()
+        }
+    }
+
+    /// Called once, right after the quiz — writes the profile that turns
+    /// this sign-in into a template-assigned Standard-tier user, then lets
+    /// reload() pick the very next gate (the tutorial) on its own.
+    private func completeQuiz(_ answers: QuizAnswers) async {
+        do {
+            let p = profile ?? NativeProfile(client: client)
+            let fmt = DateFormatter()
+            fmt.locale = Locale(identifier: "en_US_POSIX")
+            fmt.dateFormat = "yyyy-MM-dd"
+            let startDate = fmt.string(from: Date().appDay)
+            try await p.create(templateID: answers.templateId, startDate: startDate, modifiers: answers.modifiersPayload)
+            profile = p
+            await reload()
+        } catch {
+            loadError = "\(error)"
+        }
+    }
+
+    /// A failed write here shouldn't trap someone behind the tutorial gate
+    /// forever — worst case reload() shows it again next launch, which is
+    /// harmless, so this doesn't surface as loadError the way completeQuiz's
+    /// failure does.
+    private func completeTutorial() async {
+        needsTutorial = false
+        try? await profile?.markTutorialCompleted()
+        await reload()
     }
 
     /// Mirrors app.js's session dots: tap a different session to preview
@@ -176,6 +289,10 @@ struct NativeAppView: View {
         client.signOut()
         store = nil
         loads = nil
+        profile = nil
+        needsQuiz = false
+        needsTutorial = false
+        needsPaywall = false
         state = nil
         ticks = []
         browsedKey = nil

@@ -163,7 +163,7 @@ create policy "anyone signed in can read" on templates
 
 create table profiles (
   user_id             uuid primary key references auth.users(id) on delete cascade,
-  assigned_template_id text references templates(id),
+  assigned_template_id text,                -- NOT a foreign key into templates(id) — see note below
   program_start_date  date not null,        -- becomes the resolved program's startDate — NOT the same as quiz-completion instant, in case that ever needs backdating
   modifiers           jsonb not null default '{}'::jsonb,  -- {equipment:[...], injuryFlags:[...], weaknesses:[...], tripDate:'YYYY-MM-DD'|null, daysPerWeek:n}
   tier                text not null default 'standard',    -- 'standard' | 'custom'
@@ -180,18 +180,33 @@ create policy "own row" on profiles
   with check (auth.uid() = user_id);
 ```
 
-At load time, a template-assigned user's program is built as:
+**Why `assigned_template_id` isn't a foreign key into `templates`**: Standard-
+tier programs are resolved entirely from the app's own bundled
+`templates.js`/`template-resolver.js` — the native app never reads the
+`templates` table over REST for them (see `NativeProfile.swift`'s doc
+comment). A foreign key against `templates(id)` would mean no Standard-tier
+quiz completion could ever write a profile row unless `templates` also had a
+matching row seeded for every id in `templates.js` — a table this path
+doesn't otherwise touch, just to satisfy a constraint. `templates` still
+exists for Custom-tier (Phase F: Oscar enters a one-off program by hand,
+`assigned_template_id` on that profile points at the real row he created),
+just not wired to Standard-tier at all yet.
+
+At load time, a template-assigned Standard-tier user's program is built
+entirely on-device as:
 
 ```
-profile   = select * from profiles where user_id = auth.uid()
-template  = select * from templates where id = profile.assigned_template_id
-program   = TemplateResolver.resolveTemplate(template.program, {
-              startDate: profile.program_start_date,
-              modifiers: profile.modifiers
-            })
+profile  = select * from profiles where user_id = auth.uid()
+program  = TemplateResolver.resolveTemplate(TEMPLATES[profile.assigned_template_id], {
+             startDate: profile.program_start_date,
+             modifiers: profile.modifiers
+           })
 ```
 
-— then `program` goes into `createEngine()` exactly like a `programs.js` entry
-does today. Oscar's and Joe's programs are **not** migrated onto this —
-they keep loading straight from `programs.js` as they always have, per the
-plan's explicit call to leave a working thing alone.
+(`TEMPLATES` here is the bundled `templates.js` object, not the Supabase
+table — see `EngineBridge.swift`'s `templateId:` initializer, which is
+exactly this call.) — then `program` goes into `createEngine()` exactly
+like a `programs.js` entry does today. Oscar's and Joe's programs are
+**not** migrated onto this — they keep loading straight from `programs.js`
+as they always have, per the plan's explicit call to leave a working thing
+alone.

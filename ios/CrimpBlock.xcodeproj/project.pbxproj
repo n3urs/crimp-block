@@ -25,6 +25,7 @@
 		EF25E52A1F6BD425B6B41F95 /* SupabaseClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9C890FA1E5A9CD2C0A9F87F /* SupabaseClient.swift */; };
 		AACFEF1380425E657C19125C /* NativeStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A1E3A5314507CA61BAB7667 /* NativeStore.swift */; };
 		9B803E261E3B36E9CFA1FB5C /* NativeLoads.swift in Sources */ = {isa = PBXBuildFile; fileRef = 71E89275732D46FBD7443BF9 /* NativeLoads.swift */; };
+		74C10BDBDC6591E13BA3168C /* NativeProfile.swift in Sources */ = {isa = PBXBuildFile; fileRef = 06DFFFBD29348E9C5EC0D251 /* NativeProfile.swift */; };
 		60516990701FBD17659EC968 /* NativeSignInView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E97CE18A5549C249A8732777 /* NativeSignInView.swift */; };
 		206351353A5593FD37787D6B /* DailyCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D91CD9C20065423ECED8B37B /* DailyCardView.swift */; };
 		C31C8D37DC69557CF399AB46 /* NativeAppView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD80D35B8080F7ADFD3179F0 /* NativeAppView.swift */; };
@@ -95,6 +96,7 @@
 		A9C890FA1E5A9CD2C0A9F87F /* SupabaseClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupabaseClient.swift; sourceTree = "<group>"; };
 		4A1E3A5314507CA61BAB7667 /* NativeStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeStore.swift; sourceTree = "<group>"; };
 		71E89275732D46FBD7443BF9 /* NativeLoads.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeLoads.swift; sourceTree = "<group>"; };
+		06DFFFBD29348E9C5EC0D251 /* NativeProfile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeProfile.swift; sourceTree = "<group>"; };
 		E97CE18A5549C249A8732777 /* NativeSignInView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeSignInView.swift; sourceTree = "<group>"; };
 		D91CD9C20065423ECED8B37B /* DailyCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyCardView.swift; sourceTree = "<group>"; };
 		FD80D35B8080F7ADFD3179F0 /* NativeAppView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeAppView.swift; sourceTree = "<group>"; };
@@ -203,6 +205,7 @@
 				A9C890FA1E5A9CD2C0A9F87F /* SupabaseClient.swift */,
 				4A1E3A5314507CA61BAB7667 /* NativeStore.swift */,
 				71E89275732D46FBD7443BF9 /* NativeLoads.swift */,
+				06DFFFBD29348E9C5EC0D251 /* NativeProfile.swift */,
 				848EFDD47D06730C4D6C96FF /* RestTimerController.swift */,
 				F6C3F6CAFEFBCE196267ACA4 /* IntervalTimerController.swift */,
 				1D4A93D2E799953023A0D44C /* IntervalTonePlayer.swift */,
@@ -320,6 +323,7 @@
 				EF25E52A1F6BD425B6B41F95 /* SupabaseClient.swift in Sources */,
 				AACFEF1380425E657C19125C /* NativeStore.swift in Sources */,
 				9B803E261E3B36E9CFA1FB5C /* NativeLoads.swift in Sources */,
+				74C10BDBDC6591E13BA3168C /* NativeProfile.swift in Sources */,
 				60516990701FBD17659EC968 /* NativeSignInView.swift in Sources */,
 				206351353A5593FD37787D6B /* DailyCardView.swift in Sources */,
 				C31C8D37DC69557CF399AB46 /* NativeAppView.swift in Sources */,

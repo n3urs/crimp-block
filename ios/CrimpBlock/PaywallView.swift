@@ -89,14 +89,28 @@ struct PaywallView: View {
                 .opacity(manager.product == nil ? 0.4 : 1)
                 .disabled(manager.product == nil || purchasing || restoring)
 
-                Button(action: { Task { await restore() } }) {
-                    Text(restoring ? "RESTORING…" : "RESTORE PURCHASES")
-                        .font(.system(size: 11, weight: .semibold, design: .monospaced))
-                        .foregroundStyle(SessionColours.dim)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 8)
+                HStack(spacing: 16) {
+                    Button(action: { Task { await restore() } }) {
+                        Text(restoring ? "RESTORING…" : "RESTORE PURCHASES")
+                            .font(.system(size: 11, weight: .semibold, design: .monospaced))
+                            .foregroundStyle(SessionColours.dim)
+                    }
+                    .disabled(purchasing || restoring)
+
+                    // For friends/testers gifted an App Store Connect
+                    // Offer Code — see legal/offer-codes.md for how those
+                    // get created. Once redeemed, StoreKit treats it as a
+                    // normal entitlement, so no separate "comped" concept
+                    // exists anywhere else in the app — refreshEntitlement()
+                    // picks it up the same way it would a paid purchase.
+                    Button(action: { Task { await redeemCode() } }) {
+                        Text("HAVE A CODE?")
+                            .font(.system(size: 11, weight: .semibold, design: .monospaced))
+                            .foregroundStyle(SessionColours.dim)
+                    }
                 }
-                .disabled(purchasing || restoring)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 8)
 
                 Text("Payment is charged to your Apple ID after the trial ends unless cancelled at least 24 hours before it's up. Manage or cancel any time in Settings.")
                     .font(.system(size: 10, design: .monospaced))
@@ -148,6 +162,22 @@ struct PaywallView: View {
             errorMessage = "\(error)"
         }
         restoring = false
+    }
+
+    /// Apple's own system sheet for redeeming an Offer Code — no custom
+    /// code-entry UI needed. Codes generated in App Store Connect also
+    /// come with a direct redemption URL that works without ever opening
+    /// this sheet at all (send the link, App Store handles the rest) —
+    /// this button is a convenience for someone already in the app with a
+    /// code in hand, not the only way in.
+    private func redeemCode() async {
+        guard let scene = UIApplication.shared.connectedScenes.first(where: { $0.activationState == .foregroundActive }) as? UIWindowScene else { return }
+        do {
+            try await AppStore.presentOfferCodeRedeemSheet(in: scene)
+            await manager.refreshEntitlement()
+        } catch {
+            errorMessage = "\(error)"
+        }
     }
 }
 
