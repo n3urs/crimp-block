@@ -13,7 +13,7 @@ struct ContentView: View {
     @State private var nativeDestination: NativeDestination?
 
     private enum NativeDestination: Identifiable {
-        case sample, live, quiz, paywall
+        case sample, live, quiz, paywall, tutorialDebug
         var id: Self { self }
     }
     #endif
@@ -38,6 +38,7 @@ struct ContentView: View {
                 Button("Live data (sign in)") { nativeDestination = .live }
                 Button("Template quiz (Phase C)") { nativeDestination = .quiz }
                 Button("Paywall (Phase D)") { nativeDestination = .paywall }
+                Button("Tutorial (verify skip)") { nativeDestination = .tutorialDebug }
                 Button("Cancel", role: .cancel) {}
             }
             .sheet(item: $nativeDestination) { dest in
@@ -46,6 +47,7 @@ struct ContentView: View {
                 case .live: NativeAppView()
                 case .quiz: QuizDemoView()
                 case .paywall: PaywallView(onSubscribed: {}, onCancel: { nativeDestination = nil })
+                case .tutorialDebug: TutorialDemoCardView(onDone: { nativeDestination = nil })
                 }
             }
         #else

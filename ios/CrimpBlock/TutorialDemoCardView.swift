@@ -64,7 +64,8 @@ struct TutorialDemoCardView: View {
                 messageCard(
                     title: "Quick look around",
                     body: "Five things worth knowing before your first session — tap through them on the real card.",
-                    buttonLabel: "START"
+                    buttonLabel: "START",
+                    skipAction: { onDone() }
                 ) { stage = .walkthrough }
             } else if stage == .outro {
                 messageCard(
@@ -80,7 +81,12 @@ struct TutorialDemoCardView: View {
         }
     }
 
-    private func messageCard(title: String, body: String, buttonLabel: String, action: @escaping () -> Void) -> some View {
+    /// `skipAction` is only passed on the intro card — the outro card is
+    /// already the exit itself, and every walkthrough step in between has
+    /// its own SKIP link (TutorialSpotlight.swift's caption card). Without
+    /// it here, someone who already knows the app would have to start the
+    /// walkthrough just to reach the skip control on the first step.
+    private func messageCard(title: String, body: String, buttonLabel: String, skipAction: (() -> Void)? = nil, action: @escaping () -> Void) -> some View {
         ZStack {
             Color.black.opacity(0.75).ignoresSafeArea()
             VStack(alignment: .leading, spacing: 14) {
@@ -100,6 +106,14 @@ struct TutorialDemoCardView: View {
                         .clipShape(RoundedRectangle(cornerRadius: 10))
                 }
                 .padding(.top, 4)
+                if let skipAction {
+                    Button(action: skipAction) {
+                        Text("SKIP")
+                            .font(.system(size: 11, weight: .bold, design: .monospaced))
+                            .foregroundStyle(SessionColours.faint)
+                            .frame(maxWidth: .infinity)
+                    }
+                }
             }
             .padding(22)
             .frame(maxWidth: 340)
