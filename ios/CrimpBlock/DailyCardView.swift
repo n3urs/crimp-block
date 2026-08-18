@@ -188,7 +188,7 @@ struct DailyCardView: View {
                 RestTimerOverlay(controller: restTimer, accent: state.accent)
                     .transition(.move(edge: .bottom))
             }
-            CelebrationOverlay(trigger: celebrationTrigger, accent: state.accent)
+            CelebrationOverlay(trigger: celebrationTrigger, accent: state.accent, nextUp: nextUp)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
                 .allowsHitTesting(false)
         }
@@ -418,8 +418,18 @@ private struct ExerciseRowView: View {
             }
             VStack(alignment: .leading, spacing: 4) {
                 HStack(alignment: .firstTextBaseline, spacing: 6) {
+                    // 19px bold was sized to visually match the web app's
+                    // 20px .en — but that's set in Barlow Condensed, a
+                    // genuinely narrower typeface per point than the
+                    // system font used here, so the same point size reads
+                    // noticeably bigger and wraps far more eagerly on
+                    // real exercise names ("ONE-ARM TRANSITION HOLDS" hit
+                    // 3 lines). Direct feedback, confirmed live: pulled
+                    // back until it stopped wrapping awkwardly. A real
+                    // condensed font is a separate, later decision — see
+                    // the same feedback for that.
                     Text(ex.title.uppercased())
-                        .font(.system(size: 19, weight: .bold))
+                        .font(.system(size: 15.5, weight: .bold))
                         .foregroundStyle(isTicked ? SessionColours.faint : .white)
                         .strikethrough(isTicked)
                     if !isTicked, ex.description != nil {
