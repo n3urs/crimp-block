@@ -174,10 +174,18 @@ return {
          is reported to yield real strength gains in this population,
          with 48h between sessions being sufficient recovery
          (strengthclimbing.com's write-up).
-       - A peer-reviewed RCT (Nature Scientific Reports, 2021) studied
-         hangboard training specifically in advanced climbers -
-         confirming this population is exactly who structured max-hang
-         protocols are validated for, unlike beginners/intermediates.
+       - A peer-reviewed RCT (Mundry et al., Scientific Reports, 2021,
+         DOI 10.1038/s41598-021-92898-2) found added-weight hangboard
+         training significantly improved grip strength over 8 weeks.
+         CORRECTION (caught on a verification pass): the earlier
+         version of this comment claimed the study population was
+         exclusively advanced climbers, "unlike beginners/
+         intermediates" — it wasn't. The trial's 30 subjects were UIAA
+         VI-VIII (roughly French 6a-7c+), i.e. intermediate-through-
+         advanced, and both this template and boulderingIntermediate
+         already prescribe max hangs — so this RCT is real support for
+         max-hang training generally at this ability range, not
+         specific proof that it's an advanced-only method.
        - Campus board training has real prerequisites before it's
          appropriate even at this level - commonly cited gate: a
          one-arm hang around 20mm for ~20s, and 10 strict pull-ups
@@ -402,16 +410,27 @@ return {
          (1 max-strength / 2 power-endurance / 1 aerobic-capacity per
          week) and the "max 4 climbing-specific days a week, less if
          also climbing outdoors" cap both come from the same source.
-       - Block periodization for a trip (6wk strength -> 6wk power ->
-         4wk performance-simulation/taper, with volume cut 60->41%
-         over the final 4 weeks) comes from rockclimbingrealms.com's
-         periodization framework piece - reflected in this template's
-         own Redpoint/Taper phase, which is the template's built-in
-         version of exactly what template-resolver.js's tripDate
+       - Block periodization toward a trip (a build block, then a
+         short high-intensity block, then a dedicated
+         performance-simulation/taper block) is the same general shape
+         rockclimbingrealms.com's periodization framework piece uses
+         for its own trip examples — reflected here as this template's
+         built-in version of what template-resolver.js's tripDate
          modifier does automatically when a real date is set via the
-         quiz. If you set a trip date, the modifier's estimate takes
-         over; this phase is what the plan looks like by default when
-         you haven't. */
+         quiz. CORRECTION (caught on a verification pass, not present
+         when first drafted): an earlier version of this comment cited
+         a specific "6wk/6wk/4wk, 60%->41% volume cut" figure as if it
+         came from that source — it doesn't; that source's own two
+         examples use different block lengths (4/4/2/2 for a sport
+         trip, 6/6/4 for a trad/big-wall one) and gives no taper
+         percentage at all. The 8/4/4 split actually used below is
+         this template's own choice, not a sourced number — the 4-week
+         Power Endurance cap is what's genuinely sourced (see the
+         overtraining citation above), and "volume down, intensity
+         held" below is the general, widely-established taper
+         principle, not a specific borrowed figure. If you set a trip
+         date, the tripDate modifier's own estimate takes over instead
+         of this phase. */
   sportAdvanced: {
     meta: {
       name: 'Sport — Advanced',
@@ -424,7 +443,7 @@ return {
     phases: [
       {n:'Base — Strength & Aerobic', from:1, c:'--tidepool', cue:'Build both — this is where the slow adaptations happen', d:'Eight weeks building real finger/pull strength alongside real aerobic capacity. Both take longer to adapt than power-endurance work does, which is exactly why they come first and get the most time.'},
       {n:'Power Endurance', from:3, c:'--gorse', cue:'Deliberately short — four weeks, not extended', d:'One block, four weeks, on purpose. Power-endurance training pays off fast but extending this phase for "more gains" is specifically linked to overtraining syndrome and elevated injury risk in this population — this is the one place in the whole plan where more is a documented worse idea, not just an unnecessary one.'},
-      {n:'Redpoint — Taper', from:4, c:'--heather', cue:'Volume down, intensity holds — arrive fresh', d:'Four weeks of performance simulation: linking, rehearsal, and a real volume cut (roughly 60% down to 40% of peak by the end) while intensity stays. Fitness gained this late is negligible; fatigue carried in is not.'},
+      {n:'Redpoint — Taper', from:4, c:'--heather', cue:'Volume down, intensity holds — arrive fresh', d:'Four weeks of performance simulation: linking, rehearsal, and a real cut to volume — fewer, shorter sessions — while intensity on the harder pieces stays. Fitness gained this late is negligible; fatigue carried in is not.'},
       {n:'Performance', from:5, c:'--slate', cue:'Maintain only — climbing is the real work now', d:'One strength and one power-endurance session a week to hold what you built — the rest of your training is redpoint attempts and mileage.'}
     ],
     sessions:{
