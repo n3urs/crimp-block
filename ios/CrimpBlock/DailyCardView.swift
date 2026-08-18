@@ -217,10 +217,6 @@ struct DailyCardView: View {
                     // this list is short enough that "there's more below" is
                     // already obvious without one.
                     .scrollIndicators(.hidden)
-                    .overlay {
-                        if isLogged { loggedStamp.padding(.horizontal, 20) }
-                    }
-                    .animation(.easeInOut(duration: 0.25), value: isLogged)
                 }
                 .id(state.displayKey)
                 .transition(.asymmetric(
@@ -270,10 +266,22 @@ struct DailyCardView: View {
                 RestTimerOverlay(controller: restTimer, accent: state.accent, onTutorialSignal: onTutorialSignal)
                     .transition(.move(edge: .bottom))
             }
-            CelebrationOverlay(trigger: celebrationTrigger, accent: state.accent, nextUp: nextUp)
+            // Centered on the whole card, not just the scrollable exercise
+            // area below the fixed header — matching CelebrationOverlay's
+            // own centering exactly, since the two used to disagree (this
+            // was an .overlay on just the ScrollView, which put it
+            // noticeably lower than centered on screen).
+            if isLogged {
+                loggedStamp
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+                    .allowsHitTesting(false)
+                    .transition(.scale(scale: 0.92).combined(with: .opacity))
+            }
+            CelebrationOverlay(trigger: celebrationTrigger, accent: state.accent)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
                 .allowsHitTesting(false)
         }
+        .animation(.easeInOut(duration: 0.25), value: isLogged)
         .animation(.easeInOut(duration: 0.2), value: restTimer.endDate != nil)
         .background(SessionColours.bg)
         .sheet(isPresented: $showPlan) {
@@ -389,8 +397,6 @@ struct DailyCardView: View {
         .overlay(RoundedRectangle(cornerRadius: 16).stroke(state.accent.opacity(0.45), lineWidth: 1.5))
         .clipShape(RoundedRectangle(cornerRadius: 16))
         .shadow(color: .black.opacity(0.35), radius: 16, y: 6)
-        .allowsHitTesting(false)
-        .transition(.scale(scale: 0.92).combined(with: .opacity))
     }
 
     /// Swipe left/right anywhere on the card to step through
