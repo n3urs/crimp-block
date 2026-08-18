@@ -105,8 +105,16 @@ final class SupabaseClient {
 
     // MARK: - Plumbing
 
+    /// `path` frequently already carries a query string (e.g.
+    /// "rest/v1/sessions?select=...&date=gte.2026-06-19") — appendingPathComponent
+    /// treats its whole argument as one literal path segment and percent-encodes
+    /// the "?" into "%3F" rather than starting a real query, which silently
+    /// turned every filtered/query-bearing request into a request for a
+    /// nonexistent table named "sessions?select=...". URL(string:relativeTo:)
+    /// parses "path?query" correctly instead. Confirmed both ways directly
+    /// before making this change, not assumed.
     private func request(_ path: String, method: String) -> URLRequest {
-        var req = URLRequest(url: baseURL.appendingPathComponent(path))
+        var req = URLRequest(url: URL(string: path, relativeTo: baseURL)!.absoluteURL)
         req.httpMethod = method
         req.setValue(anonKey, forHTTPHeaderField: "apikey")
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
