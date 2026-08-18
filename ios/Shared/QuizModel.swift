@@ -50,7 +50,7 @@ struct QuizAnswers {
 
     /// Mirrors EQUIPMENT_TAGS in template-resolver.js.
     enum Equipment: String, CaseIterable, Identifiable {
-        case hangboard, pullBar, gym, pickupRig, resistanceBand
+        case hangboard, pullBar, gym, pickupRig
         var id: String { rawValue }
         var label: String {
             switch self {
@@ -58,7 +58,6 @@ struct QuizAnswers {
             case .pullBar: return "A pull-up bar"
             case .gym: return "Regular gym access"
             case .pickupRig: return "A loading pin + edge/block/roller for weighted pickups"
-            case .resistanceBand: return "Resistance bands"
             }
         }
     }

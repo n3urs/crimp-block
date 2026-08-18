@@ -233,10 +233,10 @@ return {
       pull:{n:'Pull & Lock-off', w:'Home/Gym · 45 min', c:'--tidepool', finger:0, pull:3, note:null,
         x:[
           {t:'Warm up',m:'8 min',d:'Band pull-aparts and scap pulls before anything heavy.'},
-          {t:'Weighted pull-ups',m:'5 × 4',ph:{'Base':'4 × 6 — lighter','Power':'5 × 3 — heavier, lower reps, save volume for campus/recruitment work','Performance':'3 × 5 — maintain only'},d:'Full dead hang to full lockout. Heavy — this is the main lift of the session.',r:180},
+          {t:'Weighted pull-ups',m:'5 × 4',ph:{'Base':'4 × 6 — lighter','Power':'5 × 3 — heavier, lower reps, save volume for campus/recruitment work','Performance':'3 × 5 — maintain only'},d:'Full dead hang to full lockout. Heavy — this is the main lift of the session. No way to add weight? Do the same rep scheme at bodyweight but genuinely heavy tempo (slow 3s up, 2s down) instead — the load lever isn\'t there, so time-under-tension is the substitute.',r:180},
           {t:'One-arm progression',m:'4 × 6–8s / arm',d:'Whatever your current honest progression is — assisted, negatives, or a real one-arm hang. Alternate arms.',r:90},
           {t:'Front lever',m:'4 × 10–12s',d:'Hardest clean variation you hold — straddle, single-leg, or full.',r:75},
-          {t:'Antagonists',m:'3 supersets',d:'Reverse wrist curls 3×15 · finger extensors 3×20 · external rotation 3×12 · dips 3×10. Non-negotiable at this training load — skipping this is how the imbalances that cause injury actually happen.'}
+          {t:'Antagonists',m:'3 supersets',d:'Reverse wrist curls 3×15 · finger extensors 3×20 · external rotation 3×12 · dips 3×10 (bench/box dips if no dip bars). Non-negotiable at this training load — skipping this is how the imbalances that cause injury actually happen.'}
         ]},
       climbHard:{n:'Bouldering Session', w:'Gym · 90 min', c:'--heather', finger:3, pull:3, climb:1,
         x:[
@@ -460,9 +460,9 @@ return {
       pull:{n:'Pull & Lock-off', w:'Home/Gym · 45 min', c:'--tidepool', finger:0, pull:3, note:null,
         x:[
           {t:'Warm up',m:'8 min',d:'Band pull-aparts and scap pulls before anything heavy.'},
-          {t:'Weighted pull-ups',m:'5 × 4',ph:{'Power Endurance':'3 × 5 — reduced, priority is climbing-specific work this block','Performance':'3 × 5 — maintain only'},d:'Full dead hang to full lockout. Heavy — the main lift of the session.',r:180},
+          {t:'Weighted pull-ups',m:'5 × 4',ph:{'Power Endurance':'3 × 5 — reduced, priority is climbing-specific work this block','Performance':'3 × 5 — maintain only'},d:'Full dead hang to full lockout. Heavy — the main lift of the session. No way to add weight? Do the same rep scheme at bodyweight but genuinely heavy tempo (slow 3s up, 2s down) instead — the load lever isn\'t there, so time-under-tension is the substitute.',r:180},
           {t:'Front lever',m:'4 × 10–12s',d:'Hardest clean variation you hold.',r:75},
-          {t:'Antagonists',m:'3 supersets',d:'Reverse wrist curls 3×15 · finger extensors 3×20 · external rotation 3×12 · dips 3×10. Non-negotiable at this training load.'}
+          {t:'Antagonists',m:'3 supersets',d:'Reverse wrist curls 3×15 · finger extensors 3×20 · external rotation 3×12 · dips 3×10 (bench/box dips if no dip bars). Non-negotiable at this training load.'}
         ]},
       climbHard:{n:'Power Endurance / Redpoint Session', w:'Gym · 90 min', c:'--heather', finger:3, pull:2, climb:1, note:'During the Power Endurance phase specifically, this session is the priority twice a week — the aim documented in the research is one max-strength day, two power-endurance days, one aerobic day, not power-endurance added on top of an unchanged strength week.',
         x:[

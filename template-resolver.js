@@ -70,7 +70,7 @@ var WEAKNESS_MODULES = {
   }
 };
 
-var EQUIPMENT_TAGS = ['hangboard','pullBar','gym','pickupRig','resistanceBand'];
+var EQUIPMENT_TAGS = ['hangboard','pullBar','gym','pickupRig'];
 
 /* ------------------------------------------------------------
    Calendar days per block, for the trip taper estimate below. A
