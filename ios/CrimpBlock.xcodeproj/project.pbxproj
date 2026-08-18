@@ -44,6 +44,8 @@
 		0AC7F68470E11799F2F5B6A5 /* QuizDemoView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDDFF6E9403E8939FEE4971B /* QuizDemoView.swift */; };
 		3E3757A941FD7AD78CAC1D4A /* TutorialSpotlight.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94A998181B4BF1CCF68FDED9 /* TutorialSpotlight.swift */; };
 		57606722A858C4BC715ED2DE /* TutorialDemoCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C06D252FF6119CF766FDEF28 /* TutorialDemoCardView.swift */; };
+		9114471F6CC9B7B8C7CC73E7 /* SubscriptionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B049305DF0E1F1019FA504D /* SubscriptionManager.swift */; };
+		88FC735FC1529F75241FC8FC /* PaywallView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6BAF3BF5EDE2F9F914B17F74 /* PaywallView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -111,6 +113,9 @@
 		0CF66749302703C2BB7FC64B /* IntakeQuizView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IntakeQuizView.swift; sourceTree = "<group>"; };
 		FDDFF6E9403E8939FEE4971B /* QuizDemoView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuizDemoView.swift; sourceTree = "<group>"; };
 		94A998181B4BF1CCF68FDED9 /* TutorialSpotlight.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TutorialSpotlight.swift; sourceTree = "<group>"; };
+		7B049305DF0E1F1019FA504D /* SubscriptionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubscriptionManager.swift; sourceTree = "<group>"; };
+		6BAF3BF5EDE2F9F914B17F74 /* PaywallView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaywallView.swift; sourceTree = "<group>"; };
+		7FD6ED3669946CDCDC757C90 /* Configuration.storekit */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = Configuration.storekit; sourceTree = "<group>"; };
 		C06D252FF6119CF766FDEF28 /* TutorialDemoCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TutorialDemoCardView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -167,6 +172,8 @@
 				0CF66749302703C2BB7FC64B /* IntakeQuizView.swift */,
 				FDDFF6E9403E8939FEE4971B /* QuizDemoView.swift */,
 				C06D252FF6119CF766FDEF28 /* TutorialDemoCardView.swift */,
+				6BAF3BF5EDE2F9F914B17F74 /* PaywallView.swift */,
+				7FD6ED3669946CDCDC757C90 /* Configuration.storekit */,
 				199D95D3AB13E7DF7CB52182 /* Assets.xcassets */,
 				CF2F221A9F4201ED25C77F10 /* Info.plist */,
 				C9376940D0FBDDF94F567CD0 /* CrimpBlock.entitlements */,
@@ -205,6 +212,7 @@
 				291F4FCB9C2BCB962D9EC6B5 /* templates.js */,
 				229FADB782DFBB299AFA98B6 /* QuizModel.swift */,
 				94A998181B4BF1CCF68FDED9 /* TutorialSpotlight.swift */,
+				7B049305DF0E1F1019FA504D /* SubscriptionManager.swift */,
 			);
 			path = Shared;
 			sourceTree = "<group>";
@@ -329,6 +337,8 @@
 				0AC7F68470E11799F2F5B6A5 /* QuizDemoView.swift in Sources */,
 				3E3757A941FD7AD78CAC1D4A /* TutorialSpotlight.swift in Sources */,
 				57606722A858C4BC715ED2DE /* TutorialDemoCardView.swift in Sources */,
+				9114471F6CC9B7B8C7CC73E7 /* SubscriptionManager.swift in Sources */,
+				88FC735FC1529F75241FC8FC /* PaywallView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

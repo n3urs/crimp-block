@@ -13,7 +13,7 @@ struct ContentView: View {
     @State private var nativeDestination: NativeDestination?
 
     private enum NativeDestination: Identifiable {
-        case sample, live, quiz
+        case sample, live, quiz, paywall
         var id: Self { self }
     }
     #endif
@@ -33,10 +33,11 @@ struct ContentView: View {
             // and eats a SwiftUI gesture layered on top via the normal
             // modifier. Only a delegate-based recognizer told to fire
             // simultaneously survives that.
-            .confirmationDialog("Native engine (Phase B/C)", isPresented: $showNativeMenu) {
+            .confirmationDialog("Native engine (Phase B/C/D)", isPresented: $showNativeMenu) {
                 Button("Sample data") { nativeDestination = .sample }
                 Button("Live data (sign in)") { nativeDestination = .live }
                 Button("Template quiz (Phase C)") { nativeDestination = .quiz }
+                Button("Paywall (Phase D)") { nativeDestination = .paywall }
                 Button("Cancel", role: .cancel) {}
             }
             .sheet(item: $nativeDestination) { dest in
@@ -44,6 +45,7 @@ struct ContentView: View {
                 case .sample: NativeEngineDemoView()
                 case .live: NativeAppView()
                 case .quiz: QuizDemoView()
+                case .paywall: PaywallView(onSubscribed: {}, onCancel: { nativeDestination = nil })
                 }
             }
         #else
