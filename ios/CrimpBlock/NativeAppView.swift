@@ -56,7 +56,14 @@ struct NativeAppView: View {
             if client.session == nil {
                 NativeSignInView(client: client, onSignedIn: { Task { await reload() } })
             } else if needsQuiz {
-                IntakeQuizView(onComplete: { answers in Task { await completeQuiz(answers) } })
+                // onCancel matters here specifically: this is a brand-new
+                // sign-in with no profile row yet, so if someone typed the
+                // wrong email and only notices once they see the quiz, this
+                // is the one moment nothing has been written for that
+                // account yet — signing out and back in with the right
+                // email costs them nothing. Once the quiz is submitted a
+                // profile row exists and this stops being reachable.
+                IntakeQuizView(onComplete: { answers in Task { await completeQuiz(answers) } }, onCancel: { signOut() })
             } else if needsTutorial {
                 TutorialDemoCardView(onDone: { Task { await completeTutorial() } })
             } else if needsPaywall {
