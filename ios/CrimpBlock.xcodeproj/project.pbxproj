@@ -41,8 +41,9 @@
 		B50A1C9DA6456982DA7AA621 /* templates.js in Resources */ = {isa = PBXBuildFile; fileRef = 291F4FCB9C2BCB962D9EC6B5 /* templates.js */; };
 		73878B52967705265938F2E2 /* QuizModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 229FADB782DFBB299AFA98B6 /* QuizModel.swift */; };
 		CA3ABE16007645A96952C94A /* IntakeQuizView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0CF66749302703C2BB7FC64B /* IntakeQuizView.swift */; };
-		7BAC273FB1659B8E9AEB1CAE /* OnboardingTutorialView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5552E43B8554D76E4A62C321 /* OnboardingTutorialView.swift */; };
 		0AC7F68470E11799F2F5B6A5 /* QuizDemoView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDDFF6E9403E8939FEE4971B /* QuizDemoView.swift */; };
+		3E3757A941FD7AD78CAC1D4A /* TutorialSpotlight.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94A998181B4BF1CCF68FDED9 /* TutorialSpotlight.swift */; };
+		57606722A858C4BC715ED2DE /* TutorialDemoCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C06D252FF6119CF766FDEF28 /* TutorialDemoCardView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -108,8 +109,9 @@
 		291F4FCB9C2BCB962D9EC6B5 /* templates.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; name = "templates.js"; path = "../templates.js"; sourceTree = SOURCE_ROOT; };
 		229FADB782DFBB299AFA98B6 /* QuizModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuizModel.swift; sourceTree = "<group>"; };
 		0CF66749302703C2BB7FC64B /* IntakeQuizView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IntakeQuizView.swift; sourceTree = "<group>"; };
-		5552E43B8554D76E4A62C321 /* OnboardingTutorialView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingTutorialView.swift; sourceTree = "<group>"; };
 		FDDFF6E9403E8939FEE4971B /* QuizDemoView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuizDemoView.swift; sourceTree = "<group>"; };
+		94A998181B4BF1CCF68FDED9 /* TutorialSpotlight.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TutorialSpotlight.swift; sourceTree = "<group>"; };
+		C06D252FF6119CF766FDEF28 /* TutorialDemoCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TutorialDemoCardView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -163,8 +165,8 @@
 				3FA7FBBB61EF7F7994B9DD88 /* WeekStripView.swift */,
 				CBACE466B35EED32AC6748EA /* CelebrationOverlay.swift */,
 				0CF66749302703C2BB7FC64B /* IntakeQuizView.swift */,
-				5552E43B8554D76E4A62C321 /* OnboardingTutorialView.swift */,
 				FDDFF6E9403E8939FEE4971B /* QuizDemoView.swift */,
+				C06D252FF6119CF766FDEF28 /* TutorialDemoCardView.swift */,
 				199D95D3AB13E7DF7CB52182 /* Assets.xcassets */,
 				CF2F221A9F4201ED25C77F10 /* Info.plist */,
 				C9376940D0FBDDF94F567CD0 /* CrimpBlock.entitlements */,
@@ -202,6 +204,7 @@
 				2FB27976E4B168AB5F33C9E0 /* template-resolver.js */,
 				291F4FCB9C2BCB962D9EC6B5 /* templates.js */,
 				229FADB782DFBB299AFA98B6 /* QuizModel.swift */,
+				94A998181B4BF1CCF68FDED9 /* TutorialSpotlight.swift */,
 			);
 			path = Shared;
 			sourceTree = "<group>";
@@ -323,8 +326,9 @@
 				DD0A88CD778120CEE40F6DD3 /* CelebrationOverlay.swift in Sources */,
 				73878B52967705265938F2E2 /* QuizModel.swift in Sources */,
 				CA3ABE16007645A96952C94A /* IntakeQuizView.swift in Sources */,
-				7BAC273FB1659B8E9AEB1CAE /* OnboardingTutorialView.swift in Sources */,
 				0AC7F68470E11799F2F5B6A5 /* QuizDemoView.swift in Sources */,
+				3E3757A941FD7AD78CAC1D4A /* TutorialSpotlight.swift in Sources */,
+				57606722A858C4BC715ED2DE /* TutorialDemoCardView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

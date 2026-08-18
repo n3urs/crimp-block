@@ -25,7 +25,7 @@ struct QuizDemoView: View {
                     stage = .tutorial
                 })
             case .tutorial:
-                OnboardingTutorialView(onDone: { load() })
+                TutorialDemoCardView(onDone: { load() })
             case .card:
                 if let loadError {
                     engineBridgeErrorView(loadError)

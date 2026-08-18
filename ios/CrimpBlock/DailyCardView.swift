@@ -58,6 +58,13 @@ struct DailyCardView: View {
     var accountEmail: String? = nil
     var onSignOut: (() -> Void)? = nil
     var celebrationTrigger: Int = 0
+    /// Fired for the handful of interactions that don't already have an
+    /// external hook of their own (onTapDone/onTapWeight cover the rest) —
+    /// exists purely so TutorialOverlay's host can call
+    /// TutorialController.handleTap(_:) when the phase badge, an
+    /// exercise's info toggle, or its rest-timer button gets tapped. Every
+    /// other caller can safely leave this nil.
+    var onTutorialSignal: ((String) -> Void)? = nil
     @State private var showPlan = false
     @State private var showAccount = false
     @State private var restTimer = RestTimerController()
@@ -158,6 +165,7 @@ struct DailyCardView: View {
                         .clipShape(RoundedRectangle(cornerRadius: 10))
                 }
                 .padding(16)
+                .tutorialTarget("doneButton")
             }
             CelebrationOverlay(trigger: celebrationTrigger, accent: state.accent)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
@@ -209,7 +217,7 @@ struct DailyCardView: View {
 
     private var header: some View {
         HStack {
-            Button(action: { showPlan = true }) {
+            Button(action: { showPlan = true; onTutorialSignal?("phaseBadge") }) {
                 Text("\(state.phaseName.uppercased()) · WK \(state.block.w)" + (state.block.w == 4 ? " · DELOAD" : ""))
                     .font(.system(size: 11, weight: .bold, design: .monospaced))
                     .foregroundStyle(SessionColours.bg)
@@ -218,6 +226,7 @@ struct DailyCardView: View {
                     .clipShape(Capsule())
             }
             .buttonStyle(.plain)
+            .tutorialTarget("phaseBadge")
             Spacer()
             Text("\(state.block.done)/\(state.block.per) this week")
                 .font(.system(size: 11, design: .monospaced))
@@ -237,42 +246,93 @@ struct DailyCardView: View {
     }
 
     private func exerciseRow(_ ex: EngineBridge.RenderedExercise) -> some View {
+        ExerciseRowView(
+            ex: ex, accent: state.accent, accentVarName: state.accentVarName,
+            isTicked: ticks.contains(ex.id), onToggleTick: onToggleTick, onTapWeight: onTapWeight,
+            restTimer: restTimer, intervalTimer: intervalTimer,
+            showIntervalTimer: $showIntervalTimer, leadingInt: Self.leadingInt,
+            onTutorialSignal: onTutorialSignal
+        )
+    }
+
+    private var footer: some View {
+        Text(footerNote)
+            .font(.system(size: 10, design: .monospaced))
+            .foregroundStyle(SessionColours.faint)
+            .frame(maxWidth: .infinity, alignment: .center)
+            .padding(.top, 12)
+    }
+}
+
+/// One exercise on the daily card. Owns its own local "show full detail"
+/// toggle — purely ephemeral display state, nothing else on the card needs
+/// to know about it — so title + prescription stay the only things visible
+/// by default, matching the zero-narration standard the rest of the card
+/// already holds itself to. The longer description (often several
+/// sentences of sourced training-methodology reasoning — see
+/// templates.js — that matters when reviewing a template, not when
+/// actually doing the set) sits behind a small info toggle instead of
+/// always being on screen.
+private struct ExerciseRowView: View {
+    let ex: EngineBridge.RenderedExercise
+    let accent: Color
+    let accentVarName: String
+    let isTicked: Bool
+    let onToggleTick: ((String) -> Void)?
+    let onTapWeight: ((EngineBridge.RenderedExercise) -> Void)?
+    let restTimer: RestTimerController
+    let intervalTimer: IntervalTimerController
+    @Binding var showIntervalTimer: Bool
+    let leadingInt: (String) -> Int?
+    var onTutorialSignal: ((String) -> Void)? = nil
+
+    @State private var showDetail = false
+
+    var body: some View {
         HStack(alignment: .top, spacing: 10) {
             if let onToggleTick {
                 Button(action: { onToggleTick(ex.id) }) {
-                    Image(systemName: ticks.contains(ex.id) ? "checkmark.circle.fill" : "circle")
+                    Image(systemName: isTicked ? "checkmark.circle.fill" : "circle")
                         .font(.system(size: 20))
-                        .foregroundStyle(ticks.contains(ex.id) ? state.accent : SessionColours.faint)
+                        .foregroundStyle(isTicked ? accent : SessionColours.faint)
                 }
                 .buttonStyle(.plain)
                 .padding(.top, 2)
             }
             VStack(alignment: .leading, spacing: 4) {
-                HStack(alignment: .firstTextBaseline) {
+                HStack(alignment: .firstTextBaseline, spacing: 6) {
                     Text(ex.title.uppercased())
                         .font(.system(size: 14, weight: .semibold))
                         .foregroundStyle(.white)
+                    if ex.description != nil {
+                        Button(action: {
+                            withAnimation(.easeInOut(duration: 0.15)) { showDetail.toggle() }
+                            onTutorialSignal?("exerciseInfo")
+                        }) {
+                            Image(systemName: showDetail ? "info.circle.fill" : "info.circle")
+                                .font(.system(size: 12))
+                                .foregroundStyle(SessionColours.faint)
+                        }
+                        .buttonStyle(.plain)
+                        .tutorialTarget(showDetail ? nil : "exerciseInfo")
+                    }
                     Spacer()
                     Text(ex.prescription)
                         .font(.system(size: 11, design: .monospaced))
-                        .foregroundStyle(ex.phaseAdjusted ? state.accent : SessionColours.faint)
+                        .foregroundStyle(ex.phaseAdjusted ? accent : SessionColours.faint)
                     if let kg = ex.weightKg {
-                        weightBadge(kg: kg, ex: ex)
+                        weightBadge(kg: kg)
                     }
                 }
-                if let d = ex.description {
+                if showDetail, let d = ex.description {
                     Text(d)
                         .font(.system(size: 12.5))
                         .foregroundStyle(SessionColours.dim)
+                        .transition(.opacity)
                 }
-                // An exercise with structured interval data gets the
-                // auto-cycling repeater timer instead of the plain rest
-                // button — that button would be redundant once the
-                // interval timer owns the between-set rest too. Mirrors
-                // app.js's timerBtn logic exactly.
                 if let interval = ex.interval {
                     Button(action: {
-                        let sets = Self.leadingInt(ex.prescription) ?? 1
+                        let sets = leadingInt(ex.prescription) ?? 1
                         intervalTimer.start(
                             config: interval, setRestSecs: ex.restSeconds ?? 120,
                             sets: max(1, sets), label: ex.title
@@ -281,7 +341,7 @@ struct DailyCardView: View {
                     }) {
                         Text("START")
                             .font(.system(size: 10, weight: .bold, design: .monospaced))
-                            .foregroundStyle(state.accent)
+                            .foregroundStyle(accent)
                             .padding(.horizontal, 8).padding(.vertical, 4)
                             .background(SessionColours.s3)
                             .clipShape(RoundedRectangle(cornerRadius: 5))
@@ -289,16 +349,18 @@ struct DailyCardView: View {
                     .buttonStyle(.plain)
                 } else if let r = ex.restSeconds {
                     Button(action: {
-                        restTimer.start(secs: r, label: ex.title, colourHex: SessionColours.hex(state.accentVarName))
+                        restTimer.start(secs: r, label: ex.title, colourHex: SessionColours.hex(accentVarName))
+                        onTutorialSignal?("restTimerButton")
                     }) {
                         Text("Rest \(r / 60):\(String(format: "%02d", r % 60))")
                             .font(.system(size: 10, weight: .semibold, design: .monospaced))
-                            .foregroundStyle(state.accent)
+                            .foregroundStyle(accent)
                             .padding(.horizontal, 8).padding(.vertical, 4)
                             .background(SessionColours.s3)
                             .clipShape(RoundedRectangle(cornerRadius: 5))
                     }
                     .buttonStyle(.plain)
+                    .tutorialTarget("restTimerButton")
                 }
             }
         }
@@ -308,28 +370,19 @@ struct DailyCardView: View {
         .clipShape(RoundedRectangle(cornerRadius: 10))
     }
 
-    private func weightBadge(kg: Double, ex: EngineBridge.RenderedExercise) -> some View {
+    @ViewBuilder
+    private func weightBadge(kg: Double) -> some View {
         let label = Text("\(kg.formatted(.number.precision(.fractionLength(0...2))))kg")
             .font(.system(size: 12, weight: .bold, design: .monospaced))
-            .foregroundStyle(ex.weightIsBump ? state.accent : SessionColours.dim)
+            .foregroundStyle(ex.weightIsBump ? accent : SessionColours.dim)
             .padding(.horizontal, 6).padding(.vertical, 2)
             .background(SessionColours.s3)
             .clipShape(RoundedRectangle(cornerRadius: 4))
-        return Group {
-            if let onTapWeight {
-                Button(action: { onTapWeight(ex) }) { label }.buttonStyle(.plain)
-            } else {
-                label
-            }
+        if let onTapWeight {
+            Button(action: { onTapWeight(ex) }) { label }.buttonStyle(.plain).tutorialTarget("weightBadge")
+        } else {
+            label
         }
-    }
-
-    private var footer: some View {
-        Text(footerNote)
-            .font(.system(size: 10, design: .monospaced))
-            .foregroundStyle(SessionColours.faint)
-            .frame(maxWidth: .infinity, alignment: .center)
-            .padding(.top, 12)
     }
 }
 
