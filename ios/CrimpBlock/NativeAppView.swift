@@ -50,10 +50,17 @@ struct NativeAppView: View {
     @State private var browsedKey: String?
     @State private var pickingDate: String?
     @State private var celebrationTrigger = 0
+    /// Device-level, not account-level — shown once ever per install, not
+    /// once per sign-in. A returning user who's already seen it shouldn't
+    /// see it again just because they signed out (see WelcomeView's doc
+    /// comment for why this is a separate gate from `client.session`).
+    @AppStorage("hasSeenWelcome") private var hasSeenWelcome = false
 
     var body: some View {
         Group {
-            if client.session == nil {
+            if !hasSeenWelcome {
+                WelcomeView(onContinue: { hasSeenWelcome = true })
+            } else if client.session == nil {
                 NativeSignInView(client: client, onSignedIn: { Task { await reload() } })
             } else if needsQuiz {
                 // onCancel matters here specifically: this is a brand-new

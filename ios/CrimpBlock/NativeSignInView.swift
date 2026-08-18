@@ -32,20 +32,14 @@ struct NativeSignInView: View {
                     .foregroundStyle(SessionColours.dim)
 
                 if step == .email {
-                    TextField("you@example.com", text: $email)
-                        .textInputAutocapitalization(.never)
-                        .autocorrectionDisabled()
-                        .keyboardType(.emailAddress)
-                        .textFieldStyle()
+                    placeholderField("you@example.com", text: $email, keyboardType: .emailAddress, autocapitalization: .never, autocorrection: false)
                     Button(action: sendCode) {
                         Text(sending ? "SENDING…" : "SEND CODE").buttonLabelStyle()
                     }
                     .disabled(!emailLooksValid || sending)
                     .opacity((!emailLooksValid || sending) ? 0.5 : 1)
                 } else {
-                    TextField("code from email", text: $code)
-                        .keyboardType(.numberPad)
-                        .textFieldStyle()
+                    placeholderField("code from email", text: $code, keyboardType: .numberPad)
                     HStack(spacing: 10) {
                         Button(action: { step = .email; message = nil }) {
                             Text("BACK").buttonLabelStyle(secondary: true)
@@ -106,18 +100,40 @@ struct NativeSignInView: View {
             }
         }
     }
+
+    /// A manually-drawn placeholder rather than TextField's built-in
+    /// `prompt:` styling — the prompt's own .foregroundStyle/.foregroundColor
+    /// is unreliable here, getting overridden by the field's own text
+    /// colour regardless of which of the two APIs it's set with (confirmed
+    /// live: it still rendered the system default blue). An independent
+    /// Text sibling, shown only while the field is empty, isn't subject to
+    /// that TextField-internal styling at all.
+    @ViewBuilder
+    private func placeholderField(
+        _ placeholder: String, text: Binding<String>,
+        keyboardType: UIKeyboardType = .default,
+        autocapitalization: TextInputAutocapitalization = .sentences,
+        autocorrection: Bool = true
+    ) -> some View {
+        ZStack(alignment: .leading) {
+            if text.wrappedValue.isEmpty {
+                Text(placeholder)
+                    .foregroundStyle(SessionColours.faint)
+            }
+            TextField("", text: text)
+                .keyboardType(keyboardType)
+                .textInputAutocapitalization(autocapitalization)
+                .autocorrectionDisabled(!autocorrection)
+        }
+        .font(.system(size: 16, design: .monospaced))
+        .foregroundStyle(.white)
+        .padding(14)
+        .background(SessionColours.s2)
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+    }
 }
 
 private extension View {
-    func textFieldStyle() -> some View {
-        self
-            .font(.system(size: 16, design: .monospaced))
-            .foregroundStyle(.white)
-            .padding(14)
-            .background(SessionColours.s2)
-            .clipShape(RoundedRectangle(cornerRadius: 8))
-    }
-
     func buttonLabelStyle(secondary: Bool = false) -> some View {
         self
             .font(.system(size: 13, weight: .bold, design: .monospaced))
