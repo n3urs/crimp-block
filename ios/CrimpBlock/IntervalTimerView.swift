@@ -21,7 +21,11 @@ struct IntervalTimerView: View {
 
     var body: some View {
         ZStack {
+            // Matches .ivt{transition:background .2s ease} — without this
+            // the background snapped instantly between green/red/amber on
+            // every phase change instead of crossfading.
             phaseColour.ignoresSafeArea()
+                .animation(.easeInOut(duration: 0.2), value: controller.phase)
 
             VStack(spacing: 18) {
                 Spacer()

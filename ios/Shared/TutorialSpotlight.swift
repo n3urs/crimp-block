@@ -84,8 +84,20 @@ final class TutorialController {
 /// hit-testing, which is what lets a real tap fall through the hole to the
 /// actual control underneath while everything outside it stays blocked.
 private struct SpotlightMask: Shape {
-    let hole: CGRect
+    var hole: CGRect
     let cornerRadius: CGFloat
+
+    /// Without this, the hole would still jump instantly between targets
+    /// even with an .animation() modifier applied outside — a plain Shape
+    /// only animates via its `animatableData`; SwiftUI has no way to
+    /// interpolate between two different `path(in:)` outputs on its own.
+    var animatableData: AnimatablePair<AnimatablePair<CGFloat, CGFloat>, AnimatablePair<CGFloat, CGFloat>> {
+        get { AnimatablePair(AnimatablePair(hole.origin.x, hole.origin.y), AnimatablePair(hole.width, hole.height)) }
+        set {
+            hole = CGRect(x: newValue.first.first, y: newValue.first.second, width: newValue.second.first, height: newValue.second.second)
+        }
+    }
+
     func path(in rect: CGRect) -> Path {
         var path = Path(rect)
         path.addPath(Path(roundedRect: hole, cornerRadius: cornerRadius))
@@ -117,6 +129,13 @@ private struct TutorialOverlayModifier: ViewModifier {
                     if let step = controller.currentStep, let anchor = anchors[step.targetID] {
                         spotlight(step: step, rect: proxy[anchor].insetBy(dx: -8, dy: -10), screenSize: proxy.size)
                             .allowsHitTesting(true)
+                            // Ties the mask hole (now Animatable, see
+                            // SpotlightMask), the ring, and the caption
+                            // card's frame/position together so advancing
+                            // a step slides smoothly to the next target
+                            // instead of jumping — previously had no
+                            // animation at all.
+                            .animation(.easeInOut(duration: 0.3), value: step.targetID)
                     }
                 }
                 .ignoresSafeArea()

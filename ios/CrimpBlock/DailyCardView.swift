@@ -180,14 +180,19 @@ struct DailyCardView: View {
             // the Done button above, same as .tm's higher z-index over
             // .bar in the web app: a running rest timer covers the Done
             // button rather than floating as a separate top banner, which
-            // is where this previously lived.
+            // is where this previously lived. .move(edge: .bottom) + the
+            // .animation binding below is what makes it actually slide up
+            // (matching #tm's own transform .2s), not just pop in — a bare
+            // `if` with no transition snaps instantly either way.
             if restTimer.endDate != nil {
                 RestTimerOverlay(controller: restTimer, accent: state.accent)
+                    .transition(.move(edge: .bottom))
             }
             CelebrationOverlay(trigger: celebrationTrigger, accent: state.accent)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
                 .allowsHitTesting(false)
         }
+        .animation(.easeInOut(duration: 0.2), value: restTimer.endDate != nil)
         .background(SessionColours.bg)
         .sheet(isPresented: $showPlan) {
             PlanSheetView(bridge: state.bridge, block: state.block, today: state.today)
@@ -465,6 +470,13 @@ private struct ExerciseRowView: View {
         }
         .padding(.vertical, isTicked ? 11 : 16)
         .frame(maxWidth: .infinity, alignment: .leading)
+        // Ticking collapses the row substantially (hides prescription/
+        // weight/description/timer, tightens padding) — without this it
+        // was an instant snap, not the smooth collapse a "done" moment
+        // should feel like. Lives here rather than at each call site's
+        // state mutation so every current and future caller gets it for
+        // free, not just whichever one remembered to wrap it.
+        .animation(.easeInOut(duration: 0.2), value: isTicked)
     }
 
     @ViewBuilder
