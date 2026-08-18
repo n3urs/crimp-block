@@ -9,50 +9,54 @@ private let appURL = URL(string: "https://n3urs.github.io/crimp-block/")!
 
 struct ContentView: View {
     #if DEBUG
-    @State private var showNativeMenu = false
-    @State private var nativeDestination: NativeDestination?
+    @State private var showDebugMenu = false
+    @State private var debugDestination: DebugDestination?
 
-    private enum NativeDestination: Identifiable {
-        case sample, live, quiz, paywall, tutorialDebug
+    private enum DebugDestination: Identifiable {
+        case sample, webShell, quiz, paywall, tutorialDebug
         var id: Self { self }
     }
     #endif
 
+    /// The native SwiftUI + JavaScriptCore rebuild (see the plan at
+    /// ~/.claude/plans/moonlit-juggling-catmull.md) is now the app's real
+    /// entry point — this is the cutover the plan's Phase B/C/D work was
+    /// building toward, done only once EngineBridge's output was
+    /// re-verified against real logged history, not just seeded data.
+    /// `WebView` (below) is kept, not deleted: reachable from the DEBUG
+    /// menu's "Web shell (compare)" entry for exactly that kind of
+    /// side-by-side verification, and as a fallback if a real problem
+    /// ever needs comparing against the previously-shipping behavior.
     var body: some View {
         #if DEBUG
-        WebView(onLongPress: { showNativeMenu = true })
-            .background(Color(red: 0.094, green: 0.106, blue: 0.133)) // --bg #181B22
-            // Phase B proof-of-concept only — compiled out of Release, so
-            // this can never reach Oscar/Joe's TestFlight build. Reachable
-            // by a long-press anywhere, without disturbing the WKWebView
-            // path everyone actually depends on. NOTE: this is wired as a
-            // real UILongPressGestureRecognizer on the WKWebView itself
-            // (see Coordinator.attachLongPress below), not a plain SwiftUI
-            // .onLongPressGesture — WKWebView has its own built-in
-            // long-press-to-select-text recognizer, which silently wins
-            // and eats a SwiftUI gesture layered on top via the normal
-            // modifier. Only a delegate-based recognizer told to fire
-            // simultaneously survives that.
-            .confirmationDialog("Native engine (Phase B/C/D)", isPresented: $showNativeMenu) {
-                Button("Sample data") { nativeDestination = .sample }
-                Button("Live data (sign in)") { nativeDestination = .live }
-                Button("Template quiz (Phase C)") { nativeDestination = .quiz }
-                Button("Paywall (Phase D)") { nativeDestination = .paywall }
-                Button("Tutorial (verify skip)") { nativeDestination = .tutorialDebug }
+        NativeAppView()
+            // Plain SwiftUI gesture is enough here — the old WKWebView-only
+            // custom UILongPressGestureRecognizer dance (see git history)
+            // existed only because WKWebView has its own competing built-in
+            // long-press recognizer; a pure SwiftUI tree has no such
+            // conflict to work around.
+            .onLongPressGesture(minimumDuration: 1.2) { showDebugMenu = true }
+            .confirmationDialog("Debug tools", isPresented: $showDebugMenu) {
+                Button("Sample data") { debugDestination = .sample }
+                Button("Web shell (compare)") { debugDestination = .webShell }
+                Button("Template quiz (Phase C)") { debugDestination = .quiz }
+                Button("Paywall (Phase D)") { debugDestination = .paywall }
+                Button("Tutorial (verify skip)") { debugDestination = .tutorialDebug }
                 Button("Cancel", role: .cancel) {}
             }
-            .sheet(item: $nativeDestination) { dest in
+            .sheet(item: $debugDestination) { dest in
                 switch dest {
                 case .sample: NativeEngineDemoView()
-                case .live: NativeAppView()
+                case .webShell:
+                    WebView()
+                        .background(Color(red: 0.094, green: 0.106, blue: 0.133)) // --bg #181B22
                 case .quiz: QuizDemoView()
-                case .paywall: PaywallView(onSubscribed: {}, onCancel: { nativeDestination = nil })
-                case .tutorialDebug: TutorialDemoCardView(onDone: { nativeDestination = nil })
+                case .paywall: PaywallView(onSubscribed: {}, onCancel: { debugDestination = nil })
+                case .tutorialDebug: TutorialDemoCardView(onDone: { debugDestination = nil })
                 }
             }
         #else
-        WebView()
-            .background(Color(red: 0.094, green: 0.106, blue: 0.133)) // --bg #181B22
+        NativeAppView()
         #endif
     }
 }
