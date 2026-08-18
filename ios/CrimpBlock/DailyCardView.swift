@@ -70,6 +70,25 @@ struct DailyCardView: View {
     @State private var restTimer = RestTimerController()
     @State private var intervalTimer = IntervalTimerController()
     @State private var showIntervalTimer = false
+    /// Which edge new content enters from when browsing to a different
+    /// session — updated right before every onBrowse call (swipe, a dot
+    /// tap, or the NEXT chip) by comparing the target's position in
+    /// EngineBridge.order against the current one, so a jump-to-tap gets
+    /// the same sensible direction a swipe would: forward through the
+    /// list slides in from the right, backward from the left.
+    @State private var browseEdge: Edge = .trailing
+
+    /// Every path that changes which session is showing goes through
+    /// here rather than calling onBrowse directly, so the slide direction
+    /// is never forgotten on one of the three call sites (swipe, dots,
+    /// NEXT chip).
+    private func browse(to key: String) {
+        if let from = EngineBridge.order.firstIndex(of: state.displayKey),
+           let to = EngineBridge.order.firstIndex(of: key) {
+            browseEdge = to >= from ? .trailing : .leading
+        }
+        onBrowse?(key)
+    }
 
     /// Mirrors JS's `parseInt(string, 10)` — the leading run of digits,
     /// stopping at the first non-digit character. Used to read the set
@@ -89,16 +108,18 @@ struct DailyCardView: View {
     /// deliberately does NOT include decision.why (the recommendation's
     /// own reasoning). Oscar was explicit about this: the daily card shows
     /// session + exercises only, zero behind-the-scenes narration on why
-    /// THIS session got picked. The only things ever shown here are logged
-    /// confirmation, deload/easing-back guidance, or the session's own
-    /// `note` (e.g. climb-before-or-after ordering) — in that priority
-    /// order, never combined with the note.
+    /// THIS session got picked. The only things ever shown here are
+    /// deload/easing-back guidance or the session's own `note` (e.g.
+    /// climb-before-or-after ordering) — in that priority order, never
+    /// combined with the note. The "logged" confirmation itself moved to
+    /// loggedStamp below — a small inline "Logged. " prefix here read as
+    /// an afterthought once that existed, not the actual confirmation.
     private var cardMessage: String {
         let key = state.displayKey
         let isDeload = state.block.w == 4
         let isReturning = !isDeload && state.bridge.isReturning(state.today)
 
-        var msg = isLogged ? "Logged. " : ""
+        var msg = ""
         if isDeload && key != "rest" {
             msg += "Deload week — " + (state.session.isClimb
                 ? "fewer hard attempts, and stop well short of failure. Times below are already cut."
@@ -136,42 +157,78 @@ struct DailyCardView: View {
                 }
                 header
                 if onBrowse != nil { sessionDots }
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(state.session.name.uppercased())
-                        .font(AppFonts.heading(32))
-                        .foregroundStyle(.white)
-                        .strikethrough(isLogged, color: state.accent)
-                    Text(state.session.where_)
-                        .font(AppFonts.mono(13, weight: .medium))
-                        .foregroundStyle(state.accent)
-                }
-                if !cardMessage.isEmpty {
-                    Text(cardMessage)
-                        .font(.system(size: 14, weight: isLogged ? .semibold : .regular))
-                        .foregroundStyle(isLogged ? state.accent : SessionColours.dim)
-                }
+                // Tagged with the session key as its identity: when that
+                // changes (a swipe, a dot tap, NEXT), SwiftUI treats this
+                // as a whole new view being inserted in place of the old
+                // one rather than the same view quietly updating its
+                // content — which is what actually makes .transition()
+                // below fire instead of just snapping instantly. browseEdge
+                // (set alongside every browse(to:) call) picks which side
+                // it slides in from, so the animation always agrees with
+                // which way you swiped instead of a fixed direction.
+                VStack(alignment: .leading, spacing: 18) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(state.session.name.uppercased())
+                            .font(AppFonts.heading(32))
+                            .foregroundStyle(.white)
+                        Text(state.session.where_)
+                            .font(AppFonts.mono(13, weight: .medium))
+                            .foregroundStyle(state.accent)
+                    }
+                    if !cardMessage.isEmpty {
+                        Text(cardMessage)
+                            .font(.system(size: 14, weight: isLogged ? .semibold : .regular))
+                            .foregroundStyle(isLogged ? state.accent : SessionColours.dim)
+                    }
 
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 18) {
-                        // Flat list with thin dividers between rows, matching
-                        // .ex{border-bottom:1px solid var(--s2)} — the previous
-                        // per-row card treatment (rounded background, gap
-                        // between cards) was this native port's own addition,
-                        // not something carried over from the original.
-                        VStack(spacing: 0) {
-                            ForEach(Array(state.exercises.enumerated()), id: \.element.id) { index, ex in
-                                exerciseRow(ex)
-                                if index < state.exercises.count - 1 {
-                                    Rectangle().fill(SessionColours.s2).frame(height: 1)
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: 18) {
+                            // Flat list with thin dividers between rows, matching
+                            // .ex{border-bottom:1px solid var(--s2)} — the previous
+                            // per-row card treatment (rounded background, gap
+                            // between cards) was this native port's own addition,
+                            // not something carried over from the original.
+                            VStack(spacing: 0) {
+                                ForEach(Array(state.exercises.enumerated()), id: \.element.id) { index, ex in
+                                    exerciseRow(ex)
+                                    if index < state.exercises.count - 1 {
+                                        Rectangle().fill(SessionColours.s2).frame(height: 1)
+                                    }
                                 }
                             }
-                        }
+                            // Once today's logged, the exercise list reads as
+                            // closed rather than just quietly unchanged —
+                            // dimmed and untappable (ticking/timers/weights
+                            // don't make sense to poke at anymore), with the
+                            // LOGGED stamp doing the actual talking below.
+                            // Still scrollable, so you can look back over what
+                            // you did, just not interact with it — only UNDO
+                            // (the actual escape hatch) stays fully live.
+                            .opacity(isLogged ? 0.35 : 1)
+                            .allowsHitTesting(!isLogged)
 
-                        footer
-                        if onTapDone != nil { Color.clear.frame(height: 64) } // room for the floating button
+                            footer
+                            if onTapDone != nil { Color.clear.frame(height: 64) } // room for the floating button
+                        }
                     }
+                    // The system scroll indicator (a thin bar down the right
+                    // edge) sits on top of the exercise text at this width and
+                    // reads as visual noise rather than a useful affordance —
+                    // this list is short enough that "there's more below" is
+                    // already obvious without one.
+                    .scrollIndicators(.hidden)
+                    .overlay {
+                        if isLogged { loggedStamp.padding(.horizontal, 20) }
+                    }
+                    .animation(.easeInOut(duration: 0.25), value: isLogged)
                 }
+                .id(state.displayKey)
+                .transition(.asymmetric(
+                    insertion: .move(edge: browseEdge).combined(with: .opacity),
+                    removal: .move(edge: browseEdge == .trailing ? .leading : .trailing).combined(with: .opacity)
+                ))
             }
+            .animation(.easeInOut(duration: 0.3), value: state.displayKey)
             .padding(20)
             // .simultaneousGesture (not .gesture) so this never competes
             // with the inner ScrollView's own vertical pan for
@@ -248,7 +305,7 @@ struct DailyCardView: View {
                     let colour = SessionColours.resolve(varName)
                     let isCurrent = key == state.displayKey
                     let isRecommended = key == state.decision.k && !isLogged
-                    Button(action: { onBrowse?(key) }) {
+                    Button(action: { browse(to: key) }) {
                         ZStack {
                             if isRecommended {
                                 Circle()
@@ -267,7 +324,7 @@ struct DailyCardView: View {
             }
             Spacer(minLength: 0)
             if let next = nextUp {
-                Button(action: { onBrowse?(next.key) }) {
+                Button(action: { browse(to: next.key) }) {
                     HStack(spacing: 6) {
                         Text("NEXT")
                             .font(AppFonts.mono(9, weight: .medium))
@@ -297,6 +354,45 @@ struct DailyCardView: View {
         return (un.key, info.name)
     }
 
+    /// The persistent "you're done" state — distinct from
+    /// CelebrationOverlay's particle burst, which fires once at the
+    /// moment of logging and fades a couple seconds later. This is what
+    /// the card looks like every other time you see it today: a clear,
+    /// standing confirmation rather than a small strikethrough you could
+    /// miss, replacing the old "Logged. " text prefix on cardMessage.
+    private var loggedStamp: some View {
+        VStack(spacing: 10) {
+            Text("LOGGED")
+                .font(AppFonts.heading(38))
+                .foregroundStyle(.white)
+            Text("Nice work today.")
+                .font(.system(size: 14))
+                .foregroundStyle(SessionColours.dim)
+            if let nextUp {
+                Rectangle()
+                    .fill(SessionColours.s3)
+                    .frame(height: 1)
+                    .padding(.vertical, 6)
+                Text("TOMORROW")
+                    .font(AppFonts.mono(10, weight: .bold))
+                    .foregroundStyle(SessionColours.faint)
+                    .tracking(1.2)
+                Text(nextUp.name.uppercased())
+                    .font(.system(size: 17, weight: .bold))
+                    .foregroundStyle(state.accent)
+            }
+        }
+        .padding(.horizontal, 28)
+        .padding(.vertical, 24)
+        .frame(maxWidth: 300)
+        .background(SessionColours.s1)
+        .overlay(RoundedRectangle(cornerRadius: 16).stroke(state.accent.opacity(0.45), lineWidth: 1.5))
+        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .shadow(color: .black.opacity(0.35), radius: 16, y: 6)
+        .allowsHitTesting(false)
+        .transition(.scale(scale: 0.92).combined(with: .opacity))
+    }
+
     /// Swipe left/right anywhere on the card to step through
     /// EngineBridge.order — the same fixed session order sessionDots
     /// already browses by tap, just a second way to reach it. Clamped at
@@ -306,14 +402,14 @@ struct DailyCardView: View {
     private var swipeGesture: some Gesture {
         DragGesture(minimumDistance: 24)
             .onEnded { value in
-                guard let onBrowse else { return }
+                guard onBrowse != nil else { return }
                 let dx = value.translation.width
                 let dy = value.translation.height
                 guard abs(dx) > 60, abs(dx) > abs(dy) * 1.5 else { return }
                 guard let index = EngineBridge.order.firstIndex(of: state.displayKey) else { return }
                 let nextIndex = dx < 0 ? index + 1 : index - 1
                 guard EngineBridge.order.indices.contains(nextIndex) else { return }
-                onBrowse(EngineBridge.order[nextIndex])
+                browse(to: EngineBridge.order[nextIndex])
             }
     }
 
