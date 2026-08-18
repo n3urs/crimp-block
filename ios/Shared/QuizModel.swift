@@ -18,6 +18,24 @@ struct QuizAnswers {
         case beginner, intermediate, advanced
         var id: String { rawValue }
         var label: String { rawValue.capitalized }
+
+        /// Shown under each option in the quiz so people can place
+        /// themselves by grade rather than guessing what "intermediate"
+        /// means. Bouldering uses V-scale and sport uses French grades —
+        /// matching the grading systems templates.js's own meta
+        /// descriptions already use ("V8 and above", the "V3-V4
+        /// plateau"). Draft bands, not a definitive scale — Oscar's call
+        /// to adjust, not derived from anything authoritative.
+        func gradeRange(for discipline: Discipline) -> String {
+            switch (discipline, self) {
+            case (.bouldering, .beginner): return "Roughly V0–V2"
+            case (.bouldering, .intermediate): return "Roughly V3–V6"
+            case (.bouldering, .advanced): return "V7 and above"
+            case (.sport, .beginner): return "Roughly up to French 6a"
+            case (.sport, .intermediate): return "Roughly French 6a–6c"
+            case (.sport, .advanced): return "French 7a and above"
+            }
+        }
     }
 
     /// Mirrors WEAKNESS_MODULES's seed keys in template-resolver.js —
@@ -32,13 +50,15 @@ struct QuizAnswers {
 
     /// Mirrors EQUIPMENT_TAGS in template-resolver.js.
     enum Equipment: String, CaseIterable, Identifiable {
-        case hangboard, pullBar, gym
+        case hangboard, pullBar, gym, pickupRig, resistanceBand
         var id: String { rawValue }
         var label: String {
             switch self {
             case .hangboard: return "A hangboard"
             case .pullBar: return "A pull-up bar"
             case .gym: return "Regular gym access"
+            case .pickupRig: return "A loading pin + edge/block/roller for weighted pickups"
+            case .resistanceBand: return "Resistance bands"
             }
         }
     }

@@ -123,7 +123,11 @@ struct IntakeQuizView: View {
         stepScaffold(eyebrow: "2 of 7", title: "How experienced are you?") {
             VStack(spacing: 10) {
                 ForEach(QuizAnswers.ExperienceLevel.allCases) { level in
-                    choiceCard(label: level.label, isSelected: answers.experienceLevel == level) {
+                    choiceCard(
+                        label: level.label,
+                        subtitle: level.gradeRange(for: answers.discipline),
+                        isSelected: answers.experienceLevel == level
+                    ) {
                         answers.experienceLevel = level
                     }
                 }
@@ -270,12 +274,19 @@ struct IntakeQuizView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    private func choiceCard(label: String, isSelected: Bool, action: @escaping () -> Void) -> some View {
+    private func choiceCard(label: String, subtitle: String? = nil, isSelected: Bool, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             HStack {
-                Text(label)
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(SessionColours.fg)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(label)
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(SessionColours.fg)
+                    if let subtitle {
+                        Text(subtitle)
+                            .font(.system(size: 12))
+                            .foregroundStyle(SessionColours.dim)
+                    }
+                }
                 Spacer()
                 if isSelected {
                     Image(systemName: "checkmark.circle.fill")
