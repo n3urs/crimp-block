@@ -47,6 +47,7 @@
 		57606722A858C4BC715ED2DE /* TutorialDemoCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C06D252FF6119CF766FDEF28 /* TutorialDemoCardView.swift */; };
 		9114471F6CC9B7B8C7CC73E7 /* SubscriptionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B049305DF0E1F1019FA504D /* SubscriptionManager.swift */; };
 		88FC735FC1529F75241FC8FC /* PaywallView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6BAF3BF5EDE2F9F914B17F74 /* PaywallView.swift */; };
+		35775A981D10FC0E1F96C594 /* EngineBridgeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 197A4F82238FA8B7F69C0F03 /* EngineBridgeTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -56,6 +57,13 @@
 			proxyType = 1;
 			remoteGlobalIDString = D01DF4CA95263393F405FD3E;
 			remoteInfo = CrimpBlockWidgetExtension;
+		};
+		B9A04909425876CF9F3D47AA /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 0BE12DF9407D2C38A0E912F5 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = A1813AA567F9F54F5131E3D3;
+			remoteInfo = CrimpBlock;
 		};
 /* End PBXContainerItemProxy section */
 
@@ -119,6 +127,8 @@
 		6BAF3BF5EDE2F9F914B17F74 /* PaywallView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaywallView.swift; sourceTree = "<group>"; };
 		7FD6ED3669946CDCDC757C90 /* Configuration.storekit */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = Configuration.storekit; sourceTree = "<group>"; };
 		C06D252FF6119CF766FDEF28 /* TutorialDemoCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TutorialDemoCardView.swift; sourceTree = "<group>"; };
+		7A54C7DB75AADA0959652ECE /* CrimpBlockTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = CrimpBlockTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		197A4F82238FA8B7F69C0F03 /* EngineBridgeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EngineBridgeTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -134,6 +144,12 @@
 			files = ();
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		ACC78625B828C3F4C580FE7A /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = ();
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -143,6 +159,7 @@
 				B059E2B5F5EDE8F44DF5AE82 /* CrimpBlock */,
 				5296CA2E8A3BB2E37124A76C /* CrimpBlockWidget */,
 				A653ED356B058A8D1CD6CE8B /* Shared */,
+				A9C826B2BD133AE1A36C29F5 /* CrimpBlockTests */,
 				07FBF00CAEC90E427FE7B262 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -152,6 +169,7 @@
 			children = (
 				E543EA876DDB2AC85E5B67C1 /* CrimpBlock.app */,
 				A5221723F055193DCAAC847A /* CrimpBlockWidgetExtension.appex */,
+				7A54C7DB75AADA0959652ECE /* CrimpBlockTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -220,6 +238,14 @@
 			path = Shared;
 			sourceTree = "<group>";
 		};
+		A9C826B2BD133AE1A36C29F5 /* CrimpBlockTests */ = {
+			isa = PBXGroup;
+			children = (
+				197A4F82238FA8B7F69C0F03 /* EngineBridgeTests.swift */,
+			);
+			path = CrimpBlockTests;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -256,6 +282,23 @@
 			productReference = A5221723F055193DCAAC847A /* CrimpBlockWidgetExtension.appex */;
 			productType = "com.apple.product-type.app-extension";
 		};
+		7C945FCEEBFA3A3AAF8FB4FA /* CrimpBlockTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = C6EAEB4B2A293C7A860CF7F7 /* Build configuration list for PBXNativeTarget "CrimpBlockTests" */;
+			buildPhases = (
+				2F6D4DD1931844D7335AA2D2 /* Sources */,
+				ACC78625B828C3F4C580FE7A /* Frameworks */,
+				542CDBFDE65D78B6C9201BAC /* Resources */,
+			);
+			buildRules = ();
+			dependencies = (
+				FFD96EA4178D6C49EB639A34 /* PBXTargetDependency */,
+			);
+			name = CrimpBlockTests;
+			productName = CrimpBlockTests;
+			productReference = 7A54C7DB75AADA0959652ECE /* CrimpBlockTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -268,6 +311,7 @@
 				TargetAttributes = {
 					A1813AA567F9F54F5131E3D3 = { CreatedOnToolsVersion = 16.0; };
 					D01DF4CA95263393F405FD3E = { CreatedOnToolsVersion = 16.0; };
+					7C945FCEEBFA3A3AAF8FB4FA = { CreatedOnToolsVersion = 16.0; TestTargetID = A1813AA567F9F54F5131E3D3; };
 				};
 			};
 			buildConfigurationList = 92BED72DA5E11B035406C3B0 /* Build configuration list for PBXProject "CrimpBlock" */;
@@ -282,6 +326,7 @@
 			targets = (
 				A1813AA567F9F54F5131E3D3 /* CrimpBlock */,
 				D01DF4CA95263393F405FD3E /* CrimpBlockWidgetExtension */,
+				7C945FCEEBFA3A3AAF8FB4FA /* CrimpBlockTests */,
 			);
 		};
 /* End PBXProject section */
@@ -300,6 +345,12 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		C4CD9E38C444F28A4BA04C0F /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = ();
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		542CDBFDE65D78B6C9201BAC /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = ();
@@ -357,6 +408,14 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		2F6D4DD1931844D7335AA2D2 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				35775A981D10FC0E1F96C594 /* EngineBridgeTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -364,6 +423,11 @@
 			isa = PBXTargetDependency;
 			target = D01DF4CA95263393F405FD3E /* CrimpBlockWidgetExtension */;
 			targetProxy = 996C44C1E081EBEAF9B0054E /* PBXContainerItemProxy */;
+		};
+		FFD96EA4178D6C49EB639A34 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = A1813AA567F9F54F5131E3D3 /* CrimpBlock */;
+			targetProxy = B9A04909425876CF9F3D47AA /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -496,6 +560,44 @@
 			};
 			name = Release;
 		};
+		F593F522C1108567A2D5B633 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 2;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				DEVELOPMENT_TEAM = 87F48SV42Q;
+				PRODUCT_BUNDLE_IDENTIFIER = uk.co.sullivanltd.crimpblock.tests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/CrimpBlock.app/CrimpBlock";
+				BUNDLE_LOADER = "$(TEST_HOST)";
+			};
+			name = Debug;
+		};
+		3E90936993824620B0E7C8DD /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 2;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				DEVELOPMENT_TEAM = 87F48SV42Q;
+				PRODUCT_BUNDLE_IDENTIFIER = uk.co.sullivanltd.crimpblock.tests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/CrimpBlock.app/CrimpBlock";
+				BUNDLE_LOADER = "$(TEST_HOST)";
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -514,6 +616,12 @@
 		11912D043489B3B8DB3E5895 /* Build configuration list for PBXNativeTarget "CrimpBlockWidgetExtension" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = ( 6AD547E4269EB2D7617915C9 /* Debug */, 65E00C13A1A5AFC5EDB46332 /* Release */, );
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		C6EAEB4B2A293C7A860CF7F7 /* Build configuration list for PBXNativeTarget "CrimpBlockTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = ( F593F522C1108567A2D5B633 /* Debug */, 3E90936993824620B0E7C8DD /* Release */, );
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
