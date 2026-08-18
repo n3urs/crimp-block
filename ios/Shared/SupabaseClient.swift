@@ -14,6 +14,7 @@ import Foundation
 final class SupabaseClient {
     struct AuthSession: Codable {
         let accessToken: String
+        let refreshToken: String
         let userID: String
         let email: String
     }
@@ -64,19 +65,47 @@ final class SupabaseClient {
             "email": email, "token": token, "type": "email"
         ])
         let data = try await send(req)
-        struct Response: Decodable {
-            let access_token: String
-            let user: User
-            struct User: Decodable { let id: String; let email: String }
-        }
-        guard let resp = try? JSONDecoder().decode(Response.self, from: data) else {
-            throw ClientError.decoding("verifyOTP response")
-        }
-        session = AuthSession(accessToken: resp.access_token, userID: resp.user.id, email: resp.user.email)
+        session = try Self.decodeAuthResponse(data)
     }
 
     func signOut() {
         session = nil
+    }
+
+    /// GoTrue's access token is short-lived (Supabase's default is one
+    /// hour) — this was never captured before, so once it expired every
+    /// authenticated call failed with "JWT expired" forever, with no way
+    /// out except a full manual sign-out/sign-in. `sendAuthed` below
+    /// catches exactly that failure once and retries after a refresh, so
+    /// this only needs calling automatically, not from callers directly.
+    private func refreshSession() async throws {
+        guard let session else { throw ClientError.notSignedIn }
+        var req = request("auth/v1/token?grant_type=refresh_token", method: "POST")
+        req.httpBody = try JSONSerialization.data(withJSONObject: ["refresh_token": session.refreshToken])
+        do {
+            let data = try await send(req)
+            self.session = try Self.decodeAuthResponse(data)
+        } catch {
+            // The refresh token itself is also invalid/expired (a genuinely
+            // stale session, not just an expired access token) — nothing
+            // left to do but sign out cleanly so the app lands back on the
+            // sign-in screen instead of staying stuck showing this error.
+            self.session = nil
+            throw error
+        }
+    }
+
+    private static func decodeAuthResponse(_ data: Data) throws -> AuthSession {
+        struct Response: Decodable {
+            let access_token: String
+            let refresh_token: String
+            let user: User
+            struct User: Decodable { let id: String; let email: String }
+        }
+        guard let resp = try? JSONDecoder().decode(Response.self, from: data) else {
+            throw ClientError.decoding("auth response")
+        }
+        return AuthSession(accessToken: resp.access_token, refreshToken: resp.refresh_token, userID: resp.user.id, email: resp.user.email)
     }
 
     // MARK: - REST (PostgREST, /rest/v1/*)
@@ -84,23 +113,22 @@ final class SupabaseClient {
     /// `query` is the raw query string, e.g. "select=date,type,load&date=gte.2026-08-01" —
     /// PostgREST's filter syntax is simple enough not to need a query builder here.
     func select(table: String, query: String) async throws -> Data {
-        try await send(try authedRequest("rest/v1/\(table)?\(query)", method: "GET"))
+        try await sendAuthed("rest/v1/\(table)?\(query)", method: "GET")
     }
 
     /// `resolution=merge-duplicates` on `Prefer` is what makes this an
     /// upsert rather than a plain insert — matches `.upsert(rows,
     /// {onConflict})` in app.js exactly, just spelled as HTTP.
     func upsert(table: String, rows: [[String: Any?]], onConflict: String) async throws {
-        var req = try authedRequest("rest/v1/\(table)?on_conflict=\(onConflict)", method: "POST")
-        req.setValue("resolution=merge-duplicates,return=minimal", forHTTPHeaderField: "Prefer")
-        req.httpBody = try JSONSerialization.data(withJSONObject: rows.map { row in
-            row.mapValues { $0 ?? NSNull() }
-        })
-        _ = try await send(req)
+        let body = try JSONSerialization.data(withJSONObject: rows.map { row in row.mapValues { $0 ?? NSNull() } })
+        _ = try await sendAuthed(
+            "rest/v1/\(table)?on_conflict=\(onConflict)", method: "POST", body: body,
+            extraHeaders: ["Prefer": "resolution=merge-duplicates,return=minimal"]
+        )
     }
 
     func delete(table: String, query: String) async throws {
-        _ = try await send(try authedRequest("rest/v1/\(table)?\(query)", method: "DELETE"))
+        _ = try await sendAuthed("rest/v1/\(table)?\(query)", method: "DELETE")
     }
 
     // MARK: - Plumbing
@@ -126,6 +154,26 @@ final class SupabaseClient {
         var req = request(path, method: method)
         req.setValue("Bearer \(session.accessToken)", forHTTPHeaderField: "Authorization")
         return req
+    }
+
+    /// Every authenticated REST call goes through here rather than calling
+    /// authedRequest()+send() directly, specifically so an expired access
+    /// token gets one silent refresh-and-retry instead of surfacing as a
+    /// raw "JWT expired" error to whoever's using the app.
+    @discardableResult
+    private func sendAuthed(_ path: String, method: String, body: Data? = nil, extraHeaders: [String: String] = [:]) async throws -> Data {
+        func build() throws -> URLRequest {
+            var req = try authedRequest(path, method: method)
+            for (key, value) in extraHeaders { req.setValue(value, forHTTPHeaderField: key) }
+            req.httpBody = body
+            return req
+        }
+        do {
+            return try await send(build())
+        } catch ClientError.http(401, let message) where message.contains("JWT expired") {
+            try await refreshSession()
+            return try await send(build())
+        }
     }
 
     @discardableResult
