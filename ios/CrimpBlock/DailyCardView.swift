@@ -86,6 +86,10 @@ struct DailyCardView: View {
     /// reveals the one underneath rather than needing its own offset math.
     @State private var peekState: DailyCardState?
     @State private var peekKey: String?
+    /// Set the instant a swipe/tap commits, cleared once state.displayKey
+    /// genuinely matches it — see commitAfter's own doc comment for why
+    /// this indirection exists instead of just resetting immediately.
+    @State private var pendingCommitKey: String?
     /// Per-gesture flag: whether THIS drag has been claimed as a
     /// horizontal swipe yet. Reset at the start of every new gesture so
     /// an ordinary vertical scroll never gets mistaken for one path into
@@ -111,13 +115,37 @@ struct DailyCardView: View {
         commitAfter(0.3, key: key)
     }
 
+    /// Deliberately does NOT reset dragOffset/peekState here — onBrowse
+    /// only tells the PARENT to reload; the real `state` prop reflecting
+    /// `key` doesn't land until a later render. Resetting immediately
+    /// (the original bug) snapped dragOffset back to 0 while `state` was
+    /// still the OLD session for that one frame, showing it again before
+    /// visibly jumping to the real new one right after — exactly the
+    /// "goes back to Max Fingers, then to hangboard" report. The peek
+    /// (still sitting at rest, already showing the right content) stays
+    /// on screen untouched until settleOnRealUpdate() below confirms
+    /// state.displayKey has genuinely caught up, at which point the
+    /// switch from peek to real content is invisible — both show the
+    /// same thing at that instant.
     private func commitAfter(_ delay: Double, key: String) {
         DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
+            pendingCommitKey = key
             onBrowse?(key)
-            dragOffset = 0
-            peekKey = nil
-            peekState = nil
+            // Safety net: if state.displayKey never ends up matching
+            // (an onBrowse implementation that doesn't update it, or
+            // ignores the request) don't leave the card stuck mid-swipe
+            // forever.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                if pendingCommitKey == key { settle() }
+            }
         }
+    }
+
+    private func settle() {
+        dragOffset = 0
+        peekKey = nil
+        peekState = nil
+        pendingCommitKey = nil
     }
 
     /// Mirrors JS's `parseInt(string, 10)` — the leading run of digits,
@@ -195,7 +223,18 @@ struct DailyCardView: View {
                 // needing to move at all.
                 ZStack(alignment: .topLeading) {
                     if let peekState {
+                        // Explicit maxWidth/maxHeight on BOTH layers here
+                        // is load-bearing, not decoration: a ZStack sizes
+                        // itself from each child's OWN natural size, and
+                        // this peek (a plain VStack sized to its own
+                        // content) is naturally shorter than the current
+                        // layer's ScrollView — without forcing both to
+                        // fill the same generous frame, the whole card
+                        // visibly shrank down to the peek's height the
+                        // instant a drag committed, before any real
+                        // dragging had even happened.
                         peekContent(peekState)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                     }
 
                     VStack(alignment: .leading, spacing: 18) {
@@ -256,6 +295,7 @@ struct DailyCardView: View {
                         // stop responding once you're done, not just partially.
                         .scrollDisabled(isLogged)
                     }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                     .background(SessionColours.bg)
                     .offset(x: dragOffset)
                 }
@@ -333,6 +373,15 @@ struct DailyCardView: View {
             IntervalTimerView(controller: intervalTimer, onDismiss: { showIntervalTimer = false })
         }
         .onAppear { restTimer.requestNotificationPermission() }
+        // The real handoff from peek to actual content: state.displayKey
+        // catching up to what a swipe/tap already committed to is the
+        // ONLY correct moment to drop the peek and zero the offset —
+        // both show identical content right at this instant, so the
+        // switch is invisible rather than a visible flash back to
+        // whatever was showing before.
+        .onChange(of: state.displayKey) { _, newKey in
+            if pendingCommitKey == newKey { settle() }
+        }
     }
 
     /// Native equivalent of #sdots + #upnext in app.js, sharing a row same
