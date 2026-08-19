@@ -205,11 +205,10 @@ struct DailyCardView: View {
             VStack(alignment: .leading, spacing: 18) {
                 if let onTapDay, !weekDays.isEmpty {
                     // Extra breathing room beyond the VStack's normal
-                    // 18pt gap: this dot row and sessionDots below are
-                    // both plain circular dots of a similar size, close
-                    // enough in style that they read as one continuous
-                    // strip rather than two separate controls without
-                    // more separation than the header row alone gives.
+                    // 18pt gap, on top of WeekStripView's own bar-shaped
+                    // tiles (vs sessionDots' circles below) — together
+                    // that's enough that the two rows read as separate
+                    // controls rather than one continuous strip.
                     WeekStripView(days: weekDays, onTapDay: onTapDay)
                         .padding(.bottom, 10)
                 }
@@ -502,11 +501,19 @@ struct DailyCardView: View {
     /// shown only while a swipe or a tap-driven browse is actively
     /// animating — title, subtitle, and plain exercise rows (no
     /// checkboxes, timers, or weight badges, since none of that is
-    /// meaningful for a session that isn't the real current one and
-    /// nobody's meant to be tapping mid-drag anyway). Deliberately not a
-    /// full re-render of DailyCardView's own interactive content — this
-    /// only needs to look right for the fraction of a second it's
-    /// actually visible sliding in from the side.
+    /// Reuses the exact same exerciseRow rendering the real content
+    /// uses (just pointed at the peek session's own exercises/accent) —
+    /// an earlier version rendered a stripped-down, title-only stand-in
+    /// here instead, on the assumption it would only ever be on screen
+    /// for a fraction of a second. In practice it stayed visible for the
+    /// whole drag, so swapping to the REAL detailed rows the instant a
+    /// swipe settled looked exactly like what it was: a simplified
+    /// preview suddenly replaced by the real thing. Pixel-identical
+    /// rendering is what actually makes that handoff invisible.
+    /// allowsHitTesting(false) rather than threading a "read-only" flag
+    /// through ExerciseRowView itself — simpler, and guarantees nothing
+    /// in the peek is tappable regardless of what real content this
+    /// happens to be a preview of.
     @ViewBuilder
     private func peekContent(_ peek: DailyCardState) -> some View {
         VStack(alignment: .leading, spacing: 18) {
@@ -520,18 +527,7 @@ struct DailyCardView: View {
             }
             VStack(spacing: 0) {
                 ForEach(Array(peek.exercises.enumerated()), id: \.element.id) { index, ex in
-                    HStack(alignment: .firstTextBaseline) {
-                        Text(ex.title.uppercased())
-                            .font(.system(size: 15.5, weight: .bold))
-                            .foregroundStyle(.white)
-                            .lineLimit(1)
-                        Spacer(minLength: 8)
-                        Text(clarifySets(ex.prescription))
-                            .font(AppFonts.mono(12, weight: .medium))
-                            .foregroundStyle(SessionColours.faint)
-                            .lineLimit(1)
-                    }
-                    .padding(.vertical, 16)
+                    exerciseRow(ex, accent: peek.accent, accentVarName: peek.accentVarName)
                     if index < peek.exercises.count - 1 {
                         Rectangle().fill(SessionColours.s2).frame(height: 1)
                     }
@@ -540,6 +536,7 @@ struct DailyCardView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(SessionColours.bg)
+        .allowsHitTesting(false)
     }
 
     /// Swipe left/right anywhere on the card to step through
@@ -657,9 +654,15 @@ struct DailyCardView: View {
         return out.string(from: d)
     }
 
-    private func exerciseRow(_ ex: EngineBridge.RenderedExercise) -> some View {
+    /// `accent`/`accentVarName` default to the current state's but can be
+    /// overridden — peekContent below passes the PEEK session's own,
+    /// since reusing this same real row rendering (rather than a
+    /// simplified stand-in) is what makes the handoff from peek to real
+    /// content at the end of a swipe invisible instead of a visible
+    /// "suddenly the detail appears" jump.
+    private func exerciseRow(_ ex: EngineBridge.RenderedExercise, accent: Color? = nil, accentVarName: String? = nil) -> some View {
         ExerciseRowView(
-            ex: ex, accent: state.accent, accentVarName: state.accentVarName,
+            ex: ex, accent: accent ?? state.accent, accentVarName: accentVarName ?? state.accentVarName,
             isTicked: ticks.contains(ex.id), onToggleTick: onToggleTick, onTapWeight: onTapWeight,
             restTimer: restTimer, intervalTimer: intervalTimer,
             showIntervalTimer: $showIntervalTimer, leadingInt: Self.leadingInt,

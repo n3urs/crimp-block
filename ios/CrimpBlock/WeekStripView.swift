@@ -17,41 +17,42 @@ struct WeekStripView: View {
     let days: [WeekDay]
     var onTapDay: (String) -> Void
 
+    /// Deliberately NOT round dots — sessionDots below this uses small
+    /// circles, and a second row of small circles right above it read as
+    /// one continuous strip / more of the same control rather than a
+    /// calendar. A short bar in a squared tile is a distinct enough shape
+    /// that the two rows no longer look like duplicates at a glance.
+    /// Each day also takes an equal share of the full row width
+    /// (maxWidth:.infinity per tile) instead of a fixed spacing that left
+    /// a blank gap when the container was wider than 7 tightly-packed dots.
     var body: some View {
-        VStack(spacing: 6) {
-            HStack(spacing: 14) {
-                ForEach(days) { day in
-                    Button(action: { onTapDay(day.date) }) {
-                        ZStack {
-                            Circle()
-                                .strokeBorder(day.isToday ? .white.opacity(0.7) : .clear, lineWidth: 1.5)
-                                .frame(width: 20, height: 20)
-                            // Outline-only (border, no fill) when nothing's
-                            // logged, matching .dot i's default state —
-                            // filling every empty day with a solid grey
-                            // circle read as "something's there" even when
-                            // nothing was logged.
+        HStack(spacing: 4) {
+            ForEach(days) { day in
+                Button(action: { onTapDay(day.date) }) {
+                    VStack(spacing: 6) {
+                        Group {
                             if let colourVarName = day.colourVarName {
-                                Circle()
+                                RoundedRectangle(cornerRadius: 2)
                                     .fill(SessionColours.resolve(colourVarName))
-                                    .frame(width: 14, height: 14)
                             } else {
-                                Circle()
+                                RoundedRectangle(cornerRadius: 2)
                                     .strokeBorder(SessionColours.s4, lineWidth: 1.5)
-                                    .frame(width: 11, height: 11)
                             }
                         }
+                        .frame(height: 5)
+
+                        Text(day.dayLetter)
+                            .font(.system(size: 11, weight: day.isToday ? .bold : .semibold, design: .monospaced))
+                            .foregroundStyle(day.isToday ? .white : SessionColours.faint)
                     }
-                    .buttonStyle(.plain)
+                    .padding(.vertical, 7)
+                    .frame(maxWidth: .infinity)
+                    .background(
+                        RoundedRectangle(cornerRadius: 6)
+                            .fill(day.isToday ? SessionColours.s2 : .clear)
+                    )
                 }
-            }
-            HStack(spacing: 14) {
-                ForEach(days) { day in
-                    Text(day.dayLetter)
-                        .font(.system(size: 10, weight: day.isToday ? .bold : .regular, design: .monospaced))
-                        .foregroundStyle(day.isToday ? .white : SessionColours.faint)
-                        .frame(width: 20)
-                }
+                .buttonStyle(.plain)
             }
         }
     }
