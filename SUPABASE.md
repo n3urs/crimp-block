@@ -132,3 +132,147 @@ Ask me for that when you get there — it's about forty lines.
 The `anon` key is designed to sit in public client code; RLS is what stops
 anyone reading anyone else's rows. The `service_role` key bypasses RLS entirely
 — it never leaves the server, and never goes in this repo.
+
+## Admin dashboard
+
+Backs `admin/index.html` — a separate, private page for seeing who's
+signed up and whether they're actually training, not something athletes
+ever see. Everything else in this file so far relies on plain per-row RLS
+("you can only see your own rows"), which is exactly what an admin view
+can't use — it needs to see EVERYONE's rows. Rather than loosening RLS on
+`sessions`/`exercise_loads`/`profiles` with an "OR you're the admin"
+clause (easy to get subtly wrong, and every future policy change on those
+tables would have to remember it's there), every admin read goes through
+a `SECURITY DEFINER` function that checks admin status itself before
+touching anything. RLS on the underlying tables is untouched — this is a
+second, narrow door, not a hole in the first one.
+
+Run in the Supabase dashboard → SQL Editor, in order:
+
+```sql
+-- Checks the signed-in JWT's own email claim, so it needs no extra
+-- table/row to go stale — change the email here (or extend to an IN
+-- list) if who counts as admin ever changes.
+create or replace function public.is_admin()
+returns boolean
+language sql
+stable
+as $$
+  select coalesce(auth.jwt() ->> 'email', '') = 'oscar@sullivanltd.co.uk';
+$$;
+
+-- Idempotent guard: safe to run whether or not Phase C's `profiles`
+-- table above has already been created. admin_user_summary() joins
+-- against it, and CREATE FUNCTION validates that referenced tables
+-- exist at creation time — so this can't be skipped even for accounts
+-- (Oscar's, Joe's) that will never actually have a profiles row, since
+-- they're built-in-program users, not template-assigned ones.
+create table if not exists profiles (
+  user_id             uuid primary key references auth.users(id) on delete cascade,
+  assigned_template_id text,
+  program_start_date  date not null,
+  modifiers           jsonb not null default '{}'::jsonb,
+  tier                text not null default 'standard',
+  quiz_completed_at   timestamptz,
+  tutorial_completed_at timestamptz,
+  created_at          timestamptz default now()
+);
+alter table profiles enable row level security;
+drop policy if exists "own row" on profiles;
+create policy "own row" on profiles
+  for all
+  using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
+
+-- One row per signed-up account: auth.users isn't reachable through
+-- PostgREST at all normally (it's outside the `public` schema on
+-- purpose) — SECURITY DEFINER is what lets this specific, gated query
+-- reach it. sessions_logged/last_session_date/last_session_type answer
+-- "are they actually training", not just "did they sign up".
+create or replace function public.admin_user_summary()
+returns table (
+  user_id uuid,
+  email text,
+  signed_up_at timestamptz,
+  last_sign_in_at timestamptz,
+  tier text,
+  assigned_template_id text,
+  sessions_logged bigint,
+  last_session_date date,
+  last_session_type text
+)
+language plpgsql
+security definer
+set search_path = public, auth
+as $$
+begin
+  if not public.is_admin() then
+    raise exception 'not authorized';
+  end if;
+
+  return query
+  select
+    u.id,
+    u.email,
+    u.created_at,
+    u.last_sign_in_at,
+    p.tier,
+    p.assigned_template_id,
+    coalesce(s.cnt, 0),
+    s.last_date,
+    s.last_type
+  from auth.users u
+  left join public.profiles p on p.user_id = u.id
+  left join (
+    select
+      user_id,
+      count(*) as cnt,
+      max(date) as last_date,
+      (array_agg(type order by date desc))[1] as last_type
+    from public.sessions
+    group by user_id
+  ) s on s.user_id = u.id
+  order by u.created_at desc;
+end;
+$$;
+grant execute on function public.admin_user_summary() to authenticated;
+
+-- Per-user history for the drill-down view (the calendar-style grid) —
+-- same admin gate, scoped to one account at a time rather than
+-- returning everyone's full history in the summary call above.
+create or replace function public.admin_user_sessions(target_user_id uuid)
+returns table (date date, type text, load numeric)
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if not public.is_admin() then
+    raise exception 'not authorized';
+  end if;
+  return query
+    select s.date, s.type, s.load
+    from public.sessions s
+    where s.user_id = target_user_id
+    order by s.date desc;
+end;
+$$;
+grant execute on function public.admin_user_sessions(uuid) to authenticated;
+```
+
+**Why `SECURITY DEFINER` is safe here, not a foot-gun**: the function runs
+with the privileges of whoever created it (bypassing RLS entirely), which
+is exactly what you don't want unless the function is airtight about who
+it lets in. Every one of the three functions above either does nothing
+privileged (`is_admin()` only reads the caller's own JWT) or checks
+`is_admin()` as its very first line and raises before touching a single
+row otherwise — there's no code path that reaches the privileged query
+without that check passing first.
+
+**Subscription status is a known gap, not an oversight**: Phase D's
+entitlement check is client-side only (`Transaction.currentEntitlements`
+— see the plan), so there's no row anywhere in Supabase recording who's
+actually paying. The admin page shows "Built-in" for Oscar/Joe (accurate
+— `isBuiltInProgram` skips the paywall entirely) and leaves it blank for
+anyone else rather than guessing. Real subscriber numbers live in App
+Store Connect until/unless a server-side receipt sync gets built.
