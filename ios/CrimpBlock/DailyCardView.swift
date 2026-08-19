@@ -338,18 +338,26 @@ struct DailyCardView: View {
             }
             Spacer(minLength: 0)
             if let next = nextUp {
+                // Stacked (label+dot above, name below) rather than one
+                // long row — sharing a row with all 7 session dots leaves
+                // this chip little horizontal room, which was truncating
+                // longer session names ("MAX FING…"). Wrapping onto its
+                // own two lines uses the empty space underneath instead.
                 Button(action: { browse(to: next.key) }) {
-                    HStack(spacing: 6) {
-                        Text("NEXT")
-                            .font(AppFonts.mono(9, weight: .medium))
-                            .foregroundStyle(SessionColours.faint)
-                        Circle()
-                            .fill(SessionColours.resolve(state.bridge.sessionColourVarName(next.key)))
-                            .frame(width: 7, height: 7)
+                    VStack(alignment: .trailing, spacing: 4) {
+                        HStack(spacing: 6) {
+                            Text("NEXT")
+                                .font(AppFonts.mono(9, weight: .medium))
+                                .foregroundStyle(SessionColours.faint)
+                            Circle()
+                                .fill(next.color)
+                                .frame(width: 7, height: 7)
+                        }
                         Text(next.name.uppercased())
                             .font(.system(size: 13.5, weight: .bold))
                             .foregroundStyle(SessionColours.dim)
-                            .lineLimit(1)
+                            .multilineTextAlignment(.trailing)
+                            .lineLimit(2)
                     }
                 }
                 .buttonStyle(.plain)
@@ -363,9 +371,9 @@ struct DailyCardView: View {
     /// not just "the next session type in a fixed list" — shown purely as
     /// a preview/shortcut, tapping it browses today's card to that session
     /// without implying today itself gets logged as anything.
-    private var nextUp: (key: String, name: String)? {
+    private var nextUp: (key: String, name: String, color: Color)? {
         guard let un = state.bridge.upNext(), let info = state.bridge.sessionInfo(un.key) else { return nil }
-        return (un.key, info.name)
+        return (un.key, info.name, SessionColours.resolve(state.bridge.sessionColourVarName(un.key)))
     }
 
     /// The persistent "you're done" state — distinct from
@@ -393,7 +401,7 @@ struct DailyCardView: View {
                     .tracking(1.2)
                 Text(nextUp.name.uppercased())
                     .font(.system(size: 17, weight: .bold))
-                    .foregroundStyle(state.accent)
+                    .foregroundStyle(nextUp.color)
             }
         }
         .padding(.horizontal, 28)
