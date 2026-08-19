@@ -48,6 +48,14 @@ struct DailyCardView: View {
     let state: DailyCardState
     var footerNote: String
     var isLogged: Bool = false
+    /// Which session (if any) is logged for today — at most one can be,
+    /// so this is a single key rather than a set. `isLogged` above is just
+    /// this compared against the currently displayed session, and stays
+    /// the prop everything reads for the CURRENT card. This exists so the
+    /// swipe peek can answer the same question about the session it's
+    /// previewing: without it the LOGGED stamp had no way to know whether
+    /// it belonged on the card being swiped to.
+    var loggedSessionKey: String? = nil
     var ticks: Set<String> = []
     var onToggleTick: ((String) -> Void)? = nil
     var onTapWeight: ((EngineBridge.RenderedExercise) -> Void)? = nil
@@ -110,13 +118,36 @@ struct DailyCardView: View {
     @State private var horizontalDragCommitted = false
     @State private var containerWidth: CGFloat = 400
 
+    /// What the session dots (and the swipe's own "which session am I
+    /// stepping from") should treat as current. Between a swipe finishing
+    /// its slide and the parent's `state` prop actually catching up,
+    /// state.displayKey is still the OLD session for that whole window —
+    /// which left the dots visibly changing colour a beat after the card
+    /// had already finished moving. pendingCommitKey is known the instant
+    /// the slide completes, so the dots now turn over at the same moment
+    /// the new card lands rather than after the parent round-trip.
+    private var effectiveDisplayKey: String {
+        pendingCommitKey ?? state.displayKey
+    }
+
+    /// "Today has been logged at all", NOT "the session I'm looking at is
+    /// the logged one" — which is what the `rec` ring actually keys off in
+    /// app.js (`logged = Store.get(today())`, line 226's `k===d.k&&!logged`).
+    /// `isLogged` alone was a subtle divergence from that: browsing away
+    /// from an already-logged session made it false again, so the
+    /// recommendation ring popped back on mid-swipe and then off again on
+    /// the way back. Falls back to isLogged for callers that don't pass a
+    /// loggedSessionKey (the tutorial's synthetic card), keeping their
+    /// behaviour exactly as it was.
+    private var todayIsLogged: Bool { loggedSessionKey != nil || isLogged }
+
     /// Tap-driven browsing (a dot, NEXT) — plays the exact same
     /// slide-and-settle the swipe gesture does, just driven
     /// programmatically instead of by a live touch, so the two ways of
     /// changing session never look or feel like two different features.
     private func animatedBrowse(to key: String) {
-        guard onBrowse != nil, key != state.displayKey,
-              let from = EngineBridge.order.firstIndex(of: state.displayKey),
+        guard onBrowse != nil, key != effectiveDisplayKey,
+              let from = EngineBridge.order.firstIndex(of: effectiveDisplayKey),
               let to = EngineBridge.order.firstIndex(of: key) else { return }
         let goingNext = to >= from
         peekKey = key
@@ -149,6 +180,20 @@ struct DailyCardView: View {
     /// way once the timer's onBrowse call landed.
     private func commit(key: String) {
         pendingCommitKey = key
+        // Hand the LOGGED stamp over at the same instant the content
+        // does, and WITHOUT animation — by now the current stamp has
+        // already slid off with the card, so letting the normal
+        // .animation(value: showLoggedStamp) fade it out later would
+        // replay it fading at centre screen, after it had visibly left.
+        // Setting it here (rather than waiting for the isLogged prop to
+        // land at settle) also means swiping ONTO a logged session has
+        // its stamp already in place when the peek's copy disappears,
+        // instead of scale-popping in a frame later.
+        if !celebrating {
+            var noAnim = Transaction()
+            noAnim.disablesAnimations = true
+            withTransaction(noAnim) { showLoggedStamp = (loggedSessionKey == key) }
+        }
         onBrowse?(key)
         // Safety net: if state.displayKey never ends up matching
         // (an onBrowse implementation that doesn't update it, or
@@ -190,20 +235,29 @@ struct DailyCardView: View {
     /// combined with the note. The "logged" confirmation itself moved to
     /// loggedStamp below — a small inline "Logged. " prefix here read as
     /// an afterthought once that existed, not the actual confirmation.
-    private var cardMessage: String {
-        let key = state.displayKey
-        let isDeload = state.block.w == 4
-        let isReturning = !isDeload && state.bridge.isReturning(state.today)
+    private var cardMessage: String { cardMessage(for: state, isLogged: isLogged) }
+
+    /// Parameterized over the state rather than reading `state` directly,
+    /// so the swipe peek can render its OWN message. It couldn't before,
+    /// and the message is a whole text block sitting between the title and
+    /// the exercise list — so the peek was laid out with that block
+    /// missing, and everything below it visibly jumped down the moment the
+    /// real content took over. Reported as "a bit of delay between the old
+    /// one being wiped off and the description text appearing".
+    private func cardMessage(for s: DailyCardState, isLogged: Bool) -> String {
+        let key = s.displayKey
+        let isDeload = s.block.w == 4
+        let isReturning = !isDeload && s.bridge.isReturning(s.today)
 
         var msg = ""
         if isDeload && key != "rest" {
-            msg += "Deload week — " + (state.session.isClimb
+            msg += "Deload week — " + (s.session.isClimb
                 ? "fewer hard attempts, and stop well short of failure. Times below are already cut."
                 : "same weights as usual, fewer sets. The numbers below are already cut.")
         } else if isReturning && key != "rest" {
             msg += "Easing back in after a break — weights are cut, not just sets. Go by feel: back off further if anything below feels off, this is not the week to chase the number."
         }
-        if msg.isEmpty, !isLogged, let note = state.session.note {
+        if msg.isEmpty, !isLogged, let note = s.session.note {
             msg = note
         }
         return msg
@@ -363,10 +417,23 @@ struct DailyCardView: View {
             // own centering exactly, since the two used to disagree (this
             // was an .overlay on just the ScrollView, which put it
             // noticeably lower than centered on screen).
-            if showLoggedStamp {
-                loggedStamp
+            // Sits out here rather than inside the swiping content so it
+            // stays centred on the whole card (it was noticeably too low
+            // when scoped to just the scrollable area) — but it still has
+            // to MOVE with that content, since the stamp belongs to the
+            // session being swiped away, not to the card frame. Without
+            // the offset it hung motionless in the middle while everything
+            // underneath slid out from behind it.
+            if let peekState, loggedSessionKey != nil, loggedSessionKey == peekState.displayKey {
+                loggedStamp(accent: peekState.accent)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
                     .allowsHitTesting(false)
+            }
+            if showLoggedStamp {
+                loggedStamp(accent: state.accent)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+                    .allowsHitTesting(false)
+                    .offset(x: dragOffset)
                     .transition(.scale(scale: 0.92).combined(with: .opacity))
             }
             CelebrationOverlay(trigger: celebrationTrigger, accent: state.accent)
@@ -460,8 +527,8 @@ struct DailyCardView: View {
                 ForEach(EngineBridge.order, id: \.self) { key in
                     let varName = state.bridge.sessionColourVarName(key)
                     let colour = SessionColours.resolve(varName)
-                    let isCurrent = key == state.displayKey
-                    let isRecommended = key == state.decision.k && !isLogged
+                    let isCurrent = key == effectiveDisplayKey
+                    let isRecommended = key == state.decision.k && !todayIsLogged
                     Button(action: { animatedBrowse(to: key) }) {
                         ZStack {
                             if isRecommended {
@@ -525,7 +592,10 @@ struct DailyCardView: View {
     /// the card looks like every other time you see it today: a clear,
     /// standing confirmation rather than a small strikethrough you could
     /// miss, replacing the old "Logged. " text prefix on cardMessage.
-    private var loggedStamp: some View {
+    /// Takes its accent rather than reading state.accent so the swipe
+    /// peek can render its own — the stamp belongs to a specific session,
+    /// not to the card in general.
+    private func loggedStamp(accent: Color) -> some View {
         VStack(spacing: 10) {
             Text("LOGGED")
                 .font(AppFonts.heading(38))
@@ -551,7 +621,7 @@ struct DailyCardView: View {
         .padding(.vertical, 24)
         .frame(maxWidth: 300)
         .background(SessionColours.s1)
-        .overlay(RoundedRectangle(cornerRadius: 16).stroke(state.accent.opacity(0.45), lineWidth: 1.5))
+        .overlay(RoundedRectangle(cornerRadius: 16).stroke(accent.opacity(0.45), lineWidth: 1.5))
         .clipShape(RoundedRectangle(cornerRadius: 16))
         .shadow(color: .black.opacity(0.35), radius: 16, y: 6)
     }
@@ -575,6 +645,15 @@ struct DailyCardView: View {
     /// happens to be a preview of.
     @ViewBuilder
     private func peekContent(_ peek: DailyCardState) -> some View {
+        // Mirrors the real content's structure block for block — same
+        // spacings, same message slot, same ScrollView wrapper, same
+        // footer. Anything present there but missing here shifts
+        // everything below it, and that shift is visible as a jump the
+        // instant the real content takes over: the message block being
+        // absent was exactly that, reported as the description text
+        // appearing a beat late.
+        let peekLogged = loggedSessionKey != nil && loggedSessionKey == peek.displayKey
+        let msg = cardMessage(for: peek, isLogged: peekLogged)
         VStack(alignment: .leading, spacing: 18) {
             VStack(alignment: .leading, spacing: 4) {
                 Text(peek.session.name.uppercased())
@@ -584,14 +663,29 @@ struct DailyCardView: View {
                     .font(AppFonts.mono(13, weight: .medium))
                     .foregroundStyle(peek.accent)
             }
-            VStack(spacing: 0) {
-                ForEach(Array(peek.exercises.enumerated()), id: \.element.id) { index, ex in
-                    exerciseRow(ex, accent: peek.accent, accentVarName: peek.accentVarName)
-                    if index < peek.exercises.count - 1 {
-                        Rectangle().fill(SessionColours.s2).frame(height: 1)
+            if !msg.isEmpty {
+                Text(msg)
+                    .font(.system(size: 14, weight: peekLogged ? .semibold : .regular))
+                    .foregroundStyle(peekLogged ? peek.accent : SessionColours.dim)
+            }
+            ScrollView {
+                VStack(alignment: .leading, spacing: 18) {
+                    VStack(spacing: 0) {
+                        ForEach(Array(peek.exercises.enumerated()), id: \.element.id) { index, ex in
+                            exerciseRow(ex, accent: peek.accent, accentVarName: peek.accentVarName)
+                            if index < peek.exercises.count - 1 {
+                                Rectangle().fill(SessionColours.s2).frame(height: 1)
+                            }
+                        }
                     }
+                    .opacity(peekLogged ? 0.35 : 1)
+
+                    footer
+                    if onTapDone != nil { Color.clear.frame(height: 64) }
                 }
             }
+            .scrollIndicators(.hidden)
+            .scrollDisabled(true)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(SessionColours.bg)
@@ -626,7 +720,7 @@ struct DailyCardView: View {
                     // rest of its lifetime.
                     guard abs(dx) > 12, abs(dx) > abs(dy) * 1.5 else { return }
                     horizontalDragCommitted = true
-                    if let from = EngineBridge.order.firstIndex(of: state.displayKey) {
+                    if let from = EngineBridge.order.firstIndex(of: effectiveDisplayKey) {
                         let toIndex = dx < 0 ? from + 1 : from - 1
                         if EngineBridge.order.indices.contains(toIndex) {
                             let key = EngineBridge.order[toIndex]

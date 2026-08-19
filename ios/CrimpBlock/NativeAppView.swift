@@ -83,6 +83,7 @@ struct NativeAppView: View {
                     footerNote: "Native SwiftUI (live data) · \(client.session?.email ?? "") · \(state.today)"
                         + (saveError != nil ? " · save failed" : ""),
                     isLogged: store?.get(state.today)?.t == state.displayKey,
+                    loggedSessionKey: store?.get(state.today)?.t,
                     ticks: ticks,
                     onToggleTick: { id in
                         if ticks.contains(id) { ticks.remove(id) } else { ticks.insert(id) }
