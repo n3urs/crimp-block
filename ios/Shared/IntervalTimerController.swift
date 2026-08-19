@@ -20,13 +20,18 @@ final class IntervalTimerController {
     private(set) var label = ""
     private(set) var tTot: Int = 0
     private(set) var remainingSeconds: Int = 0
+    private(set) var isPaused = false
+    /// Readable (not just settable) so the view can compute a smooth,
+    /// sub-second progress fraction itself — remainingSeconds alone only
+    /// changes once a whole second, which made the progress bar visibly
+    /// step rather than drain continuously.
+    private(set) var tEnd: Date = .distantPast
 
     private var onSecs = 0
     private var offSecs = 0
     private var setRestSecs = 0
-    private var tEnd: Date = .distantPast
     private var timer: Timer?
-    private let voice = IntervalVoicePlayer()
+    private let tones = IntervalTonePlayer()
 
     /// Time to put the phone down and get hands on the board before the
     /// first rep starts counting — without this, pressing Start and then
@@ -55,15 +60,37 @@ final class IntervalTimerController {
         tTot = Self.readySecs
         tEnd = Date().addingTimeInterval(Double(Self.readySecs))
         remainingSeconds = Self.readySecs
-        voice.speak(.getReady)
+        isPaused = false
+        tones.play(.ready)
 
         UIApplication.shared.isIdleTimerDisabled = true
         timer = Timer.scheduledTimer(withTimeInterval: 0.2, repeats: true) { [weak self] _ in self?.tick() }
     }
 
+    /// Freezes the countdown in place — remainingSeconds/tEnd stay put,
+    /// resume() just re-anchors tEnd to "now + whatever was left" rather
+    /// than recomputing anything about where in the set/rep sequence you
+    /// are, so a pause never skips or repeats a phase.
+    func pause() {
+        guard phase != nil, phase != .done, !isPaused else { return }
+        isPaused = true
+        timer?.invalidate()
+        timer = nil
+    }
+
+    func resume() {
+        guard isPaused else { return }
+        isPaused = false
+        tEnd = Date().addingTimeInterval(Double(remainingSeconds))
+        timer = Timer.scheduledTimer(withTimeInterval: 0.2, repeats: true) { [weak self] _ in self?.tick() }
+    }
+
+    func togglePause() { isPaused ? resume() : pause() }
+
     func stop() {
         timer?.invalidate()
         timer = nil
+        isPaused = false
         phase = nil
         UIApplication.shared.isIdleTimerDisabled = false
     }
@@ -115,11 +142,11 @@ final class IntervalTimerController {
         tTot = next == .on ? onSecs : next == .off ? offSecs : setRestSecs
         tEnd = Date().addingTimeInterval(Double(tTot))
         remainingSeconds = tTot
-        voice.speak(next == .on ? .go : .stop)
+        tones.play(next == .on ? .go : .stop)
     }
 
     private func finish() {
-        voice.speak(.done)
+        tones.play(.done)
         timer?.invalidate()
         timer = nil
         phase = .done

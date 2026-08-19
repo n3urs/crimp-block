@@ -9,6 +9,27 @@ struct IntervalTimerView: View {
     @Bindable var controller: IntervalTimerController
     var onDismiss: () -> Void
 
+    @State private var now = Date()
+    private let tick = Timer.publish(every: 0.05, on: .main, in: .common).autoconnect()
+
+    /// remainingSeconds only changes once a whole second (it's the
+    /// ceiling-rounded value used for the big number), which made the
+    /// progress bar visibly step rather than drain continuously. This
+    /// computes sub-second precision from tEnd instead, same pattern
+    /// RestTimerOverlay already uses for its own bar. Frozen on the
+    /// paused snapshot rather than live time while isPaused — tEnd itself
+    /// doesn't move during a pause, so measuring straight against
+    /// wall-clock `now` would keep draining the bar even though the
+    /// countdown itself has stopped.
+    private var smoothFraction: Double {
+        guard controller.tTot > 0 else { return 0 }
+        if controller.isPaused {
+            return Double(controller.remainingSeconds) / Double(controller.tTot)
+        }
+        let remaining = max(0, controller.tEnd.timeIntervalSince(now))
+        return min(1, remaining / Double(controller.tTot))
+    }
+
     private var phaseColour: Color {
         switch controller.phase {
         case .ready: return SessionColours.readyC
@@ -43,7 +64,7 @@ struct IntervalTimerView: View {
                         .animation(.default, value: controller.remainingSeconds)
                 }
 
-                Text(controller.statusText)
+                Text(controller.isPaused ? "PAUSED" : controller.statusText)
                     .font(AppFonts.mono(15, weight: .bold))
                     .foregroundStyle(.white.opacity(0.85))
                     .multilineTextAlignment(.center)
@@ -59,23 +80,32 @@ struct IntervalTimerView: View {
                     // Progress within the current phase segment, resets each
                     // ready/on/off/setrest step — mirrors #ivtBar's scaleX.
                     GeometryReader { geo in
-                        let fraction = controller.tTot > 0 ? Double(controller.remainingSeconds) / Double(controller.tTot) : 0
                         ZStack(alignment: .leading) {
                             Color.white.opacity(0.25)
-                            Color.white.frame(width: geo.size.width * max(0, min(1, fraction)))
+                            Color.white.frame(width: geo.size.width * smoothFraction)
                         }
                     }
                     .frame(height: 5)
                     .clipShape(RoundedRectangle(cornerRadius: 2.5))
                     .padding(.horizontal, 32)
 
-                    Button(action: { controller.stop(); onDismiss() }) {
-                        Text("STOP")
-                            .font(AppFonts.mono(13, weight: .bold))
-                            .foregroundStyle(.white)
-                            .padding(.horizontal, 24).padding(.vertical, 12)
-                            .background(.white.opacity(0.15))
-                            .clipShape(Capsule())
+                    HStack(spacing: 12) {
+                        Button(action: { controller.togglePause() }) {
+                            Text(controller.isPaused ? "RESUME" : "PAUSE")
+                                .font(AppFonts.mono(13, weight: .bold))
+                                .foregroundStyle(.white)
+                                .padding(.horizontal, 24).padding(.vertical, 12)
+                                .background(.white.opacity(0.15))
+                                .clipShape(Capsule())
+                        }
+                        Button(action: { controller.stop(); onDismiss() }) {
+                            Text("STOP")
+                                .font(AppFonts.mono(13, weight: .bold))
+                                .foregroundStyle(.white)
+                                .padding(.horizontal, 24).padding(.vertical, 12)
+                                .background(.white.opacity(0.15))
+                                .clipShape(Capsule())
+                        }
                     }
                     .padding(.top, 8)
                 }
@@ -83,6 +113,7 @@ struct IntervalTimerView: View {
                 Spacer()
             }
             .padding(.bottom, 24)
+            .onReceive(tick) { now = $0 }
         }
         .onChange(of: controller.phase) { _, newPhase in
             if newPhase == nil { onDismiss() }
