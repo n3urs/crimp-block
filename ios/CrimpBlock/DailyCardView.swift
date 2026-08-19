@@ -316,13 +316,6 @@ struct DailyCardView: View {
                     .background(SessionColours.bg)
                     .offset(x: dragOffset)
                 }
-                .background(
-                    GeometryReader { geo in
-                        Color.clear
-                            .onAppear { containerWidth = geo.size.width }
-                            .onChange(of: geo.size.width) { _, new in containerWidth = new }
-                    }
-                )
             }
             .padding(20)
             // .simultaneousGesture (not .gesture) so this never competes
@@ -384,6 +377,29 @@ struct DailyCardView: View {
         .animation(.easeInOut(duration: 0.25), value: showLoggedStamp)
         .animation(.easeInOut(duration: 0.2), value: restTimer.endDate != nil)
         .background(SessionColours.bg)
+        // Measures the FULL card width — deliberately attached out here on
+        // the outer ZStack, not on the swiping content further in (which
+        // sits inside a VStack with its own .padding(20)). That used to be
+        // where this was measured, which was a real bug, not just a
+        // timing one: dragOffset got set to that PADDED width (screen
+        // width minus 40pt) as "fully off-screen", but content that starts
+        // inset by 20pt and only travels that padded distance lands with
+        // its trailing edge back at x=20, not x=0 — a permanent 20pt
+        // sliver of the old session left sitting on the edge every single
+        // swipe, which then vanished the instant settle() reset the
+        // offset. The completion-based commit fix elsewhere in this file
+        // removed a separate timing race and made that jump feel
+        // smoother, but couldn't fix this — the animation itself was
+        // always landing short of the edge. Measuring the true,
+        // unpadded width here clears the screen with a few pixels of
+        // margin instead of exactly (and insufficiently) zero.
+        .background(
+            GeometryReader { geo in
+                Color.clear
+                    .onAppear { containerWidth = geo.size.width }
+                    .onChange(of: geo.size.width) { _, new in containerWidth = new }
+            }
+        )
         .sheet(isPresented: $showPlan) {
             PlanSheetView(bridge: state.bridge, block: state.block, today: state.today)
         }

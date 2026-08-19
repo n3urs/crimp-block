@@ -20,6 +20,15 @@ struct RestTimerOverlay: View {
 
     @State private var now = Date()
     private let tick = Timer.publish(every: 0.2, on: .main, in: .common).autoconnect()
+    /// Was silent while actively watching this: the only sound wired up
+    /// was a scheduled UNNotification, and iOS suppresses a notification's
+    /// own banner/sound while the app is in the foreground with no
+    /// delegate opting back in — exactly the state you're in staring at
+    /// this countdown. Reuses IntervalTonePlayer's already-tuned `.go`
+    /// cue (rising, audible through the silent switch, real media volume)
+    /// rather than inventing a new melody — "rest just ended, go again"
+    /// is the same moment `.go` already marks on the repeater timer.
+    @State private var tones = IntervalTonePlayer()
 
     var body: some View {
         Group {
@@ -70,7 +79,10 @@ struct RestTimerOverlay: View {
                 .overlay(alignment: .top) { Rectangle().fill(SessionColours.s3).frame(height: 1) }
                 .onReceive(tick) { newNow in
                     now = newNow
-                    if newNow >= endDate { controller.end(cancelNotification: false) }
+                    if newNow >= endDate {
+                        tones.play(.go)
+                        controller.end(cancelNotification: false)
+                    }
                 }
             }
         }
