@@ -50,10 +50,18 @@ final class IntervalTonePlayer {
     /// Each note is (frequency in Hz, start offset in seconds) — played
     /// with the same short, piano-ish envelope regardless of cue, so the
     /// only thing that changes between cues is the melody itself.
+    ///
+    /// stop was originally an octave lower (A4->E4, 440->330) — same
+    /// falling shape, but low tones get swallowed by a loud gym far more
+    /// than high ones do, and it was reported as too soft to hear over
+    /// real noise. Moved up to the exact same two pitches go already
+    /// uses, just in reverse (880->659 vs go's 659->880) — a clean
+    /// mirror-image pair in a register already proven audible, rather
+    /// than a differently-pitched cue that needed re-tuning blind.
     private static let melodies: [Cue: [(freq: Double, at: Double)]] = [
         .ready: [(784, 0), (784, 0.22)],                    // G5 repeated -- an alert, not a direction
         .go:    [(659, 0), (880, 0.09)],                    // E5 -> A5, rising
-        .stop:  [(440, 0), (330, 0.11)],                    // A4 -> E4, falling
+        .stop:  [(880, 0), (659, 0.11)],                    // A5 -> E5, falling -- go's own two notes, reversed
         .done:  [(523, 0), (659, 0.11), (784, 0.22), (1047, 0.36)], // C5 -> E5 -> G5 -> C6, a small fanfare
     ]
 
@@ -100,7 +108,11 @@ final class IntervalTonePlayer {
             let fundamental = sin(2.0 * .pi * frequency * t)
             let secondHarmonic = sin(2.0 * .pi * frequency * 2 * t) * 0.28
             let thirdHarmonic = sin(2.0 * .pi * frequency * 3 * t) * 0.12
-            channel[frame] = Float((fundamental + secondHarmonic + thirdHarmonic) * envelope * 0.3)
+            // 0.45, not the original 0.3 -- reported as too soft to cut
+            // through a loud gym. Worst-case constructive peak across all
+            // three layers is ~1.4, so even at this gain the true peak
+            // (~0.63) still has real headroom before clipping at 1.0.
+            channel[frame] = Float((fundamental + secondHarmonic + thirdHarmonic) * envelope * 0.45)
         }
         return buffer
     }
