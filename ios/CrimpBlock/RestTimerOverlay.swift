@@ -32,23 +32,32 @@ struct RestTimerOverlay: View {
                         accent.frame(width: geo.size.width * fraction)
                     }
                     .frame(height: 3)
-                    HStack(alignment: .center, spacing: 16) {
+                    // A ZStack rather than an HStack with a Spacer — with
+                    // the label gone, an HStack{number; Spacer; STOP} left
+                    // the number sitting wherever it happened to fall
+                    // rather than centered in the bar. This centers it
+                    // across the FULL width regardless of STOP's own
+                    // size, with STOP overlaid pinned to the trailing edge.
+                    ZStack {
                         Text(format(remaining))
                             .font(AppFonts.timerDigits(34))
                             .foregroundStyle(accent)
-                        Spacer(minLength: 0)
-                        Button(action: {
-                            controller.end(cancelNotification: true)
-                            onTutorialSignal?("restTimerStop")
-                        }) {
-                            Text("STOP")
-                                .font(AppFonts.mono(13, weight: .semibold))
-                                .foregroundStyle(SessionColours.dim)
-                                .padding(.horizontal, 14).padding(.vertical, 9)
-                                .overlay(RoundedRectangle(cornerRadius: 3).stroke(SessionColours.s3, lineWidth: 1))
+                            .frame(maxWidth: .infinity)
+                        HStack {
+                            Spacer()
+                            Button(action: {
+                                controller.end(cancelNotification: true)
+                                onTutorialSignal?("restTimerStop")
+                            }) {
+                                Text("STOP")
+                                    .font(AppFonts.mono(13, weight: .semibold))
+                                    .foregroundStyle(SessionColours.dim)
+                                    .padding(.horizontal, 14).padding(.vertical, 9)
+                                    .overlay(RoundedRectangle(cornerRadius: 3).stroke(SessionColours.s3, lineWidth: 1))
+                            }
+                            .buttonStyle(.plain)
+                            .tutorialTarget("restTimerStop")
                         }
-                        .buttonStyle(.plain)
-                        .tutorialTarget("restTimerStop")
                     }
                     .padding(16)
                 }
