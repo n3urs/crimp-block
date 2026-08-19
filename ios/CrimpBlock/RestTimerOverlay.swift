@@ -32,42 +32,37 @@ struct RestTimerOverlay: View {
                         accent.frame(width: geo.size.width * fraction)
                     }
                     .frame(height: 3)
-                    VStack(spacing: 4) {
-                        // Just a big number with nothing else on the bar
-                        // read as unclear on its own — REST gives it an
-                        // identity at a glance, same job the exercise-name
-                        // label used to do before it got dropped.
+                    // REST to the left of the number rather than stacked
+                    // above it — stacking made this a tall two-row block
+                    // with a lot of empty width either side of a short
+                    // word; one row keeps the bar the size it actually
+                    // needs to be.
+                    HStack(alignment: .center, spacing: 12) {
                         Text("REST")
                             .font(AppFonts.mono(11, weight: .bold))
                             .foregroundStyle(SessionColours.faint)
                             .tracking(1.5)
-                            .frame(maxWidth: .infinity, alignment: .center)
 
-                        // A ZStack rather than an HStack with a Spacer —
-                        // this centers the number across the FULL width
-                        // regardless of STOP's own size, with STOP
-                        // overlaid pinned to the trailing edge.
-                        ZStack {
-                            Text(format(remaining))
-                                .font(AppFonts.timerDigits(44))
-                                .foregroundStyle(accent)
-                                .frame(maxWidth: .infinity)
-                            HStack {
-                                Spacer()
-                                Button(action: {
-                                    controller.end(cancelNotification: true)
-                                    onTutorialSignal?("restTimerStop")
-                                }) {
-                                    Text("STOP")
-                                        .font(AppFonts.mono(13, weight: .semibold))
-                                        .foregroundStyle(SessionColours.dim)
-                                        .padding(.horizontal, 14).padding(.vertical, 9)
-                                        .overlay(RoundedRectangle(cornerRadius: 3).stroke(SessionColours.s3, lineWidth: 1))
-                                }
-                                .buttonStyle(.plain)
-                                .tutorialTarget("restTimerStop")
-                            }
+                        Spacer(minLength: 0)
+
+                        Text(format(remaining))
+                            .font(AppFonts.timerDigits(44))
+                            .foregroundStyle(accent)
+
+                        Spacer(minLength: 0)
+
+                        Button(action: {
+                            controller.end(cancelNotification: true)
+                            onTutorialSignal?("restTimerStop")
+                        }) {
+                            Text("STOP")
+                                .font(AppFonts.mono(13, weight: .semibold))
+                                .foregroundStyle(SessionColours.dim)
+                                .padding(.horizontal, 14).padding(.vertical, 9)
+                                .overlay(RoundedRectangle(cornerRadius: 3).stroke(SessionColours.s3, lineWidth: 1))
                         }
+                        .buttonStyle(.plain)
+                        .tutorialTarget("restTimerStop")
                     }
                     .padding(16)
                 }

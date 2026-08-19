@@ -57,9 +57,11 @@ struct IntervalTimerView: View {
                         .foregroundStyle(.white)
                 } else {
                     Text(fmt(controller.remainingSeconds))
-                        .font(AppFonts.timerDigits(96))
+                        .font(AppFonts.timerDigits(168))
                         .foregroundStyle(.white)
                         .monospacedDigit()
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.5) // room to shrink on a narrower phone rather than clip
                         .contentTransition(.numericText(countsDown: true))
                         .animation(.default, value: controller.remainingSeconds)
                 }

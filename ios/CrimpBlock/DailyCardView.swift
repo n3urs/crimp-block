@@ -70,24 +70,54 @@ struct DailyCardView: View {
     @State private var restTimer = RestTimerController()
     @State private var intervalTimer = IntervalTimerController()
     @State private var showIntervalTimer = false
-    /// Which edge new content enters from when browsing to a different
-    /// session — updated right before every onBrowse call (swipe, a dot
-    /// tap, or the NEXT chip) by comparing the target's position in
-    /// EngineBridge.order against the current one, so a jump-to-tap gets
-    /// the same sensible direction a swipe would: forward through the
-    /// list slides in from the right, backward from the left.
-    @State private var browseEdge: Edge = .trailing
+    /// Live horizontal position of the current session's content — 0 at
+    /// rest, tracks a finger 1:1 during an active swipe (set directly in
+    /// onChanged, never animated there), animated only when a drag
+    /// commits or springs back in onEnded. A canned .transition() that
+    /// only plays after the gesture fully ends was reported as feeling
+    /// laggy/disconnected from the touch itself — this instead mirrors
+    /// the phone's own home-screen paging: content follows the thumb in
+    /// real time and only "locks onto" the next page once you let go.
+    @State private var dragOffset: CGFloat = 0
+    /// The adjacent session's resolved content, computed the instant a
+    /// drag commits to being horizontal — sits BEHIND the current
+    /// content in the z-stack below, so sliding the current layer aside
+    /// naturally reveals it, the same way dragging one card off a stack
+    /// reveals the one underneath rather than needing its own offset math.
+    @State private var peekState: DailyCardState?
+    @State private var peekKey: String?
+    /// Per-gesture flag: whether THIS drag has been claimed as a
+    /// horizontal swipe yet. Reset at the start of every new gesture so
+    /// an ordinary vertical scroll never gets mistaken for one path into
+    /// the next, and a genuine horizontal swipe doesn't un-claim itself
+    /// just because the finger wobbles back toward vertical mid-drag.
+    @State private var horizontalDragCommitted = false
+    @State private var containerWidth: CGFloat = 400
 
-    /// Every path that changes which session is showing goes through
-    /// here rather than calling onBrowse directly, so the slide direction
-    /// is never forgotten on one of the three call sites (swipe, dots,
-    /// NEXT chip).
-    private func browse(to key: String) {
-        if let from = EngineBridge.order.firstIndex(of: state.displayKey),
-           let to = EngineBridge.order.firstIndex(of: key) {
-            browseEdge = to >= from ? .trailing : .leading
+    /// Tap-driven browsing (a dot, NEXT) — plays the exact same
+    /// slide-and-settle the swipe gesture does, just driven
+    /// programmatically instead of by a live touch, so the two ways of
+    /// changing session never look or feel like two different features.
+    private func animatedBrowse(to key: String) {
+        guard onBrowse != nil, key != state.displayKey,
+              let from = EngineBridge.order.firstIndex(of: state.displayKey),
+              let to = EngineBridge.order.firstIndex(of: key) else { return }
+        let goingNext = to >= from
+        peekKey = key
+        peekState = DailyCardState.load(bridge: state.bridge, displayKey: key)
+        withAnimation(.easeInOut(duration: 0.3)) {
+            dragOffset = goingNext ? -containerWidth : containerWidth
         }
-        onBrowse?(key)
+        commitAfter(0.3, key: key)
+    }
+
+    private func commitAfter(_ delay: Double, key: String) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
+            onBrowse?(key)
+            dragOffset = 0
+            peekKey = nil
+            peekState = nil
+        }
     }
 
     /// Mirrors JS's `parseInt(string, 10)` — the leading run of digits,
@@ -157,80 +187,86 @@ struct DailyCardView: View {
                 }
                 header
                 if onBrowse != nil { sessionDots }
-                // Tagged with the session key as its identity: when that
-                // changes (a swipe, a dot tap, NEXT), SwiftUI treats this
-                // as a whole new view being inserted in place of the old
-                // one rather than the same view quietly updating its
-                // content — which is what actually makes .transition()
-                // below fire instead of just snapping instantly. browseEdge
-                // (set alongside every browse(to:) call) picks which side
-                // it slides in from, so the animation always agrees with
-                // which way you swiped instead of a fixed direction.
-                VStack(alignment: .leading, spacing: 18) {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(state.session.name.uppercased())
-                            .font(AppFonts.heading(32))
-                            .foregroundStyle(.white)
-                        Text(state.session.where_)
-                            .font(AppFonts.mono(13, weight: .medium))
-                            .foregroundStyle(state.accent)
-                    }
-                    if !cardMessage.isEmpty {
-                        Text(cardMessage)
-                            .font(.system(size: 14, weight: isLogged ? .semibold : .regular))
-                            .foregroundStyle(isLogged ? state.accent : SessionColours.dim)
+                // Peek sits behind, at rest (no offset of its own) — the
+                // current content slides on top of it via dragOffset, so
+                // dragging the top layer aside naturally reveals whatever
+                // adjacent session is underneath, the same way sliding one
+                // card off a stack reveals the next one without that card
+                // needing to move at all.
+                ZStack(alignment: .topLeading) {
+                    if let peekState {
+                        peekContent(peekState)
                     }
 
-                    ScrollView {
-                        VStack(alignment: .leading, spacing: 18) {
-                            // Flat list with thin dividers between rows, matching
-                            // .ex{border-bottom:1px solid var(--s2)} — the previous
-                            // per-row card treatment (rounded background, gap
-                            // between cards) was this native port's own addition,
-                            // not something carried over from the original.
-                            VStack(spacing: 0) {
-                                ForEach(Array(state.exercises.enumerated()), id: \.element.id) { index, ex in
-                                    exerciseRow(ex)
-                                    if index < state.exercises.count - 1 {
-                                        Rectangle().fill(SessionColours.s2).frame(height: 1)
+                    VStack(alignment: .leading, spacing: 18) {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(state.session.name.uppercased())
+                                .font(AppFonts.heading(32))
+                                .foregroundStyle(.white)
+                            Text(state.session.where_)
+                                .font(AppFonts.mono(13, weight: .medium))
+                                .foregroundStyle(state.accent)
+                        }
+                        if !cardMessage.isEmpty {
+                            Text(cardMessage)
+                                .font(.system(size: 14, weight: isLogged ? .semibold : .regular))
+                                .foregroundStyle(isLogged ? state.accent : SessionColours.dim)
+                        }
+
+                        ScrollView {
+                            VStack(alignment: .leading, spacing: 18) {
+                                // Flat list with thin dividers between rows, matching
+                                // .ex{border-bottom:1px solid var(--s2)} — the previous
+                                // per-row card treatment (rounded background, gap
+                                // between cards) was this native port's own addition,
+                                // not something carried over from the original.
+                                VStack(spacing: 0) {
+                                    ForEach(Array(state.exercises.enumerated()), id: \.element.id) { index, ex in
+                                        exerciseRow(ex)
+                                        if index < state.exercises.count - 1 {
+                                            Rectangle().fill(SessionColours.s2).frame(height: 1)
+                                        }
                                     }
                                 }
-                            }
-                            // Once today's logged, the exercise list reads as
-                            // closed rather than just quietly unchanged —
-                            // dimmed and untappable (ticking/timers/weights
-                            // don't make sense to poke at anymore), with the
-                            // LOGGED stamp doing the actual talking over the
-                            // top of it. Only UNDO (the actual escape hatch)
-                            // stays fully live.
-                            .opacity(isLogged ? 0.35 : 1)
-                            .allowsHitTesting(!isLogged)
+                                // Once today's logged, the exercise list reads as
+                                // closed rather than just quietly unchanged —
+                                // dimmed and untappable (ticking/timers/weights
+                                // don't make sense to poke at anymore), with the
+                                // LOGGED stamp doing the actual talking over the
+                                // top of it. Only UNDO (the actual escape hatch)
+                                // stays fully live.
+                                .opacity(isLogged ? 0.35 : 1)
+                                .allowsHitTesting(!isLogged)
 
-                            footer
-                            if onTapDone != nil { Color.clear.frame(height: 64) } // room for the floating button
+                                footer
+                                if onTapDone != nil { Color.clear.frame(height: 64) } // room for the floating button
+                            }
                         }
+                        // The system scroll indicator (a thin bar down the right
+                        // edge) sits on top of the exercise text at this width and
+                        // reads as visual noise rather than a useful affordance —
+                        // this list is short enough that "there's more below" is
+                        // already obvious without one.
+                        .scrollIndicators(.hidden)
+                        // Content behind the LOGGED stamp scrolling around
+                        // underneath it — while the stamp itself stays fixed in
+                        // the center — read as broken rather than "disabled".
+                        // Freezing scroll position here alongside the dimming
+                        // and disabled taps above makes the whole card actually
+                        // stop responding once you're done, not just partially.
+                        .scrollDisabled(isLogged)
                     }
-                    // The system scroll indicator (a thin bar down the right
-                    // edge) sits on top of the exercise text at this width and
-                    // reads as visual noise rather than a useful affordance —
-                    // this list is short enough that "there's more below" is
-                    // already obvious without one.
-                    .scrollIndicators(.hidden)
-                    // Content behind the LOGGED stamp scrolling around
-                    // underneath it — while the stamp itself stays fixed in
-                    // the center — read as broken rather than "disabled".
-                    // Freezing scroll position here alongside the dimming
-                    // and disabled taps above makes the whole card actually
-                    // stop responding once you're done, not just partially.
-                    .scrollDisabled(isLogged)
+                    .background(SessionColours.bg)
+                    .offset(x: dragOffset)
                 }
-                .id(state.displayKey)
-                .transition(.asymmetric(
-                    insertion: .move(edge: browseEdge).combined(with: .opacity),
-                    removal: .move(edge: browseEdge == .trailing ? .leading : .trailing).combined(with: .opacity)
-                ))
+                .background(
+                    GeometryReader { geo in
+                        Color.clear
+                            .onAppear { containerWidth = geo.size.width }
+                            .onChange(of: geo.size.width) { _, new in containerWidth = new }
+                    }
+                )
             }
-            .animation(.easeInOut(duration: 0.3), value: state.displayKey)
             .padding(20)
             // .simultaneousGesture (not .gesture) so this never competes
             // with the inner ScrollView's own vertical pan for
@@ -319,7 +355,7 @@ struct DailyCardView: View {
                     let colour = SessionColours.resolve(varName)
                     let isCurrent = key == state.displayKey
                     let isRecommended = key == state.decision.k && !isLogged
-                    Button(action: { browse(to: key) }) {
+                    Button(action: { animatedBrowse(to: key) }) {
                         ZStack {
                             if isRecommended {
                                 Circle()
@@ -343,7 +379,7 @@ struct DailyCardView: View {
                 // this chip little horizontal room, which was truncating
                 // longer session names ("MAX FING…"). Wrapping onto its
                 // own two lines uses the empty space underneath instead.
-                Button(action: { browse(to: next.key) }) {
+                Button(action: { animatedBrowse(to: next.key) }) {
                     VStack(alignment: .trailing, spacing: 4) {
                         HStack(spacing: 6) {
                             Text("NEXT")
@@ -413,23 +449,107 @@ struct DailyCardView: View {
         .shadow(color: .black.opacity(0.35), radius: 16, y: 6)
     }
 
+    /// A lightweight, non-interactive preview of the adjacent session,
+    /// shown only while a swipe or a tap-driven browse is actively
+    /// animating — title, subtitle, and plain exercise rows (no
+    /// checkboxes, timers, or weight badges, since none of that is
+    /// meaningful for a session that isn't the real current one and
+    /// nobody's meant to be tapping mid-drag anyway). Deliberately not a
+    /// full re-render of DailyCardView's own interactive content — this
+    /// only needs to look right for the fraction of a second it's
+    /// actually visible sliding in from the side.
+    @ViewBuilder
+    private func peekContent(_ peek: DailyCardState) -> some View {
+        VStack(alignment: .leading, spacing: 18) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(peek.session.name.uppercased())
+                    .font(AppFonts.heading(32))
+                    .foregroundStyle(.white)
+                Text(peek.session.where_)
+                    .font(AppFonts.mono(13, weight: .medium))
+                    .foregroundStyle(peek.accent)
+            }
+            VStack(spacing: 0) {
+                ForEach(Array(peek.exercises.enumerated()), id: \.element.id) { index, ex in
+                    HStack(alignment: .firstTextBaseline) {
+                        Text(ex.title.uppercased())
+                            .font(.system(size: 15.5, weight: .bold))
+                            .foregroundStyle(.white)
+                            .lineLimit(1)
+                        Spacer(minLength: 8)
+                        Text(clarifySets(ex.prescription))
+                            .font(AppFonts.mono(12, weight: .medium))
+                            .foregroundStyle(SessionColours.faint)
+                            .lineLimit(1)
+                    }
+                    .padding(.vertical, 16)
+                    if index < peek.exercises.count - 1 {
+                        Rectangle().fill(SessionColours.s2).frame(height: 1)
+                    }
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(SessionColours.bg)
+    }
+
     /// Swipe left/right anywhere on the card to step through
     /// EngineBridge.order — the same fixed session order sessionDots
     /// already browses by tap, just a second way to reach it. Clamped at
     /// the ends rather than wrapping: looping from "rest" back around to
     /// "max fingers" reads as a bug the first time it happens, not a
     /// feature, and the dots row is right there for jumping further.
+    ///
+    /// A real finger-tracked drag, not a canned animation played after
+    /// the gesture ends — reported as feeling laggy, "a delay between
+    /// swiping and it moving". onChanged sets dragOffset directly (no
+    /// animation — it should feel exactly as fast as the touch itself);
+    /// onEnded is the only place anything gets animated, either
+    /// completing the slide (past ~30% of the width) or springing back.
     private var swipeGesture: some Gesture {
-        DragGesture(minimumDistance: 24)
-            .onEnded { value in
+        DragGesture(minimumDistance: 10)
+            .onChanged { value in
                 guard onBrowse != nil else { return }
                 let dx = value.translation.width
                 let dy = value.translation.height
-                guard abs(dx) > 60, abs(dx) > abs(dy) * 1.5 else { return }
-                guard let index = EngineBridge.order.firstIndex(of: state.displayKey) else { return }
-                let nextIndex = dx < 0 ? index + 1 : index - 1
-                guard EngineBridge.order.indices.contains(nextIndex) else { return }
-                browse(to: EngineBridge.order[nextIndex])
+                if !horizontalDragCommitted {
+                    // Ambiguous small movements are left alone (no offset
+                    // applied yet) so an ordinary vertical scroll attempt
+                    // never gets grabbed as a swipe partway through it —
+                    // only once a drag is unambiguously more horizontal
+                    // than vertical does this claim the gesture for the
+                    // rest of its lifetime.
+                    guard abs(dx) > 12, abs(dx) > abs(dy) * 1.5 else { return }
+                    horizontalDragCommitted = true
+                    if let from = EngineBridge.order.firstIndex(of: state.displayKey) {
+                        let toIndex = dx < 0 ? from + 1 : from - 1
+                        if EngineBridge.order.indices.contains(toIndex) {
+                            let key = EngineBridge.order[toIndex]
+                            peekKey = key
+                            peekState = DailyCardState.load(bridge: state.bridge, displayKey: key)
+                        }
+                    }
+                }
+                dragOffset = dx
+            }
+            .onEnded { value in
+                guard horizontalDragCommitted else { return }
+                horizontalDragCommitted = false
+                if let key = peekKey, abs(dragOffset) > containerWidth * 0.3 {
+                    let goingNext = dragOffset < 0
+                    withAnimation(.easeOut(duration: 0.2)) {
+                        dragOffset = goingNext ? -containerWidth : containerWidth
+                    }
+                    commitAfter(0.2, key: key)
+                } else {
+                    withAnimation(.interactiveSpring(response: 0.32, dampingFraction: 0.82)) {
+                        dragOffset = 0
+                    }
+                    let capturedKey = peekKey
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.32) {
+                        if peekKey == capturedKey { peekKey = nil; peekState = nil }
+                    }
+                }
             }
     }
 
