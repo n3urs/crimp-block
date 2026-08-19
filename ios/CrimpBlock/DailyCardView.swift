@@ -141,6 +141,19 @@ struct DailyCardView: View {
     /// behaviour exactly as it was.
     private var todayIsLogged: Bool { loggedSessionKey != nil || isLogged }
 
+    /// Mirror of dragOffset for the INCOMING session's stamp: one full
+    /// width off-screen (on whichever side the swipe is coming from) at
+    /// rest, reaching centre exactly as the drag completes. The peek's
+    /// content doesn't need this — it sits behind the current content and
+    /// is revealed as that slides away — but the stamp is drawn above
+    /// everything, so nothing masks it. Without an offset of its own it
+    /// simply appeared, at full size, in the middle of the screen the
+    /// instant a drag began, instead of arriving with the card it belongs
+    /// to.
+    private var peekStampOffset: CGFloat {
+        dragOffset + (dragOffset < 0 ? containerWidth : -containerWidth)
+    }
+
     /// Tap-driven browsing (a dot, NEXT) — plays the exact same
     /// slide-and-settle the swipe gesture does, just driven
     /// programmatically instead of by a live touch, so the two ways of
@@ -345,7 +358,15 @@ struct DailyCardView: View {
                                 // LOGGED stamp doing the actual talking over the
                                 // top of it. Only UNDO (the actual escape hatch)
                                 // stays fully live.
-                                .opacity(isLogged ? 0.35 : 1)
+                                // Keyed to showLoggedStamp, not isLogged, so
+                                // the dimming rides along with the stamp's own
+                                // withAnimation on a real log/undo, and stays
+                                // instant (no cross-fade) when a swipe changes
+                                // it. Hit testing and scrolling below stay on
+                                // isLogged — those are correctness, not
+                                // presentation, and shouldn't be live during
+                                // the celebration's beat before the stamp lands.
+                                .opacity(showLoggedStamp ? 0.35 : 1)
                                 .allowsHitTesting(!isLogged)
 
                                 footer
@@ -408,10 +429,17 @@ struct DailyCardView: View {
             // .animation binding below is what makes it actually slide up
             // (matching #tm's own transform .2s), not just pop in — a bare
             // `if` with no transition snaps instantly either way.
-            if restTimer.endDate != nil {
-                RestTimerOverlay(controller: restTimer, accent: state.accent, onTutorialSignal: onTutorialSignal)
-                    .transition(.move(edge: .bottom))
+            // Wrapped in its own ZStack purely so the slide-up animation
+            // below is scoped to the timer — it used to sit on the whole
+            // card, which meant every unrelated change in the card
+            // animated too whenever a timer started or stopped.
+            ZStack(alignment: .bottom) {
+                if restTimer.endDate != nil {
+                    RestTimerOverlay(controller: restTimer, accent: state.accent, onTutorialSignal: onTutorialSignal)
+                        .transition(.move(edge: .bottom))
+                }
             }
+            .animation(.easeInOut(duration: 0.2), value: restTimer.endDate != nil)
             // Centered on the whole card, not just the scrollable exercise
             // area below the fixed header — matching CelebrationOverlay's
             // own centering exactly, since the two used to disagree (this
@@ -428,6 +456,7 @@ struct DailyCardView: View {
                 loggedStamp(accent: peekState.accent)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
                     .allowsHitTesting(false)
+                    .offset(x: peekStampOffset)
             }
             if showLoggedStamp {
                 loggedStamp(accent: state.accent)
@@ -440,9 +469,16 @@ struct DailyCardView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
                 .allowsHitTesting(false)
         }
-        .animation(.easeInOut(duration: 0.25), value: isLogged)
-        .animation(.easeInOut(duration: 0.25), value: showLoggedStamp)
-        .animation(.easeInOut(duration: 0.2), value: restTimer.endDate != nil)
+        // NO blanket .animation(_:value:) on this ZStack. There used to be
+        // three, and they were the "everything refreshes and the words
+        // minimize then reappear" report: .animation(_:value:) animates
+        // EVERY change in its subtree whenever its value changes, so a
+        // swipe that happened to flip isLogged (stepping off a logged
+        // session) cross-faded the entire card — title, message, every
+        // exercise row — on top of the swipe itself. Each one is now
+        // scoped to just the thing it's actually meant to animate: the
+        // rest timer's own ZStack below, and explicit withAnimation calls
+        // around showLoggedStamp in the onChange handlers.
         .background(SessionColours.bg)
         // Measures the FULL card width — deliberately attached out here on
         // the outer ZStack, not on the swiping content further in (which
@@ -497,14 +533,18 @@ struct DailyCardView: View {
         // tick gets its own beat first, uninterrupted.
         .onChange(of: isLogged) { _, new in
             guard !celebrating else { return }
-            showLoggedStamp = new
+            // Already handled unanimated in commit() when this is a swipe
+            // landing on a different session — re-animating it here would
+            // fade the stamp in at centre screen a frame later.
+            guard pendingCommitKey == nil, showLoggedStamp != new else { return }
+            withAnimation(.easeInOut(duration: 0.25)) { showLoggedStamp = new }
         }
         .onChange(of: celebrationTrigger) { _, _ in
             celebrating = true
             showLoggedStamp = false
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
                 celebrating = false
-                showLoggedStamp = true
+                withAnimation(.easeInOut(duration: 0.25)) { showLoggedStamp = true }
             }
         }
     }

@@ -291,9 +291,20 @@ struct NativeAppView: View {
     /// Mirrors app.js's session dots: tap a different session to preview
     /// and (if you choose) log THAT one instead of the recommendation.
     private func browse(to key: String) {
-        guard key != state?.displayKey else { return }
+        guard key != state?.displayKey, let bridge = state?.bridge else { return }
         browsedKey = key
-        Task { await reload() }
+        // Deliberately NOT reload(): browsing only changes WHICH session is
+        // on screen, and the engine already holds everything needed to
+        // answer that. reload() re-fetched both Supabase tables and rebuilt
+        // the whole EngineBridge (a fresh JSContext evaluation) for what is
+        // a purely local view change — so every swipe paid a network
+        // round-trip, and the card visibly re-rendered when the new state
+        // finally landed, well after the swipe had finished. Rebuilding the
+        // state straight off the existing bridge is synchronous and lands
+        // in the same frame the swipe commits in.
+        guard let s = DailyCardState.load(bridge: bridge, displayKey: key) else { return }
+        ticks = []  // same as finishLoad — a different session means different exercises
+        state = s
     }
 
     /// Mirrors app.js's signOutBtn handler (sb.auth.signOut().then(() =>
