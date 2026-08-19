@@ -26,7 +26,7 @@ final class IntervalTimerController {
     private var setRestSecs = 0
     private var tEnd: Date = .distantPast
     private var timer: Timer?
-    private let tones = IntervalTonePlayer()
+    private let voice = IntervalVoicePlayer()
 
     /// Time to put the phone down and get hands on the board before the
     /// first rep starts counting — without this, pressing Start and then
@@ -55,6 +55,7 @@ final class IntervalTimerController {
         tTot = Self.readySecs
         tEnd = Date().addingTimeInterval(Double(Self.readySecs))
         remainingSeconds = Self.readySecs
+        voice.speak(.getReady)
 
         UIApplication.shared.isIdleTimerDisabled = true
         timer = Timer.scheduledTimer(withTimeInterval: 0.2, repeats: true) { [weak self] _ in self?.tick() }
@@ -88,10 +89,22 @@ final class IntervalTimerController {
         case .ready:
             next = .on
         case .on:
-            next = .off
+            if rep < reps || set >= sets {
+                // A normal rep with more to come, or the very last rep of
+                // the very last set — both still take the ordinary short
+                // rest before whatever comes next (another rep, or done).
+                next = .off
+            } else {
+                // Last rep of a set that has another one after it: skip
+                // the short between-rep rest entirely and go straight
+                // into the real set-rest, rather than resting for offSecs
+                // and then immediately resting again for setRestSecs —
+                // reported directly as "it goes from rest into rest".
+                next = .setrest
+            }
         case .off:
             if rep < reps { rep += 1; next = .on }
-            else if set < sets { next = .setrest }
+            else if set < sets { next = .setrest } // not normally reached — the .on branch above already redirects here — kept as a safe fallback
             else { finish(); return }
         case .setrest:
             set += 1; rep = 1; next = .on
@@ -102,11 +115,11 @@ final class IntervalTimerController {
         tTot = next == .on ? onSecs : next == .off ? offSecs : setRestSecs
         tEnd = Date().addingTimeInterval(Double(tTot))
         remainingSeconds = tTot
-        tones.play(next == .on ? .go : .rest)
+        voice.speak(next == .on ? .go : .stop)
     }
 
     private func finish() {
-        tones.play(.go)
+        voice.speak(.done)
         timer?.invalidate()
         timer = nil
         phase = .done

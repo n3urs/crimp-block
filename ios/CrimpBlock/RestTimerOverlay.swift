@@ -2,12 +2,14 @@ import SwiftUI
 
 /// Native equivalent of the plain rest-timer bar (#tm in index.html) — a
 /// full-width bar fixed to the bottom, not a floating card: a 3px progress
-/// strip flush with the top edge, then a big countdown number, the label,
-/// and a text "Stop" button, matching #tmbar/.tmin/.tmn/.tml/.tmx exactly.
-/// Shown while RestTimerController has an active endDate. The Live
-/// Activity (Lock Screen / Dynamic Island) is a separate, parallel display
-/// of the same countdown, driven by the same controller — this is just
-/// the in-app one.
+/// strip flush with the top edge, then a big countdown number and a text
+/// "Stop" button, nothing else. Used to also show the exercise name as a
+/// label between them, dropped per feedback — the number and Stop are all
+/// that's needed here, the exercise itself is still right there on the
+/// card underneath. Shown while RestTimerController has an active
+/// endDate. The Live Activity (Lock Screen / Dynamic Island) is a
+/// separate, parallel display of the same countdown, driven by the same
+/// controller — this is just the in-app one.
 struct RestTimerOverlay: View {
     @Bindable var controller: RestTimerController
     var accent: Color
@@ -34,11 +36,7 @@ struct RestTimerOverlay: View {
                         Text(format(remaining))
                             .font(AppFonts.timerDigits(34))
                             .foregroundStyle(accent)
-                        Text(controller.label.uppercased())
-                            .font(.system(size: 14, weight: .semibold))
-                            .foregroundStyle(SessionColours.faint)
-                            .lineLimit(1)
-                            .frame(maxWidth: .infinity, alignment: .leading)
+                        Spacer(minLength: 0)
                         Button(action: {
                             controller.end(cancelNotification: true)
                             onTutorialSignal?("restTimerStop")
