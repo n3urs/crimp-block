@@ -63,7 +63,13 @@ return {
           {t:'Pull-ups (or assisted/negatives)',m:'4 × 6',ph:{'Foundation':'4 × 4 (or negatives) — building toward this','Base Strength':'4 × 8','Performance':'3 × 6 — maintain only'},d:'Full range. If a clean pull-up isn’t there yet, use a band, an assisted machine, or slow negatives from the top — same slot, whichever version is honest for where you are.',r:120},
           {t:'Push-ups or bench press',m:'3 × 10',d:'General pushing strength — climbing is pull-dominant enough that this matters for shoulder balance.',r:90},
           {t:'Core — hanging knee raises or plank',m:'3 sets',d:'Hanging knee raises if you can hang comfortably; a hard plank progression otherwise.',r:60},
-          {t:'Antagonists',m:'2 supersets',d:'Reverse wrist curls 2×15 · finger extensors 2×15 (a rubber band round the fingertips, opening the hand against it). Cheap insurance while you’re building finger load elsewhere in the week.'}
+          // CORRECTION (injury-flag research pass): external rotation was
+          // present in the intermediate/advanced Antagonists block but
+          // missing here — shoulder injuries aren't something that only
+          // shows up once you're advanced (published surveys put lifetime
+          // shoulder-pain prevalence in climbers at ~77%), so this was a
+          // real content gap, not a deliberate beginner simplification.
+          {t:'Antagonists',m:'2 supersets',d:'Reverse wrist curls 2×15 · finger extensors 2×15 (a rubber band round the fingertips, opening the hand against it) · external rotation 2×10 (light band, elbow tucked to your side). Cheap insurance while you’re building finger load elsewhere in the week — shoulder pain is extremely common in climbers of every level, and external rotation is the standard low-cost prevention move for it.'}
         ]},
       climbHard:{n:'Bouldering Session', w:'Gym · 75 min', c:'--heather', finger:2, pull:2, climb:1,
         x:[
@@ -311,7 +317,10 @@ return {
           {t:'Warm up',m:'5 min',d:'Band pull-aparts and scap pulls before anything weighted.'},
           {t:'Pull-ups (or assisted/negatives)',m:'4 × 6',ph:{'Foundation':'4 × 4 (or negatives) — building toward this','Performance':'3 × 6 — maintain only'},d:'Full range. Use a band, an assisted machine, or slow negatives if a clean pull-up isn’t there yet.',r:120},
           {t:'Core — hanging knee raises or plank',m:'3 sets',d:'Hanging knee raises if you can hang comfortably; a hard plank progression otherwise.',r:60},
-          {t:'Antagonists',m:'2 supersets',d:'Reverse wrist curls 2×15 · finger extensors 2×15. Cheap insurance while you’re building load elsewhere in the week.'}
+          // CORRECTION (injury-flag research pass): same gap as
+          // boulderingBeginner's own Antagonists block — see that file
+          // location for the full note.
+          {t:'Antagonists',m:'2 supersets',d:'Reverse wrist curls 2×15 · finger extensors 2×15 · external rotation 2×10 (light band, elbow tucked to your side). Cheap insurance while you’re building load elsewhere in the week — shoulder pain is extremely common in climbers of every level, and external rotation is the standard low-cost prevention move for it.'}
         ]},
       climbHard:{n:'ARC + 4x4s Session', w:'Gym · 60–75 min', c:'--heather', finger:2, pull:2, climb:1,
         x:[

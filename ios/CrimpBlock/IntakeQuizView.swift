@@ -163,7 +163,7 @@ struct IntakeQuizView: View {
         stepScaffold(eyebrow: "5 of 7", title: "Any injury history worth flagging?", subtitle: "Optional — this adds caution notes and safety exercises, not a diagnosis. Not a substitute for real medical advice.") {
             VStack(spacing: 10) {
                 ForEach(QuizAnswers.InjuryFlag.allCases) { flag in
-                    choiceCard(label: flag.label, isSelected: answers.injuryFlags.contains(flag)) {
+                    choiceCard(label: flag.label, subtitle: flag.subtitle, isSelected: answers.injuryFlags.contains(flag)) {
                         toggle(flag, in: &answers.injuryFlags)
                     }
                 }

@@ -36,10 +36,44 @@
    call that belongs to Oscar's coaching expertise, not something to
    invent wholesale here.
    ------------------------------------------------------------ */
+/* Researched against real injury-epidemiology and sports-medicine
+   sources (not just Oscar's/Joe's own history, which is all the
+   original two modules were seeded from — see the module-level
+   comment above). Injuries are safety-critical content, so every
+   caution here is deliberately hedged the same way: what causes it,
+   a concrete stop-signal, and an explicit "this is prevention, not
+   treatment, see a physio if it's currently active" line — never a
+   diagnosis, never a clinical rehab protocol (e.g. the Tyler Twist
+   eccentric-loading protocol for lateral epicondylitis is real and
+   evidence-backed, but it's a supervised TREATMENT protocol for an
+   active, staged injury — not something to hand a stranger through a
+   quiz flag with no clinician involved). Sources:
+     - Epidemiology of Musculoskeletal Injuries Among Climbers —
+       Systematic Review (PMC12821603): hand/finger/wrist ~28-42% of
+       injuries, shoulder 77% lifetime pain prevalence, elbow ~19% of
+       overuse injuries.
+     - Rehabilitation of shoulder impingement syndrome and rotator
+       cuff injuries: an evidence-based review (PubMed 20371557) and
+       the scapular-stabilization RCTs it's grounded in: scapular
+       control work performs as well as or better than rotator-cuff
+       isolation alone.
+     - Managing Elbow Pain from Climbing (backcountry.physio) and
+       Climber's Elbow guides (strengthclimbing.com, totalpursuitpt.com):
+       medial epicondylitis ("climber's elbow", inner-elbow, flexor/
+       pronator mass) is the dominant elbow complaint in climbers
+       specifically, distinct from and disproportionately more common
+       than lateral epicondylitis ("tennis elbow") despite the latter
+       being more common in the general population.
+     - Long Head of the Biceps Tendinopathy (theclimbingdoctor.com)
+       and Biceps vs. Impingement (mendcolorado.com): in climbers,
+       "bicep tendon" pain is most often the LONG HEAD tendon at the
+       front of the shoulder (gaston/compression loading), not a
+       distal elbow-area tendon, and frequently overlaps with general
+       shoulder impingement. */
 var INJURY_MODULES = {
   fingerPulley: {
     label: 'Finger / pulley history',
-    caution: 'You flagged a finger or pulley injury history — ease into any new edge size over 2–3 sessions rather than loading it maximally on day one, and stop an exercise immediately if you feel anything sharp or localized (as opposed to general muscular fatigue).',
+    caution: 'You flagged a finger or pulley injury history — ease into any new edge size over 2–3 sessions rather than loading it maximally on day one, and stop an exercise immediately if you feel anything sharp or localized (as opposed to general muscular fatigue). If this is currently active or still flares up day-to-day — not just something from your history — get assessed by a physio before training through it. What’s below is general prevention work, not treatment.',
     appliesToSessions: ['maxFingers','hangboard'],
     mandatoryInsert: {
       sessionKey: 'hangboard',
@@ -48,11 +82,29 @@ var INJURY_MODULES = {
   },
   bicepTendon: {
     label: 'Bicep tendon history',
-    caution: 'You flagged bicep tendon history — the isolated bicep work below is mandatory, not optional, for exactly that reason.',
+    caution: 'You flagged bicep tendon history — in climbers this is most often the long head of biceps tendon at the FRONT of the shoulder (not the elbow), commonly linked to gaston and compression moves, and it often overlaps with general shoulder impingement — worth also flagging Shoulder above if that sounds familiar. The isolated bicep work below is mandatory, not optional, for exactly that reason. If this is currently active or still flares up day-to-day — not just something from your history — get assessed by a physio before training through it. What’s below is general prevention work, not treatment.',
     appliesToSessions: ['pull'],
     mandatoryInsert: {
       sessionKey: 'pull',
       exercise: {t:'Bicep isolation', m:'3 × 12', d:'Slow, controlled dumbbell or band curls. Mandatory rehab/prevention work given your flagged history — do this even on days you are short on time.', r:60}
+    }
+  },
+  shoulder: {
+    label: 'Shoulder history',
+    caution: 'You flagged shoulder injury history — climbing loads the shoulder hardest on compression and gaston moves (reaching across or behind the body under load), so build into steep or compression-heavy sessions gradually rather than jumping straight in, and stop immediately for anything sharp or catching, as opposed to general fatigue. If this is currently active or still flares up day-to-day — not just something from your history — get assessed by a physio before training through it. What’s below is general prevention work, not treatment.',
+    appliesToSessions: ['pull'],
+    mandatoryInsert: {
+      sessionKey: 'pull',
+      exercise: {t:'Scapular stability work', m:'3 × 12', d:'Band pull-aparts or prone Y-raises — on top of the external rotation already in this session’s antagonist work, since scapular control is the other half of what shoulder-injury-prevention research points to alongside rotator cuff strength. Mandatory given your flagged history.', r:60}
+    }
+  },
+  elbow: {
+    label: 'Elbow history',
+    caution: 'You flagged elbow injury history — “climber’s elbow” (pain on the inside of the elbow) comes from the same gripping and pulling load everything in this program is built around, so ease into any jump in grip intensity over several sessions rather than all at once, and stop immediately for anything sharp or localized on the inside of the elbow, as opposed to general forearm fatigue. If this is currently active or still flares up day-to-day — not just something from your history — get assessed by a physio before training through it. What’s below is general prevention work, not treatment.',
+    appliesToSessions: ['maxFingers','hangboard','pull'],
+    mandatoryInsert: {
+      sessionKey: 'hangboard',
+      exercise: {t:'Wrist flexor + pronator strengthening', m:'3 × 12', d:'Slow, controlled wrist curls in the flexion direction, plus forearm pronation/supination with a light dumbbell — the specific tendon group climber’s elbow affects, on top of the extensor-focused reverse wrist curls already elsewhere in this program. Mandatory given your flagged history.', r:60}
     }
   }
 };

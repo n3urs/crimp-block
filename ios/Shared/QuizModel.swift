@@ -63,12 +63,42 @@ struct QuizAnswers {
     }
 
     /// Mirrors INJURY_MODULES's seed keys in template-resolver.js — same
-    /// reasoning as Weakness above: only these two currently attach a
-    /// real caution + mandatory exercise.
+    /// reasoning as Weakness above: only these four currently attach a
+    /// real caution + mandatory exercise. Originally just the two Joe
+    /// happened to have personal history with; expanded after checking
+    /// actual climbing injury-epidemiology research, which flagged
+    /// shoulder (77% lifetime pain prevalence in climbers) as a real,
+    /// previously-uncovered gap, and split elbow out as its own flag
+    /// rather than leaving it folded into bicepTendon — "climber's
+    /// elbow" (medial epicondylitis) and bicep tendon issues are
+    /// different structures with different causes and different
+    /// prevention exercises, even though both get lumped together
+    /// colloquially as "elbow/arm pain."
     enum InjuryFlag: String, CaseIterable, Identifiable {
-        case fingerPulley, bicepTendon
+        case fingerPulley, bicepTendon, shoulder, elbow
         var id: String { rawValue }
-        var label: String { self == .fingerPulley ? "Finger or pulley injury history" : "Bicep tendon injury history" }
+        var label: String {
+            switch self {
+            case .fingerPulley: return "Finger or pulley injury history"
+            case .bicepTendon: return "Bicep tendon injury history"
+            case .shoulder: return "Shoulder injury history"
+            case .elbow: return "Elbow injury history"
+            }
+        }
+        /// Short enough to disambiguate near-neighbors at a glance —
+        /// bicep tendon and shoulder overlap anatomically (in climbers,
+        /// "bicep tendon" pain is usually the long head tendon at the
+        /// FRONT of the shoulder, not the elbow), and this is the
+        /// cheapest way to help someone pick the right box without
+        /// reading a paragraph of caution text first.
+        var subtitle: String {
+            switch self {
+            case .fingerPulley: return "A2 pulley strain, tweaked finger joints"
+            case .bicepTendon: return "Front-of-shoulder pain from gastons or compression"
+            case .shoulder: return "Rotator cuff, impingement, general shoulder pain"
+            case .elbow: return "Inner-elbow pain from gripping — “climber’s elbow”"
+            }
+        }
     }
 
     var discipline: Discipline = .bouldering

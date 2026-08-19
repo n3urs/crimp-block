@@ -131,6 +131,40 @@ describe('resolveTemplate — injury flags', function(){
     var bicepEntries = program.sessions.pull.x.filter(function(e){ return e.t === 'Bicep isolation'; });
     expect(bicepEntries.length).toBe(1);
   });
+
+  test('shoulder flag cautions pull only and inserts scapular work there', function(){
+    var program = TemplateResolver.resolveTemplate(makeTestTemplate(), {
+      startDate:'2026-01-01', modifiers:{injuryFlags:['shoulder']}
+    });
+    expect(program.sessions.pull.note).toMatch(/shoulder/i);
+    expect(program.sessions.maxFingers.note).toBeUndefined();
+    expect(program.sessions.hangboard.note).toBeUndefined();
+    var scapularEntries = program.sessions.pull.x.filter(function(e){ return e.t === 'Scapular stability work'; });
+    expect(scapularEntries.length).toBe(1);
+  });
+
+  test('elbow flag cautions every grip/pull session and inserts wrist flexor work in hangboard', function(){
+    var program = TemplateResolver.resolveTemplate(makeTestTemplate(), {
+      startDate:'2026-01-01', modifiers:{injuryFlags:['elbow']}
+    });
+    expect(program.sessions.maxFingers.note).toMatch(/elbow/i);
+    expect(program.sessions.hangboard.note).toMatch(/elbow/i);
+    expect(program.sessions.pull.note).toMatch(/elbow/i);
+    var wristEntries = program.sessions.hangboard.x.filter(function(e){ return e.t === 'Wrist flexor + pronator strengthening'; });
+    expect(wristEntries.length).toBe(1);
+  });
+
+  test('shoulder and elbow flags together do not collide — each session gets its own insert(s), not a mix-up', function(){
+    var program = TemplateResolver.resolveTemplate(makeTestTemplate(), {
+      startDate:'2026-01-01', modifiers:{injuryFlags:['shoulder','elbow','fingerPulley','bicepTendon']}
+    });
+    var hangboardTitles = program.sessions.hangboard.x.map(function(e){ return e.t; });
+    expect(hangboardTitles).toContain('Finger extensor rehab');
+    expect(hangboardTitles).toContain('Wrist flexor + pronator strengthening');
+    var pullTitles = program.sessions.pull.x.map(function(e){ return e.t; });
+    expect(pullTitles).toContain('Bicep isolation');
+    expect(pullTitles).toContain('Scapular stability work');
+  });
 });
 
 describe('resolveTemplate — weaknesses', function(){
