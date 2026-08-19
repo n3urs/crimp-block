@@ -70,6 +70,18 @@ struct DailyCardView: View {
     @State private var restTimer = RestTimerController()
     @State private var intervalTimer = IntervalTimerController()
     @State private var showIntervalTimer = false
+    /// Decoupled from the raw `isLogged` prop so the persistent LOGGED
+    /// card doesn't pop in at the exact same instant as
+    /// CelebrationOverlay's own tick — see the onChange(of:
+    /// celebrationTrigger) handler below for how the two get sequenced.
+    @State private var showLoggedStamp = false
+    /// True for the brief window after a fresh log while the tick
+    /// animation is having its moment alone — while this is set, an
+    /// isLogged flip (which typically lands mid-window once the
+    /// parent's reload() finishes) is deliberately NOT mirrored into
+    /// showLoggedStamp; the celebrationTrigger handler owns that reveal
+    /// instead, once the tick's own beat is done.
+    @State private var celebrating = false
     /// Live horizontal position of the current session's content — 0 at
     /// rest, tracks a finger 1:1 during an active swipe (set directly in
     /// onChanged, never animated there), animated only when a drag
@@ -111,8 +123,9 @@ struct DailyCardView: View {
         peekState = DailyCardState.load(bridge: state.bridge, displayKey: key)
         withAnimation(.easeInOut(duration: 0.3)) {
             dragOffset = goingNext ? -containerWidth : containerWidth
+        } completion: {
+            commit(key: key)
         }
-        commitAfter(0.3, key: key)
     }
 
     /// Deliberately does NOT reset dragOffset/peekState here — onBrowse
@@ -127,17 +140,22 @@ struct DailyCardView: View {
     /// state.displayKey has genuinely caught up, at which point the
     /// switch from peek to real content is invisible — both show the
     /// same thing at that instant.
-    private func commitAfter(_ delay: Double, key: String) {
-        DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
-            pendingCommitKey = key
-            onBrowse?(key)
-            // Safety net: if state.displayKey never ends up matching
-            // (an onBrowse implementation that doesn't update it, or
-            // ignores the request) don't leave the card stuck mid-swipe
-            // forever.
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-                if pendingCommitKey == key { settle() }
-            }
+    ///
+    /// Called from the completing slide's own `completion:` closure, not
+    /// a GCD timer set to the same duration as the animation — a timer
+    /// like that fired a hair before SwiftUI had actually finished
+    /// rendering the last bit of the slide, which looked like the swipe
+    /// freezing just short of the edge and then jumping the rest of the
+    /// way once the timer's onBrowse call landed.
+    private func commit(key: String) {
+        pendingCommitKey = key
+        onBrowse?(key)
+        // Safety net: if state.displayKey never ends up matching
+        // (an onBrowse implementation that doesn't update it, or
+        // ignores the request) don't leave the card stuck mid-swipe
+        // forever.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+            if pendingCommitKey == key { settle() }
         }
     }
 
@@ -352,7 +370,7 @@ struct DailyCardView: View {
             // own centering exactly, since the two used to disagree (this
             // was an .overlay on just the ScrollView, which put it
             // noticeably lower than centered on screen).
-            if isLogged {
+            if showLoggedStamp {
                 loggedStamp
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
                     .allowsHitTesting(false)
@@ -363,6 +381,7 @@ struct DailyCardView: View {
                 .allowsHitTesting(false)
         }
         .animation(.easeInOut(duration: 0.25), value: isLogged)
+        .animation(.easeInOut(duration: 0.25), value: showLoggedStamp)
         .animation(.easeInOut(duration: 0.2), value: restTimer.endDate != nil)
         .background(SessionColours.bg)
         .sheet(isPresented: $showPlan) {
@@ -371,7 +390,13 @@ struct DailyCardView: View {
         .fullScreenCover(isPresented: $showIntervalTimer) {
             IntervalTimerView(controller: intervalTimer, onDismiss: { showIntervalTimer = false })
         }
-        .onAppear { restTimer.requestNotificationPermission() }
+        .onAppear {
+            restTimer.requestNotificationPermission()
+            // Opening straight onto an already-logged session (today,
+            // reopened later, or browsed back to) shows LOGGED right
+            // away — no celebration played, so nothing to sequence after.
+            showLoggedStamp = isLogged
+        }
         // The real handoff from peek to actual content: state.displayKey
         // catching up to what a swipe/tap already committed to is the
         // ONLY correct moment to drop the peek and zero the offset —
@@ -380,6 +405,24 @@ struct DailyCardView: View {
         // whatever was showing before.
         .onChange(of: state.displayKey) { _, newKey in
             if pendingCommitKey == newKey { settle() }
+        }
+        // isLogged flipping true covers two different things: a fresh
+        // DONE (celebrationTrigger fires alongside it) and just browsing
+        // back onto whatever session was already logged (no trigger).
+        // Only the second case should show the card immediately — the
+        // first is handled by the celebrationTrigger branch below so the
+        // tick gets its own beat first, uninterrupted.
+        .onChange(of: isLogged) { _, new in
+            guard !celebrating else { return }
+            showLoggedStamp = new
+        }
+        .onChange(of: celebrationTrigger) { _, _ in
+            celebrating = true
+            showLoggedStamp = false
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                celebrating = false
+                showLoggedStamp = true
+            }
         }
     }
 
@@ -585,8 +628,9 @@ struct DailyCardView: View {
                     let goingNext = dragOffset < 0
                     withAnimation(.easeOut(duration: 0.2)) {
                         dragOffset = goingNext ? -containerWidth : containerWidth
+                    } completion: {
+                        commit(key: key)
                     }
-                    commitAfter(0.2, key: key)
                 } else {
                     withAnimation(.interactiveSpring(response: 0.32, dampingFraction: 0.82)) {
                         dragOffset = 0
