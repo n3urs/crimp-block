@@ -210,17 +210,23 @@ begin
     raise exception 'not authorized';
   end if;
 
+  -- Every column explicitly cast to exactly what RETURNS TABLE above
+  -- declares. plpgsql's RETURN QUERY demands an exact type match, not a
+  -- compatible one, and auth.users.email is varchar(255) rather than
+  -- text — which failed with "structure of query does not match
+  -- function result type" on the real database. Casting all of them,
+  -- not just that one, so no other column can fail the same way later.
   return query
   select
-    u.id,
-    u.email,
-    u.created_at,
-    u.last_sign_in_at,
-    p.tier,
-    p.assigned_template_id,
-    coalesce(s.cnt, 0),
-    s.last_date,
-    s.last_type
+    u.id::uuid,
+    u.email::text,
+    u.created_at::timestamptz,
+    u.last_sign_in_at::timestamptz,
+    p.tier::text,
+    p.assigned_template_id::text,
+    coalesce(s.cnt, 0)::bigint,
+    s.last_date::date,
+    s.last_type::text
   from auth.users u
   left join public.profiles p on p.user_id = u.id
   -- sessions aliased to `sess`, and the subquery's own output column
