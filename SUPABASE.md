@@ -223,15 +223,23 @@ begin
     s.last_type
   from auth.users u
   left join public.profiles p on p.user_id = u.id
+  -- sessions aliased to `sess`, and the subquery's own output column
+  -- to `uid` rather than `user_id` — RETURNS TABLE's `user_id` becomes
+  -- a plpgsql variable in scope for the WHOLE function body, so a bare
+  -- `user_id` here is genuinely ambiguous to Postgres (is it that
+  -- variable, or sessions.user_id?), not just a style nit. Caught live:
+  -- this shipped once with a bare reference and every sign-in on the
+  -- real admin page failed with "column reference user_id is
+  -- ambiguous" until this was fixed.
   left join (
     select
-      user_id,
+      sess.user_id as uid,
       count(*) as cnt,
-      max(date) as last_date,
-      (array_agg(type order by date desc))[1] as last_type
-    from public.sessions
-    group by user_id
-  ) s on s.user_id = u.id
+      max(sess.date) as last_date,
+      (array_agg(sess.type order by sess.date desc))[1] as last_type
+    from public.sessions sess
+    group by sess.user_id
+  ) s on s.uid = u.id
   order by u.created_at desc;
 end;
 $$;
