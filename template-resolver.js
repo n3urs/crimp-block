@@ -69,7 +69,31 @@
        "bicep tendon" pain is most often the LONG HEAD tendon at the
        front of the shoulder (gaston/compression loading), not a
        distal elbow-area tendon, and frequently overlaps with general
-       shoulder impingement. */
+       shoulder impingement.
+     - The two ORIGINAL modules (fingerPulley, bicepTendon) were
+       re-checked against dedicated sources too, not just carried
+       over on the assumption Joe's history made them correct:
+     - Finger flexion to extension ratio in healthy climbers (Frontiers
+       in Sports and Active Living, 2023, PMC10701375): climbers run
+       ~6:1 flexor:extensor strength ratio (up to 9:1 in elite
+       climbers) vs ~3.7:1 in the general population — confirms
+       extensor-focused antagonist work (fingerPulley's own mandatory
+       insert) is a real, evidence-backed correction, not a guess.
+     - A2 pulley rehab protocols (The Climbing Doctor, Rock Rehab,
+       Medstar Sport Physio): confirm progressive, controlled edge-size
+       reintroduction (fingerPulley's caution) over the actual failure
+       mode these sources all flag — resting until pain-free, then
+       jumping straight back to small crimps.
+     - Biceps Tendinopathy (Physiopedia, E3 Rehab, IJSPT): rehab
+       follows an isometric -> isotonic -> eccentric progression, and
+       critically "rarely happens in isolation" — treatment leans on
+       scapular/rotator-cuff coordination as much as the bicep itself.
+       This is why bicepTendon's caution below now points at the new
+       shoulder flag explicitly, and why its own exercise gets an
+       isometric fallback rather than staying pure moving-rep isolation
+       work — the original wording ("isolated bicep work... mandatory")
+       was the one piece of the original two modules this pass actually
+       changed on the merits, not just re-confirmed. */
 var INJURY_MODULES = {
   fingerPulley: {
     label: 'Finger / pulley history',
@@ -77,16 +101,16 @@ var INJURY_MODULES = {
     appliesToSessions: ['maxFingers','hangboard'],
     mandatoryInsert: {
       sessionKey: 'hangboard',
-      exercise: {t:'Finger extensor rehab', m:'3 × 15', d:'A rubber band round the fingertips, opening the hand against it. Mandatory whenever a finger/pulley flag is set — antagonist strength is cheap insurance against the exact injury you flagged.', r:45}
+      exercise: {t:'Finger extensor rehab', m:'3 × 15', d:'A rubber band round the fingertips, opening the hand against it. Mandatory whenever a finger/pulley flag is set — climbers run roughly a 6:1 flexor-to-extensor strength ratio (vs ~3.7:1 in the general population, up to 9:1 in elite climbers), and extensor work is the standard way to correct that imbalance, not just cheap insurance.', r:45}
     }
   },
   bicepTendon: {
     label: 'Bicep tendon history',
-    caution: 'You flagged bicep tendon history — in climbers this is most often the long head of biceps tendon at the FRONT of the shoulder (not the elbow), commonly linked to gaston and compression moves, and it often overlaps with general shoulder impingement — worth also flagging Shoulder above if that sounds familiar. The isolated bicep work below is mandatory, not optional, for exactly that reason. If this is currently active or still flares up day-to-day — not just something from your history — get assessed by a physio before training through it. What’s below is general prevention work, not treatment.',
+    caution: 'You flagged bicep tendon history — in climbers this is most often the long head of biceps tendon at the front of the shoulder (not the elbow), commonly linked to gaston and compression moves. Research on this tendon specifically is clear it’s rarely an isolated problem — prevention leans on scapular and rotator cuff coordination as much as the bicep itself — so flag Shoulder above too if that sounds familiar; the two mandatory exercises are meant to work together, not as alternatives. If anything below reproduces the original pain rather than plain working fatigue, swap to a static hold at a pain-free angle instead of full reps. If this is currently active or still flares up day-to-day — not just something from your history — get assessed by a physio before training through it. What’s below is general prevention work, not treatment.',
     appliesToSessions: ['pull'],
     mandatoryInsert: {
       sessionKey: 'pull',
-      exercise: {t:'Bicep isolation', m:'3 × 12', d:'Slow, controlled dumbbell or band curls. Mandatory rehab/prevention work given your flagged history — do this even on days you are short on time.', r:60}
+      exercise: {t:'Bicep isolation', m:'3 × 12', d:'Slow, controlled dumbbell or band curls — if a full rep is uncomfortable, hold isometrically at a pain-free elbow angle instead (e.g. 3 × 20s) rather than pushing through it. Mandatory rehab/prevention work given your flagged history, alongside the scapular work above if you’ve also flagged Shoulder.', r:60}
     }
   },
   shoulder: {
