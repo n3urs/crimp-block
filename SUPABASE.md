@@ -237,10 +237,15 @@ begin
   -- this shipped once with a bare reference and every sign-in on the
   -- real admin page failed with "column reference user_id is
   -- ambiguous" until this was fixed.
+  -- cnt excludes 'rest' — a logged rest day is real app engagement
+  -- (which is exactly why last_date/last_type below still count it, so
+  -- "last active" stays honest) but isn't a TRAINING session, and
+  -- counting it toward sessions_logged just inflates the number with
+  -- no training behind it. Reported directly: "not sure how I have 13".
   left join (
     select
       sess.user_id as uid,
-      count(*) as cnt,
+      count(*) filter (where sess.type != 'rest') as cnt,
       max(sess.date) as last_date,
       (array_agg(sess.type order by sess.date desc))[1] as last_type
     from public.sessions sess
