@@ -734,10 +734,12 @@ struct DailyCardView: View {
 
     /// Swipe left/right anywhere on the card to step through
     /// EngineBridge.order — the same fixed session order sessionDots
-    /// already browses by tap, just a second way to reach it. Clamped at
-    /// the ends rather than wrapping: looping from "rest" back around to
-    /// "max fingers" reads as a bug the first time it happens, not a
-    /// feature, and the dots row is right there for jumping further.
+    /// already browses by tap, just a second way to reach it. Wraps at
+    /// both ends (rest -> max fingers, max fingers -> rest) rather than
+    /// clamping — reversed from an earlier version that stopped dead at
+    /// either end, per explicit feedback: a carousel that keeps going is
+    /// what was actually wanted, not a hard stop with the dots row as the
+    /// only way past it.
     ///
     /// A real finger-tracked drag, not a canned animation played after
     /// the gesture ends — reported as feeling laggy, "a delay between
@@ -761,12 +763,16 @@ struct DailyCardView: View {
                     guard abs(dx) > 12, abs(dx) > abs(dy) * 1.5 else { return }
                     horizontalDragCommitted = true
                     if let from = EngineBridge.order.firstIndex(of: effectiveDisplayKey) {
-                        let toIndex = dx < 0 ? from + 1 : from - 1
-                        if EngineBridge.order.indices.contains(toIndex) {
-                            let key = EngineBridge.order[toIndex]
-                            peekKey = key
-                            peekState = DailyCardState.load(bridge: state.bridge, displayKey: key)
-                        }
+                        let count = EngineBridge.order.count
+                        // + count before % wraps a step off either end back
+                        // around instead of clamping — Swift's % can return
+                        // a negative result for a negative left-hand side
+                        // (e.g. -1 % 7 == -1, not 6), so the raw index has
+                        // to be pushed positive first.
+                        let toIndex = ((dx < 0 ? from + 1 : from - 1) + count) % count
+                        let key = EngineBridge.order[toIndex]
+                        peekKey = key
+                        peekState = DailyCardState.load(bridge: state.bridge, displayKey: key)
                     }
                 }
                 dragOffset = dx
