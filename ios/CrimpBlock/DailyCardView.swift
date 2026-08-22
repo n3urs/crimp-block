@@ -74,7 +74,7 @@ struct DailyCardView: View {
     /// other caller can safely leave this nil.
     var onTutorialSignal: ((String) -> Void)? = nil
     @State private var showPlan = false
-    @State private var showAccount = false
+    @State private var showSettings = false
     @State private var restTimer = RestTimerController()
     @State private var intervalTimer = IntervalTimerController()
     @State private var showIntervalTimer = false
@@ -506,6 +506,9 @@ struct DailyCardView: View {
         .sheet(isPresented: $showPlan) {
             PlanSheetView(bridge: state.bridge, block: state.block, today: state.today)
         }
+        .sheet(isPresented: $showSettings) {
+            SettingsView(accountEmail: accountEmail, onSignOut: onSignOut)
+        }
         .fullScreenCover(isPresented: $showIntervalTimer) {
             IntervalTimerView(controller: intervalTimer, onDismiss: { showIntervalTimer = false })
         }
@@ -828,18 +831,18 @@ struct DailyCardView: View {
                 .font(AppFonts.mono(10.5, weight: .medium))
                 .foregroundStyle(SessionColours.faint)
                 .textCase(.uppercase)
-            if let accountEmail {
-                Button(action: { showAccount = true }) {
-                    Image(systemName: "person.crop.circle")
-                        .font(.system(size: 17))
-                        .foregroundStyle(SessionColours.dim)
-                }
-                .buttonStyle(.plain)
-                .padding(.leading, 8)
-                .confirmationDialog(accountEmail, isPresented: $showAccount, titleVisibility: .visible) {
-                    Button("Sign Out", role: .destructive) { onSignOut?() }
-                }
+            // Not gated on accountEmail the way the old person-icon button
+            // was — the sets-counter preferences underneath are useful
+            // regardless of sign-in state (sample/demo mode included), and
+            // SettingsView itself only renders the ACCOUNT section when
+            // there's actually an email to show.
+            Button(action: { showSettings = true }) {
+                Image(systemName: "gearshape")
+                    .font(.system(size: 17))
+                    .foregroundStyle(SessionColours.dim)
             }
+            .buttonStyle(.plain)
+            .padding(.leading, 8)
         }
     }
 
@@ -924,6 +927,33 @@ private struct ExerciseRowView: View {
     var onTutorialSignal: ((String) -> Void)? = nil
 
     @State private var showDetail = false
+    /// Local, ephemeral, never synced — this is purely an in-session tally
+    /// aid. The actually-persisted state is still just isTicked (via
+    /// onToggleTick), same as before this existed; this only tracks
+    /// progress TOWARD that, kept in sync with it below.
+    @State private var completedSets = 0
+    @AppStorage("setsCounterEnabled") private var setsCounterEnabled = false
+    @AppStorage("autoStartRestOnTally") private var autoStartRestOnTally = false
+
+    /// nil hides the tally entirely rather than guessing. leadingInt()
+    /// ALONE isn't enough here — it just grabs a leading digit run with no
+    /// check for what follows, so bare leadingInt("15 min") happily
+    /// returns 15, which is exactly the bug a live check on the real
+    /// sample data caught: a 15-MINUTE warm-up rendered a 15-pip tally.
+    /// clarifySets()'s own `^\d+\s*×` regex (used elsewhere on this same
+    /// prescription text to relabel "3 × 8" as "3 sets × 8") is the
+    /// actual established boundary for "this leading number unambiguously
+    /// means a set count" — reusing that, not just leadingInt on its own.
+    /// Skipped for interval exercises too — those get their own
+    /// full-screen set/rep tracking once started, so a second tally here
+    /// would just be a redundant, out-of-sync copy of it.
+    private var totalSets: Int? {
+        guard ex.interval == nil,
+              ex.prescription.range(of: #"^\d+\s*×"#, options: .regularExpression) != nil,
+              let n = leadingInt(ex.prescription), n > 1
+        else { return nil }
+        return n
+    }
 
     /// Matches .ex.checked exactly: ticking an exercise off doesn't just
     /// strike its title through, it collapses the WHOLE row down to just
@@ -998,6 +1028,9 @@ private struct ExerciseRowView: View {
                             .foregroundStyle(SessionColours.dim)
                             .transition(.opacity)
                     }
+                    if setsCounterEnabled, let totalSets {
+                        setsTally(totalSets)
+                    }
                     if let interval = ex.interval {
                         Button(action: {
                             let sets = leadingInt(ex.prescription) ?? 1
@@ -1043,6 +1076,56 @@ private struct ExerciseRowView: View {
         // state mutation so every current and future caller gets it for
         // free, not just whichever one remembered to wrap it.
         .animation(.easeInOut(duration: 0.2), value: isTicked)
+        // Keeps the tally in sync with whichever side actually changed
+        // isTicked — filling every pip below sets it via onToggleTick, but
+        // the checkbox itself is still tappable directly too (bypassing
+        // the tally entirely), and an external Undo can flip it back to
+        // false. Either direction, the tally should reflect reality: full
+        // when done, reset to zero the moment it isn't.
+        .onChange(of: isTicked) { _, newValue in
+            guard let totalSets else { return }
+            completedSets = newValue ? totalSets : 0
+        }
+    }
+
+    /// Each pip is its own tap target rather than one "increment" button —
+    /// tapping the next unlit one is indistinguishable from a plain
+    /// increment (the primary, expected interaction), but tapping an
+    /// ALREADY-lit pip undoes back to it, which is the only correction
+    /// path for a mis-tap without unticking the whole exercise.
+    private func setsTally(_ totalSets: Int) -> some View {
+        // One tap target for the whole row, not one per pip — simpler than
+        // an earlier version that made each pip independently tappable
+        // (which also allowed undoing by tapping an already-lit one), per
+        // direct feedback while testing it live: just one box, tap
+        // anywhere in it, count goes up. The pips are still the visual
+        // progress display, just not individually interactive anymore.
+        Button(action: { tapTally(totalSets: totalSets) }) {
+            HStack(spacing: 7) {
+                ForEach(0..<totalSets, id: \.self) { i in
+                    let lit = i < completedSets
+                    Circle()
+                        .strokeBorder(lit ? .clear : SessionColours.s4, lineWidth: 1.5)
+                        .background(Circle().fill(lit ? accent : .clear))
+                        .frame(width: 20, height: 20)
+                }
+            }
+            .padding(.vertical, 6)
+            .contentShape(Rectangle()) // the padded gaps between/around pips are tappable too, not just the circles themselves
+        }
+        .buttonStyle(.plain)
+        .padding(.top, 4)
+    }
+
+    private func tapTally(totalSets: Int) {
+        guard completedSets < totalSets else { return } // already full — row will have collapsed via the tick below anyway
+        completedSets += 1
+        if autoStartRestOnTally, let r = ex.restSeconds {
+            restTimer.start(secs: r, label: ex.title, colourHex: SessionColours.hex(accentVarName))
+        }
+        if completedSets >= totalSets, !isTicked {
+            onToggleTick?(ex.id)
+        }
     }
 
     @ViewBuilder

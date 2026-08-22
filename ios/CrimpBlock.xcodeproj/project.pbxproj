@@ -38,6 +38,7 @@
 		1BE5F0074A4FE84A870BDD6E /* IntervalTonePlayer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1D4A93D2E799953023A0D44C /* IntervalTonePlayer.swift */; };
 		2390FE79D020BF8F17F5D6E1 /* IntervalTimerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 509C122BF2A9E23301D7B91B /* IntervalTimerView.swift */; };
 		7E9A3714C664D67E5ACF716B /* WeekStripView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3FA7FBBB61EF7F7994B9DD88 /* WeekStripView.swift */; };
+		8C0B674AE8A50E1239A80551 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0BA3FE9AE62B1A19DA320A0C /* SettingsView.swift */; };
 		DD0A88CD778120CEE40F6DD3 /* CelebrationOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = CBACE466B35EED32AC6748EA /* CelebrationOverlay.swift */; };
 		E23831851C2A4FB380A76BAF /* template-resolver.js in Resources */ = {isa = PBXBuildFile; fileRef = 2FB27976E4B168AB5F33C9E0 /* template-resolver.js */; };
 		B50A1C9DA6456982DA7AA621 /* templates.js in Resources */ = {isa = PBXBuildFile; fileRef = 291F4FCB9C2BCB962D9EC6B5 /* templates.js */; };
@@ -124,6 +125,7 @@
 		1D4A93D2E799953023A0D44C /* IntervalTonePlayer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IntervalTonePlayer.swift; sourceTree = "<group>"; };
 		509C122BF2A9E23301D7B91B /* IntervalTimerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IntervalTimerView.swift; sourceTree = "<group>"; };
 		3FA7FBBB61EF7F7994B9DD88 /* WeekStripView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeekStripView.swift; sourceTree = "<group>"; };
+		0BA3FE9AE62B1A19DA320A0C /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		CBACE466B35EED32AC6748EA /* CelebrationOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CelebrationOverlay.swift; sourceTree = "<group>"; };
 		2FB27976E4B168AB5F33C9E0 /* template-resolver.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; name = "template-resolver.js"; path = "../template-resolver.js"; sourceTree = SOURCE_ROOT; };
 		291F4FCB9C2BCB962D9EC6B5 /* templates.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; name = "templates.js"; path = "../templates.js"; sourceTree = SOURCE_ROOT; };
@@ -203,6 +205,7 @@
 				F5A540FD4C82A803A692F59D /* RestTimerOverlay.swift */,
 				509C122BF2A9E23301D7B91B /* IntervalTimerView.swift */,
 				3FA7FBBB61EF7F7994B9DD88 /* WeekStripView.swift */,
+				0BA3FE9AE62B1A19DA320A0C /* SettingsView.swift */,
 				CBACE466B35EED32AC6748EA /* CelebrationOverlay.swift */,
 				0CF66749302703C2BB7FC64B /* IntakeQuizView.swift */,
 				FDDFF6E9403E8939FEE4971B /* QuizDemoView.swift */,
@@ -421,6 +424,7 @@
 				1BE5F0074A4FE84A870BDD6E /* IntervalTonePlayer.swift in Sources */,
 				2390FE79D020BF8F17F5D6E1 /* IntervalTimerView.swift in Sources */,
 				7E9A3714C664D67E5ACF716B /* WeekStripView.swift in Sources */,
+				8C0B674AE8A50E1239A80551 /* SettingsView.swift in Sources */,
 				DD0A88CD778120CEE40F6DD3 /* CelebrationOverlay.swift in Sources */,
 				73878B52967705265938F2E2 /* QuizModel.swift in Sources */,
 				CA3ABE16007645A96952C94A /* IntakeQuizView.swift in Sources */,
