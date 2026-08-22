@@ -14,7 +14,20 @@ struct NativeSignInView: View {
     @State private var email = ""
     @State private var code = ""
     @State private var message: String?
+    @State private var isError = false
     @State private var sending = false
+    /// Belt-and-braces against the real failure mode this whole thing
+    /// exists to prevent: a second SEND CODE tap silently invalidates
+    /// whatever code Supabase already sent, since only the newest one
+    /// stays valid. The screen swapping to "ENTER CODE" was the only
+    /// success signal, easy to miss, so an unsure user's natural next
+    /// move — tap it again — was quietly killing their real code. This
+    /// disables another send for a stretch after one already went out,
+    /// on top of (not instead of) making that first send obviously
+    /// visible below.
+    @State private var resendCooldown: Int = 0
+    private static let resendCooldownSeconds = 30
+    private let cooldownTick = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
     var body: some View {
         ZStack {
@@ -27,21 +40,37 @@ struct NativeSignInView: View {
                     .font(.system(size: 13, weight: .medium, design: .monospaced))
                     .foregroundStyle(SessionColours.resolve("--gorse"))
 
+                // Three real states, three distinct looks — an error used to
+                // be styled identically to routine instructions (same dim
+                // grey either way), which made a genuine failure easy to
+                // read as just more copy rather than something that went
+                // wrong. A fresh, successful send gets its own accent-
+                // coloured, bolder confirmation for the same reason in
+                // reverse: "it worked" needs to be obvious, not just present.
                 Text(message ?? defaultMessage)
-                    .font(.system(size: 14))
-                    .foregroundStyle(SessionColours.dim)
+                    .font(.system(size: 14, weight: (step == .code && message == nil) ? .semibold : .regular))
+                    .foregroundStyle(messageColour)
 
                 if step == .email {
                     placeholderField("you@example.com", text: $email, keyboardType: .emailAddress, autocapitalization: .never, autocorrection: false)
+                        .onChange(of: email) { _, _ in
+                            // A cooldown protecting the PREVIOUS address
+                            // shouldn't block sending to a freshly-typed
+                            // different one, e.g. fixing a typo.
+                            resendCooldown = 0
+                        }
                     Button(action: sendCode) {
-                        Text(sending ? "SENDING…" : "SEND CODE").buttonLabelStyle()
+                        Text(sendButtonLabel).buttonLabelStyle()
                     }
-                    .disabled(!emailLooksValid || sending)
-                    .opacity((!emailLooksValid || sending) ? 0.5 : 1)
+                    .disabled(!emailLooksValid || sending || resendCooldown > 0)
+                    .opacity((!emailLooksValid || sending || resendCooldown > 0) ? 0.5 : 1)
+                    .onReceive(cooldownTick) { _ in
+                        if resendCooldown > 0 { resendCooldown -= 1 }
+                    }
                 } else {
                     placeholderField("code from email", text: $code, keyboardType: .numberPad)
                     HStack(spacing: 10) {
-                        Button(action: { step = .email; message = nil }) {
+                        Button(action: { step = .email; message = nil; isError = false }) {
                             Text("BACK").buttonLabelStyle(secondary: true)
                         }
                         Button(action: verifyCode) {
@@ -60,7 +89,26 @@ struct NativeSignInView: View {
     private var defaultMessage: String {
         step == .email
             ? "Enter your email. Each email gets its own private log."
-            : "Sign-in code sent to \(email). Typing it here signs you in on this device."
+            : "✓ Code sent to \(email) — check your inbox and type it below."
+    }
+
+    /// Error red for a real failure, accent gold for "it worked, look at
+    /// this," dim grey for routine instructions the rest of the time —
+    /// previously all three were the exact same muted colour, which is
+    /// why a successful send didn't read as an obvious confirmation.
+    private var messageColour: Color {
+        if isError { return SessionColours.restC }
+        if step == .code && message == nil { return SessionColours.resolve("--gorse") }
+        return SessionColours.dim
+    }
+
+    /// Counts down instead of just re-reading "SEND CODE" — the cooldown
+    /// existing at all is useless if there's no visible reason not to tap
+    /// through it the instant it looks tappable again.
+    private var sendButtonLabel: String {
+        if sending { return "SENDING…" }
+        if resendCooldown > 0 { return "RESEND IN \(resendCooldown)s" }
+        return "SEND CODE"
     }
 
     /// A real inbox can't be confirmed client-side — this only rules out
@@ -75,13 +123,20 @@ struct NativeSignInView: View {
     private func sendCode() {
         sending = true
         message = nil
+        isError = false
         Task {
             do {
                 try await client.sendOTP(email: email)
                 sending = false
                 step = .code
+                // Starts the moment a code genuinely goes out, so it also
+                // covers hitting BACK then SEND CODE again right away —
+                // the exact sequence that was silently invalidating an
+                // already-sent, still-good code.
+                resendCooldown = Self.resendCooldownSeconds
             } catch {
                 sending = false
+                isError = true
                 message = "Something went wrong: \(error)"
             }
         }
@@ -89,6 +144,7 @@ struct NativeSignInView: View {
 
     private func verifyCode() {
         sending = true
+        isError = false
         Task {
             do {
                 try await client.verifyOTP(email: email, token: code.filter(\.isNumber))
@@ -96,6 +152,7 @@ struct NativeSignInView: View {
                 onSignedIn()
             } catch {
                 sending = false
+                isError = true
                 message = "That code didn't work: \(error). Codes expire, so request a new one if it's been a while."
             }
         }
