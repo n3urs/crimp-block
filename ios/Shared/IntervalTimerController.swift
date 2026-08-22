@@ -21,6 +21,11 @@ final class IntervalTimerController {
     private(set) var tTot: Int = 0
     private(set) var remainingSeconds: Int = 0
     private(set) var isPaused = false
+    /// Plain settable, not private(set) — the mute button toggles this
+    /// straight from the view, same pattern the pause button already
+    /// uses via togglePause() rather than a method here, since there's
+    /// no other state to keep in sync when this flips.
+    var isMuted = false
     /// Readable (not just settable) so the view can compute a smooth,
     /// sub-second progress fraction itself — remainingSeconds alone only
     /// changes once a whole second, which made the progress bar visibly
@@ -61,7 +66,7 @@ final class IntervalTimerController {
         tEnd = Date().addingTimeInterval(Double(Self.readySecs))
         remainingSeconds = Self.readySecs
         isPaused = false
-        tones.play(.ready)
+        playTone(.ready)
 
         UIApplication.shared.isIdleTimerDisabled = true
         timer = Timer.scheduledTimer(withTimeInterval: 0.2, repeats: true) { [weak self] _ in self?.tick() }
@@ -86,6 +91,14 @@ final class IntervalTimerController {
     }
 
     func togglePause() { isPaused ? resume() : pause() }
+
+    /// Every cue in the state machine routes through here rather than
+    /// calling tones.play(_:) directly, so muting is a single guard
+    /// instead of three separate ones that could drift out of sync.
+    private func playTone(_ cue: IntervalTonePlayer.Cue) {
+        guard !isMuted else { return }
+        tones.play(cue)
+    }
 
     func stop() {
         timer?.invalidate()
@@ -142,11 +155,11 @@ final class IntervalTimerController {
         tTot = next == .on ? onSecs : next == .off ? offSecs : setRestSecs
         tEnd = Date().addingTimeInterval(Double(tTot))
         remainingSeconds = tTot
-        tones.play(next == .on ? .go : .stop)
+        playTone(next == .on ? .go : .stop)
     }
 
     private func finish() {
-        tones.play(.done)
+        playTone(.done)
         timer?.invalidate()
         timer = nil
         phase = .done

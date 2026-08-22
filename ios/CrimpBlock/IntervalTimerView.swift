@@ -117,6 +117,25 @@ struct IntervalTimerView: View {
             .padding(.bottom, 24)
             .onReceive(tick) { now = $0 }
         }
+        // Sits above the ready/on/off/setrest cues on the outer ZStack
+        // (not the inner VStack's own content flow) so it stays fixed in
+        // the corner regardless of phase, and stays clear of the status
+        // bar/notch by not opting into ignoresSafeArea the way the
+        // background colour does.
+        .overlay(alignment: .topTrailing) {
+            if controller.phase != .done {
+                Button(action: { controller.isMuted.toggle() }) {
+                    Image(systemName: controller.isMuted ? "speaker.slash.fill" : "speaker.wave.2.fill")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundStyle(.white)
+                        .frame(width: 44, height: 44)
+                        .background(.white.opacity(0.15))
+                        .clipShape(Circle())
+                }
+                .padding(.top, 8)
+                .padding(.trailing, 16)
+            }
+        }
         .onChange(of: controller.phase) { _, newPhase in
             if newPhase == nil { onDismiss() }
         }
