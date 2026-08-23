@@ -28,7 +28,10 @@ struct RestTimerOverlay: View {
     /// cue (rising, audible through the silent switch, real media volume)
     /// rather than inventing a new melody — "rest just ended, go again"
     /// is the same moment `.go` already marks on the repeater timer.
-    @State private var tones = IntervalTonePlayer()
+    /// Played via controller.tones, NOT a locally-owned player here — see
+    /// RestTimerController's own doc comment on why that ownership matters
+    /// (this view disappears the instant the timer ends, which used to
+    /// kill the tone mid-melody along with it).
 
     var body: some View {
         Group {
@@ -80,7 +83,7 @@ struct RestTimerOverlay: View {
                 .onReceive(tick) { newNow in
                     now = newNow
                     if newNow >= endDate {
-                        tones.play(.go)
+                        controller.tones.play(.go)
                         controller.end(cancelNotification: false)
                     }
                 }

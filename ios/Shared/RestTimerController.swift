@@ -19,6 +19,16 @@ final class RestTimerController {
 
     private var activity: Activity<RestTimerAttributes>?
     private let notificationID = "rest-timer"
+    /// Owned here, not by RestTimerOverlay, and that ownership is load-
+    /// bearing: the completion tone used to live as `@State` on the
+    /// overlay view itself, which gets torn down the instant end() below
+    /// sets endDate to nil — the exact next line after the tone starts
+    /// playing. That killed the AVAudioEngine (and whatever was still
+    /// scheduled/decaying on it) mid-melody, heard as the sound getting
+    /// cut off right at the end. This controller outlives any single
+    /// overlay presentation, so a tone triggered right before end() has
+    /// a real engine left to finish playing on.
+    let tones = IntervalTonePlayer()
 
     func requestNotificationPermission() {
         UNUserNotificationCenter.current()
