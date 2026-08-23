@@ -63,31 +63,46 @@ struct RehabCardView: View {
     var body: some View {
         ZStack(alignment: .bottom) {
             SessionColours.bg.ignoresSafeArea()
-            ScrollViewReader { proxy in
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 20) {
-                        header
-                        phaseHeader
-                        cautionBox
-                        exercisesSection
-                        if phase.isFinalPhase {
-                            finalPhaseNote
-                        } else {
-                            checklistSection
+            // header stays put; only the phase content below it scrolls —
+            // same reasoning, and the same fix, as DailyCardView's own
+            // header/ScrollView split ("Only the exercise list scrolls —
+            // the header/dots/title stay put"). Originally had header
+            // INSIDE the ScrollView here, which meant the settings gear —
+            // the one thing you might want reachable from ANY scroll
+            // position, not just the top — could itself scroll out of
+            // view. Reported directly against the tutorial's settingsGear
+            // step (no highlight visible, same root cause as the
+            // checklist bug this fixed a moment earlier: a real target
+            // scrolled out of frame, not a spotlight-rendering bug).
+            VStack(alignment: .leading, spacing: 20) {
+                header
+                    .padding(.horizontal, 20)
+                    .padding(.top, 20)
+                ScrollViewReader { proxy in
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: 20) {
+                            phaseHeader
+                            cautionBox
+                            exercisesSection
+                            if phase.isFinalPhase {
+                                finalPhaseNote
+                            } else {
+                                checklistSection
+                            }
+                            if !footerNote.isEmpty {
+                                Text(footerNote)
+                                    .font(AppFonts.mono(9, weight: .medium))
+                                    .foregroundStyle(SessionColours.faint)
+                                    .padding(.top, 4)
+                            }
                         }
-                        if !footerNote.isEmpty {
-                            Text(footerNote)
-                                .font(AppFonts.mono(9, weight: .medium))
-                                .foregroundStyle(SessionColours.faint)
-                                .padding(.top, 4)
-                        }
+                        .padding(.horizontal, 20)
+                        .padding(.bottom, restTimer.endDate != nil ? 90 : 20)
                     }
-                    .padding(20)
-                    .padding(.bottom, restTimer.endDate != nil ? 90 : 20)
-                }
-                .onChange(of: tutorialScrollTarget) { _, target in
-                    guard let target else { return }
-                    withAnimation { proxy.scrollTo(target, anchor: .center) }
+                    .onChange(of: tutorialScrollTarget) { _, target in
+                        guard let target else { return }
+                        withAnimation { proxy.scrollTo(target, anchor: .center) }
+                    }
                 }
             }
             if restTimer.endDate != nil {

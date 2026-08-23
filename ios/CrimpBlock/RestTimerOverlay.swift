@@ -85,6 +85,18 @@ struct RestTimerOverlay: View {
                     if newNow >= endDate {
                         controller.tones.play(.go)
                         controller.end(cancelNotification: false)
+                        // Same signal the STOP button fires. Without this,
+                        // a rest timer that counts down to zero WHILE the
+                        // tutorial is showing this exact step leaves the
+                        // whole spotlight overlay stuck forever: the timer
+                        // disappearing (endDate goes nil) removes the only
+                        // tagged target on screen, so there's nothing left
+                        // to spotlight and no SKIP control either — the
+                        // caption card lives inside the spotlight overlay,
+                        // which silently renders nothing once its anchor
+                        // is gone. Found live: a real seeded 3:30 rest
+                        // outlasted the time spent reading the caption.
+                        onTutorialSignal?("restTimerStop")
                     }
                 }
             }
