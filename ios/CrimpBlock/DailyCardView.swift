@@ -330,14 +330,18 @@ struct DailyCardView: View {
                                 .font(AppFonts.mono(13, weight: .medium))
                                 .foregroundStyle(state.accent)
                         }
-                        if !cardMessage.isEmpty {
-                            Text(cardMessage)
-                                .font(.system(size: 14, weight: isLogged ? .semibold : .regular))
-                                .foregroundStyle(isLogged ? state.accent : SessionColours.dim)
-                        }
-
                         ScrollView {
                             VStack(alignment: .leading, spacing: 18) {
+                                // Scrolls away with the exercise list rather than
+                                // staying pinned above it — direct feedback: with
+                                // the sets tally on, each row got taller, and a
+                                // fixed description was eating space that mattered
+                                // more as exercises to actually see on screen.
+                                if !cardMessage.isEmpty {
+                                    Text(cardMessage)
+                                        .font(.system(size: 14, weight: isLogged ? .semibold : .regular))
+                                        .foregroundStyle(isLogged ? state.accent : SessionColours.dim)
+                                }
                                 // Flat list with thin dividers between rows, matching
                                 // .ex{border-bottom:1px solid var(--s2)} — the previous
                                 // per-row card treatment (rounded background, gap
@@ -706,13 +710,13 @@ struct DailyCardView: View {
                     .font(AppFonts.mono(13, weight: .medium))
                     .foregroundStyle(peek.accent)
             }
-            if !msg.isEmpty {
-                Text(msg)
-                    .font(.system(size: 14, weight: peekLogged ? .semibold : .regular))
-                    .foregroundStyle(peekLogged ? peek.accent : SessionColours.dim)
-            }
             ScrollView {
                 VStack(alignment: .leading, spacing: 18) {
+                    if !msg.isEmpty {
+                        Text(msg)
+                            .font(.system(size: 14, weight: peekLogged ? .semibold : .regular))
+                            .foregroundStyle(peekLogged ? peek.accent : SessionColours.dim)
+                    }
                     VStack(spacing: 0) {
                         ForEach(Array(peek.exercises.enumerated()), id: \.element.id) { index, ex in
                             exerciseRow(ex, accent: peek.accent, accentVarName: peek.accentVarName)
@@ -1010,7 +1014,13 @@ private struct ExerciseRowView: View {
                     }
                     if !isTicked {
                         Spacer()
-                        VStack(alignment: .trailing, spacing: 5) {
+                        // Inline with the prescription, not stacked under it —
+                        // stacking made a weighted exercise's right-hand column
+                        // two lines tall regardless of the title, so a short
+                        // one-line title (e.g. "PINCH BLOCK") left a visibly
+                        // empty gap below it before the next row started —
+                        // more noticeable now the sets tally sits right there.
+                        HStack(alignment: .center, spacing: 8) {
                             Text(clarifySets(ex.prescription))
                                 .font(AppFonts.mono(12, weight: .medium))
                                 .foregroundStyle(ex.phaseAdjusted ? accent : SessionColours.faint)
@@ -1110,11 +1120,17 @@ private struct ExerciseRowView: View {
                         .frame(width: 20, height: 20)
                 }
             }
-            .padding(.vertical, 6)
+            // 4, not the 6 this started as — that plus the .top(4) below,
+            // stacked on top of the outer VStack's own 4pt spacing, was
+            // three separate invisible gaps compounding above the circles
+            // with nothing drawn to visually justify the space. Matches
+            // the 2/6 split the interval-timer START and Rest buttons
+            // already use just below this same row.
+            .padding(.vertical, 4)
             .contentShape(Rectangle()) // the padded gaps between/around pips are tappable too, not just the circles themselves
         }
         .buttonStyle(.plain)
-        .padding(.top, 4)
+        .padding(.top, 2)
     }
 
     private func tapTally(totalSets: Int) {
