@@ -1098,18 +1098,26 @@ private struct ExerciseRowView: View {
         }
     }
 
-    /// Each pip is its own tap target rather than one "increment" button —
-    /// tapping the next unlit one is indistinguishable from a plain
-    /// increment (the primary, expected interaction), but tapping an
-    /// ALREADY-lit pip undoes back to it, which is the only correction
-    /// path for a mis-tap without unticking the whole exercise.
+    /// One tap zone for the whole row, not one per pip (that was an
+    /// earlier version, reverted per direct feedback: "just one box, tap
+    /// anywhere, count goes up").
     private func setsTally(_ totalSets: Int) -> some View {
-        // One tap target for the whole row, not one per pip — simpler than
-        // an earlier version that made each pip independently tappable
-        // (which also allowed undoing by tapping an already-lit one), per
-        // direct feedback while testing it live: just one box, tap
-        // anywhere in it, count goes up. The pips are still the visual
-        // progress display, just not individually interactive anymore.
+        // Back to a real Button for the tap (proven reliable everywhere
+        // else on this row — checkbox, info icon, weight badge, START/
+        // Rest all use one), with a SEPARATE .simultaneousGesture for the
+        // long-press layered on top, rather than one custom gesture doing
+        // both. Two earlier approaches were tried and confirmed live not
+        // to work through this card: SwiftUI's own
+        // LongPressGesture.exclusively(before: TapGesture()), and a
+        // single hand-timed DragGesture(minimumDistance: 0) — neither
+        // fired at all (no undo, no fallback tap) even held for 1.5s.
+        // Most likely cause: this row sits nested inside the card's own
+        // swipe gesture AND the ScrollView's pan gesture, both already
+        // DragGesture-based — a bare custom gesture here has to compete
+        // with those directly, where a Button's own tap recognizer
+        // apparently doesn't. .simultaneousGesture is explicitly "let
+        // this recognize independently alongside whatever's already
+        // there" rather than a second recognizer racing for exclusivity.
         Button(action: { tapTally(totalSets: totalSets) }) {
             HStack(spacing: 7) {
                 ForEach(0..<totalSets, id: \.self) { i in
@@ -1120,17 +1128,32 @@ private struct ExerciseRowView: View {
                         .frame(width: 20, height: 20)
                 }
             }
-            // 4, not the 6 this started as — that plus the .top(4) below,
-            // stacked on top of the outer VStack's own 4pt spacing, was
-            // three separate invisible gaps compounding above the circles
-            // with nothing drawn to visually justify the space. Matches
-            // the 2/6 split the interval-timer START and Rest buttons
-            // already use just below this same row.
             .padding(.vertical, 4)
             .contentShape(Rectangle()) // the padded gaps between/around pips are tappable too, not just the circles themselves
         }
         .buttonStyle(.plain)
+        // Long-press to remove the last completed set — direct feedback:
+        // an earlier version made every pip its own tap target so you
+        // could undo by tapping a lit one, but that got reverted for
+        // being fussier than "one box, tap to add." This restores a
+        // correction path without bringing that back — subtle by design,
+        // no visible extra control, and it only needs to reach 0 not any
+        // arbitrary index, so a single "remove the last one" action is
+        // enough on its own.
+        .simultaneousGesture(
+            LongPressGesture(minimumDuration: 0.45).onEnded { _ in undoLastSet() }
+        )
         .padding(.top, 2)
+        // Separate from the interval START / plain Rest button just
+        // below this same row, not touching it — reported directly:
+        // tapping for "just start the timer" landed on the tally instead
+        // and added a set too. The two are already independent controls
+        // (Rest/START never touches the tally), but the gap between them
+        // had gotten tight enough on a real touchscreen to mis-tap,
+        // right after an earlier fix deliberately tightened the gap
+        // ABOVE the tally (title-to-tally) for a different, unrelated
+        // reason. This widens only the gap below it, not both.
+        .padding(.bottom, 6)
     }
 
     private func tapTally(totalSets: Int) {
@@ -1142,6 +1165,16 @@ private struct ExerciseRowView: View {
         if completedSets >= totalSets, !isTicked {
             onToggleTick?(ex.id)
         }
+    }
+
+    /// Only reachable while the tally itself is visible, which only
+    /// happens while isTicked is false (the row collapses and hides the
+    /// tally the instant it flips true) — so there's no case in practice
+    /// where completedSets can be undone out from under an
+    /// already-ticked exercise; onToggleTick never needs calling here.
+    private func undoLastSet() {
+        guard completedSets > 0 else { return }
+        completedSets -= 1
     }
 
     @ViewBuilder
