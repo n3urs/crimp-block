@@ -243,7 +243,22 @@ struct NativeAppView: View {
         guard let s = DailyCardState.load(bridge: bridge, displayKey: browsedKey) else {
             throw EngineOutOfSyncError(label: label)
         }
-        ticks = []
+        // Only when the actually-displayed session changed (a different
+        // day, or a genuinely different session type) — NOT on every
+        // reload. reload() also runs after a weight save and after Done/
+        // Undo, which refresh data for the SAME session; unconditionally
+        // clearing here wiped ticks on exercises you'd already checked
+        // off, purely as a side effect of editing one unrelated
+        // exercise's weight. Reported directly: changing one weight
+        // un-ticked two others in the same session. browse(to:) already
+        // handles the genuine-session-change case on its own (it never
+        // goes through reload()/finishLoad at all), so this only needs
+        // to catch the cases that DO come through here — Done on a
+        // browsed (non-recommended) session landing back on the real
+        // recommendation, or the day rolling over while the app is open.
+        if state?.today != s.today || state?.displayKey != s.displayKey {
+            ticks = []
+        }
         state = s
         loadError = nil
 
