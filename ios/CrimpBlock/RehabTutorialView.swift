@@ -39,7 +39,8 @@ struct RehabTutorialView: View {
                     RehabCardView(
                         phase: phase,
                         footerNote: "Tutorial · rehab",
-                        onTutorialSignal: { controller.handleTap($0) }
+                        onTutorialSignal: { controller.handleTap($0) },
+                        tutorialScrollTarget: stage == .walkthrough ? controller.currentStep?.targetID : nil
                     )
                 } else {
                     ZStack { SessionColours.bg.ignoresSafeArea(); ProgressView().tint(.white) }

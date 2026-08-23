@@ -35,6 +35,18 @@ struct RehabCardView: View {
     /// reusing TutorialDemoCardView's steps wouldn't point at anything
     /// real). Every other caller can safely leave this nil.
     var onTutorialSignal: ((String) -> Void)? = nil
+    /// The current tutorial step's targetID, or nil outside the
+    /// walkthrough — set by RehabTutorialView. Without this, a step whose
+    /// real control sits below the fold (the checklist, on a phase with
+    /// several exercises above it) gets spotlighted at a rect that's
+    /// scrolled out of view, which reads as "no highlight at all" —
+    /// reported directly on the checklistItem step. DailyCardView hasn't
+    /// needed this: its own tutorial deliberately seeds a scenario where
+    /// every target already fits on screen (see its own doc comment) —
+    /// RehabCardView's content is more variable (any exercise count, any
+    /// number of criteria), so scrolling to the target is the actually
+    /// robust fix rather than re-curating content to dodge the issue.
+    var tutorialScrollTarget: String? = nil
 
     /// Resets whenever the phase itself changes (see .onChange below) —
     /// a checked box from a PREVIOUS phase should never silently carry
@@ -51,26 +63,32 @@ struct RehabCardView: View {
     var body: some View {
         ZStack(alignment: .bottom) {
             SessionColours.bg.ignoresSafeArea()
-            ScrollView {
-                VStack(alignment: .leading, spacing: 20) {
-                    header
-                    phaseHeader
-                    cautionBox
-                    exercisesSection
-                    if phase.isFinalPhase {
-                        finalPhaseNote
-                    } else {
-                        checklistSection
+            ScrollViewReader { proxy in
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 20) {
+                        header
+                        phaseHeader
+                        cautionBox
+                        exercisesSection
+                        if phase.isFinalPhase {
+                            finalPhaseNote
+                        } else {
+                            checklistSection
+                        }
+                        if !footerNote.isEmpty {
+                            Text(footerNote)
+                                .font(AppFonts.mono(9, weight: .medium))
+                                .foregroundStyle(SessionColours.faint)
+                                .padding(.top, 4)
+                        }
                     }
-                    if !footerNote.isEmpty {
-                        Text(footerNote)
-                            .font(AppFonts.mono(9, weight: .medium))
-                            .foregroundStyle(SessionColours.faint)
-                            .padding(.top, 4)
-                    }
+                    .padding(20)
+                    .padding(.bottom, restTimer.endDate != nil ? 90 : 20)
                 }
-                .padding(20)
-                .padding(.bottom, restTimer.endDate != nil ? 90 : 20)
+                .onChange(of: tutorialScrollTarget) { _, target in
+                    guard let target else { return }
+                    withAnimation { proxy.scrollTo(target, anchor: .center) }
+                }
             }
             if restTimer.endDate != nil {
                 RestTimerOverlay(controller: restTimer, accent: SessionColours.readyC)
@@ -194,6 +212,13 @@ struct RehabCardView: View {
         .padding(14)
         .background(SessionColours.s1)
         .clipShape(RoundedRectangle(cornerRadius: 10))
+        // Only the tagged row gets an explicit .id() — every row already
+        // has its own identity via ForEach's Identifiable conformance
+        // (ex.id), so giving every OTHER row the same extra `.id(nil)`
+        // here would collide them onto one shared identity and confuse
+        // SwiftUI's diffing. The whole row, not just the button, so
+        // scrollTo(_:anchor:.center) brings the full exercise into view.
+        .modifier(OptionalScrollID(id: isTutorialRestTarget ? "restTimerButton" : nil))
     }
 
     // MARK: - Self-report checklist
@@ -219,6 +244,7 @@ struct RehabCardView: View {
                     }
                     .buttonStyle(.plain)
                     .tutorialTarget(index == 0 ? "checklistItem" : nil)
+                    .modifier(OptionalScrollID(id: index == 0 ? "checklistItem" : nil))
                 }
             }
             .padding(14)
@@ -257,5 +283,24 @@ struct RehabCardView: View {
 
     private func toggle(_ criterion: String) {
         if checked.contains(criterion) { checked.remove(criterion) } else { checked.insert(criterion) }
+    }
+}
+
+/// Applies `.id(id)` only when `id` is non-nil, leaving the view's
+/// identity as whatever its parent ForEach already gives it otherwise —
+/// unlike `.tutorialTarget(_:)` (which is a no-op preference write when
+/// nil, harmless to apply everywhere), `.id(_:)` sets real SwiftUI view
+/// identity, so giving every non-target sibling row the SAME `.id(nil)`
+/// would collide them onto one shared identity and break diffing for the
+/// whole list. Conditionally skipping the modifier entirely, rather than
+/// passing an optional value into it, is what avoids that.
+private struct OptionalScrollID: ViewModifier {
+    let id: String?
+    func body(content: Content) -> some View {
+        if let id {
+            content.id(id)
+        } else {
+            content
+        }
     }
 }
