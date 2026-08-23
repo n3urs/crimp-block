@@ -135,10 +135,13 @@ anyone reading anyone else's rows. The `service_role` key bypasses RLS entirely
 
 ## Phase C: templates & profiles
 
-Not run yet — this is the schema `template-resolver.js` and the native intake
-quiz are designed against, for when template-assigned (Standard-tier) users
-are introduced alongside Oscar's and Joe's hand-authored programs. Run this
-when Phase C's quiz/onboarding UI is ready to actually write somewhere real.
+Live — confirmed 2026-08-23 via a direct PostgREST check (both tables return
+200, not a missing-relation error). This note previously said "not run yet,"
+which was stale: `NativeAppView.swift` has read/written both tables since the
+`de9a76b` cutover made the native app the default. Leaving this note here as
+a caution for future passes — this repo has had a few of these doc/reality
+drifts (see also `NativeAppView.swift`'s own header comment, `QuizDemoView.swift`'s),
+so re-verify rather than trust a comment when something looks disconnected.
 
 ```sql
 create table templates (
@@ -179,6 +182,29 @@ create policy "own row" on profiles
   using (auth.uid() = user_id)
   with check (auth.uid() = user_id);
 ```
+
+**Phase C.1 addition (rehab track, 2026-08-23)**: `profiles` gets new nullable
+columns so a user's Standard-track assignment and Rehab-track assignment are
+each preserved independently — switching Standard → Rehab → Standard restores
+the original template assignment instantly rather than losing it. `track_type`
+is a plain text column, not an enum, matching `tier`'s existing convention
+above (no enum type to migrate later if a third track type is ever added).
+
+```sql
+alter table profiles
+  add column track_type text not null default 'standard',  -- 'standard' | 'rehab'
+  add column rehab_injury_area text,        -- key into REHAB_TEMPLATES in rehab-templates.js, e.g. 'fingerPulley'
+  add column rehab_phase_index integer;     -- 0=unload, 1=mobility, 2=strength, 3=returnToClimbing
+
+alter table profiles
+  add constraint rehab_phase_index_range
+  check (rehab_phase_index is null or rehab_phase_index between 0 and 3);
+```
+
+`assigned_template_id`/`program_start_date`/`modifiers` (the existing
+Standard-track columns above) are left untouched by a switch to Rehab —
+they're simply not read while `track_type = 'rehab'`, so switching back
+needs no requiz.
 
 **Why `assigned_template_id` isn't a foreign key into `templates`**: Standard-
 tier programs are resolved entirely from the app's own bundled

@@ -12,16 +12,17 @@ struct QuizDemoView: View {
     private enum Stage { case quiz, tutorial, card }
 
     @State private var stage: Stage = .quiz
-    @State private var answers: QuizAnswers?
+    @State private var result: QuizResult?
     @State private var state: DailyCardState?
+    @State private var rehabBridge: RehabBridge?
     @State private var loadError: String?
 
     var body: some View {
         Group {
             switch stage {
             case .quiz:
-                IntakeQuizView(onComplete: { result in
-                    answers = result
+                IntakeQuizView(onComplete: { r in
+                    result = r
                     stage = .tutorial
                 })
             case .tutorial:
@@ -29,10 +30,14 @@ struct QuizDemoView: View {
             case .card:
                 if let loadError {
                     engineBridgeErrorView(loadError)
+                } else if let rehabBridge, let phase = rehabBridge.currentPhase() {
+                    RehabCardView(phase: phase, footerNote: "Native SwiftUI (quiz demo, not persisted) · rehab", onAdvance: {
+                        rehabBridge.advance()
+                    })
                 } else if let state {
                     DailyCardView(
                         state: state,
-                        footerNote: "Native SwiftUI (quiz demo, not persisted) · \(answers?.templateId ?? "") · \(state.today)"
+                        footerNote: "Native SwiftUI (quiz demo, not persisted) · \(templateId) · \(state.today)"
                     )
                 } else {
                     ZStack { SessionColours.bg.ignoresSafeArea(); ProgressView().tint(.white) }
@@ -41,9 +46,24 @@ struct QuizDemoView: View {
         }
     }
 
+    private var templateId: String {
+        if case .standard(let answers) = result { return answers.templateId }
+        return ""
+    }
+
     private func load() {
-        guard let answers else { return }
+        guard let result else { return }
         stage = .card
+        switch result {
+        case .standard(let answers):
+            loadStandard(answers)
+        case .rehab(let area):
+            rehabBridge = try? RehabBridge(injuryArea: area.rawValue, phaseIndex: 0)
+            if rehabBridge == nil { loadError = "RehabBridge failed to load for \(area.rawValue)" }
+        }
+    }
+
+    private func loadStandard(_ answers: QuizAnswers) {
         do {
             let fmt = DateFormatter()
             fmt.locale = Locale(identifier: "en_US_POSIX")

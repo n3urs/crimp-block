@@ -65,6 +65,10 @@ struct DailyCardView: View {
     var onTapDay: ((String) -> Void)? = nil
     var accountEmail: String? = nil
     var onSignOut: (() -> Void)? = nil
+    /// Phase C.1: threaded straight through to SettingsView's track
+    /// switcher — nil in demo/sample-data mode, same as accountEmail.
+    var profile: NativeProfile? = nil
+    var onTrackChanged: (() async -> Void)? = nil
     var celebrationTrigger: Int = 0
     /// Fired for the handful of interactions that don't already have an
     /// external hook of their own (onTapDone/onTapWeight cover the rest) —
@@ -511,7 +515,7 @@ struct DailyCardView: View {
             PlanSheetView(bridge: state.bridge, block: state.block, today: state.today)
         }
         .sheet(isPresented: $showSettings) {
-            SettingsView(accountEmail: accountEmail, onSignOut: onSignOut)
+            SettingsView(accountEmail: accountEmail, onSignOut: onSignOut, profile: profile, onTrackChanged: onTrackChanged)
         }
         .fullScreenCover(isPresented: $showIntervalTimer) {
             IntervalTimerView(controller: intervalTimer, onDismiss: { showIntervalTimer = false })
@@ -944,16 +948,22 @@ private struct ExerciseRowView: View {
     /// check for what follows, so bare leadingInt("15 min") happily
     /// returns 15, which is exactly the bug a live check on the real
     /// sample data caught: a 15-MINUTE warm-up rendered a 15-pip tally.
-    /// clarifySets()'s own `^\d+\s*×` regex (used elsewhere on this same
-    /// prescription text to relabel "3 × 8" as "3 sets × 8") is the
-    /// actual established boundary for "this leading number unambiguously
-    /// means a set count" — reusing that, not just leadingInt on its own.
+    /// Two leading-number phrasings in the template library are
+    /// unambiguously a set count: "N × ..." (e.g. "3 × 8") and bare
+    /// "N sets"/"N supersets" (e.g. Wrist roller's "3 sets", Antagonists'
+    /// "3 supersets") — checked against every real prescription string in
+    /// the library before trusting it. A RANGE like "4–5 sets" does NOT
+    /// match this (the en dash right after the digit isn't whitespace),
+    /// which is the correct outcome — there's no single right pip count
+    /// for a range. Those exercises are also already excluded by the
+    /// ex.interval guard below regardless, since ranged set counts in
+    /// this library only ever show up on interval exercises.
     /// Skipped for interval exercises too — those get their own
     /// full-screen set/rep tracking once started, so a second tally here
     /// would just be a redundant, out-of-sync copy of it.
     private var totalSets: Int? {
         guard ex.interval == nil,
-              ex.prescription.range(of: #"^\d+\s*×"#, options: .regularExpression) != nil,
+              ex.prescription.range(of: #"^\d+\s*(?:×|(?:super)?sets?\b)"#, options: .regularExpression) != nil,
               let n = leadingInt(ex.prescription), n > 1
         else { return nil }
         return n

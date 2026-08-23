@@ -39,9 +39,13 @@
 		2390FE79D020BF8F17F5D6E1 /* IntervalTimerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 509C122BF2A9E23301D7B91B /* IntervalTimerView.swift */; };
 		7E9A3714C664D67E5ACF716B /* WeekStripView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3FA7FBBB61EF7F7994B9DD88 /* WeekStripView.swift */; };
 		8C0B674AE8A50E1239A80551 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0BA3FE9AE62B1A19DA320A0C /* SettingsView.swift */; };
+		8B21FFA3B96DD24C6A257ADE /* RehabCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B4C3F81D4AC186F28ACBD4D6 /* RehabCardView.swift */; };
 		DD0A88CD778120CEE40F6DD3 /* CelebrationOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = CBACE466B35EED32AC6748EA /* CelebrationOverlay.swift */; };
 		E23831851C2A4FB380A76BAF /* template-resolver.js in Resources */ = {isa = PBXBuildFile; fileRef = 2FB27976E4B168AB5F33C9E0 /* template-resolver.js */; };
 		B50A1C9DA6456982DA7AA621 /* templates.js in Resources */ = {isa = PBXBuildFile; fileRef = 291F4FCB9C2BCB962D9EC6B5 /* templates.js */; };
+		A316701849A346FEE64601EE /* rehab-templates.js in Resources */ = {isa = PBXBuildFile; fileRef = 06027A225116E6B9299E94C6 /* rehab-templates.js */; };
+		C23971E5A29672D26F9BE74F /* rehab-resolver.js in Resources */ = {isa = PBXBuildFile; fileRef = 157DD4F6431FC0C6173A2C91 /* rehab-resolver.js */; };
+		7EF21A703112264528DEE86A /* RehabBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = E579DE6C496A400643546EA9 /* RehabBridge.swift */; };
 		73878B52967705265938F2E2 /* QuizModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 229FADB782DFBB299AFA98B6 /* QuizModel.swift */; };
 		CA3ABE16007645A96952C94A /* IntakeQuizView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0CF66749302703C2BB7FC64B /* IntakeQuizView.swift */; };
 		0AC7F68470E11799F2F5B6A5 /* QuizDemoView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDDFF6E9403E8939FEE4971B /* QuizDemoView.swift */; };
@@ -50,6 +54,7 @@
 		9114471F6CC9B7B8C7CC73E7 /* SubscriptionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B049305DF0E1F1019FA504D /* SubscriptionManager.swift */; };
 		88FC735FC1529F75241FC8FC /* PaywallView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6BAF3BF5EDE2F9F914B17F74 /* PaywallView.swift */; };
 		35775A981D10FC0E1F96C594 /* EngineBridgeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 197A4F82238FA8B7F69C0F03 /* EngineBridgeTests.swift */; };
+		E529139A20434E010F980387 /* RehabBridgeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 026181C803B127F8A279C6C4 /* RehabBridgeTests.swift */; };
 		CFFF774C76DC4B7F69690814 /* AppFontsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 489BD36286931FA66C1887D1 /* AppFontsTests.swift */; };
 		05600B6CF922DD06F3F41C91 /* AppFonts.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB3FCA4CF861990D4A4B8EB8 /* AppFonts.swift */; };
 		4E768D93DE152883AAA409DA /* ArchivoBlack-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = AEBF87987DA4E8C7B28BA652 /* ArchivoBlack-Regular.ttf */; };
@@ -126,9 +131,13 @@
 		509C122BF2A9E23301D7B91B /* IntervalTimerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IntervalTimerView.swift; sourceTree = "<group>"; };
 		3FA7FBBB61EF7F7994B9DD88 /* WeekStripView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeekStripView.swift; sourceTree = "<group>"; };
 		0BA3FE9AE62B1A19DA320A0C /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		B4C3F81D4AC186F28ACBD4D6 /* RehabCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RehabCardView.swift; sourceTree = "<group>"; };
 		CBACE466B35EED32AC6748EA /* CelebrationOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CelebrationOverlay.swift; sourceTree = "<group>"; };
 		2FB27976E4B168AB5F33C9E0 /* template-resolver.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; name = "template-resolver.js"; path = "../template-resolver.js"; sourceTree = SOURCE_ROOT; };
 		291F4FCB9C2BCB962D9EC6B5 /* templates.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; name = "templates.js"; path = "../templates.js"; sourceTree = SOURCE_ROOT; };
+		06027A225116E6B9299E94C6 /* rehab-templates.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; name = "rehab-templates.js"; path = "../rehab-templates.js"; sourceTree = SOURCE_ROOT; };
+		157DD4F6431FC0C6173A2C91 /* rehab-resolver.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; name = "rehab-resolver.js"; path = "../rehab-resolver.js"; sourceTree = SOURCE_ROOT; };
+		E579DE6C496A400643546EA9 /* RehabBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RehabBridge.swift; sourceTree = "<group>"; };
 		229FADB782DFBB299AFA98B6 /* QuizModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuizModel.swift; sourceTree = "<group>"; };
 		0CF66749302703C2BB7FC64B /* IntakeQuizView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IntakeQuizView.swift; sourceTree = "<group>"; };
 		FDDFF6E9403E8939FEE4971B /* QuizDemoView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuizDemoView.swift; sourceTree = "<group>"; };
@@ -139,6 +148,7 @@
 		C06D252FF6119CF766FDEF28 /* TutorialDemoCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TutorialDemoCardView.swift; sourceTree = "<group>"; };
 		7A54C7DB75AADA0959652ECE /* CrimpBlockTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = CrimpBlockTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		197A4F82238FA8B7F69C0F03 /* EngineBridgeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EngineBridgeTests.swift; sourceTree = "<group>"; };
+		026181C803B127F8A279C6C4 /* RehabBridgeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RehabBridgeTests.swift; sourceTree = "<group>"; };
 		489BD36286931FA66C1887D1 /* AppFontsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppFontsTests.swift; sourceTree = "<group>"; };
 		BB3FCA4CF861990D4A4B8EB8 /* AppFonts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppFonts.swift; sourceTree = "<group>"; };
 		AEBF87987DA4E8C7B28BA652 /* ArchivoBlack-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "ArchivoBlack-Regular.ttf"; sourceTree = "<group>"; };
@@ -206,6 +216,7 @@
 				509C122BF2A9E23301D7B91B /* IntervalTimerView.swift */,
 				3FA7FBBB61EF7F7994B9DD88 /* WeekStripView.swift */,
 				0BA3FE9AE62B1A19DA320A0C /* SettingsView.swift */,
+				B4C3F81D4AC186F28ACBD4D6 /* RehabCardView.swift */,
 				CBACE466B35EED32AC6748EA /* CelebrationOverlay.swift */,
 				0CF66749302703C2BB7FC64B /* IntakeQuizView.swift */,
 				FDDFF6E9403E8939FEE4971B /* QuizDemoView.swift */,
@@ -265,6 +276,9 @@
 				229FADB782DFBB299AFA98B6 /* QuizModel.swift */,
 				94A998181B4BF1CCF68FDED9 /* TutorialSpotlight.swift */,
 				7B049305DF0E1F1019FA504D /* SubscriptionManager.swift */,
+				06027A225116E6B9299E94C6 /* rehab-templates.js */,
+				157DD4F6431FC0C6173A2C91 /* rehab-resolver.js */,
+				E579DE6C496A400643546EA9 /* RehabBridge.swift */,
 			);
 			path = Shared;
 			sourceTree = "<group>";
@@ -273,6 +287,7 @@
 			isa = PBXGroup;
 			children = (
 				197A4F82238FA8B7F69C0F03 /* EngineBridgeTests.swift */,
+				026181C803B127F8A279C6C4 /* RehabBridgeTests.swift */,
 				489BD36286931FA66C1887D1 /* AppFontsTests.swift */,
 			);
 			path = CrimpBlockTests;
@@ -373,6 +388,8 @@
 				FCF14DD78AD6CB70AFB76DA9 /* programs.js in Resources */,
 				E23831851C2A4FB380A76BAF /* template-resolver.js in Resources */,
 				B50A1C9DA6456982DA7AA621 /* templates.js in Resources */,
+				A316701849A346FEE64601EE /* rehab-templates.js in Resources */,
+				C23971E5A29672D26F9BE74F /* rehab-resolver.js in Resources */,
 				4E768D93DE152883AAA409DA /* ArchivoBlack-Regular.ttf in Resources */,
 				E5C815493158B4F02E2E3A52 /* RobotoMono-Bold.ttf in Resources */,
 				868F5E8DEBB1A14CEA6864FB /* RobotoMono-Medium.ttf in Resources */,
@@ -425,6 +442,8 @@
 				2390FE79D020BF8F17F5D6E1 /* IntervalTimerView.swift in Sources */,
 				7E9A3714C664D67E5ACF716B /* WeekStripView.swift in Sources */,
 				8C0B674AE8A50E1239A80551 /* SettingsView.swift in Sources */,
+				7EF21A703112264528DEE86A /* RehabBridge.swift in Sources */,
+				8B21FFA3B96DD24C6A257ADE /* RehabCardView.swift in Sources */,
 				DD0A88CD778120CEE40F6DD3 /* CelebrationOverlay.swift in Sources */,
 				73878B52967705265938F2E2 /* QuizModel.swift in Sources */,
 				CA3ABE16007645A96952C94A /* IntakeQuizView.swift in Sources */,
@@ -452,6 +471,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				35775A981D10FC0E1F96C594 /* EngineBridgeTests.swift in Sources */,
+				E529139A20434E010F980387 /* RehabBridgeTests.swift in Sources */,
 				CFFF774C76DC4B7F69690814 /* AppFontsTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

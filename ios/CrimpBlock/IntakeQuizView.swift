@@ -8,18 +8,43 @@ import SwiftUI
 /// and days/week are required) — matching the same "simple, not
 /// overwhelming" standard the daily card already holds itself to.
 ///
-/// Ends by calling `onComplete` with the finished QuizAnswers — this view
-/// has no opinion about what happens next (write to Supabase, show the
-/// tutorial, etc.), that's the caller's job.
+/// Phase C.1 addition: the very first screen is now a track choice —
+/// normal training, or rehab for a current injury. Choosing rehab branches
+/// to a much shorter flow (just picking the injury area, see
+/// rehabAreaStep/rehabSummaryStep below) since none of discipline/
+/// experience/equipment/trip-date apply to a rehab-first assignment.
+/// Reused for BOTH first-time onboarding and Settings' "switch track"
+/// action — the branch and its questions are identical either way, only
+/// the caller's handling of onComplete differs (create a brand-new
+/// profile vs. re-assign an existing one).
+///
+/// Ends by calling `onComplete` with a QuizResult (.standard or .rehab) —
+/// this view has no opinion about what happens next (write to Supabase,
+/// show the tutorial, etc.), that's the caller's job.
 struct IntakeQuizView: View {
-    var onComplete: (QuizAnswers) -> Void
+    var onComplete: (QuizResult) -> Void
     var onCancel: (() -> Void)? = nil
 
+    private enum Track { case standard, rehab }
+
+    @State private var track: Track? = nil
+    @State private var rehabArea: QuizAnswers.RehabInjuryArea? = nil
     @State private var answers = QuizAnswers()
     @State private var step = 0
     @State private var wantsTripDate = false
 
-    private let totalSteps = 7
+    /// Step 0 is always the track choice. Standard adds the 7 existing
+    /// questions on top of that (8 total before the summary); rehab adds
+    /// just the one injury-area question (2 total).
+    private var totalSteps: Int {
+        track == .rehab ? 2 : 8
+    }
+
+    private var canAdvance: Bool {
+        if step == 0 { return track != nil }
+        if track == .rehab, step == 1 { return rehabArea != nil }
+        return true
+    }
 
     var body: some View {
         ZStack {
@@ -28,15 +53,24 @@ struct IntakeQuizView: View {
                 header
                 Spacer(minLength: 0)
                 Group {
-                    switch step {
-                    case 0: disciplineStep
-                    case 1: experienceStep
-                    case 2: weaknessStep
-                    case 3: equipmentStep
-                    case 4: injuryStep
-                    case 5: daysPerWeekStep
-                    case 6: tripDateStep
-                    default: summaryStep
+                    if step == 0 {
+                        trackChoiceStep
+                    } else if track == .rehab {
+                        switch step {
+                        case 1: rehabAreaStep
+                        default: rehabSummaryStep
+                        }
+                    } else {
+                        switch step {
+                        case 1: disciplineStep
+                        case 2: experienceStep
+                        case 3: weaknessStep
+                        case 4: equipmentStep
+                        case 5: injuryStep
+                        case 6: daysPerWeekStep
+                        case 7: tripDateStep
+                        default: standardSummaryStep
+                        }
                     }
                 }
                 .transition(.opacity)
@@ -93,22 +127,76 @@ struct IntakeQuizView: View {
                     .background(SessionColours.fg)
                     .clipShape(RoundedRectangle(cornerRadius: 10))
             }
+            .disabled(!canAdvance)
+            .opacity(canAdvance ? 1 : 0.4)
         }
         .padding(.bottom, 8)
     }
 
     private func advance() {
+        guard canAdvance else { return }
         if step < totalSteps {
             withAnimation { step += 1 }
-        } else {
-            onComplete(answers)
+        } else if track == .rehab, let rehabArea {
+            onComplete(.rehab(rehabArea))
+        } else if track == .standard {
+            onComplete(.standard(answers))
         }
     }
 
-    // MARK: - Steps
+    // MARK: - Track choice (Phase C.1)
+
+    private var trackChoiceStep: some View {
+        stepScaffold(eyebrow: "1 of \(totalSteps)", title: "Training normally, or working through an injury?") {
+            VStack(spacing: 10) {
+                choiceCard(label: "Normal training", subtitle: "A full program matched to your climbing and goals", isSelected: track == .standard) {
+                    track = .standard
+                }
+                choiceCard(label: "Rehab", subtitle: "For a current injury — a shorter, phase-based track focused on getting back to climbing safely", isSelected: track == .rehab) {
+                    track = .rehab
+                }
+            }
+        }
+    }
+
+    // MARK: - Rehab branch (Phase C.1)
+
+    private var rehabAreaStep: some View {
+        stepScaffold(eyebrow: "2 of \(totalSteps)", title: "What are you rehabbing?", subtitle: "General guidance built from published climbing-rehab protocols — not a diagnosis, and not a substitute for a physio.") {
+            VStack(spacing: 10) {
+                ForEach(QuizAnswers.RehabInjuryArea.allCases) { area in
+                    choiceCard(label: area.label, subtitle: area.subtitle, isSelected: rehabArea == area) {
+                        rehabArea = area
+                    }
+                }
+            }
+        }
+    }
+
+    private var rehabSummaryStep: some View {
+        let meta = rehabArea.flatMap { REHAB_META[$0.rawValue] }
+        return stepScaffold(eyebrow: "READY", title: meta?.name ?? "Rehab") {
+            VStack(alignment: .leading, spacing: 14) {
+                if let meta {
+                    Text(meta.description)
+                        .font(.system(size: 14))
+                        .foregroundStyle(SessionColours.dim)
+                }
+                Text("Starts at the first phase — Tissue Unload. You'll move through Mobility, Strength, and Return to Climbing as you're ready, at your own pace.")
+                    .font(.system(size: 13))
+                    .foregroundStyle(SessionColours.faint)
+                    .padding(16)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(SessionColours.s1)
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+            }
+        }
+    }
+
+    // MARK: - Standard branch steps
 
     private var disciplineStep: some View {
-        stepScaffold(eyebrow: "1 of 7", title: "What do you climb?") {
+        stepScaffold(eyebrow: "2 of \(totalSteps)", title: "What do you climb?") {
             VStack(spacing: 10) {
                 ForEach(QuizAnswers.Discipline.allCases) { d in
                     choiceCard(label: d.label, isSelected: answers.discipline == d) {
@@ -120,7 +208,7 @@ struct IntakeQuizView: View {
     }
 
     private var experienceStep: some View {
-        stepScaffold(eyebrow: "2 of 7", title: "How experienced are you?") {
+        stepScaffold(eyebrow: "3 of \(totalSteps)", title: "How experienced are you?") {
             VStack(spacing: 10) {
                 ForEach(QuizAnswers.ExperienceLevel.allCases) { level in
                     choiceCard(
@@ -136,7 +224,7 @@ struct IntakeQuizView: View {
     }
 
     private var weaknessStep: some View {
-        stepScaffold(eyebrow: "3 of 7", title: "Anything you want extra focus on?", subtitle: "Optional — skip if nothing stands out.") {
+        stepScaffold(eyebrow: "4 of \(totalSteps)", title: "Anything you want extra focus on?", subtitle: "Optional — skip if nothing stands out.") {
             VStack(spacing: 10) {
                 ForEach(QuizAnswers.Weakness.allCases) { w in
                     choiceCard(label: w.label, isSelected: answers.weaknesses.contains(w)) {
@@ -148,7 +236,7 @@ struct IntakeQuizView: View {
     }
 
     private var equipmentStep: some View {
-        stepScaffold(eyebrow: "4 of 7", title: "What do you have access to?", subtitle: "Select everything that applies — this only changes which exercises show up, not the plan itself.") {
+        stepScaffold(eyebrow: "5 of \(totalSteps)", title: "What do you have access to?", subtitle: "Select everything that applies — this only changes which exercises show up, not the plan itself.") {
             VStack(spacing: 10) {
                 ForEach(QuizAnswers.Equipment.allCases) { e in
                     choiceCard(label: e.label, isSelected: answers.equipment.contains(e)) {
@@ -160,7 +248,7 @@ struct IntakeQuizView: View {
     }
 
     private var injuryStep: some View {
-        stepScaffold(eyebrow: "5 of 7", title: "Any injury history worth flagging?", subtitle: "Optional — this adds caution notes and safety exercises, not a diagnosis. Not a substitute for real medical advice.") {
+        stepScaffold(eyebrow: "6 of \(totalSteps)", title: "Any injury history worth flagging?", subtitle: "Optional — this adds caution notes and safety exercises, not a diagnosis. Not a substitute for real medical advice.") {
             VStack(spacing: 10) {
                 ForEach(QuizAnswers.InjuryFlag.allCases) { flag in
                     choiceCard(label: flag.label, subtitle: flag.subtitle, isSelected: answers.injuryFlags.contains(flag)) {
@@ -172,7 +260,7 @@ struct IntakeQuizView: View {
     }
 
     private var daysPerWeekStep: some View {
-        stepScaffold(eyebrow: "6 of 7", title: "How many days a week can you train?") {
+        stepScaffold(eyebrow: "7 of \(totalSteps)", title: "How many days a week can you train?") {
             VStack(spacing: 24) {
                 Text("\(answers.daysPerWeek)")
                     .font(.system(size: 64, weight: .heavy, design: .monospaced))
@@ -186,7 +274,7 @@ struct IntakeQuizView: View {
     }
 
     private var tripDateStep: some View {
-        stepScaffold(eyebrow: "7 of 7", title: "Training toward a trip?", subtitle: "Optional — if you have a real date, the plan can taper toward it automatically.") {
+        stepScaffold(eyebrow: "8 of \(totalSteps)", title: "Training toward a trip?", subtitle: "Optional — if you have a real date, the plan can taper toward it automatically.") {
             VStack(spacing: 14) {
                 choiceCard(label: "No trip planned", isSelected: !wantsTripDate) {
                     wantsTripDate = false
@@ -209,7 +297,7 @@ struct IntakeQuizView: View {
         }
     }
 
-    private var summaryStep: some View {
+    private var standardSummaryStep: some View {
         let template = TEMPLATE_META[answers.templateId]
         return stepScaffold(eyebrow: "READY", title: template?.name ?? answers.templateId) {
             VStack(alignment: .leading, spacing: 14) {

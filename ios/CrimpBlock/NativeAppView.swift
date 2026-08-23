@@ -42,6 +42,10 @@ struct NativeAppView: View {
     @State private var needsTutorial = false
     @State private var needsPaywall = false
     @State private var state: DailyCardState?
+    /// Phase C.1: non-nil only while profile.row.trackType == "rehab" —
+    /// mutually exclusive with `state` above, checked first in body since
+    /// a rehab-track user never has a DailyCardState to fall back to.
+    @State private var rehabBridge: RehabBridge?
     @State private var loadError: String?
     @State private var saveError: String?
     @State private var loading = false
@@ -70,13 +74,23 @@ struct NativeAppView: View {
                 // account yet — signing out and back in with the right
                 // email costs them nothing. Once the quiz is submitted a
                 // profile row exists and this stops being reachable.
-                IntakeQuizView(onComplete: { answers in Task { await completeQuiz(answers) } }, onCancel: { signOut() })
+                IntakeQuizView(onComplete: { result in Task { await completeQuiz(result) } }, onCancel: { signOut() })
             } else if needsTutorial {
                 TutorialDemoCardView(onDone: { Task { await completeTutorial() } })
             } else if needsPaywall {
                 PaywallView(onSubscribed: { Task { await reload() } }, onCancel: { signOut() })
             } else if let loadError {
                 engineBridgeErrorView(loadError)
+            } else if let rehabBridge, let currentRehabPhase = rehabBridge.currentPhase() {
+                RehabCardView(
+                    phase: currentRehabPhase,
+                    footerNote: "Native SwiftUI (live data) · \(client.session?.email ?? "") · rehab",
+                    accountEmail: client.session?.email,
+                    onSignOut: { signOut() },
+                    profile: profile,
+                    onTrackChanged: { await reload() },
+                    onAdvance: { Task { await advanceRehabPhase() } }
+                )
             } else if let state {
                 DailyCardView(
                     state: state,
@@ -95,6 +109,8 @@ struct NativeAppView: View {
                     onTapDay: { date in pickingDate = date },
                     accountEmail: client.session?.email,
                     onSignOut: { signOut() },
+                    profile: profile,
+                    onTrackChanged: { await reload() },
                     celebrationTrigger: celebrationTrigger
                 )
             } else {
@@ -166,6 +182,7 @@ struct NativeAppView: View {
 
             if probe.isBuiltInProgram {
                 needsQuiz = false; needsTutorial = false; needsPaywall = false
+                rehabBridge = nil
                 let startDate = probe.program.forProperty("startDate")?.toString() ?? probe.today()
                 try await ensureStoreAndLoadsLoaded(startDate: startDate, dateHelper: probe)
                 let bridge = try EngineBridge(email: session.email, sessionLog: currentSessionLogPayload(), loadLog: loads?.all() ?? [:])
@@ -179,8 +196,13 @@ struct NativeAppView: View {
                 profile = p
             }
 
-            guard let assignedTemplateID = profile?.row?.assignedTemplateID,
-                  let startDate = profile?.row?.programStartDate else {
+            // quizCompletedAt, not assignedTemplateID, is the real "has this
+            // account finished ONE of the two quiz branches" signal — a
+            // rehab-only user (Phase C.1) may never get an
+            // assignedTemplateID at all, since assignRehab() deliberately
+            // leaves it untouched rather than requiring a standard
+            // assignment just to unlock rehab.
+            guard profile?.row?.quizCompletedAt != nil else {
                 needsQuiz = true
                 return
             }
@@ -199,6 +221,30 @@ struct NativeAppView: View {
                 return
             }
             needsPaywall = false
+
+            if profile?.row?.trackType == "rehab" {
+                guard let injuryArea = profile?.row?.rehabInjuryArea else {
+                    // trackType says rehab but the area is missing — an
+                    // inconsistent row (shouldn't happen via assignRehab(),
+                    // but a corrupted/hand-edited row is possible) — fall
+                    // back to the quiz rather than crash on a nil.
+                    needsQuiz = true
+                    return
+                }
+                state = nil
+                rehabBridge = try RehabBridge(injuryArea: injuryArea, phaseIndex: profile?.row?.rehabPhaseIndex ?? 0)
+                loadError = nil
+                return
+            }
+            rehabBridge = nil
+
+            guard let assignedTemplateID = profile?.row?.assignedTemplateID,
+                  let startDate = profile?.row?.programStartDate else {
+                // trackType is "standard" but there's no assignment yet —
+                // same fallback as the rehab branch above.
+                needsQuiz = true
+                return
+            }
 
             let modifiers = (profile?.row?.modifiers ?? [:]).mapValues { $0.value }
             let templateProbe = try EngineBridge(templateId: assignedTemplateID, startDate: startDate, modifiers: modifiers, sessionLog: [:], loadLog: [:])
@@ -276,17 +322,44 @@ struct NativeAppView: View {
     }
 
     /// Called once, right after the quiz — writes the profile that turns
-    /// this sign-in into a template-assigned Standard-tier user, then lets
-    /// reload() pick the very next gate (the tutorial) on its own.
-    private func completeQuiz(_ answers: QuizAnswers) async {
+    /// this sign-in into either a template-assigned Standard-tier user or
+    /// a rehab-track user (Phase C.1), then lets reload() pick the very
+    /// next gate (the tutorial) on its own. Also the completion handler
+    /// when IntakeQuizView is re-presented from Settings' track switcher
+    /// (create()/assignRehab() both upsert, so this works identically for
+    /// a brand-new profile or an existing one changing track).
+    private func completeQuiz(_ result: QuizResult) async {
         do {
             let p = profile ?? NativeProfile(client: client)
-            let fmt = DateFormatter()
-            fmt.locale = Locale(identifier: "en_US_POSIX")
-            fmt.dateFormat = "yyyy-MM-dd"
-            let startDate = fmt.string(from: Date().appDay)
-            try await p.create(templateID: answers.templateId, startDate: startDate, modifiers: answers.modifiersPayload)
+            switch result {
+            case .standard(let answers):
+                let fmt = DateFormatter()
+                fmt.locale = Locale(identifier: "en_US_POSIX")
+                fmt.dateFormat = "yyyy-MM-dd"
+                let startDate = fmt.string(from: Date().appDay)
+                try await p.create(templateID: answers.templateId, startDate: startDate, modifiers: answers.modifiersPayload)
+            case .rehab(let area):
+                try await p.assignRehab(injuryArea: area.rawValue)
+            }
             profile = p
+            await reload()
+        } catch {
+            loadError = "\(error)"
+        }
+    }
+
+    /// Called from RehabCardView's "Advance to next phase" — the view has
+    /// already confirmed every self-report criterion is checked, this just
+    /// persists the new index and re-resolves. rehabBridge.advance()
+    /// mutates the bridge's own in-memory phaseIndex; reload() then
+    /// re-derives everything (including a fresh RehabBridge) from the
+    /// just-updated profile row, same "every write funnels back through
+    /// reload()" pattern the rest of this file already uses.
+    private func advanceRehabPhase() async {
+        guard let rehabBridge else { return }
+        rehabBridge.advance()
+        do {
+            try await profile?.advanceRehabPhase(to: rehabBridge.phaseIndex)
             await reload()
         } catch {
             loadError = "\(error)"
@@ -335,6 +408,7 @@ struct NativeAppView: View {
         needsTutorial = false
         needsPaywall = false
         state = nil
+        rehabBridge = nil
         ticks = []
         browsedKey = nil
         pickingDate = nil

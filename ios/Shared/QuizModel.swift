@@ -101,6 +101,40 @@ struct QuizAnswers {
         }
     }
 
+    /// Single-select, unlike InjuryFlag above — that's "flag this as a
+    /// caution on my normal program," this is "this is what I'm
+    /// rehabbing," a different question with a different answer shape.
+    /// Deliberately not folded into InjuryFlag/QuizAnswers itself; see
+    /// QuizResult below for why the rehab branch stays its own case
+    /// rather than a QuizAnswers with half its fields unused.
+    enum RehabInjuryArea: String, CaseIterable, Identifiable {
+        case fingerPulley, elbowMedial, elbowLateral, shoulder, bicepsTendon, wristTFCC
+        var id: String { rawValue }
+        var label: String {
+            switch self {
+            case .fingerPulley: return "Finger / Pulley"
+            case .elbowMedial: return "Elbow — Inner (Climber’s Elbow)"
+            case .elbowLateral: return "Elbow — Outer (Tennis Elbow)"
+            case .shoulder: return "Shoulder"
+            case .bicepsTendon: return "Biceps Tendon"
+            case .wristTFCC: return "Wrist (TFCC)"
+            }
+        }
+        /// Mirrors InjuryFlag's own subtitle pattern — short enough to
+        /// disambiguate near-neighbors (the two elbow tracks, biceps vs.
+        /// shoulder) at a glance rather than reading a paragraph first.
+        var subtitle: String {
+            switch self {
+            case .fingerPulley: return "Sharp, localized pain at the base of a finger — a strained or torn pulley"
+            case .elbowMedial: return "Inner-elbow pain from gripping — the most common climbing elbow injury"
+            case .elbowLateral: return "Outer-elbow pain — less common in climbers, but real"
+            case .shoulder: return "Rotator cuff, impingement, general shoulder pain"
+            case .bicepsTendon: return "Front-of-shoulder pain from gastons or compression"
+            case .wristTFCC: return "Pinky-side wrist pain, often from crimping or mantling"
+            }
+        }
+    }
+
     var discipline: Discipline = .bouldering
     var experienceLevel: ExperienceLevel = .beginner
     var weaknesses: Set<Weakness> = []
@@ -170,3 +204,45 @@ let TEMPLATE_META: [String: TemplateMeta] = [
         description: "For an established sport climber training power-endurance deliberately rather than constantly."
     ),
 ]
+
+/// Same hand-mirrored pattern as TEMPLATE_META above, one level simpler —
+/// rehab-templates.js's REHAB_TEMPLATES has no experience-level/discipline
+/// split to key off, just one entry per injury area. KEEP IN SYNC with
+/// rehab-templates.js's own `meta.name`/`meta.description` per area.
+let REHAB_META: [String: TemplateMeta] = [
+    "fingerPulley": TemplateMeta(
+        name: "Finger / Pulley",
+        description: "For a strained or partially torn finger pulley — built around graded, progressive re-loading rather than prolonged rest."
+    ),
+    "elbowMedial": TemplateMeta(
+        name: "Elbow — Inner (Climber’s Elbow)",
+        description: "For pain on the inside of the elbow from gripping and pulling load — the most common elbow complaint in climbers."
+    ),
+    "elbowLateral": TemplateMeta(
+        name: "Elbow — Outer (Tennis Elbow)",
+        description: "For pain on the outside of the elbow — less common in climbers, but a real overuse injury."
+    ),
+    "shoulder": TemplateMeta(
+        name: "Shoulder",
+        description: "For general shoulder pain, impingement, or a rotator cuff strain — built around scapular control alongside rotator cuff strength."
+    ),
+    "bicepsTendon": TemplateMeta(
+        name: "Biceps Tendon",
+        description: "For front-of-shoulder pain from gastons or compression — rarely isolated, leans on scapular coordination alongside the biceps itself."
+    ),
+    "wristTFCC": TemplateMeta(
+        name: "Wrist (TFCC)",
+        description: "For pain on the pinky-side of the wrist, often from crimping or mantling — built around the wrist’s safest natural movement pattern."
+    ),
+]
+
+/// What IntakeQuizView hands back — the standard branch's full QuizAnswers,
+/// or just the chosen injury area for rehab (which needs nothing else:
+/// no discipline/experience/equipment/trip-date question applies to a
+/// rehab-first assignment). Kept as two cases rather than cramming both
+/// into one QuizAnswers struct with half its fields meaningless on the
+/// rehab branch.
+enum QuizResult {
+    case standard(QuizAnswers)
+    case rehab(QuizAnswers.RehabInjuryArea)
+}
