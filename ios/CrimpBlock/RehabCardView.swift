@@ -29,6 +29,12 @@ struct RehabCardView: View {
     /// NativeProfile.advanceRehabPhase(to:) and re-resolving; this view
     /// only reports the moment, not the mechanics.
     var onAdvance: (() -> Void)? = nil
+    /// See DailyCardView's own onTutorialSignal doc — same purpose here
+    /// for RehabTutorialView, a separate walkthrough for this screen
+    /// (it's a different enough shape from the standard card that
+    /// reusing TutorialDemoCardView's steps wouldn't point at anything
+    /// real). Every other caller can safely leave this nil.
+    var onTutorialSignal: ((String) -> Void)? = nil
 
     /// Resets whenever the phase itself changes (see .onChange below) —
     /// a checked box from a PREVIOUS phase should never silently carry
@@ -93,13 +99,14 @@ struct RehabCardView: View {
             .overlay(Capsule().stroke(SessionColours.s3, lineWidth: 1))
             .clipShape(Capsule())
             Spacer()
-            Button(action: { showSettings = true }) {
+            Button(action: { showSettings = true; onTutorialSignal?("settingsGear") }) {
                 Image(systemName: "gearshape")
                     .font(.system(size: 17))
                     .foregroundStyle(SessionColours.dim)
             }
             .buttonStyle(.plain)
             .padding(.leading, 8)
+            .tutorialTarget("settingsGear")
         }
     }
 
@@ -139,14 +146,20 @@ struct RehabCardView: View {
     // MARK: - Exercises
 
     private var exercisesSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        // Only the FIRST exercise carrying a rest timer gets tagged —
+        // tutorialTarget ids merge by "last one wins" (see
+        // TutorialAnchorKey's reduce), so tagging every rest button with
+        // the same id would spotlight whichever renders last, not
+        // necessarily a real one worth demonstrating.
+        let firstRestExerciseID = phase.exercises.first(where: { ($0.restSeconds ?? 0) > 0 })?.id
+        return VStack(alignment: .leading, spacing: 12) {
             ForEach(phase.exercises) { ex in
-                exerciseRow(ex)
+                exerciseRow(ex, isTutorialRestTarget: ex.id == firstRestExerciseID)
             }
         }
     }
 
-    private func exerciseRow(_ ex: EngineBridge.RenderedExercise) -> some View {
+    private func exerciseRow(_ ex: EngineBridge.RenderedExercise, isTutorialRestTarget: Bool = false) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(alignment: .firstTextBaseline) {
                 Text(ex.title)
@@ -165,6 +178,7 @@ struct RehabCardView: View {
             if let restSeconds = ex.restSeconds, restSeconds > 0 {
                 Button(action: {
                     restTimer.start(secs: restSeconds, label: ex.title, colourHex: SessionColours.hex("--gorse"))
+                    if isTutorialRestTarget { onTutorialSignal?("restTimerButton") }
                 }) {
                     Text("REST \(restSeconds / 60):\(String(format: "%02d", restSeconds % 60))")
                         .font(AppFonts.mono(11, weight: .bold))
@@ -174,6 +188,7 @@ struct RehabCardView: View {
                 }
                 .buttonStyle(.plain)
                 .padding(.top, 2)
+                .tutorialTarget(isTutorialRestTarget ? "restTimerButton" : nil)
             }
         }
         .padding(14)
@@ -190,8 +205,8 @@ struct RehabCardView: View {
                 .foregroundStyle(SessionColours.faint)
                 .tracking(1.2)
             VStack(alignment: .leading, spacing: 10) {
-                ForEach(phase.selfReportCriteria, id: \.self) { criterion in
-                    Button(action: { toggle(criterion) }) {
+                ForEach(Array(phase.selfReportCriteria.enumerated()), id: \.element) { index, criterion in
+                    Button(action: { toggle(criterion); if index == 0 { onTutorialSignal?("checklistItem") } }) {
                         HStack(alignment: .top, spacing: 10) {
                             Image(systemName: checked.contains(criterion) ? "checkmark.square.fill" : "square")
                                 .font(.system(size: 17))
@@ -203,6 +218,7 @@ struct RehabCardView: View {
                         }
                     }
                     .buttonStyle(.plain)
+                    .tutorialTarget(index == 0 ? "checklistItem" : nil)
                 }
             }
             .padding(14)

@@ -76,7 +76,16 @@ struct NativeAppView: View {
                 // profile row exists and this stops being reachable.
                 IntakeQuizView(onComplete: { result in Task { await completeQuiz(result) } }, onCancel: { signOut() })
             } else if needsTutorial {
-                TutorialDemoCardView(onDone: { Task { await completeTutorial() } })
+                // Which walkthrough depends on which track the quiz just
+                // assigned — RehabCardView is different enough from
+                // DailyCardView (see RehabTutorialView's own doc comment)
+                // that reusing the standard steps would point at controls
+                // that don't exist there.
+                if profile?.row?.trackType == "rehab" {
+                    RehabTutorialView(onDone: { Task { await completeTutorial() } })
+                } else {
+                    TutorialDemoCardView(onDone: { Task { await completeTutorial() } })
+                }
             } else if needsPaywall {
                 PaywallView(onSubscribed: { Task { await reload() } }, onCancel: { signOut() })
             } else if let loadError {
@@ -338,8 +347,8 @@ struct NativeAppView: View {
                 fmt.dateFormat = "yyyy-MM-dd"
                 let startDate = fmt.string(from: Date().appDay)
                 try await p.create(templateID: answers.templateId, startDate: startDate, modifiers: answers.modifiersPayload)
-            case .rehab(let area):
-                try await p.assignRehab(injuryArea: area.rawValue)
+            case .rehab(let area, let startingPhase):
+                try await p.assignRehab(injuryArea: area.rawValue, startingPhaseIndex: startingPhase)
             }
             profile = p
             await reload()

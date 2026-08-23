@@ -135,6 +135,34 @@ struct QuizAnswers {
         }
     }
 
+    /// Where someone already is in recovery, mapping directly onto
+    /// rehab-templates.js's 4 fixed phases — asked so someone who's
+    /// already weeks into dealing with an injury doesn't have to restart
+    /// at Tissue Unload just because that's this track's default
+    /// starting point. rawValue IS the phase index rehab-resolver.js
+    /// expects (0=unload...3=returnToClimbing), deliberately, so there's
+    /// no separate mapping table to keep in sync.
+    enum RehabStartingPoint: Int, CaseIterable, Identifiable {
+        case justStarted = 0, easingIn = 1, rebuilding = 2, almostBack = 3
+        var id: Int { rawValue }
+        var label: String {
+            switch self {
+            case .justStarted: return "Just happened, or it still hurts at rest"
+            case .easingIn: return "Past the worst of it, working on movement"
+            case .rebuilding: return "Pain-free, rebuilding strength"
+            case .almostBack: return "Nearly back to normal, easing into climbing"
+            }
+        }
+        var subtitle: String {
+            switch self {
+            case .justStarted: return "Starts at Tissue Unload"
+            case .easingIn: return "Starts at Mobility"
+            case .rebuilding: return "Starts at Strength"
+            case .almostBack: return "Starts at Return to Climbing"
+            }
+        }
+    }
+
     var discipline: Discipline = .bouldering
     var experienceLevel: ExperienceLevel = .beginner
     var weaknesses: Set<Weakness> = []
@@ -244,5 +272,5 @@ let REHAB_META: [String: TemplateMeta] = [
 /// rehab branch.
 enum QuizResult {
     case standard(QuizAnswers)
-    case rehab(QuizAnswers.RehabInjuryArea)
+    case rehab(QuizAnswers.RehabInjuryArea, startingPhase: Int)
 }

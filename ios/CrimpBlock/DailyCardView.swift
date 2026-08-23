@@ -844,13 +844,14 @@ struct DailyCardView: View {
             // regardless of sign-in state (sample/demo mode included), and
             // SettingsView itself only renders the ACCOUNT section when
             // there's actually an email to show.
-            Button(action: { showSettings = true }) {
+            Button(action: { showSettings = true; onTutorialSignal?("settingsGear") }) {
                 Image(systemName: "gearshape")
                     .font(.system(size: 17))
                     .foregroundStyle(SessionColours.dim)
             }
             .buttonStyle(.plain)
             .padding(.leading, 8)
+            .tutorialTarget("settingsGear")
         }
     }
 

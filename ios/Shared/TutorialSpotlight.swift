@@ -47,9 +47,22 @@ struct TutorialStep {
     /// Shows a small bouncing "‹ SWIPE ›" badge above the spotlighted
     /// target — for a step whose real control is a gesture rather than a
     /// tap target, where the caption text alone doesn't make the motion
-    /// obvious. Kept as a bool rather than a richer hint type: there's
-    /// only ever been the one gesture worth calling out this way so far.
+    /// obvious. Superseded by fullScreenSwipeDemo below for the one place
+    /// this was actually used (kept as its own flag rather than merged,
+    /// in case a smaller in-context hint is ever the right call somewhere
+    /// else — the two aren't mutually exclusive in the type, just in
+    /// practice so far).
     var showsSwipeHint: Bool = false
+    /// A much bigger moment than the small pill above: the whole screen
+    /// dims (but nothing is masked out — the real card stays fully
+    /// visible and swipeable underneath) while a large left-right
+    /// sweeping arrow animates across it. Direct feedback: the small
+    /// pill wasn't obvious enough that this was a real gesture to try,
+    /// not just decoration. Still only advances on an ACTUAL swipe
+    /// (handleTap fires from the real onBrowse callback, same as every
+    /// other step) — this changes how the invitation LOOKS, not the
+    /// "real interaction required" rule every other step already holds to.
+    var fullScreenSwipeDemo: Bool = false
 }
 
 /// Owns which step is showing. The tutorial's host view wires each real
@@ -151,26 +164,57 @@ private struct TutorialOverlayModifier: ViewModifier {
 
     @ViewBuilder
     private func spotlight(step: TutorialStep, rect: CGRect, screenSize: CGSize) -> some View {
-        let mask = SpotlightMask(hole: rect, cornerRadius: 14)
-        ZStack {
-            mask
-                .fill(Color.black.opacity(0.75), style: FillStyle(eoFill: true))
-                .contentShape(mask, eoFill: true)
-                .onTapGesture {} // absorbs taps outside the hole; the hole itself has no shape here, so real taps there fall through to the control beneath
+        if step.fullScreenSwipeDemo {
+            fullScreenSwipeSpotlight(step: step, screenSize: screenSize)
+        } else {
+            let mask = SpotlightMask(hole: rect, cornerRadius: 14)
+            ZStack {
+                mask
+                    .fill(Color.black.opacity(0.75), style: FillStyle(eoFill: true))
+                    .contentShape(mask, eoFill: true)
+                    .onTapGesture {} // absorbs taps outside the hole; the hole itself has no shape here, so real taps there fall through to the control beneath
 
-            RoundedRectangle(cornerRadius: 14)
-                .stroke(SessionColours.fg, lineWidth: 2)
-                .frame(width: rect.width, height: rect.height)
-                .position(x: rect.midX, y: rect.midY)
+                RoundedRectangle(cornerRadius: 14)
+                    .stroke(SessionColours.fg, lineWidth: 2)
+                    .frame(width: rect.width, height: rect.height)
+                    .position(x: rect.midX, y: rect.midY)
+                    .allowsHitTesting(false)
+
+                if step.showsSwipeHint {
+                    SwipeHintBadge()
+                        .position(x: rect.midX, y: max(30, rect.minY - 30))
+                        .allowsHitTesting(false)
+                }
+
+                captionCard(step: step, rect: rect, screenSize: screenSize)
+                    .allowsHitTesting(true)
+            }
+        }
+    }
+
+    /// No mask/hole here at all — the whole card stays visible AND
+    /// hit-testable (nothing in this layer intercepts touches except the
+    /// caption card's own SKIP link), because the thing being taught is a
+    /// gesture across the card itself, not a single tappable spot. A
+    /// light full-screen dim plus a large sweeping arrow is the "big,
+    /// obvious moment" the small pill badge wasn't managing on its own.
+    private func fullScreenSwipeSpotlight(step: TutorialStep, screenSize: CGSize) -> some View {
+        ZStack {
+            Color.black.opacity(0.35)
+                .ignoresSafeArea()
                 .allowsHitTesting(false)
 
-            if step.showsSwipeHint {
-                SwipeHintBadge()
-                    .position(x: rect.midX, y: max(30, rect.minY - 30))
-                    .allowsHitTesting(false)
-            }
+            BigSwipeArrow()
+                .frame(height: 90)
+                .position(x: screenSize.width / 2, y: screenSize.height * 0.42)
+                .allowsHitTesting(false)
 
-            captionCard(step: step, rect: rect, screenSize: screenSize)
+            // The same captionCard every other step uses — position()
+            // computes its coordinates from `rect` and `screenSize`
+            // directly, so a thin fake rect pinned near the top is
+            // enough to reuse it unmodified; x is always screen-centred
+            // regardless of rect, only rect.maxY/minY affects placement.
+            captionCard(step: step, rect: CGRect(x: 0, y: 40, width: screenSize.width, height: 1), screenSize: screenSize)
                 .allowsHitTesting(true)
         }
     }
@@ -215,6 +259,51 @@ private struct TutorialOverlayModifier: ViewModifier {
         let fitsBelow = rect.maxY + cardHalfHeight * 2 < screenSize.height
         let y = fitsBelow ? rect.maxY + cardHalfHeight : rect.minY - cardHalfHeight
         return CGPoint(x: screenSize.width / 2, y: min(max(y, cardHalfHeight + 20), screenSize.height - cardHalfHeight - 20))
+    }
+}
+
+/// The big version — used by fullScreenSwipeDemo instead of the small
+/// pill. Two chevrons slide outward from centre and fade, on a loop,
+/// reading unambiguously as "drag this way, or that way" rather than the
+/// pill's smaller, easier-to-miss rocking motion. Purely decorative, same
+/// as SwipeHintBadge below — the real gesture target is the card itself.
+private struct BigSwipeArrow: View {
+    @State private var expanded = false
+
+    var body: some View {
+        GeometryReader { proxy in
+            let spread = proxy.size.width * 0.28
+            ZStack {
+                chevron(systemName: "chevron.left")
+                    .offset(x: expanded ? -spread : -spread * 0.35)
+                    .opacity(expanded ? 0 : 1)
+                chevron(systemName: "chevron.right")
+                    .offset(x: expanded ? spread : spread * 0.35)
+                    .opacity(expanded ? 0 : 1)
+                Text("SWIPE")
+                    .font(.system(size: 13, weight: .bold, design: .monospaced))
+                    .tracking(3)
+                    .foregroundStyle(SessionColours.fg.opacity(0.85))
+            }
+            .frame(width: proxy.size.width, height: proxy.size.height)
+        }
+        .onAppear {
+            // autoreverses: true, not false — a Bool only has two states,
+            // so the "loop" here IS the reverse: out-and-fade, then back
+            // to centre-and-visible, repeating. autoreverses: false would
+            // hold at the fully-expanded/faded end state after the first
+            // cycle with nothing left to animate.
+            withAnimation(.easeOut(duration: 0.9).repeatForever(autoreverses: true)) {
+                expanded = true
+            }
+        }
+    }
+
+    private func chevron(systemName: String) -> some View {
+        Image(systemName: systemName)
+            .font(.system(size: 46, weight: .bold))
+            .foregroundStyle(SessionColours.fg)
+            .shadow(color: .black.opacity(0.5), radius: 10)
     }
 }
 

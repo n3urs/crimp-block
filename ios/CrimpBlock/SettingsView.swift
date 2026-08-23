@@ -184,8 +184,8 @@ struct SettingsView: View {
                 fmt.dateFormat = "yyyy-MM-dd"
                 let startDate = fmt.string(from: Date().appDay)
                 try await profile.create(templateID: answers.templateId, startDate: startDate, modifiers: answers.modifiersPayload)
-            case .rehab(let area):
-                try await profile.assignRehab(injuryArea: area.rawValue)
+            case .rehab(let area, let startingPhase):
+                try await profile.assignRehab(injuryArea: area.rawValue, startingPhaseIndex: startingPhase)
             }
             await onTrackChanged?()
             dismiss()

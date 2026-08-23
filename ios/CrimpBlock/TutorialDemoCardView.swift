@@ -37,9 +37,11 @@ struct TutorialDemoCardView: View {
                      body: "Rest timers count down on their own, but you're never stuck waiting — tap STOP whenever you're ready to move on."),
         TutorialStep(targetID: "sessionDots", title: "Every session, one swipe away",
                      body: "Swipe left or right anywhere on the card to move between sessions — an outdoor day, a rest day, whatever's coming up. Or tap a dot below to jump straight to one.",
-                     showsSwipeHint: true),
+                     fullScreenSwipeDemo: true),
         TutorialStep(targetID: "doneButton", title: "Log as you go",
                      body: "Tick exercises off as you do them, then mark today done here."),
+        TutorialStep(targetID: "settingsGear", title: "Your settings",
+                     body: "A sets counter, an auto-start rest timer, and — if you're on a template plan — switching to a rehab track or a different program, all live behind this gear icon."),
     ])
 
     var body: some View {

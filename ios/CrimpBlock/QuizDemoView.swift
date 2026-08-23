@@ -57,8 +57,8 @@ struct QuizDemoView: View {
         switch result {
         case .standard(let answers):
             loadStandard(answers)
-        case .rehab(let area):
-            rehabBridge = try? RehabBridge(injuryArea: area.rawValue, phaseIndex: 0)
+        case .rehab(let area, let startingPhase):
+            rehabBridge = try? RehabBridge(injuryArea: area.rawValue, phaseIndex: startingPhase)
             if rehabBridge == nil { loadError = "RehabBridge failed to load for \(area.rawValue)" }
         }
     }

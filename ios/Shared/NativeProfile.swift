@@ -97,7 +97,12 @@ final class NativeProfile {
     }
 
     /// Assigns (or first-assigns) the rehab track for `injuryArea`,
-    /// starting at phase 0 (unload). Deliberately omits
+    /// starting at `startingPhaseIndex` — not always 0 (unload); the
+    /// quiz's "where are you already" question (QuizAnswers.
+    /// RehabStartingPoint) lets someone who's already weeks into
+    /// recovery skip straight to the phase that actually matches where
+    /// they are, rather than restarting at the very beginning every
+    /// time. Deliberately omits
     /// assigned_template_id/program_start_date/modifiers from the write
     /// when a profile row already exists — upsert's merge-duplicates
     /// only touches columns present in the payload, so any existing
@@ -107,13 +112,13 @@ final class NativeProfile {
     /// prior assignment to preserve, so this also supplies today's date
     /// for program_start_date's NOT NULL constraint in that case only —
     /// unused while trackType stays "rehab".
-    func assignRehab(injuryArea: String) async throws {
+    func assignRehab(injuryArea: String, startingPhaseIndex: Int = 0) async throws {
         guard let userID = client.session?.userID else { throw SupabaseClient.ClientError.notSignedIn }
         var payload: [String: Any?] = [
             "user_id": userID,
             "track_type": "rehab",
             "rehab_injury_area": injuryArea,
-            "rehab_phase_index": 0,
+            "rehab_phase_index": startingPhaseIndex,
             "quiz_completed_at": ISO8601DateFormatter().string(from: Date())
         ]
         let existing = row
@@ -125,14 +130,14 @@ final class NativeProfile {
         if var existing {
             existing.trackType = "rehab"
             existing.rehabInjuryArea = injuryArea
-            existing.rehabPhaseIndex = 0
+            existing.rehabPhaseIndex = startingPhaseIndex
             row = existing
         } else {
             row = Row(
                 assignedTemplateID: nil, programStartDate: Self.isoDate(Date()),
                 modifiers: [:], tier: "standard",
                 quizCompletedAt: ISO8601DateFormatter().string(from: Date()), tutorialCompletedAt: nil,
-                trackType: "rehab", rehabInjuryArea: injuryArea, rehabPhaseIndex: 0
+                trackType: "rehab", rehabInjuryArea: injuryArea, rehabPhaseIndex: startingPhaseIndex
             )
         }
     }

@@ -29,20 +29,22 @@ struct IntakeQuizView: View {
 
     @State private var track: Track? = nil
     @State private var rehabArea: QuizAnswers.RehabInjuryArea? = nil
+    @State private var rehabStartingPoint: QuizAnswers.RehabStartingPoint? = nil
     @State private var answers = QuizAnswers()
     @State private var step = 0
     @State private var wantsTripDate = false
 
     /// Step 0 is always the track choice. Standard adds the 7 existing
     /// questions on top of that (8 total before the summary); rehab adds
-    /// just the one injury-area question (2 total).
+    /// the injury area plus how far into recovery already (3 total).
     private var totalSteps: Int {
-        track == .rehab ? 2 : 8
+        track == .rehab ? 3 : 8
     }
 
     private var canAdvance: Bool {
         if step == 0 { return track != nil }
         if track == .rehab, step == 1 { return rehabArea != nil }
+        if track == .rehab, step == 2 { return rehabStartingPoint != nil }
         return true
     }
 
@@ -58,6 +60,7 @@ struct IntakeQuizView: View {
                     } else if track == .rehab {
                         switch step {
                         case 1: rehabAreaStep
+                        case 2: rehabStartingPointStep
                         default: rehabSummaryStep
                         }
                     } else {
@@ -137,8 +140,8 @@ struct IntakeQuizView: View {
         guard canAdvance else { return }
         if step < totalSteps {
             withAnimation { step += 1 }
-        } else if track == .rehab, let rehabArea {
-            onComplete(.rehab(rehabArea))
+        } else if track == .rehab, let rehabArea, let rehabStartingPoint {
+            onComplete(.rehab(rehabArea, startingPhase: rehabStartingPoint.rawValue))
         } else if track == .standard {
             onComplete(.standard(answers))
         }
@@ -173,6 +176,18 @@ struct IntakeQuizView: View {
         }
     }
 
+    private var rehabStartingPointStep: some View {
+        stepScaffold(eyebrow: "3 of \(totalSteps)", title: "Where are you already?", subtitle: "So you don't have to start over if you've been dealing with this a while.") {
+            VStack(spacing: 10) {
+                ForEach(QuizAnswers.RehabStartingPoint.allCases) { point in
+                    choiceCard(label: point.label, subtitle: point.subtitle, isSelected: rehabStartingPoint == point) {
+                        rehabStartingPoint = point
+                    }
+                }
+            }
+        }
+    }
+
     private var rehabSummaryStep: some View {
         let meta = rehabArea.flatMap { REHAB_META[$0.rawValue] }
         return stepScaffold(eyebrow: "READY", title: meta?.name ?? "Rehab") {
@@ -182,7 +197,7 @@ struct IntakeQuizView: View {
                         .font(.system(size: 14))
                         .foregroundStyle(SessionColours.dim)
                 }
-                Text("Starts at the first phase — Tissue Unload. You'll move through Mobility, Strength, and Return to Climbing as you're ready, at your own pace.")
+                Text(startingPointSummaryText)
                     .font(.system(size: 13))
                     .foregroundStyle(SessionColours.faint)
                     .padding(16)
@@ -190,6 +205,19 @@ struct IntakeQuizView: View {
                     .background(SessionColours.s1)
                     .clipShape(RoundedRectangle(cornerRadius: 12))
             }
+        }
+    }
+
+    private var startingPointSummaryText: String {
+        switch rehabStartingPoint {
+        case .justStarted, nil:
+            return "Starts at the first phase — Tissue Unload. You'll move through Mobility, Strength, and Return to Climbing as you're ready, at your own pace."
+        case .easingIn:
+            return "Starts at Mobility, skipping Tissue Unload — you'll move through Strength and Return to Climbing as you're ready, at your own pace."
+        case .rebuilding:
+            return "Starts at Strength, skipping Unload and Mobility — you'll move through Return to Climbing as you're ready, at your own pace."
+        case .almostBack:
+            return "Starts at Return to Climbing, the final phase — you're already most of the way there."
         }
     }
 
