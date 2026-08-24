@@ -67,9 +67,9 @@ return {
           {t:'Band-assisted one-arm',m:'3 × 5s / hand',d:'If there is a pulley or a band. Closest thing to pickups you can do at work — and the right step while you cannot one-arm hang a 20mm edge unassisted. Alternate hands.',r:90},
           {t:'Volume climbing',m:'45 min',d:'Crimp-biased mileage, not limit attempts.'}
         ]},
-      climbHard:{n:'Crimp Session', w:'Gym · 90 min', c:'--heather', finger:2, pull:2, climb:1,
+      climbHard:{n:'Hard Climb / Board', w:'Gym · 90 min', c:'--heather', finger:2, pull:2, climb:1, note:'Got board access today? All three boards are fair game — go hard on whatever is set.',
         x:[
-          {t:'Crimp-only limit bouldering',m:'45 min',ph:{'Base':'60 min — volume over difficulty, movement quality first','Power':'30 min — fewer attempts, full power between tries','Performance':'projecting — no fixed time'},d:'Small edges, vertical to 20°. Set your own if there is nothing suitable — you work there.',r:180},
+          {t:'Crimp-only limit bouldering',m:'45 min',ph:{'Base':'60 min — volume over difficulty, movement quality first','Power':'30 min — fewer attempts, full power between tries','Performance':'projecting — no fixed time'},d:'Small edges, vertical to 20°. Set your own if there is nothing suitable — you work there. At the board: crimps are fine — that is the whole point of board access, hard controlled training on whatever is set. Use any of the three. Poor feet throughout means do not let sloppy footwork turn this into a strength-endurance session by accident.',r:180},
           {t:'No slopers, no heels',m:'rest of session',d:'Your instincts pull you toward what you are already good at. Ignore them.'},
           {t:'Cool down',m:'10 min',d:'Easy traversing, then finger extensors.'}
         ]},
@@ -141,9 +141,9 @@ return {
              runs fewer sets with zero extra logic. */
           {t:'Repeaters',id:'joe-rep',m:'5 × (10s on / 5s off × 5)',interval:{on:10,off:5,reps:5},d:'Your usual protocol, at a sustainable load — not a max effort. Beastmaker 1000, the 20mm-range four-finger pockets. Unaffected by the gym’s 15kg cap: repeaters are meant to be submaximal, so running out of plates costs nothing here. Keep the pinky engaged and stay off the three- and two-finger pockets — that position is what tweaks your ring finger. Press Start below and just hang — the timer runs the whole protocol, sets included.',r:120}
         ]},
-      climbHard:{n:'Compression & Power', w:'Gym · 90 min', c:'--heather', finger:2, pull:2, climb:1,
+      climbHard:{n:'Hard Climb / Board', w:'Gym · 90 min', c:'--heather', finger:2, pull:2, climb:1, note:'Got board access today? All three boards are fair game — go hard on whatever is set.',
         x:[
-          {t:'Compression / sloper limit bouldering',m:'40 min',ph:{'Power Endurance':'25 min — after the circuit','Performance':'projecting — no fixed time'},d:'Seek out the compression-y, shouldery, sloper problems you would normally avoid. This block is what actually prepares you for Font, not the crimpy stuff you are already good at.',r:180},
+          {t:'Compression / sloper limit bouldering',m:'40 min',ph:{'Power Endurance':'25 min — after the circuit','Performance':'projecting — no fixed time'},d:'Seek out the compression-y, shouldery, sloper problems you would normally avoid. This block is what actually prepares you for Font, not the crimpy stuff you are already good at. At the board: crimps are fine — that is the whole point of board access, hard controlled training on whatever is set. Use any of the three.',r:180},
           {t:'Endurance circuit',m:'20 min',ph:{'Power Endurance':'35 min — do this FIRST, while fresh','Performance':'20 min — hold what you built'},d:'Boulder doubles or 4x4s — same format you have used before. This is the direct fix for the endurance gap. In the Power Endurance block this moves to the front of the session: whatever comes first gets the quality.',r:180},
           {t:'Cool down',m:'10 min',d:'Easy traversing.'}
         ]},
