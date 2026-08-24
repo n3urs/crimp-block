@@ -375,13 +375,22 @@ struct NativeAppView: View {
         }
     }
 
-    /// A failed write here shouldn't trap someone behind the tutorial gate
-    /// forever — worst case reload() shows it again next launch, which is
-    /// harmless, so this doesn't surface as loadError the way completeQuiz's
-    /// failure does.
+    /// The `try?` this used to use was justified as "worst case reload()
+    /// shows the tutorial again next launch, which is harmless." That was
+    /// wrong on both counts: the write was failing every single time (see
+    /// NativeProfile.markTutorialCompleted), and reload() re-gates on
+    /// tutorial_completed_at IMMEDIATELY, not next launch — so a swallowed
+    /// failure put the tutorial straight back up and GET STARTED looked
+    /// like a dead button. Surfacing it means a write that fails is
+    /// visible instead of an unexplained loop.
     private func completeTutorial() async {
         needsTutorial = false
-        try? await profile?.markTutorialCompleted()
+        do {
+            try await profile?.markTutorialCompleted()
+        } catch {
+            loadError = "Couldn't save your progress: \(error)"
+            return
+        }
         await reload()
     }
 

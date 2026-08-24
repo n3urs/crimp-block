@@ -174,8 +174,22 @@ private struct TutorialOverlayModifier: ViewModifier {
                     .contentShape(mask, eoFill: true)
                     .onTapGesture {} // absorbs taps outside the hole; the hole itself has no shape here, so real taps there fall through to the control beneath
 
+                // Two rings, not one: a dark outer stroke behind a light
+                // inner one, so the highlight stays visible whatever it
+                // lands on. A single near-white 2pt ring disappeared
+                // against the bright amber DONE button — reported
+                // directly, a tester couldn't tell what she was meant to
+                // press. The dark ring gives the light one something to
+                // separate from on light targets, and is invisible
+                // against the dimmed backdrop everywhere else.
                 RoundedRectangle(cornerRadius: 14)
-                    .stroke(SessionColours.fg, lineWidth: 2)
+                    .stroke(Color.black.opacity(0.55), lineWidth: 6)
+                    .frame(width: rect.width, height: rect.height)
+                    .position(x: rect.midX, y: rect.midY)
+                    .allowsHitTesting(false)
+
+                RoundedRectangle(cornerRadius: 14)
+                    .stroke(SessionColours.fg, lineWidth: 2.5)
                     .frame(width: rect.width, height: rect.height)
                     .position(x: rect.midX, y: rect.midY)
                     .allowsHitTesting(false)

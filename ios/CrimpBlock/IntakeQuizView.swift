@@ -393,6 +393,14 @@ struct IntakeQuizView: View {
     private func choiceCard(label: String, subtitle: String? = nil, isSelected: Bool, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             HStack {
+                // fixedSize(horizontal:vertical:) is what actually makes
+                // these wrap. Text wraps by default, but a Spacer sibling
+                // in an HStack lets SwiftUI hand the text less width than
+                // it asked for and truncate instead — which is why the
+                // longest equipment option ("A loading pin + edge/block/
+                // roller for weighted pickups") rendered as an unreadable
+                // single line ending in "…". Reported directly. Applied to
+                // the whole VStack so subtitles get the same treatment.
                 VStack(alignment: .leading, spacing: 3) {
                     Text(label)
                         .font(.system(size: 15, weight: .semibold))
@@ -403,7 +411,9 @@ struct IntakeQuizView: View {
                             .foregroundStyle(SessionColours.dim)
                     }
                 }
-                Spacer()
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                Spacer(minLength: 8)
                 if isSelected {
                     Image(systemName: "checkmark.circle.fill")
                         .foregroundStyle(SessionColours.fg)

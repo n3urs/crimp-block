@@ -146,6 +146,24 @@ final class SupabaseClient {
         )
     }
 
+    /// A partial UPDATE of an EXISTING row — not an upsert. The difference
+    /// matters and is not stylistic: `upsert` above sends an
+    /// `INSERT ... ON CONFLICT DO UPDATE`, and Postgres validates the
+    /// proposed row's NOT NULL constraints BEFORE it resolves the
+    /// conflict. So an upsert carrying only the one or two columns it
+    /// wants to change is rejected outright whenever the table has any
+    /// NOT NULL column without a default — `profiles.program_start_date`
+    /// being exactly that. Updating a single field on a row that already
+    /// exists is what PATCH is for, and it never has to satisfy columns
+    /// it isn't touching.
+    func patch(table: String, query: String, values: [String: Any?]) async throws {
+        let body = try JSONSerialization.data(withJSONObject: values.mapValues { $0 ?? NSNull() })
+        _ = try await sendAuthed(
+            "rest/v1/\(table)?\(query)", method: "PATCH", body: body,
+            extraHeaders: ["Prefer": "return=minimal"]
+        )
+    }
+
     func delete(table: String, query: String) async throws {
         _ = try await sendAuthed("rest/v1/\(table)?\(query)", method: "DELETE")
     }

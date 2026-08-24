@@ -150,10 +150,13 @@ final class NativeProfile {
     /// create(templateID:...) above) when there's nothing to restore.
     func switchToStandard() async throws {
         guard let userID = client.session?.userID else { throw SupabaseClient.ClientError.notSignedIn }
-        try await client.upsert(
+        // PATCH for the same reason markTutorialCompleted() uses it — a
+        // partial upsert here would have failed the NOT NULL check on
+        // program_start_date exactly the same way.
+        try await client.patch(
             table: "profiles",
-            rows: [["user_id": userID, "track_type": "standard"]],
-            onConflict: "user_id"
+            query: "user_id=eq.\(userID)",
+            values: ["track_type": "standard"]
         )
         row?.trackType = "standard"
     }
@@ -163,22 +166,31 @@ final class NativeProfile {
     /// been checked and the user confirms they're ready to move on.
     func advanceRehabPhase(to phaseIndex: Int) async throws {
         guard let userID = client.session?.userID else { throw SupabaseClient.ClientError.notSignedIn }
-        try await client.upsert(
+        // PATCH — same NOT NULL reasoning as the two methods above.
+        try await client.patch(
             table: "profiles",
-            rows: [["user_id": userID, "rehab_phase_index": phaseIndex]],
-            onConflict: "user_id"
+            query: "user_id=eq.\(userID)",
+            values: ["rehab_phase_index": phaseIndex]
         )
         row?.rehabPhaseIndex = phaseIndex
     }
 
+    /// PATCH, not upsert — see SupabaseClient.patch()'s doc comment. The
+    /// upsert this used to be silently failed every time: it omitted
+    /// program_start_date, which is NOT NULL with no default, so Postgres
+    /// rejected the proposed row before it ever got to the DO UPDATE
+    /// branch. completeTutorial() swallowed that with `try?`, so
+    /// tutorial_completed_at never got written, and reload() put the
+    /// tutorial straight back up — the "GET STARTED does nothing" bug.
     func markTutorialCompleted() async throws {
         guard let userID = client.session?.userID else { throw SupabaseClient.ClientError.notSignedIn }
-        try await client.upsert(
+        let now = ISO8601DateFormatter().string(from: Date())
+        try await client.patch(
             table: "profiles",
-            rows: [["user_id": userID, "tutorial_completed_at": ISO8601DateFormatter().string(from: Date())]],
-            onConflict: "user_id"
+            query: "user_id=eq.\(userID)",
+            values: ["tutorial_completed_at": now]
         )
-        row?.tutorialCompletedAt = ISO8601DateFormatter().string(from: Date())
+        row?.tutorialCompletedAt = now
     }
 
     /// "yyyy-MM-dd", matching program_start_date's `date` column type —

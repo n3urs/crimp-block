@@ -25,8 +25,14 @@ struct TutorialDemoCardView: View {
     @State private var loadError: String?
     @State private var isLogged = false
     @State private var controller = TutorialController(steps: [
+        // "…then close it to carry on" is not padding: tapping this badge
+        // opens the plan as a sheet OVER the card, and the walkthrough has
+        // no way to dismiss someone else's @State sheet, so the next step
+        // is sitting underneath it invisibly until they close it
+        // themselves. Reported directly — a tester opened the plan and had
+        // no idea the tutorial was waiting behind it.
         TutorialStep(targetID: "phaseBadge", title: "The bigger picture",
-                     body: "This badge shows where you are in your training block. Tap it any time to see the full plan — phases, deload weeks, and what changes when."),
+                     body: "This badge shows where you are in your training block. Tap it any time to see the full plan — phases, deload weeks, and what changes when. Close it with the button in the top left to carry on."),
         TutorialStep(targetID: "exerciseInfo", title: "Detail, out of the way",
                      body: "Every exercise keeps the essentials up front. Tap the info icon on any exercise to see the full reasoning behind it."),
         TutorialStep(targetID: "weightBadge", title: "Track your numbers",
@@ -39,7 +45,7 @@ struct TutorialDemoCardView: View {
                      body: "Swipe left or right anywhere on the card to move between sessions — an outdoor day, a rest day, whatever's coming up. Or tap a dot below to jump straight to one.",
                      fullScreenSwipeDemo: true),
         TutorialStep(targetID: "doneButton", title: "Log as you go",
-                     body: "Tick exercises off as you do them, then mark today done here."),
+                     body: "Tick exercises off as you do them, then mark the whole session done with the big button at the bottom of the screen."),
         TutorialStep(targetID: "settingsGear", title: "Your settings",
                      body: "A sets counter, an auto-start rest timer, and — if you're on a template plan — switching to a rehab track or a different program, all live behind this gear icon."),
     ])
