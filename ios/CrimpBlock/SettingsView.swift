@@ -21,6 +21,11 @@ struct SettingsView: View {
     /// profile.row directly (rather than a snapshot passed in) means the
     /// TRAINING TRACK section always reflects the account's actual
     /// current assignment, not what it was when this sheet was opened.
+    /// The tutorial's own closing card says "you can always revisit
+    /// this from settings later" — which was untrue until this existed.
+    /// Worth keeping honest rather than softening the copy: someone who
+    /// tapped SKIP on their first day has no other way back to it.
+    var onReplayTutorial: (() -> Void)?
     var profile: NativeProfile?
     /// Called after a track switch/assignment write succeeds — the
     /// caller (NativeAppView) re-derives everything via reload(), the
@@ -97,6 +102,22 @@ struct SettingsView: View {
 
                         if profile != nil {
                             trackSection
+                        }
+
+                        if let onReplayTutorial {
+                            section("HELP") {
+                                VStack(alignment: .leading, spacing: 6) {
+                                    Button(action: { dismiss(); onReplayTutorial() }) {
+                                        Text("REPLAY TUTORIAL")
+                                            .font(AppFonts.mono(12, weight: .bold))
+                                            .foregroundStyle(SessionColours.fg)
+                                    }
+                                    .buttonStyle(.plain)
+                                    Text("The walkthrough of the daily card, from the beginning.")
+                                        .font(.system(size: 11))
+                                        .foregroundStyle(SessionColours.faint)
+                                }
+                            }
                         }
 
                         section("EXERCISE TRACKING") {

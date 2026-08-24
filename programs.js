@@ -158,6 +158,69 @@ return {
     }
   },
 
+  /* Max Pamplin — built from his own handwritten notebook (photographed
+     2026-08-24). Direct feedback after the first pass: keep his three
+     days (Monday/Wednesday/Friday) intact exactly as he wrote them,
+     each as ONE combined session — not split apart by training purpose
+     across separate session types the way an earlier version of this
+     did. Only maxFingers/hangboard/pull are ever actually RECOMMENDED
+     by the engine (see the file header above) — climbHard/climbEasy
+     never get pushed as a suggestion, only logged manually — so those
+     three keys are where his three real days live, each holding
+     everything he wrote for that day (climbing included). climbHard/
+     climbEasy below are just generic fallbacks for anything extra he
+     logs outside his three set days, not part of his actual plan.
+     Nothing here has been through a live sign-in yet — Oscar should
+     sanity-check the numbers below with Max before he starts. One
+     remaining open item: there's no periodization scheme in his
+     notebook at all (just a steady weekly split) — the phases/deload
+     structure below is a reasonable default modelled on Oscar's own
+     program, not something Max specified himself. */
+  'maxpamplin2000@googlemail.com': {
+    startDate:'2026-08-24',
+    perWeek:3,
+    phases:[
+      {n:'Max Strength', from:1, c:'--gorse', cue:'Near-maximal — heavy is correct here', d:'Your existing split, structured through the app: limit bouldering and fingerboard near-maximal, pull-ups heavy. No easing-in phase — you are already training this hard, so this starts straight at your current numbers and is the longest phase.'},
+      {n:'Power', from:5, c:'--heather', cue:'Lighter, fast — speed over load', d:'Same three days, converted to speed. Fingerboard goes short and sharp, pull-ups explosive, and the deadpoint/power bouldering gets priority over the limit boulders.'},
+      {n:'Performance', from:6, c:'--slate', cue:'Maintain only — climbing is the real work now', d:'Structured training steps back. One finger day and one pull day a week to hold what you built, everything else goes to outside projects.'}
+    ],
+    sessions:{
+      maxFingers:{n:'Max Strength', w:'Gym · 2 hr', c:'--gorse', finger:3, pull:1, climb:1, note:'Your Monday — warm up, work through the grades, then finish on the board.',
+        x:[
+          {t:'Warm up',m:'10 min',d:'Pulse raise, then progressively heavier hangs/pulls before loading anything.'},
+          {t:'Progressive problems',m:'V2 → V7',d:'Ramping up through the grades.'},
+          {t:'Limit boulders',m:'3 attempts, around V9/V10',ph:{'Performance':'projecting instead — no fixed attempt count'},d:'Your ceiling grade. Full recovery between attempts, not a circuit.',r:240},
+          {t:'Weighted fingerboard hangs',id:'max-hang-wt',m:'5 × 10s',ph:{'Power':'5 × 4s — short, sharp, contact-focused','Performance':'3 × 8s — maintain only'},d:'Currently 25kg added. 3 min rest between reps.',r:180}
+        ]},
+      hangboard:{n:'Volume', w:'Gym · 75 min', c:'--slate', finger:2, pull:1, climb:1, note:'Your Wednesday — mileage first, board work and mobility after.',
+        x:[
+          {t:'Warm up',m:'10 min',d:'Pulse raise before the volume problems.'},
+          {t:'Volume bouldering',m:'15–20 problems',d:'V5–V7. Mileage, not limit attempts — the opposite end of the week from Monday.'},
+          {t:'Repeaters',id:'max-rep',m:'3 sets',interval:{on:7,off:3,reps:6},ph:{'Power':'2 sets — reduced, priority is elsewhere this phase','Performance':'1–2 sets — maintain only'},d:'7s on / 3s off × 6 = one set. Press Start below and just hang.',r:120},
+          {t:'Mobility',m:'—',d:'Hips, shoulders, thoracic.'}
+        ]},
+      pull:{n:'Power', w:'Gym · 2 hr', c:'--tidepool', finger:1, pull:3, climb:1, note:'Your Friday — power bouldering first, pulling strength after.',
+        x:[
+          {t:'Warm up',m:'5 min',d:'Band pull-aparts, scap pulls, then two progressively heavier pull-up sets.'},
+          {t:'Power bouldering — big moves',m:'5 problems, 2–4 moves',ph:{'Performance':'skip — projecting instead'},d:'Big deadpoints and pulls, cutting feet on the big moves. Max effort every go, not volume.',r:240},
+          {t:'Weighted pull-ups',id:'max-pull-wt',m:'5 × 3',ph:{'Power':'5 × 3 — explosive, faster tempo','Performance':'3 × 3 — maintain only'},d:'Currently 25kg added.',r:240},
+          {t:'One-arm progression',m:'3 sets',d:'Hardest variation you hold with good form.',r:90},
+          {t:'Front lever progression',m:'3 sets',d:'Hardest variation you hold with good form.',r:90},
+          {t:'Reverse wrist curls',m:'3 × 20',d:'Antagonist work.',r:60}
+        ]},
+      outdoorHard:{n:'Outdoor', w:'Crag', c:'--heather', finger:3, pull:2, climb:1,
+        x:[
+          {t:'Warm up properly',m:'20 min',d:'Cold fingers on cold rock is how pulleys go.'},
+          {t:'Project',m:'—',d:'Your outside projects — the weekend focus.'}
+        ]},
+      climbHard:{n:'Extra Bouldering', w:'Gym', c:'--heather', finger:2, pull:2, climb:1, note:'Not one of your three set days — only here if you climb extra and want to log it.',
+        x:[{t:'Bouldering',m:'—',d:'Whatever you climbed.'}]},
+      climbEasy:{n:'Easy Climbing', w:'Anywhere', c:'--tidepool', finger:1, pull:1, climb:1,
+        x:[{t:'Mileage and movement',m:'—',d:'Nothing near limit — outside your three set days.'}]},
+      rest:{n:'Rest', w:'—', c:'--grey', finger:0, pull:0, note:'Rest from training, not from moving. An easy climb is fine — if it turns into trying hard, log it under Extra Bouldering so the plan can count it.', x:[]}
+    }
+  },
+
   /* Generic placeholder — used for anyone signing in whose email isn't
      mapped to a real program above yet. Add a PROGRAMS['<their-email>']
      entry, built around their actual weaknesses/goals, once you have

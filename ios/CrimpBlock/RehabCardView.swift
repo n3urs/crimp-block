@@ -23,6 +23,7 @@ struct RehabCardView: View {
     var accountEmail: String? = nil
     var onSignOut: (() -> Void)? = nil
     var onDeleteAccount: (() async throws -> Void)? = nil
+    var onReplayTutorial: (() -> Void)? = nil
     var profile: NativeProfile? = nil
     var onTrackChanged: (() async -> Void)? = nil
     /// Called once every self-report criterion is checked and the user
@@ -111,7 +112,7 @@ struct RehabCardView: View {
             }
         }
         .sheet(isPresented: $showSettings) {
-            SettingsView(accountEmail: accountEmail, onSignOut: onSignOut, onDeleteAccount: onDeleteAccount, profile: profile, onTrackChanged: onTrackChanged)
+            SettingsView(accountEmail: accountEmail, onSignOut: onSignOut, onDeleteAccount: onDeleteAccount, onReplayTutorial: onReplayTutorial, profile: profile, onTrackChanged: onTrackChanged)
         }
         .onAppear { restTimer.requestNotificationPermission() }
         .onChange(of: phase.phaseId) { _, _ in checked = [] }

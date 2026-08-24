@@ -1,1 +1,8 @@
 node_modules/
+
+# Xcode local state and build output
+ios/build/
+ios/CrimpBlock.xcodeproj/xcuserdata/
+ios/CrimpBlock.xcodeproj/project.xcworkspace/
+DerivedData/
+*.xcarchive

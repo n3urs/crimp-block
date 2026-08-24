@@ -66,6 +66,10 @@ struct DailyCardView: View {
     var accountEmail: String? = nil
     var onSignOut: (() -> Void)? = nil
     var onDeleteAccount: (() async throws -> Void)? = nil
+    /// Re-runs the onboarding walkthrough — nil everywhere except the
+    /// real signed-in card, since only NativeAppView owns the state
+    /// that decides whether the tutorial is showing.
+    var onReplayTutorial: (() -> Void)? = nil
     /// Phase C.1: threaded straight through to SettingsView's track
     /// switcher — nil in demo/sample-data mode, same as accountEmail.
     var profile: NativeProfile? = nil
@@ -301,6 +305,7 @@ struct DailyCardView: View {
                     // controls rather than one continuous strip.
                     WeekStripView(days: weekDays, onTapDay: onTapDay)
                         .padding(.bottom, 10)
+                        .tutorialTarget("weekStrip")
                 }
                 header
                 if onBrowse != nil { sessionDots }
@@ -354,7 +359,7 @@ struct DailyCardView: View {
                                 // not something carried over from the original.
                                 VStack(spacing: 0) {
                                     ForEach(Array(state.exercises.enumerated()), id: \.element.id) { index, ex in
-                                        exerciseRow(ex)
+                                        exerciseRow(ex, isTutorialTickTarget: index == 0)
                                         if index < state.exercises.count - 1 {
                                             Rectangle().fill(SessionColours.s2).frame(height: 1)
                                         }
@@ -516,7 +521,7 @@ struct DailyCardView: View {
             PlanSheetView(bridge: state.bridge, block: state.block, today: state.today)
         }
         .sheet(isPresented: $showSettings) {
-            SettingsView(accountEmail: accountEmail, onSignOut: onSignOut, onDeleteAccount: onDeleteAccount, profile: profile, onTrackChanged: onTrackChanged)
+            SettingsView(accountEmail: accountEmail, onSignOut: onSignOut, onDeleteAccount: onDeleteAccount, onReplayTutorial: onReplayTutorial, profile: profile, onTrackChanged: onTrackChanged)
         }
         .fullScreenCover(isPresented: $showIntervalTimer) {
             IntervalTimerView(controller: intervalTimer, onDismiss: { showIntervalTimer = false })
@@ -873,13 +878,19 @@ struct DailyCardView: View {
     /// simplified stand-in) is what makes the handoff from peek to real
     /// content at the end of a swipe invisible instead of a visible
     /// "suddenly the detail appears" jump.
-    private func exerciseRow(_ ex: EngineBridge.RenderedExercise, accent: Color? = nil, accentVarName: String? = nil) -> some View {
+    /// `isTutorialTickTarget` is only ever true for the FIRST row of the
+    /// live card — tutorialTarget ids merge last-one-wins, so tagging
+    /// every row's checkbox would leave the spotlight on whichever
+    /// happened to render last rather than the one being taught. The
+    /// swipe peek (the other caller) never passes it at all, for the
+    /// same reason: two live "exerciseTick" anchors would fight.
+    private func exerciseRow(_ ex: EngineBridge.RenderedExercise, accent: Color? = nil, accentVarName: String? = nil, isTutorialTickTarget: Bool = false) -> some View {
         ExerciseRowView(
             ex: ex, accent: accent ?? state.accent, accentVarName: accentVarName ?? state.accentVarName,
             isTicked: ticks.contains(ex.id), onToggleTick: onToggleTick, onTapWeight: onTapWeight,
             restTimer: restTimer, intervalTimer: intervalTimer,
             showIntervalTimer: $showIntervalTimer, leadingInt: Self.leadingInt,
-            onTutorialSignal: onTutorialSignal
+            onTutorialSignal: onTutorialSignal, isTutorialTickTarget: isTutorialTickTarget
         )
     }
 
@@ -935,6 +946,7 @@ private struct ExerciseRowView: View {
     @Binding var showIntervalTimer: Bool
     let leadingInt: (String) -> Int?
     var onTutorialSignal: ((String) -> Void)? = nil
+    var isTutorialTickTarget: Bool = false
 
     @State private var showDetail = false
     /// Local, ephemeral, never synced — this is purely an in-session tally
@@ -942,6 +954,15 @@ private struct ExerciseRowView: View {
     /// onToggleTick), same as before this existed; this only tracks
     /// progress TOWARD that, kept in sync with it below.
     @State private var completedSets = 0
+    /// A real Button's tap recognizer fires on finger-lift regardless of
+    /// .simultaneousGesture — so a long-press-to-undo (which completes
+    /// at 0.45s, still held) was always immediately followed by the
+    /// Button's own tap on release, silently re-adding the set it just
+    /// removed. This flag is set only when the long-press actually
+    /// undid something, and consumed by the very next tap so that one
+    /// release doesn't double as a fresh tap. A genuine follow-up tap
+    /// works normally straight after.
+    @State private var suppressNextTap = false
     @AppStorage("setsCounterEnabled") private var setsCounterEnabled = false
     @AppStorage("autoStartRestOnTally") private var autoStartRestOnTally = false
 
@@ -980,7 +1001,7 @@ private struct ExerciseRowView: View {
     var body: some View {
         HStack(alignment: .top, spacing: 14) {
             if let onToggleTick {
-                Button(action: { onToggleTick(ex.id) }) {
+                Button(action: { onToggleTick(ex.id); onTutorialSignal?("exerciseTick") }) {
                     ZStack {
                         RoundedRectangle(cornerRadius: 3)
                             .strokeBorder(isTicked ? .clear : SessionColours.s4, lineWidth: 1.5)
@@ -995,6 +1016,7 @@ private struct ExerciseRowView: View {
                 }
                 .buttonStyle(.plain)
                 .padding(.top, 1)
+                .tutorialTarget(isTutorialTickTarget ? "exerciseTick" : nil)
             }
             VStack(alignment: .leading, spacing: 4) {
                 HStack(alignment: .firstTextBaseline, spacing: 6) {
@@ -1153,7 +1175,9 @@ private struct ExerciseRowView: View {
         // arbitrary index, so a single "remove the last one" action is
         // enough on its own.
         .simultaneousGesture(
-            LongPressGesture(minimumDuration: 0.45).onEnded { _ in undoLastSet() }
+            LongPressGesture(minimumDuration: 0.45).onEnded { _ in
+                if undoLastSet() { suppressNextTap = true }
+            }
         )
         .padding(.top, 2)
         // Separate from the interval START / plain Rest button just
@@ -1169,6 +1193,10 @@ private struct ExerciseRowView: View {
     }
 
     private func tapTally(totalSets: Int) {
+        if suppressNextTap {
+            suppressNextTap = false // this tap is the release from a long-press undo, not a real add
+            return
+        }
         guard completedSets < totalSets else { return } // already full — row will have collapsed via the tick below anyway
         completedSets += 1
         if autoStartRestOnTally, let r = ex.restSeconds {
@@ -1184,9 +1212,11 @@ private struct ExerciseRowView: View {
     /// tally the instant it flips true) — so there's no case in practice
     /// where completedSets can be undone out from under an
     /// already-ticked exercise; onToggleTick never needs calling here.
-    private func undoLastSet() {
-        guard completedSets > 0 else { return }
+    @discardableResult
+    private func undoLastSet() -> Bool {
+        guard completedSets > 0 else { return false }
         completedSets -= 1
+        return true
     }
 
     @ViewBuilder
@@ -1205,7 +1235,15 @@ private struct ExerciseRowView: View {
     }
 }
 
-func engineBridgeErrorView(_ message: String) -> some View {
+/// `onRetry`/`onSignOut` are optional only because the demo and tutorial
+/// callers have nothing real to retry or sign out of. On the REAL signed-in
+/// path both are supplied, and they matter: this view is shown as a whole
+/// screen, replacing the card entirely, so without a control on it there is
+/// literally nothing to press. One failed load — a dropped connection
+/// mid-launch, a profile row the engine can't resolve — and the app was a
+/// dead end that force-quitting couldn't fix if the cause persisted, with
+/// no way to even sign out and try another account.
+func engineBridgeErrorView(_ message: String, onRetry: (() -> Void)? = nil, onSignOut: (() -> Void)? = nil) -> some View {
     VStack(spacing: 10) {
         Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
         Text("Couldn't load").foregroundStyle(.white).font(.headline)
@@ -1214,6 +1252,32 @@ func engineBridgeErrorView(_ message: String) -> some View {
             .foregroundStyle(SessionColours.dim)
             .multilineTextAlignment(.center)
             .padding(.horizontal, 24)
+        if onRetry != nil || onSignOut != nil {
+            VStack(spacing: 14) {
+                if let onRetry {
+                    Button(action: onRetry) {
+                        Text("TRY AGAIN")
+                            .font(AppFonts.mono(13, weight: .bold))
+                            .foregroundStyle(SessionColours.bg)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 14)
+                            .background(SessionColours.fg)
+                            .clipShape(RoundedRectangle(cornerRadius: 10))
+                    }
+                    .buttonStyle(.plain)
+                }
+                if let onSignOut {
+                    Button(action: onSignOut) {
+                        Text("SIGN OUT")
+                            .font(AppFonts.mono(12, weight: .bold))
+                            .foregroundStyle(SessionColours.restC)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .frame(maxWidth: 280)
+            .padding(.top, 18)
+        }
     }
     .frame(maxWidth: .infinity, maxHeight: .infinity)
     .background(SessionColours.bg)

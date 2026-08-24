@@ -140,12 +140,34 @@ extension View {
 private struct TutorialOverlayModifier: ViewModifier {
     let controller: TutorialController
     let isActive: Bool
+    /// Measured, not assumed. This used to be a hardcoded 100pt
+    /// half-height inside captionPosition(), which silently stopped
+    /// being true the moment a step's body ran longer than a few lines
+    /// — the card grew upward past the value being used to place it and
+    /// covered the very control it was pointing at, swallowing taps
+    /// meant for the target. Seeded at 200 so the first frame (before
+    /// any measurement lands) is still roughly right.
+    @State private var captionHeight: CGFloat = 200
 
     func body(content: Content) -> some View {
         content.overlayPreferenceValue(TutorialAnchorKey.self) { anchors in
             if isActive {
                 GeometryReader { proxy in
-                    if let step = controller.currentStep, let anchor = anchors[step.targetID] {
+                    if let step = controller.currentStep, anchors[step.targetID] == nil {
+                        // The step's target isn't on screen at all. Without
+                        // this branch the overlay renders NOTHING — no
+                        // spotlight, no caption, and critically no SKIP —
+                        // so the walkthrough is silently stuck with no way
+                        // out. That has now happened twice for different
+                        // reasons (a rest timer expiring on its own and
+                        // removing its own STOP button; a swipe landing on
+                        // a session whose exercises don't include the one
+                        // the next step points at), so this stops being a
+                        // per-cause fix and becomes a floor: whatever the
+                        // reason a target goes missing, there is always a
+                        // caption on screen and always a way forward.
+                        orphanedStep(step: step, screenSize: proxy.size)
+                    } else if let step = controller.currentStep, let anchor = anchors[step.targetID] {
                         spotlight(step: step, rect: proxy[anchor].insetBy(dx: -8, dy: -10), screenSize: proxy.size)
                             .allowsHitTesting(true)
                             // Ties the mask hole (now Animatable, see
@@ -159,6 +181,25 @@ private struct TutorialOverlayModifier: ViewModifier {
                 }
                 .ignoresSafeArea()
             }
+        }
+    }
+
+    /// Shown when a step's target has gone missing (see the call site).
+    /// Nothing to point at, so there's nothing to highlight — just the
+    /// caption, centred, with the whole backdrop advancing on tap so
+    /// this is always an inconvenience rather than a dead end.
+    private func orphanedStep(step: TutorialStep, screenSize: CGSize) -> some View {
+        ZStack {
+            Color.black.opacity(0.75)
+                .ignoresSafeArea()
+                .contentShape(Rectangle())
+                .onTapGesture { controller.advance() }
+            captionCard(
+                step: step,
+                rect: CGRect(x: 0, y: screenSize.height * 0.32, width: screenSize.width, height: 1),
+                screenSize: screenSize,
+                footerOverride: "Tap anywhere to continue"
+            )
         }
     }
 
@@ -225,15 +266,27 @@ private struct TutorialOverlayModifier: ViewModifier {
 
             // The same captionCard every other step uses — position()
             // computes its coordinates from `rect` and `screenSize`
-            // directly, so a thin fake rect pinned near the top is
-            // enough to reuse it unmodified; x is always screen-centred
-            // regardless of rect, only rect.maxY/minY affects placement.
-            captionCard(step: step, rect: CGRect(x: 0, y: 40, width: screenSize.width, height: 1), screenSize: screenSize)
-                .allowsHitTesting(true)
+            // directly, so a thin fake rect is enough to reuse it
+            // unmodified; x is always screen-centred regardless of
+            // rect, only rect.maxY/minY affects placement.
+            //
+            // Pinned to the LOWER half rather than the top: this step
+            // has no hole dimming the rest of the card, which is the
+            // whole point — the card underneath stays readable while
+            // the gesture is explained. Near the top the card sat
+            // squarely over the header and the session dots, hiding
+            // the very row the copy talks about. 0.55 clears the
+            // arrow (0.42) without reaching the Done button.
+            captionCard(
+                step: step,
+                rect: CGRect(x: 0, y: screenSize.height * 0.55, width: screenSize.width, height: 1),
+                screenSize: screenSize
+            )
+            .allowsHitTesting(true)
         }
     }
 
-    private func captionCard(step: TutorialStep, rect: CGRect, screenSize: CGSize) -> some View {
+    private func captionCard(step: TutorialStep, rect: CGRect, screenSize: CGSize, footerOverride: String? = nil) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
                 Text("\(controller.stepIndex + 1) OF \(controller.steps.count)")
@@ -252,7 +305,11 @@ private struct TutorialOverlayModifier: ViewModifier {
             Text(step.body)
                 .font(.system(size: 13.5))
                 .foregroundStyle(SessionColours.dim)
-            Text("Tap the highlighted area to continue")
+            // There IS no highlighted area on a full-screen swipe step
+            // — nothing is spotlighted and nothing needs pressing, so
+            // the standard line was telling people to look for a ring
+            // that isn't drawn.
+            Text(footerOverride ?? (step.fullScreenSwipeDemo ? "Swipe the card to continue" : "Tap the highlighted area to continue"))
                 .font(.system(size: 10, weight: .semibold, design: .monospaced))
                 .foregroundStyle(SessionColours.faint)
                 .padding(.top, 2)
@@ -262,17 +319,27 @@ private struct TutorialOverlayModifier: ViewModifier {
         .background(SessionColours.s1)
         .clipShape(RoundedRectangle(cornerRadius: 14))
         .overlay(RoundedRectangle(cornerRadius: 14).stroke(SessionColours.s3, lineWidth: 1))
+        .background(
+            GeometryReader { g in
+                Color.clear.onAppear { captionHeight = g.size.height }
+                    .onChange(of: g.size.height) { _, h in captionHeight = h }
+            }
+        )
         .position(captionPosition(rect: rect, screenSize: screenSize))
     }
 
     /// Below the hole when there's room, above it otherwise — clamped so
     /// the card never runs past the top/bottom of the screen regardless
-    /// of where on the card the target happens to sit.
+    /// of where on the card the target happens to sit. The 12pt gap is
+    /// what actually keeps the card clear of the spotlight ring; without
+    /// a real measured height it silently overlapped the target on any
+    /// step whose copy ran long (see captionHeight above).
     private func captionPosition(rect: CGRect, screenSize: CGSize) -> CGPoint {
-        let cardHalfHeight: CGFloat = 100
-        let fitsBelow = rect.maxY + cardHalfHeight * 2 < screenSize.height
-        let y = fitsBelow ? rect.maxY + cardHalfHeight : rect.minY - cardHalfHeight
-        return CGPoint(x: screenSize.width / 2, y: min(max(y, cardHalfHeight + 20), screenSize.height - cardHalfHeight - 20))
+        let half = captionHeight / 2
+        let gap: CGFloat = 12
+        let fitsBelow = rect.maxY + gap + captionHeight < screenSize.height
+        let y = fitsBelow ? rect.maxY + gap + half : rect.minY - gap - half
+        return CGPoint(x: screenSize.width / 2, y: min(max(y, half + 20), screenSize.height - half - 20))
     }
 }
 

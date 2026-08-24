@@ -54,6 +54,9 @@ struct NativeAppView: View {
     @State private var browsedKey: String?
     @State private var pickingDate: String?
     @State private var celebrationTrigger = 0
+    /// Set once a load has been spinning long enough to look broken — see
+    /// the loading branch in body for why this exists.
+    @State private var loadingTooLong = false
     /// Device-level, not account-level — shown once ever per install, not
     /// once per sign-in. A returning user who's already seen it shouldn't
     /// see it again just because they signed out (see WelcomeView's doc
@@ -89,7 +92,11 @@ struct NativeAppView: View {
             } else if needsPaywall {
                 PaywallView(onSubscribed: { Task { await reload() } }, onCancel: { signOut() })
             } else if let loadError {
-                engineBridgeErrorView(loadError)
+                engineBridgeErrorView(
+                    loadError,
+                    onRetry: { self.loadError = nil; Task { await reload() } },
+                    onSignOut: { signOut() }
+                )
             } else if let rehabBridge, let currentRehabPhase = rehabBridge.currentPhase() {
                 RehabCardView(
                     phase: currentRehabPhase,
@@ -97,6 +104,7 @@ struct NativeAppView: View {
                     accountEmail: client.session?.email,
                     onSignOut: { signOut() },
                     onDeleteAccount: { try await deleteAccount() },
+                    onReplayTutorial: { needsTutorial = true },
                     profile: profile,
                     onTrackChanged: { await reload() },
                     onAdvance: { Task { await advanceRehabPhase() } }
@@ -120,13 +128,49 @@ struct NativeAppView: View {
                     accountEmail: client.session?.email,
                     onSignOut: { signOut() },
                     onDeleteAccount: { try await deleteAccount() },
+                    onReplayTutorial: { needsTutorial = true },
                     profile: profile,
                     onTrackChanged: { await reload() },
                     celebrationTrigger: celebrationTrigger
                 )
             } else {
-                ZStack { SessionColours.bg.ignoresSafeArea(); ProgressView().tint(.white) }
-                    .task { if !loading { await reload() } }
+                // The spinner is the only screen left with no controls on
+                // it, which is fine while a load is genuinely in flight.
+                // It stops being fine if that load never lands — a stalled
+                // connection sits here with nothing to press. URLSession
+                // does eventually time out into the (escapable) error
+                // screen, but a minute of dead spinner reads as a hung app
+                // long before that, so an escape hatch appears well ahead
+                // of it rather than only after.
+                ZStack {
+                    SessionColours.bg.ignoresSafeArea()
+                    VStack(spacing: 18) {
+                        ProgressView().tint(.white)
+                        if loadingTooLong {
+                            VStack(spacing: 12) {
+                                Text("Still loading — check your connection.")
+                                    .font(.system(size: 12))
+                                    .foregroundStyle(SessionColours.dim)
+                                Button(action: { signOut() }) {
+                                    Text("SIGN OUT")
+                                        .font(AppFonts.mono(12, weight: .bold))
+                                        .foregroundStyle(SessionColours.restC)
+                                }
+                                .buttonStyle(.plain)
+                            }
+                            .transition(.opacity)
+                        }
+                    }
+                }
+                .animation(.easeInOut(duration: 0.2), value: loadingTooLong)
+                .task {
+                    if !loading { await reload() }
+                }
+                .task {
+                    try? await Task.sleep(for: .seconds(12))
+                    if !Task.isCancelled { loadingTooLong = true }
+                }
+                .onDisappear { loadingTooLong = false }
             }
         }
         .sheet(item: $editingExercise) { ex in
@@ -192,8 +236,18 @@ struct NativeAppView: View {
             isBuiltInProgram = probe.isBuiltInProgram
 
             if probe.isBuiltInProgram {
-                needsQuiz = false; needsTutorial = false; needsPaywall = false
+                // No quiz (their program is hand-authored, there's nothing
+                // to ask) and no paywall (they aren't customers) — but the
+                // tutorial still runs. A hand-authored program means the
+                // program was written for them, NOT that they've ever seen
+                // this app: a friend handed a bespoke plan is exactly as
+                // new to the card, the dots and the swipe as any template
+                // user. Skipping it here was a real gap, caught before Max
+                // Pamplin's first sign-in rather than after.
+                needsQuiz = false; needsPaywall = false
+                needsTutorial = !Self.hasSeenBuiltInTutorial(email: session.email)
                 rehabBridge = nil
+                if needsTutorial { return }
                 let startDate = probe.program.forProperty("startDate")?.toString() ?? probe.today()
                 try await ensureStoreAndLoadsLoaded(startDate: startDate, dateHelper: probe)
                 let bridge = try EngineBridge(email: session.email, sessionLog: currentSessionLogPayload(), loadLog: loads?.all() ?? [:])
@@ -251,7 +305,20 @@ struct NativeAppView: View {
                     return
                 }
                 state = nil
-                rehabBridge = try RehabBridge(injuryArea: injuryArea, phaseIndex: profile?.row?.rehabPhaseIndex ?? 0)
+                let bridge = try RehabBridge(injuryArea: injuryArea, phaseIndex: profile?.row?.rehabPhaseIndex ?? 0)
+                // Constructing the bridge succeeding is NOT the same as it
+                // being able to resolve a phase — currentPhase() returns nil
+                // for an injury area the templates don't know about (a
+                // hand-edited or since-renamed row), and the body's rehab
+                // branch is `if let rehabBridge, let phase = ...`. A nil
+                // phase there fell through to the loading spinner, whose
+                // .task calls reload(), which lands right back here: a
+                // permanent spinner with no controls on it at all. Failing
+                // loudly into the (now escapable) error screen instead.
+                guard bridge.currentPhase() != nil else {
+                    throw RehabPhaseUnresolvableError(area: injuryArea)
+                }
+                rehabBridge = bridge
                 loadError = nil
                 return
             }
@@ -297,6 +364,13 @@ struct NativeAppView: View {
         var sessionLog: [String: Any] = [:]
         for (date, entry) in store?.all() ?? [:] { sessionLog[date] = ["t": entry.t] }
         return sessionLog
+    }
+
+    private struct RehabPhaseUnresolvableError: Error, CustomStringConvertible {
+        let area: String
+        var description: String {
+            "Your rehab track is set to \"\(area)\", which this version of the app doesn't recognise. Switch track in Settings, or sign out and back in."
+        }
     }
 
     private struct EngineOutOfSyncError: Error, CustomStringConvertible {
@@ -395,6 +469,19 @@ struct NativeAppView: View {
     /// visible instead of an unexplained loop.
     private func completeTutorial() async {
         needsTutorial = false
+        // Built-in accounts have no `profiles` row at all (the quiz is
+        // what creates one, and they never take it), so there's no
+        // tutorial_completed_at to stamp — markTutorialCompleted()'s
+        // PATCH would match zero rows and silently succeed, putting the
+        // tutorial straight back up on the next reload. Device-local is
+        // the honest store for them, same as `hasSeenWelcome` above;
+        // keyed by email so testing a second account on one device
+        // still gets its own walkthrough.
+        if isBuiltInProgram {
+            if let email = client.session?.email { Self.markBuiltInTutorialSeen(email: email) }
+            await reload()
+            return
+        }
         do {
             try await profile?.markTutorialCompleted()
         } catch {
@@ -402,6 +489,18 @@ struct NativeAppView: View {
             return
         }
         await reload()
+    }
+
+    private static func builtInTutorialKey(email: String) -> String {
+        "builtInTutorialSeen.\(email.lowercased())"
+    }
+
+    private static func hasSeenBuiltInTutorial(email: String) -> Bool {
+        UserDefaults.standard.bool(forKey: builtInTutorialKey(email: email))
+    }
+
+    private static func markBuiltInTutorialSeen(email: String) {
+        UserDefaults.standard.set(true, forKey: builtInTutorialKey(email: email))
     }
 
     /// Mirrors app.js's session dots: tap a different session to preview

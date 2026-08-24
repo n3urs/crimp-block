@@ -13,7 +13,7 @@ struct ContentView: View {
     @State private var debugDestination: DebugDestination?
 
     private enum DebugDestination: Identifiable {
-        case sample, webShell, quiz, paywall, tutorialDebug, rehabTutorialDebug
+        case sample, webShell, quiz, paywall, tutorialDebug, rehabTutorialDebug, maxPreview
         var id: Self { self }
     }
     #endif
@@ -43,6 +43,7 @@ struct ContentView: View {
                 Button("Paywall (Phase D)") { debugDestination = .paywall }
                 Button("Tutorial (verify skip)") { debugDestination = .tutorialDebug }
                 Button("Rehab tutorial (Phase C.1)") { debugDestination = .rehabTutorialDebug }
+                Button("Max's program (preview)") { debugDestination = .maxPreview }
                 Button("Cancel", role: .cancel) {}
             }
             .sheet(item: $debugDestination) { dest in
@@ -55,6 +56,7 @@ struct ContentView: View {
                 case .paywall: PaywallView(onSubscribed: {}, onCancel: { debugDestination = nil })
                 case .tutorialDebug: TutorialDemoCardView(onDone: { debugDestination = nil })
                 case .rehabTutorialDebug: RehabTutorialView(onDone: { debugDestination = nil })
+                case .maxPreview: MaxProgramPreviewView()
                 }
             }
         #else
