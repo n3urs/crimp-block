@@ -225,7 +225,15 @@ struct NativeAppView: View {
 
             await subscriptionManager.loadProduct()
             await subscriptionManager.refreshEntitlement()
-            guard subscriptionManager.isSubscribed else {
+            // Sandbox (TestFlight/debug) skips the gate — see
+            // SubscriptionManager.isRunningInSandbox's doc comment for
+            // why: Offer Codes, the intended tester bypass, need the
+            // subscription Approved and the app Ready for Distribution,
+            // which no pre-submission build ever is. A real App Store
+            // download always evaluates `isSubscribed` on its own, same
+            // as before — this only widens what ALSO lets someone
+            // through, never narrows it.
+            guard subscriptionManager.isSubscribed || SubscriptionManager.isRunningInSandbox else {
                 needsPaywall = true
                 return
             }

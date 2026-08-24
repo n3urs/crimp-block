@@ -10,6 +10,24 @@ import StoreKit
 final class SubscriptionManager {
     static let standardMonthlyID = "uk.co.sullivanltd.crimpblock.standard.monthly"
 
+    /// True for a TestFlight or Xcode-debug install, false for a real App
+    /// Store download — the receipt URL's last path component is
+    /// literally named `sandboxReceipt` in the former case and something
+    /// else in the latter, which is Apple's own documented way to tell
+    /// them apart on-device. Exists because Offer Codes — the intended
+    /// way to get testers past the paywall without a real purchase —
+    /// turned out to require the subscription to already be Approved and
+    /// the app Ready for Distribution (confirmed directly in App Store
+    /// Connect, not assumed), which makes them useless for testing before
+    /// the first submission. NativeAppView.reload() uses this to skip the
+    /// paywall gate for testers specifically, never for a real download —
+    /// production purchasing itself is completely untouched by this, and
+    /// the paywall stays reachable on demand from the DEBUG menu for
+    /// anyone who wants to look at it anyway.
+    static var isRunningInSandbox: Bool {
+        Bundle.main.appStoreReceiptURL?.lastPathComponent == "sandboxReceipt"
+    }
+
     private(set) var product: Product?
     private(set) var isSubscribed = false
     private(set) var loadError: String?
