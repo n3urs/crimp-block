@@ -65,6 +65,7 @@ struct DailyCardView: View {
     var onTapDay: ((String) -> Void)? = nil
     var accountEmail: String? = nil
     var onSignOut: (() -> Void)? = nil
+    var onDeleteAccount: (() async throws -> Void)? = nil
     /// Phase C.1: threaded straight through to SettingsView's track
     /// switcher — nil in demo/sample-data mode, same as accountEmail.
     var profile: NativeProfile? = nil
@@ -515,7 +516,7 @@ struct DailyCardView: View {
             PlanSheetView(bridge: state.bridge, block: state.block, today: state.today)
         }
         .sheet(isPresented: $showSettings) {
-            SettingsView(accountEmail: accountEmail, onSignOut: onSignOut, profile: profile, onTrackChanged: onTrackChanged)
+            SettingsView(accountEmail: accountEmail, onSignOut: onSignOut, onDeleteAccount: onDeleteAccount, profile: profile, onTrackChanged: onTrackChanged)
         }
         .fullScreenCover(isPresented: $showIntervalTimer) {
             IntervalTimerView(controller: intervalTimer, onDismiss: { showIntervalTimer = false })

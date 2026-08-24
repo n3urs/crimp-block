@@ -9,6 +9,13 @@ import SwiftUI
 struct SettingsView: View {
     var accountEmail: String?
     var onSignOut: (() -> Void)?
+    /// Throws rather than a plain callback — this sheet stays open
+    /// through the call and `loadError` (NativeAppView's own error state)
+    /// only ever renders in ITS body, invisible behind an open sheet. A
+    /// thrown error is caught locally in deleteError below and shown
+    /// right here instead, the same pattern applyTrackSwitch/
+    /// restoreStandard below already use for their own errors.
+    var onDeleteAccount: (() async throws -> Void)?
     /// Phase C.1: nil in demo/sample-data mode (NativeEngineDemoView),
     /// present whenever there's a real signed-in account — reading
     /// profile.row directly (rather than a snapshot passed in) means the
@@ -32,6 +39,9 @@ struct SettingsView: View {
     @State private var showTrackQuiz = false
     @State private var switching = false
     @State private var switchError: String?
+    @State private var showDeleteConfirm = false
+    @State private var deleting = false
+    @State private var deleteError: String?
 
     var body: some View {
         NavigationStack {
@@ -51,6 +61,36 @@ struct SettingsView: View {
                                             .foregroundStyle(SessionColours.restC)
                                     }
                                     .buttonStyle(.plain)
+
+                                    // App Store Review Guideline 5.1.1(v):
+                                    // any app offering account creation
+                                    // must offer in-app account deletion,
+                                    // not just sign-out — this isn't
+                                    // optional scope, it's a submission
+                                    // requirement. Gated on onDeleteAccount
+                                    // being non-nil (not just accountEmail)
+                                    // so a caller that hasn't wired it up
+                                    // yet — the demo/sample-data path, say
+                                    // — never shows a button that does
+                                    // nothing.
+                                    if onDeleteAccount != nil {
+                                        Rectangle().fill(SessionColours.s3).frame(height: 1)
+                                        Button(action: { showDeleteConfirm = true }) {
+                                            Text(deleting ? "DELETING…" : "DELETE ACCOUNT")
+                                                .font(AppFonts.mono(12, weight: .bold))
+                                                .foregroundStyle(SessionColours.restC)
+                                        }
+                                        .buttonStyle(.plain)
+                                        .disabled(deleting)
+                                        Text("Permanently deletes your training log, weights, and program. This cannot be undone, and does not cancel an active subscription — manage that separately in your device Settings.")
+                                            .font(.system(size: 11))
+                                            .foregroundStyle(SessionColours.faint)
+                                        if let deleteError {
+                                            Text(deleteError)
+                                                .font(.system(size: 11))
+                                                .foregroundStyle(SessionColours.restC)
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -97,7 +137,38 @@ struct SettingsView: View {
                     onCancel: { showTrackQuiz = false }
                 )
             }
+            // A native alert-style confirmation, not a plain button —
+            // this is the one destructive, irreversible action in the
+            // whole app, so it gets the same "are you sure" ceremony iOS
+            // itself uses for account-level deletions.
+            .confirmationDialog(
+                "Delete your account?",
+                isPresented: $showDeleteConfirm,
+                titleVisibility: .visible
+            ) {
+                Button("Delete Account", role: .destructive) { Task { await confirmDelete() } }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("This permanently deletes your training log, weights, and program. This cannot be undone.")
+            }
         }
+    }
+
+    private func confirmDelete() async {
+        deleting = true
+        deleteError = nil
+        do {
+            try await onDeleteAccount?()
+            // No dismiss() here on success, unlike sign-out/track-switch
+            // above — a successful delete already tears down the parent's
+            // whole session (NativeAppView.signOut()'s reset), which
+            // replaces this entire view hierarchy, sheet included, on its
+            // own the moment SwiftUI re-renders. Calling dismiss() too
+            // would just be racing that teardown.
+        } catch {
+            deleteError = "\(error)"
+        }
+        deleting = false
     }
 
     // MARK: - Training track (Phase C.1)

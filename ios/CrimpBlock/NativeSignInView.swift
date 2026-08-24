@@ -89,7 +89,7 @@ struct NativeSignInView: View {
     private var defaultMessage: String {
         step == .email
             ? "Enter your email. Each email gets its own private log."
-            : "✓ Code sent to \(email) — check your inbox and type it below."
+            : "✓ Code sent to \(email) — can take a minute to arrive, and sometimes lands in junk/spam. Check your inbox and type it below."
     }
 
     /// Error red for a real failure, accent gold for "it worked, look at

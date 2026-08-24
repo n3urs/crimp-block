@@ -91,6 +91,21 @@ final class SupabaseClient {
         session = nil
     }
 
+    /// Permanently deletes this account — required for App Store review,
+    /// Guideline 5.1.1(v): any app offering account creation must offer
+    /// in-app account deletion, not just sign-out. Calls the
+    /// `delete-account` Edge Function (supabase/functions/delete-account)
+    /// carrying this device's own access token; the function verifies
+    /// that token before deleting anything, so this can only ever delete
+    /// the account making the call, never another one. Every table
+    /// cascades from `auth.users` in the schema already (see that
+    /// function's own doc comment), so deleting the auth user is the
+    /// whole job — nothing else needs cleaning up from here.
+    func deleteAccount() async throws {
+        _ = try await sendAuthed("functions/v1/delete-account", method: "POST")
+        signOut()
+    }
+
     /// GoTrue's access token is short-lived (Supabase's default is one
     /// hour) — this was never captured before, so once it expired every
     /// authenticated call failed with "JWT expired" forever, with no way

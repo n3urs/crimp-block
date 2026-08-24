@@ -96,6 +96,7 @@ struct NativeAppView: View {
                     footerNote: "Native SwiftUI (live data) · \(client.session?.email ?? "") · rehab",
                     accountEmail: client.session?.email,
                     onSignOut: { signOut() },
+                    onDeleteAccount: { try await deleteAccount() },
                     profile: profile,
                     onTrackChanged: { await reload() },
                     onAdvance: { Task { await advanceRehabPhase() } }
@@ -118,6 +119,7 @@ struct NativeAppView: View {
                     onTapDay: { date in pickingDate = date },
                     accountEmail: client.session?.email,
                     onSignOut: { signOut() },
+                    onDeleteAccount: { try await deleteAccount() },
                     profile: profile,
                     onTrackChanged: { await reload() },
                     celebrationTrigger: celebrationTrigger
@@ -440,6 +442,22 @@ struct NativeAppView: View {
         pickingDate = nil
         loadError = nil
         saveError = nil
+    }
+
+    /// Called from Settings' DELETE ACCOUNT confirmation. Throws rather
+    /// than catching internally — this sheet stays open through the
+    /// call, and `loadError` only ever renders in NativeAppView's OWN
+    /// body, invisible behind an open sheet. Letting the error propagate
+    /// means SettingsView can show it inline instead, the same pattern
+    /// its own track-switcher already uses. On success, signOut() resets
+    /// every piece of local state — after deletion there genuinely is no
+    /// account left, the same end state as signing out, just reached a
+    /// different way. Never called on failure: someone whose delete
+    /// failed should stay signed in, looking at a real error, not get
+    /// silently logged out of an account that still exists.
+    private func deleteAccount() async throws {
+        try await client.deleteAccount()
+        signOut()
     }
 
     // MARK: - Writes
