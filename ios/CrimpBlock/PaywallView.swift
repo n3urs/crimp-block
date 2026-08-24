@@ -21,11 +21,19 @@ struct PaywallView: View {
             SessionColours.bg.ignoresSafeArea()
             VStack(alignment: .leading, spacing: 20) {
                 if let onCancel {
+                    // A plain "X" here used to read as "close this
+                    // sheet" — reported directly: it actually signs the
+                    // account out entirely (there's no lesser dismissal
+                    // to fall back to; without a subscription there's
+                    // nothing else in the app to show), and landing back
+                    // on the sign-in screen after tapping what looked
+                    // like a close button felt like a bug. The control
+                    // now says exactly what it does.
                     HStack {
                         Spacer()
                         Button(action: onCancel) {
-                            Image(systemName: "xmark")
-                                .font(.system(size: 15, weight: .semibold))
+                            Text("SIGN OUT")
+                                .font(AppFonts.mono(12, weight: .bold))
                                 .foregroundStyle(SessionColours.faint)
                         }
                     }
