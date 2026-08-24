@@ -145,6 +145,7 @@ struct NativeSignInView: View {
     private func verifyCode() {
         sending = true
         isError = false
+        message = nil
         Task {
             do {
                 try await client.verifyOTP(email: email, token: code.filter(\.isNumber))
@@ -153,9 +154,25 @@ struct NativeSignInView: View {
             } catch {
                 sending = false
                 isError = true
-                message = "That code didn't work: \(error). Codes expire, so request a new one if it's been a while."
+                message = verifyFailureMessage(for: error)
             }
         }
+    }
+
+    /// Supabase answers a wrong code, an already-used code and a genuinely
+    /// expired one with the exact same `403 otp_expired "Token has expired
+    /// or is invalid"` — confirmed by calling the live endpoint with a
+    /// deliberately wrong token. The old copy here read that literally and
+    /// told people their code had expired, which sent at least one real
+    /// debugging session chasing expiry when the true cause was a code
+    /// being submitted twice. This says what 403 actually means and gives
+    /// the one instruction that always works, without asserting which of
+    /// the three it was.
+    private func verifyFailureMessage(for error: Error) -> String {
+        if case SupabaseClient.ClientError.http(403, _) = error {
+            return "That code didn't work. Each code only works once, and only for a few minutes — tap BACK and send yourself a fresh one."
+        }
+        return "Couldn't sign you in: \(error)"
     }
 
     /// A manually-drawn placeholder rather than TextField's built-in

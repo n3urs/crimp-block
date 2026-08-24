@@ -1,4 +1,5 @@
 import Foundation
+import Observation
 
 /// Talks to the same Supabase project app.js does (`SUPABASE_URL`/
 /// `SUPABASE_ANON` there), directly over REST — there is no Supabase JS SDK
@@ -11,6 +12,24 @@ import Foundation
 /// Mirrors the *shape* of Store/Loads in app.js closely enough that
 /// NativeStore/NativeLoads can reproduce their exact optimistic-write/
 /// rollback-on-failure semantics on top of this, not a different contract.
+///
+/// `@Observable` is load-bearing, not housekeeping: NativeAppView holds
+/// this in `@State` and branches its whole body on `client.session == nil`
+/// to decide between the sign-in screen and the app. Without observation,
+/// signing in mutated `session` with SwiftUI never being told, so the
+/// sign-in screen stayed put even though the session was live — the user
+/// saw a tap that "did nothing", tapped SIGN IN again, and the second
+/// request re-submitted a token the first (successful) verify had already
+/// consumed. Supabase answers a consumed token with the same generic
+/// `403 otp_expired "Token has expired or is invalid"` it uses for a
+/// simply-wrong one (confirmed directly against the live endpoint), which
+/// is what made this look like an expiry problem when it never was. Every
+/// other class this view holds in `@State` (NativeStore, NativeLoads,
+/// NativeProfile, SubscriptionManager, the timer controllers) was already
+/// `@Observable`; this one was the lone exception, and only ever appeared
+/// to work because `reload()` happens to flip an unrelated `loading` flag
+/// that forced a re-render as a side effect.
+@Observable
 final class SupabaseClient {
     struct AuthSession: Codable {
         let accessToken: String
