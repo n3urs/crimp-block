@@ -45,16 +45,17 @@ return {
           {t:'Pinch block',id:'osc-pinch',step:1.25,m:'4 × 5s / hand',d:'Alternate hands.',r:60},
           {t:'Wrist roller',m:'3 sets',d:'Up and down to near failure.',r:60}
         ]},
-      pull:{n:'Pull', w:'Home · 40 min', c:'--tidepool', finger:0, pull:3, note:'Climbing today? Climb FIRST and do this after — no fingers here, so spend them on the wall. This is the day to try hard on something crimpy. Just leave enough arm for the one-arm holds.',
+      pull:{n:'Pull', w:'Home · 45 min', c:'--tidepool', finger:0, pull:3, note:'Climbing today? Climb FIRST and do this after — no fingers here, so spend them on the wall. This is the day to try hard on something crimpy. Just leave enough arm for the one-arm holds.',
         x:[
           {t:'Warm up',m:'5 min',d:'Band pull-aparts, scap pulls, then two progressively heavier pull-up sets. The bar is outside — do not pull heavy on cold shoulders and elbows.'},
-          {t:'Bottom-range pull-ups',id:'osc-pull-bottom',m:'4 × 5',ph:{'Base':'3 × 8 — lighter','Power':'5 × 3 — explosive out of the hang','Performance':'3 × 4 — maintain only'},d:'Two arms, full dead hang, pull only to ~30° elbow bend, hold 2s, lower slow. Heavy. This is the one that matters — it loads exactly the range where your one-arm stalls. Rotates automatically every 4th Pull session to vary the stimulus.',r:150,
+          {t:'Full-range pull-ups',id:'osc-pull-full',m:'4 × 5',ph:{'Base':'3 × 8 — lighter','Power':'5 × 3 — explosive out of the hang','Performance':'3 × 4 — maintain only'},d:'Two arms, full dead hang all the way to chin over the bar, controlled down. Heavy. The bottom used to be the whole point of this exercise — now that range has caught up, the target moves back to the full pull rather than staying parked on the bottom third. New exercise, not the old one under a new name: starts with no weight history, so the first session is a fresh feel for what full range actually takes. Rotates automatically every 4th Pull session to vary the stimulus.',r:150,
             rotate:{every:4, with:[
               {t:'Weighted pull-ups',id:'osc-pull-wt',m:'4 × 4',d:'Heavy, full dead hang each rep.',r:180},
               {t:'One-arm negatives',m:'3 × 1 / arm',d:'8–10 second descent. Control the last 30cm above all.',r:180}
             ]}},
           {t:'One-arm transition holds',m:'4 × 8s / arm',d:'Minimal band or a toe on a stool. Hold at the top of your shrug plus a couple of centimetres — the exact point where you cannot get the elbow flexing. Alternate arms: one rests while the other works.',r:60},
           {t:'Weighted one-arm shrugs',id:'osc-shrug',m:'3 × 3 / arm',d:'Belt or vest, three-second hold at the top. Alternate arms. Three reps is right at your current ceiling, so the weight moves rather than the reps.',r:60},
+          {t:'Shoulder anti-rotation holds',m:'3 × 5–10s / arm',d:'One-arm pulling strength alone will not stop you twisting off a hold — this is the fix. Hang one-armed off the bar (band or a toe on a stool for assistance, same setup as the transition holds above), open grip rather than a crimp. Without using your wrist or arm, resist rotation using the small stabiliser muscles around your shoulder. Once that feels solid, progress to turning deliberately to one side, holding, then returning to centre before turning the other way. A real limiter for the one-arm pull-up on its own, not just prep for whatever comes after it.',r:45},
           {t:'Front lever',m:'4 × 8–10s',d:'Hardest tuck or straddle you hold clean. If you cannot hold a tuck yet, do slow negative lowers from a tuck for the same sets.',r:75},
           {t:'Antagonists',m:'3 supersets',d:'Reverse wrist curls 3×15 · finger extensors 3×20 (a rubber band round the fingertips, opening the hand against it — no dedicated tool needed) · external rotation 3×12 · dips 3×10. Run as supersets with minimal rest — maintenance work, not a strength focus.'}
         ]},
