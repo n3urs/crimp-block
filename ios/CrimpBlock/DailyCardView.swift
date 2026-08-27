@@ -1061,6 +1061,21 @@ private struct ExerciseRowView: View {
                                 .multilineTextAlignment(.trailing)
                             if let kg = ex.weightKg {
                                 weightBadge(kg: kg)
+                            } else if ex.hasWeightTracking {
+                                // No history yet, so target() returns nil and
+                                // there's no number to show — but the badge IS
+                                // the only way to open the weight editor, so
+                                // rendering nothing here left a weight-tracked
+                                // exercise with no way to record a first
+                                // weight, ever. app.js has always handled this
+                                // (`.wt.add`, a dashed "set kg" button); the
+                                // native port just never carried that state
+                                // over. Invisible until now only because every
+                                // exercise on the built-in programs already had
+                                // history from the web app — a brand-new
+                                // account, or any newly-added exercise id, hits
+                                // it immediately.
+                                setWeightBadge()
                             }
                         }
                     }
@@ -1217,6 +1232,26 @@ private struct ExerciseRowView: View {
         guard completedSets > 0 else { return false }
         completedSets -= 1
         return true
+    }
+
+    /// The empty-state twin of weightBadge below — dashed border and faint
+    /// text, mirroring app.js's `.wt.add` styling, so it reads as "nothing
+    /// recorded yet, tap to set" rather than as a real logged number.
+    @ViewBuilder
+    private func setWeightBadge() -> some View {
+        let label = Text("SET kg")
+            .font(AppFonts.mono(12, weight: .bold))
+            .foregroundStyle(SessionColours.faint)
+            .padding(.horizontal, 6).padding(.vertical, 2)
+            .overlay(
+                RoundedRectangle(cornerRadius: 4)
+                    .strokeBorder(SessionColours.s4, style: StrokeStyle(lineWidth: 1, dash: [3, 2]))
+            )
+        if let onTapWeight {
+            Button(action: { onTapWeight(ex) }) { label }.buttonStyle(.plain).tutorialTarget("weightBadge")
+        } else {
+            label
+        }
     }
 
     @ViewBuilder
