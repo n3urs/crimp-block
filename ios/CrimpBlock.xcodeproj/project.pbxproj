@@ -30,6 +30,7 @@
 		40FB82AF41D6A75789E4C384 /* WelcomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5C1C0884DF7ED13D9039835 /* WelcomeView.swift */; };
 		206351353A5593FD37787D6B /* DailyCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D91CD9C20065423ECED8B37B /* DailyCardView.swift */; };
 		69D1E7E53D97BDDB68A9D2C2 /* CalendarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BF6795E0D655582089CAEE95 /* CalendarView.swift */; };
+		43F2D6A33858CC6B1CC2C764 /* SessionGuideView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 79235033338881506DA3139B /* SessionGuideView.swift */; };
 		C31C8D37DC69557CF399AB46 /* NativeAppView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD80D35B8080F7ADFD3179F0 /* NativeAppView.swift */; };
 		A363D63028FA38AF3FCC4348 /* WeightEditView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE17BCB5744BA24227CA2B62 /* WeightEditView.swift */; };
 		675F957E1CF9CCAAC300BF42 /* PlanSheetView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51653B7E90110D0A36F6CD4E /* PlanSheetView.swift */; };
@@ -125,6 +126,7 @@
 		A5C1C0884DF7ED13D9039835 /* WelcomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WelcomeView.swift; sourceTree = "<group>"; };
 		D91CD9C20065423ECED8B37B /* DailyCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyCardView.swift; sourceTree = "<group>"; };
 		BF6795E0D655582089CAEE95 /* CalendarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarView.swift; sourceTree = "<group>"; };
+		79235033338881506DA3139B /* SessionGuideView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionGuideView.swift; sourceTree = "<group>"; };
 		FD80D35B8080F7ADFD3179F0 /* NativeAppView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeAppView.swift; sourceTree = "<group>"; };
 		EE17BCB5744BA24227CA2B62 /* WeightEditView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeightEditView.swift; sourceTree = "<group>"; };
 		51653B7E90110D0A36F6CD4E /* PlanSheetView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlanSheetView.swift; sourceTree = "<group>"; };
@@ -216,6 +218,7 @@
 				A5C1C0884DF7ED13D9039835 /* WelcomeView.swift */,
 				D91CD9C20065423ECED8B37B /* DailyCardView.swift */,
 				BF6795E0D655582089CAEE95 /* CalendarView.swift */,
+				79235033338881506DA3139B /* SessionGuideView.swift */,
 				FD80D35B8080F7ADFD3179F0 /* NativeAppView.swift */,
 				EE17BCB5744BA24227CA2B62 /* WeightEditView.swift */,
 				51653B7E90110D0A36F6CD4E /* PlanSheetView.swift */,
@@ -442,6 +445,7 @@
 				40FB82AF41D6A75789E4C384 /* WelcomeView.swift in Sources */,
 				206351353A5593FD37787D6B /* DailyCardView.swift in Sources */,
 				69D1E7E53D97BDDB68A9D2C2 /* CalendarView.swift in Sources */,
+				43F2D6A33858CC6B1CC2C764 /* SessionGuideView.swift in Sources */,
 				C31C8D37DC69557CF399AB46 /* NativeAppView.swift in Sources */,
 				A363D63028FA38AF3FCC4348 /* WeightEditView.swift in Sources */,
 				675F957E1CF9CCAAC300BF42 /* PlanSheetView.swift in Sources */,
@@ -548,7 +552,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 16;
+				CURRENT_PROJECT_VERSION = 17;
 				GENERATE_INFOPLIST_FILE = YES;
 				MARKETING_VERSION = 1.0;
 				SWIFT_VERSION = 5.0;
@@ -571,7 +575,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 16;
+				CURRENT_PROJECT_VERSION = 17;
 				GENERATE_INFOPLIST_FILE = YES;
 				MARKETING_VERSION = 1.0;
 				SWIFT_VERSION = 5.0;
@@ -594,7 +598,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 16;
+				CURRENT_PROJECT_VERSION = 17;
 				GENERATE_INFOPLIST_FILE = YES;
 				MARKETING_VERSION = 1.0;
 				SWIFT_VERSION = 5.0;
@@ -615,7 +619,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 16;
+				CURRENT_PROJECT_VERSION = 17;
 				GENERATE_INFOPLIST_FILE = YES;
 				MARKETING_VERSION = 1.0;
 				SWIFT_VERSION = 5.0;
@@ -636,7 +640,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 16;
+				CURRENT_PROJECT_VERSION = 17;
 				GENERATE_INFOPLIST_FILE = YES;
 				MARKETING_VERSION = 1.0;
 				SWIFT_VERSION = 5.0;
@@ -655,7 +659,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 16;
+				CURRENT_PROJECT_VERSION = 17;
 				GENERATE_INFOPLIST_FILE = YES;
 				MARKETING_VERSION = 1.0;
 				SWIFT_VERSION = 5.0;

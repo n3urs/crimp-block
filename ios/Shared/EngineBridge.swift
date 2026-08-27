@@ -325,6 +325,16 @@ final class EngineBridge {
 
     // MARK: - Session content (program.sessions[key] — read directly, not modelled)
 
+    /// A standing reference page for a session — deliberately separate from
+    /// `note` (that's short, day-to-day, and changes tone for deload/
+    /// returning weeks) and from an exercise's own `d`escription (that's
+    /// scoped to one exercise). A guide is a whole session's worth of
+    /// "how to actually get the most out of this" — sourced, considered,
+    /// and stable, so it belongs behind its own pull-up page rather than
+    /// competing with the day's live prescription text for space.
+    struct GuideSection: Codable { let heading: String; let body: String }
+    struct SessionGuide: Codable { let title: String; let sections: [GuideSection] }
+
     /// A session's display metadata (`n`ame, `w`here, `note`) — everything
     /// EXCEPT the exercise list, which resolveExercises(for:date:) handles
     /// separately since each exercise needs per-day resolution.
@@ -333,17 +343,20 @@ final class EngineBridge {
         let where_: String
         let note: String?
         let isClimb: Bool   // true for climbHard/outdoorHard/climbEasy — mirrors s.climb in app.js
+        let guide: SessionGuide?   // nil for every session that doesn't have one yet
     }
 
     func sessionInfo(_ key: String) -> SessionInfo? {
         guard let s = program.forProperty("sessions")?.forProperty(key), !s.isUndefined else { return nil }
         let note = s.forProperty("note")
         let climbProp = s.forProperty("climb")
+        let guideProp = s.forProperty("guide")
         return SessionInfo(
             name: s.forProperty("n")?.toString() ?? key,
             where_: s.forProperty("w")?.toString() ?? "",
             note: (note == nil || note!.isUndefined) ? nil : note?.toString(),
-            isClimb: !(climbProp == nil || climbProp!.isUndefined)
+            isClimb: !(climbProp == nil || climbProp!.isUndefined),
+            guide: (guideProp == nil || guideProp!.isUndefined) ? nil : decode(guideProp)
         )
     }
 

@@ -69,6 +69,14 @@ return {
           {t:'Volume climbing',m:'45 min',d:'Crimp-biased mileage, not limit attempts.'}
         ]},
       climbHard:{n:'Hard Climb / Board', w:'Gym · 90 min', c:'--heather', finger:2, pull:2, climb:1, note:'Got board access today? All three boards are fair game — go hard on whatever is set.',
+        guide:{title:'Board Session Guide', sections:[
+          {heading:'The real fix: hips, not just fingers', body:'Your crimp strength already works on vertical granite. On the board it is not enough on its own, because the angle shifts load straight onto your arms unless your hips are doing their share. Before adding more finger effort on a stalled move, check your hips are extended and pulled into the wall — backstep or drop-knee to get there. Quiet feet and a tensioned core are what let you hold that position on small holds.'},
+          {heading:'Warm up on the board itself', body:'A normal gym warm-up does not transfer — board holds are too specific. Fifteen to twenty minutes: pull-ups on big holds, static positions, single moves, then link moves progressively before trying full problems.'},
+          {heading:'Rest longer than feels natural', body:'90 seconds minimum between attempts, four to five minutes after a real max effort. Board sessions fatigue tendons differently to normal bouldering — rushing back on is how they wear down.'},
+          {heading:'Pick problems on purpose', body:'Build around the exact pattern you are weak at — crimp to crimp, or crimp to gaston, on steep ground — rather than whatever looks appealing. Your instincts pull toward what you are already good at.'},
+          {heading:'The "no cutting feet" drill', body:'Take a problem you can already do and repeat it without cutting your feet or jumping between the crimps. Forcing static control exposes whether you are relying on strength to cover for position.'},
+          {heading:'Fewer problems, more time each', body:'Give each one at least fifteen minutes before moving on. Rapid-firing attempts without rest is the single biggest way people waste a board session.'}
+        ]},
         x:[
           {t:'Crimp-only limit bouldering',m:'45 min',ph:{'Base':'60 min — volume over difficulty, movement quality first','Power':'30 min — fewer attempts, full power between tries','Performance':'projecting — no fixed time'},d:'Small edges, vertical to 20°. Set your own if there is nothing suitable — you work there. At the board: crimps are fine — that is the whole point of board access, hard controlled training on whatever is set. Use any of the three. Poor feet throughout means do not let sloppy footwork turn this into a strength-endurance session by accident.',r:180},
           {t:'No slopers, no heels',m:'rest of session',d:'Your instincts pull you toward what you are already good at. Ignore them.'},

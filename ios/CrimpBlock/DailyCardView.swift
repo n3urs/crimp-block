@@ -90,6 +90,7 @@ struct DailyCardView: View {
     var onTutorialSignal: ((String) -> Void)? = nil
     @State private var showPlan = false
     @State private var showSettings = false
+    @State private var showGuide = false
     @State private var restTimer = RestTimerController()
     @State private var intervalTimer = IntervalTimerController()
     @State private var showIntervalTimer = false
@@ -375,6 +376,27 @@ struct DailyCardView: View {
                             Text(state.session.where_)
                                 .font(AppFonts.mono(13, weight: .medium))
                                 .foregroundStyle(state.accent)
+                            // A standing reference page, not day-to-day
+                            // guidance — nil for every session without one
+                            // yet, so this pill simply doesn't appear
+                            // elsewhere. See SessionGuide's own doc comment.
+                            if let guide = state.session.guide {
+                                Button(action: { showGuide = true }) {
+                                    HStack(spacing: 4) {
+                                        Image(systemName: "book.closed")
+                                            .font(.system(size: 10, weight: .bold))
+                                        Text(guide.title.uppercased())
+                                    }
+                                    .font(AppFonts.mono(11, weight: .bold))
+                                    .foregroundStyle(state.accent)
+                                    .padding(.horizontal, 10).padding(.vertical, 5)
+                                    .background(SessionColours.s1)
+                                    .overlay(Capsule().stroke(SessionColours.s3, lineWidth: 1))
+                                    .clipShape(Capsule())
+                                }
+                                .buttonStyle(.plain)
+                                .padding(.top, 4)
+                            }
                         }
                         ScrollView {
                             VStack(alignment: .leading, spacing: 18) {
@@ -575,6 +597,11 @@ struct DailyCardView: View {
         }
         .sheet(isPresented: $showPlan) {
             PlanSheetView(bridge: state.bridge, block: state.block, today: state.today)
+        }
+        .sheet(isPresented: $showGuide) {
+            if let guide = state.session.guide {
+                SessionGuideView(guide: guide, accent: state.accent, onDismiss: { showGuide = false })
+            }
         }
         .sheet(isPresented: $showSettings) {
             SettingsView(accountEmail: accountEmail, onSignOut: onSignOut, onDeleteAccount: onDeleteAccount, onReplayTutorial: onReplayTutorial, profile: profile, onTrackChanged: onTrackChanged)
