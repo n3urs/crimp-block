@@ -92,6 +92,12 @@ struct DailyCardView: View {
     /// CelebrationOverlay's own tick — see the onChange(of:
     /// celebrationTrigger) handler below for how the two get sequenced.
     @State private var showLoggedStamp = false
+    /// Owns the big card's auto-dismiss — a real Task rather than a bare
+    /// DispatchQueue.asyncAfter specifically so it's cancellable: an undo
+    /// immediately followed by a re-log within the ~2.5s window would
+    /// otherwise leave a stale timer from the FIRST completion armed to
+    /// blow away the SECOND completion's freshly-shown card early.
+    @State private var loggedStampDismissTask: Task<Void, Never>?
     /// True for the brief window after a fresh log while the tick
     /// animation is having its moment alone — while this is set, an
     /// isLogged flip (which typically lands mid-window once the
@@ -99,6 +105,14 @@ struct DailyCardView: View {
     /// showLoggedStamp; the celebrationTrigger handler owns that reveal
     /// instead, once the tick's own beat is done.
     @State private var celebrating = false
+    /// Gates a same-day SWAP onto a different session behind a confirm —
+    /// direct feedback: toggleDone()'s single-log-per-day model correctly
+    /// un-logs whatever was logged before, but doing that silently read as
+    /// a real surprise ("I pressed Done on Volume and now Max Strength
+    /// isn't logged?"). UNDO (isLogged already true) and the day's very
+    /// first log (loggedSessionKey nil) both skip this — only swapping
+    /// which session counts for today confirms first. See handleDoneTap.
+    @State private var showSwapConfirm = false
     /// Live horizontal position of the current session's content — 0 at
     /// rest, tracks a finger 1:1 during an active swipe (set directly in
     /// onChanged, never animated there), animated only when a drag
@@ -151,18 +165,6 @@ struct DailyCardView: View {
     private var todayIsLogged: Bool { loggedSessionKey != nil || isLogged }
 
     /// Mirror of dragOffset for the INCOMING session's stamp: one full
-    /// width off-screen (on whichever side the swipe is coming from) at
-    /// rest, reaching centre exactly as the drag completes. The peek's
-    /// content doesn't need this — it sits behind the current content and
-    /// is revealed as that slides away — but the stamp is drawn above
-    /// everything, so nothing masks it. Without an offset of its own it
-    /// simply appeared, at full size, in the middle of the screen the
-    /// instant a drag began, instead of arriving with the card it belongs
-    /// to.
-    private var peekStampOffset: CGFloat {
-        dragOffset + (dragOffset < 0 ? containerWidth : -containerWidth)
-    }
-
     /// Tap-driven browsing (a dot, NEXT) — plays the exact same
     /// slide-and-settle the swipe gesture does, just driven
     /// programmatically instead of by a live touch, so the two ways of
@@ -202,19 +204,21 @@ struct DailyCardView: View {
     /// way once the timer's onBrowse call landed.
     private func commit(key: String) {
         pendingCommitKey = key
-        // Hand the LOGGED stamp over at the same instant the content
-        // does, and WITHOUT animation — by now the current stamp has
-        // already slid off with the card, so letting the normal
-        // .animation(value: showLoggedStamp) fade it out later would
-        // replay it fading at centre screen, after it had visibly left.
-        // Setting it here (rather than waiting for the isLogged prop to
-        // land at settle) also means swiping ONTO a logged session has
-        // its stamp already in place when the peek's copy disappears,
-        // instead of scale-popping in a frame later.
+        // The big card is a one-time celebration, not something that
+        // replays every time you swipe back onto a session you already
+        // logged — direct feedback: it used to reappear on every return
+        // visit (this line used to set it true again whenever the
+        // destination was the logged session), which read as the app
+        // re-congratulating you for the same thing repeatedly. Browsing
+        // never shows the big card now, full stop — only a fresh DONE
+        // (via celebrationTrigger) does. cardMessage's own isLogged
+        // branch is what a browsed-to logged session shows instead: the
+        // small persistent "LOGGED" text, immediately, no animation
+        // needed since there's nothing being newly revealed.
         if !celebrating {
             var noAnim = Transaction()
             noAnim.disablesAnimations = true
-            withTransaction(noAnim) { showLoggedStamp = (loggedSessionKey == key) }
+            withTransaction(noAnim) { showLoggedStamp = false }
         }
         onBrowse?(key)
         // Safety net: if state.displayKey never ends up matching
@@ -223,6 +227,20 @@ struct DailyCardView: View {
         // forever.
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
             if pendingCommitKey == key { settle() }
+        }
+    }
+
+    /// Runs the real Done/Undo action directly EXCEPT for the one case
+    /// that's a surprising same-day swap: something else is already
+    /// logged today and this isn't it. `isLogged` true means this IS
+    /// today's logged session, so the button reads UNDO and needs no
+    /// confirmation; `loggedSessionKey == nil` means nothing's logged yet
+    /// today, so this is a plain first log, also no confirmation.
+    private func handleDoneTap(_ action: @escaping () -> Void) {
+        if !isLogged, let loggedSessionKey, loggedSessionKey != state.displayKey {
+            showSwapConfirm = true
+        } else {
+            action()
         }
     }
 
@@ -279,8 +297,20 @@ struct DailyCardView: View {
         } else if isReturning && key != "rest" {
             msg += "Easing back in after a break — weights are cut, not just sets. Go by feel: back off further if anything below feels off, this is not the week to chase the number."
         }
-        if msg.isEmpty, !isLogged, let note = s.session.note {
-            msg = note
+        if msg.isEmpty {
+            if isLogged {
+                // The permanent, small "you're done" signal that's left
+                // once the big celebratory card (showLoggedStamp) auto-
+                // dismisses — see the body's timer below. Reuses this
+                // exact slot/styling (already had isLogged-specific
+                // colour/weight wired up below) rather than adding a new
+                // element, and stays correctly hidden underneath the big
+                // card the whole time it's up, since this view sits
+                // earlier in the same ZStack.
+                msg = "LOGGED"
+            } else if let note = s.session.note {
+                msg = note
+            }
         }
         return msg
     }
@@ -365,22 +395,13 @@ struct DailyCardView: View {
                                         }
                                     }
                                 }
-                                // Once today's logged, the exercise list reads as
-                                // closed rather than just quietly unchanged —
-                                // dimmed and untappable (ticking/timers/weights
-                                // don't make sense to poke at anymore), with the
-                                // LOGGED stamp doing the actual talking over the
-                                // top of it. Only UNDO (the actual escape hatch)
-                                // stays fully live.
-                                // Keyed to showLoggedStamp, not isLogged, so
-                                // the dimming rides along with the stamp's own
-                                // withAnimation on a real log/undo, and stays
-                                // instant (no cross-fade) when a swipe changes
-                                // it. Hit testing and scrolling below stay on
-                                // isLogged — those are correctness, not
-                                // presentation, and shouldn't be live during
-                                // the celebration's beat before the stamp lands.
-                                .opacity(showLoggedStamp ? 0.35 : 1)
+                                // Once today's logged, every exercise stays
+                                // fully visible, ticks and all — direct
+                                // feedback: dimming it away read as hiding
+                                // what you'd just done rather than confirming
+                                // it. Still untappable (ticking/timers/weights
+                                // don't make sense to poke at anymore); UNDO
+                                // is the one live escape hatch back into it.
                                 .allowsHitTesting(!isLogged)
 
                                 footer
@@ -393,13 +414,17 @@ struct DailyCardView: View {
                         // this list is short enough that "there's more below" is
                         // already obvious without one.
                         .scrollIndicators(.hidden)
-                        // Content behind the LOGGED stamp scrolling around
-                        // underneath it — while the stamp itself stays fixed in
-                        // the center — read as broken rather than "disabled".
-                        // Freezing scroll position here alongside the dimming
-                        // and disabled taps above makes the whole card actually
-                        // stop responding once you're done, not just partially.
-                        .scrollDisabled(isLogged)
+                        // Content scrolling around underneath the big LOGGED
+                        // card while IT stays fixed center-screen reads as
+                        // broken, not "disabled" — so scrolling is only
+                        // frozen for the few seconds that card is actually
+                        // up (showLoggedStamp), not for the rest of the day.
+                        // Once it auto-dismisses to the small "LOGGED" text
+                        // above, the list needs to scroll again — that text
+                        // is the whole point of keeping every exercise
+                        // visible, and a list longer than one screen can't
+                        // be reviewed if it's frozen.
+                        .scrollDisabled(showLoggedStamp)
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                     .background(SessionColours.bg)
@@ -422,7 +447,7 @@ struct DailyCardView: View {
             // plain view modifier could.
             .simultaneousGesture(swipeGesture)
             if let onTapDone {
-                Button(action: onTapDone) {
+                Button(action: { handleDoneTap(onTapDone) }) {
                     Text(isLogged ? "UNDO" : "DONE THIS WORKOUT")
                         .font(AppFonts.mono(14, weight: .bold))
                         .foregroundStyle(isLogged ? SessionColours.dim : SessionColours.bg)
@@ -461,23 +486,31 @@ struct DailyCardView: View {
             // noticeably lower than centered on screen).
             // Sits out here rather than inside the swiping content so it
             // stays centred on the whole card (it was noticeably too low
-            // when scoped to just the scrollable area) — but it still has
-            // to MOVE with that content, since the stamp belongs to the
-            // session being swiped away, not to the card frame. Without
-            // the offset it hung motionless in the middle while everything
-            // underneath slid out from behind it.
-            if let peekState, loggedSessionKey != nil, loggedSessionKey == peekState.displayKey {
-                loggedStamp(accent: peekState.accent)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
-                    .allowsHitTesting(false)
-                    .offset(x: peekStampOffset)
-            }
+            // when scoped to just the scrollable area).
+            //
+            // Deliberately no equivalent block for the PEEK session
+            // anymore — this used to show the same big card creeping in
+            // while swiping toward an already-logged session, which is
+            // exactly the "re-celebrating something that already
+            // happened" problem the big card is meant to avoid now.
+            // peekContent's own cardMessage call already shows the small
+            // "LOGGED" text for a logged peek target, which is all a
+            // preview needs.
             if showLoggedStamp {
                 loggedStamp(accent: state.accent)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
                     .allowsHitTesting(false)
                     .offset(x: dragOffset)
-                    .transition(.scale(scale: 0.92).combined(with: .opacity))
+                    // Asymmetric on purpose: arriving still gets the small
+                    // scale-up pop (it's a genuine "ta-da" moment), but
+                    // leaving is a plain fade — direct feedback that the
+                    // auto-dismiss read as an abrupt disappearance rather
+                    // than settling away. Shrinking AND fading on the way
+                    // out read as more of a "poof" than a fade.
+                    .transition(.asymmetric(
+                        insertion: .scale(scale: 0.92).combined(with: .opacity),
+                        removal: .opacity
+                    ))
             }
             CelebrationOverlay(trigger: celebrationTrigger, accent: state.accent)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
@@ -517,6 +550,23 @@ struct DailyCardView: View {
                     .onChange(of: geo.size.width) { _, new in containerWidth = new }
             }
         )
+        // Only reachable via handleDoneTap's swap branch, so onTapDone is
+        // never nil here in practice — the Button that leads to it exists
+        // only `if let onTapDone`. Confirming re-runs the exact same
+        // action the direct tap would have, just gated behind an extra
+        // step.
+        .confirmationDialog(
+            "Log \(state.session.name) instead?",
+            isPresented: $showSwapConfirm,
+            titleVisibility: .visible
+        ) {
+            Button("Log \(state.session.name.uppercased())") { onTapDone?() }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            if let loggedSessionKey, let loggedName = state.bridge.sessionInfo(loggedSessionKey)?.name {
+                Text("You already logged \(loggedName.uppercased()) today — this will replace it.")
+            }
+        }
         .sheet(isPresented: $showPlan) {
             PlanSheetView(bridge: state.bridge, block: state.block, today: state.today)
         }
@@ -528,10 +578,12 @@ struct DailyCardView: View {
         }
         .onAppear {
             restTimer.requestNotificationPermission()
-            // Opening straight onto an already-logged session (today,
-            // reopened later, or browsed back to) shows LOGGED right
-            // away — no celebration played, so nothing to sequence after.
-            showLoggedStamp = isLogged
+            // Reopening straight onto an already-logged day is not a
+            // celebration moment — cardMessage's own isLogged branch
+            // already shows "LOGGED" immediately with no card needed.
+            // showLoggedStamp defaults false and stays that way here on
+            // purpose; only a fresh DONE (celebrationTrigger, below)
+            // ever sets it true.
         }
         // The real handoff from peek to actual content: state.displayKey
         // catching up to what a swipe/tap already committed to is the
@@ -542,26 +594,47 @@ struct DailyCardView: View {
         .onChange(of: state.displayKey) { _, newKey in
             if pendingCommitKey == newKey { settle() }
         }
-        // isLogged flipping true covers two different things: a fresh
-        // DONE (celebrationTrigger fires alongside it) and just browsing
-        // back onto whatever session was already logged (no trigger).
-        // Only the second case should show the card immediately — the
-        // first is handled by the celebrationTrigger branch below so the
-        // tick gets its own beat first, uninterrupted.
-        .onChange(of: isLogged) { _, new in
-            guard !celebrating else { return }
-            // Already handled unanimated in commit() when this is a swipe
-            // landing on a different session — re-animating it here would
-            // fade the stamp in at centre screen a frame later.
-            guard pendingCommitKey == nil, showLoggedStamp != new else { return }
-            withAnimation(.easeInOut(duration: 0.25)) { showLoggedStamp = new }
-        }
+        // No .onChange(of: isLogged) here on purpose — there used to be
+        // one, showing the big card any time isLogged flipped true
+        // outside of a fresh DONE (backdating a day via the picker,
+        // reopening onto one, browsing onto one). All three read as the
+        // app re-celebrating something that already happened. The big
+        // card is now ENTIRELY owned by celebrationTrigger below — the
+        // one true "you just did this" moment — and cardMessage's
+        // isLogged branch covers every other case with the small text.
         .onChange(of: celebrationTrigger) { _, _ in
             celebrating = true
             showLoggedStamp = false
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
                 celebrating = false
                 withAnimation(.easeInOut(duration: 0.25)) { showLoggedStamp = true }
+            }
+        }
+        // The big card is a moment, not a resting state — direct feedback:
+        // it used to just sit there until you undid or navigated away,
+        // which read as blocking the card rather than celebrating on it.
+        // Reacts to showLoggedStamp itself rather than each of the several
+        // places that set it true (a fresh DONE, reopening an already-
+        // logged day, browsing onto one) — one handler covers all of them
+        // uniformly instead of duplicating a timer at every call site.
+        // Cancellable via a real Task, not a bare asyncAfter: an undo
+        // immediately followed by a re-log within the window would
+        // otherwise leave the FIRST completion's stale timer armed to
+        // blow away the SECOND one's freshly-shown card early. Once this
+        // fires, cardMessage's own isLogged branch is what's left on
+        // screen — see its doc comment for why that's already wired up
+        // rather than a second UI element.
+        .onChange(of: showLoggedStamp) { _, isShowing in
+            loggedStampDismissTask?.cancel()
+            guard isShowing else { return }
+            loggedStampDismissTask = Task {
+                try? await Task.sleep(for: .seconds(2.5))
+                guard !Task.isCancelled else { return }
+                // 0.4s, not the snappier 0.25s used for UI feedback
+                // elsewhere on this card — this is a settle, not a
+                // response to input, and 0.25s read as too abrupt to
+                // register as a fade at all.
+                withAnimation(.easeInOut(duration: 0.4)) { showLoggedStamp = false }
             }
         }
     }

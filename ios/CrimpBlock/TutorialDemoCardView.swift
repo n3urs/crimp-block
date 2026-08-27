@@ -23,7 +23,15 @@ struct TutorialDemoCardView: View {
     @State private var stage: Stage = .intro
     @State private var state: DailyCardState?
     @State private var loadError: String?
-    @State private var isLogged = false
+    /// Which session key (if any) is logged — NOT a flat Bool. A flat
+    /// isLogged stayed true across a swipe to a completely different,
+    /// never-touched session: DONE tapped on Max Fingers, then swipe to
+    /// Hangboard, and Hangboard read as logged too, because nothing here
+    /// was tracking WHICH session earned that state. The real app never
+    /// has this bug — NativeAppView computes isLogged fresh per render
+    /// from `store.get(today)?.t == displayKey` — this demo just never
+    /// had an equivalent to compare against until now.
+    @State private var loggedKey: String?
     @State private var ticks: Set<String> = []
     /// Ordered roughly top-to-bottom down the card, then out to the
     /// things that aren't visible controls at all. Several steps here
@@ -91,7 +99,7 @@ struct TutorialDemoCardView: View {
                     DailyCardView(
                         state: state,
                         footerNote: "Tutorial · \(state.today)",
-                        isLogged: isLogged,
+                        isLogged: loggedKey == state.displayKey,
                         ticks: ticks,
                         // Real tick state, not a no-op: the checkbox row
                         // is a genuine step now, and a checkbox that
@@ -103,7 +111,11 @@ struct TutorialDemoCardView: View {
                         },
                         onTapWeight: { _ in controller.handleTap("weightBadge") },
                         onTapDone: {
-                            isLogged.toggle()
+                            // Toggle logged for whatever's ON SCREEN right
+                            // now, matching the real app's "at most one
+                            // logged session" model — mirrors
+                            // toggleDone()'s own logic, not a bare flip.
+                            loggedKey = (loggedKey == state.displayKey) ? nil : state.displayKey
                             controller.handleTap("doneButton")
                         },
                         onBrowse: { key in
