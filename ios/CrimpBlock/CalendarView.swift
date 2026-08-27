@@ -104,16 +104,31 @@ struct CalendarView: View {
     }
 
     /// Which phase a given day belongs to — real for past/today
-    /// (phaseNameAt is accurate for any real date), projected for future
-    /// days using the SAME single predicted phase-change TrendForecast
-    /// already computes: everything before that date stays the current
-    /// phase, everything on/after it is the new one. Deliberately not a
-    /// full multi-block projection, consistent with TrendForecast only
-    /// ever predicting one instance ahead.
-    private func phaseName(for dateStr: String, isPast: Bool, today: String) -> String? {
-        if isPast { return bridge.phaseNameAt(dateStr) }
-        if let pc = forecast?.phaseChange, dateStr >= pc.date { return pc.phaseName }
-        return bridge.phaseNameAt(today)
+    /// (phaseNameAt is accurate for any real date). A FUTURE date projects
+    /// through however many blocks the trend rate implies between today
+    /// and then, not just the next one: a phase spans several blocks
+    /// (deloads land every block regardless of phase), and the calendar
+    /// pages arbitrarily far forward, so stopping at the first transition
+    /// left every later month stuck on that same "next" phase forever —
+    /// real bug, reported directly ("why does max strength not end").
+    /// Continuous block-length maths, not a day-by-day walk, since a
+    /// block can span many calendar days at a slow pace.
+    private func projectedPhaseName(daysAhead: Int) -> String? {
+        let today = bridge.today()
+        guard let b = bridge.block(date: today), let forecast, forecast.weeklyRate > 0 else {
+            return bridge.phaseNameAt(today)
+        }
+        let calendarDaysPerTrainingDay = 7.0 / forecast.weeklyRate
+        let trainingDaysAhead = Double(daysAhead) / calendarDaysPerTrainingDay
+        let totalProjected = Double(b.total) + trainingDaysAhead
+        let blockLength = Double(b.per * 4)
+        guard blockLength > 0 else { return bridge.phaseNameAt(today) }
+        let blocksAhead = Int((totalProjected / blockLength).rounded(.down))
+        let projectedBlock = b.b + blocksAhead
+        let idx = bridge.phaseIndexAt(block: projectedBlock)
+        let phases = bridge.phases
+        guard !phases.isEmpty else { return nil }
+        return phases[min(max(idx, 0), phases.count - 1)].n
     }
 
     private var monthNav: some View {
@@ -171,10 +186,14 @@ struct CalendarView: View {
         // independently.
         let days = daysInVisibleMonth()
         let today = bridge.today()
+        let todayDate = Self.iso.date(from: today)
         let phases: [String?] = days.map { date in
             guard let date else { return nil }
             let dateStr = Self.iso.string(from: date)
-            return phaseName(for: dateStr, isPast: dateStr <= today, today: today)
+            if dateStr <= today { return bridge.phaseNameAt(dateStr) }
+            guard let todayDate else { return bridge.phaseNameAt(today) }
+            let daysAhead = Self.calendar.dateComponents([.day], from: todayDate, to: date).day ?? 0
+            return projectedPhaseName(daysAhead: daysAhead)
         }
         let columns = Array(repeating: GridItem(.flexible(), spacing: 4), count: 7)
         return LazyVGrid(columns: columns, spacing: 4) {
@@ -194,18 +213,9 @@ struct CalendarView: View {
         let today = bridge.today()
         let isToday = dateStr == today
         let dayNum = Self.calendar.component(.day, from: date)
-        // Independent checks, not a single either/or state — a day can be
-        // BOTH inside the predicted deload window AND the exact predicted
-        // phase-change date (the real, common case: a phase change always
-        // lands right at a block boundary, and the deload window is the
-        // tail end of the block before it). An earlier either/or enum
-        // picked deload first and the phase-change marker never showed
-        // when the two coincided — this renders both independently instead.
         let isPast = dateStr <= today
         let loggedColour = isPast ? history[dateStr].map { SessionColours.resolve(bridge.sessionColourVarName($0.t)) } : nil
         let isDeloadWindow = !isPast && forecast?.deload.map { dateStr >= $0.start && dateStr <= $0.end } == true
-        let isPhaseChangeDay = !isPast && forecast?.phaseChange?.date == dateStr
-        let isNotable = isDeloadWindow || isPhaseChangeDay
 
         // Which of this cell's 4 sides border a DIFFERENT phase (or the
         // edge of the visible month, which counts the same — the box
@@ -230,20 +240,18 @@ struct CalendarView: View {
             // elsewhere in the app (an outline marks something coming up,
             // a fill marks something that's actually happened). Direct
             // feedback: a solid colour block read as "this already
-            // happened", which a prediction never should.
+            // happened", which a prediction never should. Red, not the
+            // deload week's own phase colour — Max Strength's box is
+            // already gold, close enough to the old amber ring that a
+            // deload landing inside it read as invisible/confusing.
             if isDeloadWindow {
                 Circle()
-                    .strokeBorder(SessionColours.readyC, lineWidth: 2)
+                    .strokeBorder(SessionColours.restC, lineWidth: 2)
                     .padding(6)
-            }
-            if isPhaseChangeDay {
-                RoundedRectangle(cornerRadius: 8)
-                    .strokeBorder(style: StrokeStyle(lineWidth: 1.5, dash: [3, 2]))
-                    .foregroundStyle(SessionColours.fg)
             }
             Text("\(dayNum)")
                 .font(AppFonts.mono(11, weight: isToday ? .bold : .medium))
-                .foregroundStyle(loggedColour != nil ? SessionColours.bg : SessionColours.fg.opacity(isNotable ? 1 : 0.55))
+                .foregroundStyle(loggedColour != nil ? SessionColours.bg : SessionColours.fg.opacity(isDeloadWindow ? 1 : 0.55))
         }
         .frame(height: 38)
         .overlay(
@@ -276,21 +284,10 @@ struct CalendarView: View {
             HStack(spacing: 14) {
                 legendItem(colour: SessionColours.s2, label: "No session")
                 HStack(spacing: 6) {
-                    Circle().strokeBorder(SessionColours.readyC, lineWidth: 2).frame(width: 12, height: 12)
+                    Circle().strokeBorder(SessionColours.restC, lineWidth: 2).frame(width: 12, height: 12)
                     Text("Predicted deload")
                         .font(AppFonts.mono(10, weight: .medium))
                         .foregroundStyle(SessionColours.faint)
-                }
-            }
-            if let pc = forecast?.phaseChange {
-                HStack(spacing: 8) {
-                    RoundedRectangle(cornerRadius: 4)
-                        .strokeBorder(style: StrokeStyle(lineWidth: 1.5, dash: [3, 2]))
-                        .foregroundStyle(SessionColours.fg)
-                        .frame(width: 14, height: 14)
-                    Text("Predicted start of \(pc.phaseName.uppercased()) — \(Self.displayDate(pc.date))")
-                        .font(AppFonts.mono(10.5, weight: .medium))
-                        .foregroundStyle(SessionColours.dim)
                 }
             }
             if let dl = forecast?.deload {
@@ -312,6 +309,17 @@ struct CalendarView: View {
                     }
                 }
                 .padding(.top, 2)
+                // The box outline itself shows WHERE a future phase starts —
+                // this just says plainly that anything past today is a
+                // projection, not a confirmed plan, now that the one
+                // explicit "predicted start of X — date" line is gone
+                // (redundant with the outline, and it only ever named the
+                // FIRST upcoming phase — pointless once boxes past today
+                // project through as many phases as the pace implies).
+                Text("Phases past today are projected from your current pace, not confirmed.")
+                    .font(AppFonts.mono(9.5, weight: .medium))
+                    .foregroundStyle(SessionColours.faint)
+                    .padding(.top, 2)
             }
         }
         .padding(.top, 4)
@@ -411,12 +419,10 @@ private struct PartialBorder: Shape {
 /// one for a calendar looking realistically into the future.
 struct TrendForecast {
     struct Deload { let start: String; let end: String }
-    struct PhaseChange { let date: String; let phaseName: String }
 
     let weeklyRate: Double
     let windowDays: Int
     let deload: Deload?
-    let phaseChange: PhaseChange?
 
     /// Training days per calendar day, measured over the last `windowDays`
     /// (falling back to however much real history exists if less) —
@@ -465,7 +471,7 @@ struct TrendForecast {
         let calendarDaysPerTrainingDay = 7.0 / weekly
 
         guard let b = bridge.block(date: today) else {
-            return TrendForecast(weeklyRate: weekly, windowDays: windowDays, deload: nil, phaseChange: nil)
+            return TrendForecast(weeklyRate: weekly, windowDays: windowDays, deload: nil)
         }
 
         // Deload is week 4 of every block. Mid-deload right now (w == 4)?
@@ -474,7 +480,6 @@ struct TrendForecast {
         let trainingDaysToDeload = b.w < 4
             ? max(0, b.per * 3 - b.total)
             : max(0, b.per * 7 - b.total)
-        let trainingDaysToNextBlock = max(0, b.per * 4 - b.total)
 
         let deloadStartOffset = Int((Double(trainingDaysToDeload) * calendarDaysPerTrainingDay).rounded())
         let deloadLengthOffset = max(1, Int((Double(b.per) * calendarDaysPerTrainingDay).rounded()))
@@ -485,16 +490,6 @@ struct TrendForecast {
         // real logged days already speak for the present.
         let deload: Deload? = deloadStartOffset > 0 ? Deload(start: deloadStart, end: deloadEnd) : nil
 
-        var phaseChange: PhaseChange? = nil
-        let phases = bridge.phases
-        let currentPhaseIdx = bridge.phaseIndexAt(block: b.b)
-        let nextPhaseIdx = bridge.phaseIndexAt(block: b.b + 1)
-        if currentPhaseIdx != nextPhaseIdx, nextPhaseIdx < phases.count {
-            let nextBlockOffset = Int((Double(trainingDaysToNextBlock) * calendarDaysPerTrainingDay).rounded())
-            let nextBlockStart = bridge.addDays(today, nextBlockOffset)
-            phaseChange = PhaseChange(date: nextBlockStart, phaseName: phases[nextPhaseIdx].n)
-        }
-
-        return TrendForecast(weeklyRate: weekly, windowDays: windowDays, deload: deload, phaseChange: phaseChange)
+        return TrendForecast(weeklyRate: weekly, windowDays: windowDays, deload: deload)
     }
 }
