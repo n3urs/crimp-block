@@ -249,6 +249,17 @@ final class EngineBridge {
         engine.invokeMethod("isReturning", withArguments: [date])?.toBool() ?? false
     }
 
+    /// Mirrors engine-core.js's own isTraining(t): true for a session TYPE
+    /// that carries finger or pull load (maxFingers/hangboard/pull), false
+    /// for climbing/rest — the same definition block() itself uses to
+    /// decide which logged days count toward a training week. Exposed for
+    /// CalendarView's trend projection, which needs to replay that same
+    /// "did this day carry load" check across raw history rather than
+    /// re-deriving it from T[type].finger/.pull in Swift.
+    func isTraining(_ type: String) -> Bool {
+        engine.invokeMethod("isTraining", withArguments: [type])?.toBool() ?? false
+    }
+
     struct ReturnInfo: Codable { let gap: Int; let resumed: String; let session: Int }
 
     func returnInfo(date: String) -> ReturnInfo? {

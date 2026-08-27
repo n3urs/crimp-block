@@ -54,6 +54,7 @@ struct NativeAppView: View {
     @State private var browsedKey: String?
     @State private var pickingDate: String?
     @State private var celebrationTrigger = 0
+    @State private var showCalendar = false
     /// Set once a load has been spinning long enough to look broken — see
     /// the loading branch in body for why this exists.
     @State private var loadingTooLong = false
@@ -129,6 +130,7 @@ struct NativeAppView: View {
                     onSignOut: { signOut() },
                     onDeleteAccount: { try await deleteAccount() },
                     onReplayTutorial: { needsTutorial = true },
+                    onTapCalendar: { showCalendar = true },
                     profile: profile,
                     onTrackChanged: { await reload() },
                     celebrationTrigger: celebrationTrigger
@@ -171,6 +173,11 @@ struct NativeAppView: View {
                     if !Task.isCancelled { loadingTooLong = true }
                 }
                 .onDisappear { loadingTooLong = false }
+            }
+        }
+        .sheet(isPresented: $showCalendar) {
+            if let state {
+                CalendarView(bridge: state.bridge, history: store?.all() ?? [:], onDismiss: { showCalendar = false })
             }
         }
         .sheet(item: $editingExercise) { ex in

@@ -70,6 +70,12 @@ struct DailyCardView: View {
     /// real signed-in card, since only NativeAppView owns the state
     /// that decides whether the tutorial is showing.
     var onReplayTutorial: (() -> Void)? = nil
+    /// Opens the history/forecast calendar — nil everywhere except the
+    /// real signed-in card, same reasoning as onReplayTutorial: the demo
+    /// and tutorial cards have no real Supabase history behind them for
+    /// a calendar to show, and no real block/adherence trend to project
+    /// forward from.
+    var onTapCalendar: (() -> Void)? = nil
     /// Phase C.1: threaded straight through to SettingsView's track
     /// switcher — nil in demo/sample-data mode, same as accountEmail.
     var profile: NativeProfile? = nil
@@ -918,6 +924,17 @@ struct DailyCardView: View {
                 .font(AppFonts.mono(10.5, weight: .medium))
                 .foregroundStyle(SessionColours.faint)
                 .textCase(.uppercase)
+            // nil everywhere except the real signed-in card — see
+            // onTapCalendar's own doc comment.
+            if let onTapCalendar {
+                Button(action: onTapCalendar) {
+                    Image(systemName: "calendar")
+                        .font(.system(size: 17))
+                        .foregroundStyle(SessionColours.dim)
+                }
+                .buttonStyle(.plain)
+                .padding(.leading, 8)
+            }
             // Not gated on accountEmail the way the old person-icon button
             // was — the sets-counter preferences underneath are useful
             // regardless of sign-in state (sample/demo mode included), and
