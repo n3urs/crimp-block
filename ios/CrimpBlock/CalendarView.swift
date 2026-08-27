@@ -152,9 +152,22 @@ struct CalendarView: View {
         let isDeloadWindow = !isPast && forecast?.deload.map { dateStr >= $0.start && dateStr <= $0.end } == true
         let isPhaseChangeDay = !isPast && forecast?.phaseChange?.date == dateStr
 
+        let isNotable = isDeloadWindow || isPhaseChangeDay
+
         ZStack {
             RoundedRectangle(cornerRadius: 8)
-                .fill(fillColour(isPast: isPast, loggedColour: loggedColour, isDeloadWindow: isDeloadWindow))
+                .fill(loggedColour?.opacity(0.85) ?? (isPast ? SessionColours.s2 : SessionColours.s1))
+            // A future deload day is a RING, not a filled wash — same visual
+            // language as the session dots' own "recommended" ring
+            // elsewhere in the app (an outline marks something coming up,
+            // a fill marks something that's actually happened). Direct
+            // feedback: a solid colour block read as "this already
+            // happened", which a prediction never should.
+            if isDeloadWindow {
+                Circle()
+                    .strokeBorder(SessionColours.readyC, lineWidth: 2)
+                    .padding(6)
+            }
             if isPhaseChangeDay {
                 RoundedRectangle(cornerRadius: 8)
                     .strokeBorder(style: StrokeStyle(lineWidth: 1.5, dash: [3, 2]))
@@ -162,7 +175,7 @@ struct CalendarView: View {
             }
             Text("\(dayNum)")
                 .font(AppFonts.mono(11, weight: isToday ? .bold : .medium))
-                .foregroundStyle(loggedColour != nil ? SessionColours.bg : SessionColours.fg.opacity(isPast ? 0.55 : (isDeloadWindow || isPhaseChangeDay ? 1 : 0.55)))
+                .foregroundStyle(loggedColour != nil ? SessionColours.bg : SessionColours.fg.opacity(isNotable ? 1 : 0.55))
         }
         .frame(height: 38)
         .overlay(
@@ -171,18 +184,16 @@ struct CalendarView: View {
         )
     }
 
-    private func fillColour(isPast: Bool, loggedColour: Color?, isDeloadWindow: Bool) -> Color {
-        if let loggedColour { return loggedColour.opacity(0.85) }
-        if isPast { return SessionColours.s2 }
-        if isDeloadWindow { return SessionColours.readyC.opacity(0.28) }
-        return SessionColours.s1
-    }
-
     private var legend: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 14) {
                 legendItem(colour: SessionColours.s2, label: "No session")
-                legendItem(colour: SessionColours.readyC.opacity(0.5), label: "Predicted deload")
+                HStack(spacing: 6) {
+                    Circle().strokeBorder(SessionColours.readyC, lineWidth: 2).frame(width: 12, height: 12)
+                    Text("Predicted deload")
+                        .font(AppFonts.mono(10, weight: .medium))
+                        .foregroundStyle(SessionColours.faint)
+                }
             }
             if let pc = forecast?.phaseChange {
                 HStack(spacing: 8) {
