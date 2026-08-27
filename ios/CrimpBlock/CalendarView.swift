@@ -61,18 +61,59 @@ struct CalendarView: View {
     }
 
     private var topBar: some View {
-        HStack {
-            Text("CALENDAR")
-                .font(AppFonts.heading(26))
-                .foregroundStyle(.white)
-            Spacer()
-            Button(action: onDismiss) {
-                Image(systemName: "xmark")
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(SessionColours.dim)
+        VStack(alignment: .leading, spacing: 4) {
+            HStack {
+                Text("CALENDAR")
+                    .font(AppFonts.heading(26))
+                    .foregroundStyle(.white)
+                Spacer()
+                Button(action: onDismiss) {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(SessionColours.dim)
+                }
+                .buttonStyle(.plain)
             }
-            .buttonStyle(.plain)
+            // Where you actually are right now — same phase/block/week
+            // language as the header pill on the daily card itself, just
+            // not shown anywhere on this screen until now.
+            if let line = currentPositionLine {
+                Text(line)
+                    .font(AppFonts.mono(11, weight: .bold))
+                    .foregroundStyle(currentPhaseColour ?? SessionColours.dim)
+            }
         }
+    }
+
+    private var currentPositionLine: String? {
+        let today = bridge.today()
+        guard let b = bridge.block(date: today), let phase = bridge.phaseNameAt(today) else { return nil }
+        return "\(phase.uppercased()) · BLOCK \(b.b) · WK \(b.w) OF 4" + (b.w == 4 ? " · DELOAD" : "")
+    }
+
+    private var currentPhaseColour: Color? {
+        guard let phase = bridge.phaseNameAt(bridge.today()), let varName = phaseColorByName[phase] else { return nil }
+        return SessionColours.resolve(varName)
+    }
+
+    /// Phase name -> its own accent (program.phases[].c) — a SEPARATE
+    /// palette from session-type accents, matching what phaseNameAt/
+    /// phases already carry, just never surfaced on this screen before.
+    private var phaseColorByName: [String: String] {
+        Dictionary(uniqueKeysWithValues: bridge.phases.map { ($0.n, $0.c) })
+    }
+
+    /// Which phase a given day belongs to — real for past/today
+    /// (phaseNameAt is accurate for any real date), projected for future
+    /// days using the SAME single predicted phase-change TrendForecast
+    /// already computes: everything before that date stays the current
+    /// phase, everything on/after it is the new one. Deliberately not a
+    /// full multi-block projection, consistent with TrendForecast only
+    /// ever predicting one instance ahead.
+    private func phaseName(for dateStr: String, isPast: Bool, today: String) -> String? {
+        if isPast { return bridge.phaseNameAt(dateStr) }
+        if let pc = forecast?.phaseChange, dateStr >= pc.date { return pc.phaseName }
+        return bridge.phaseNameAt(today)
     }
 
     private var monthNav: some View {
@@ -122,11 +163,24 @@ struct CalendarView: View {
     }
 
     private var monthGrid: some View {
+        // Computed once per grid, not per cell: every cell needs to know
+        // its UP/DOWN/LEFT/RIGHT neighbours' phases to decide which of its
+        // own 4 sides sit on a phase boundary, so the whole month's phases
+        // are resolved up front into one flat array (same index scheme as
+        // `days`) rather than each cell re-deriving its neighbours' phases
+        // independently.
+        let days = daysInVisibleMonth()
+        let today = bridge.today()
+        let phases: [String?] = days.map { date in
+            guard let date else { return nil }
+            let dateStr = Self.iso.string(from: date)
+            return phaseName(for: dateStr, isPast: dateStr <= today, today: today)
+        }
         let columns = Array(repeating: GridItem(.flexible(), spacing: 4), count: 7)
         return LazyVGrid(columns: columns, spacing: 4) {
-            ForEach(Array(daysInVisibleMonth().enumerated()), id: \.offset) { _, date in
-                if let date {
-                    dayCell(date)
+            ForEach(Array(days.indices), id: \.self) { i in
+                if let date = days[i] {
+                    dayCell(date, index: i, phases: phases)
                 } else {
                     Color.clear.frame(height: 38)
                 }
@@ -135,7 +189,7 @@ struct CalendarView: View {
     }
 
     @ViewBuilder
-    private func dayCell(_ date: Date) -> some View {
+    private func dayCell(_ date: Date, index: Int, phases: [String?]) -> some View {
         let dateStr = Self.iso.string(from: date)
         let today = bridge.today()
         let isToday = dateStr == today
@@ -151,8 +205,22 @@ struct CalendarView: View {
         let loggedColour = isPast ? history[dateStr].map { SessionColours.resolve(bridge.sessionColourVarName($0.t)) } : nil
         let isDeloadWindow = !isPast && forecast?.deload.map { dateStr >= $0.start && dateStr <= $0.end } == true
         let isPhaseChangeDay = !isPast && forecast?.phaseChange?.date == dateStr
-
         let isNotable = isDeloadWindow || isPhaseChangeDay
+
+        // Which of this cell's 4 sides border a DIFFERENT phase (or the
+        // edge of the visible month, which counts the same — the box
+        // simply starts fresh on the next page rather than trying to
+        // connect across a month break). col/row neighbours are read
+        // straight from the flat `phases` array, never wrapped across
+        // rows (index-1 at column 0 would silently mean "last cell of the
+        // row above", not "no neighbour" — the col checks guard that).
+        let myPhase = phases[index]
+        let col = index % 7
+        let sameUp = index - 7 >= 0 && phases[index - 7] == myPhase
+        let sameDown = index + 7 < phases.count && phases[index + 7] == myPhase
+        let sameLeft = col > 0 && phases[index - 1] == myPhase
+        let sameRight = col < 6 && phases[index + 1] == myPhase
+        let phaseColour = myPhase.flatMap { phaseColorByName[$0] }.map { SessionColours.resolve($0) }
 
         ZStack {
             RoundedRectangle(cornerRadius: 8)
@@ -182,6 +250,25 @@ struct CalendarView: View {
             RoundedRectangle(cornerRadius: 8)
                 .stroke(isToday ? SessionColours.fg : .clear, lineWidth: 1.5)
         )
+        // The phase boundary — one continuous-looking box (zigzagging to
+        // fit however many days the phase actually spans) around every
+        // cell that shares this day's phase, not a per-day dot. Direct
+        // feedback: the dots were too subtle to notice; a literal outline
+        // around the whole phase reads instantly. Bleeds 2pt past this
+        // cell's own bounds on every bordered side — half the grid's 4pt
+        // inter-cell spacing — so two neighbouring cells' border segments
+        // meet in the middle of the gap instead of leaving a visible break
+        // at every seam.
+        .overlay(
+            GeometryReader { geo in
+                if let phaseColour {
+                    PartialBorder(top: !sameUp, bottom: !sameDown, leading: !sameLeft, trailing: !sameRight)
+                        .stroke(phaseColour, lineWidth: 2.5)
+                        .frame(width: geo.size.width + 4, height: geo.size.height + 4)
+                        .position(x: geo.size.width / 2, y: geo.size.height / 2)
+                }
+            }
+        )
     }
 
     private var legend: some View {
@@ -210,6 +297,21 @@ struct CalendarView: View {
                 Text("Next deload, at your pace: \(Self.displayDate(dl.start)) – \(Self.displayDate(dl.end))")
                     .font(AppFonts.mono(10.5, weight: .medium))
                     .foregroundStyle(SessionColours.dim)
+            }
+            if !bridge.phases.isEmpty {
+                HStack(spacing: 14) {
+                    ForEach(bridge.phases) { phase in
+                        HStack(spacing: 6) {
+                            RoundedRectangle(cornerRadius: 2)
+                                .strokeBorder(SessionColours.resolve(phase.c), lineWidth: 2)
+                                .frame(width: 10, height: 10)
+                            Text(phase.n.uppercased())
+                                .font(AppFonts.mono(10, weight: .medium))
+                                .foregroundStyle(SessionColours.faint)
+                        }
+                    }
+                }
+                .padding(.top, 2)
             }
         }
         .padding(.top, 4)
@@ -266,6 +368,41 @@ struct CalendarView: View {
     }
 }
 
+/// Strokes only the requested sides of its rect, each as its own line
+/// segment (not one continuous rounded path) — used per day cell so a
+/// whole phase's date range reads as one zigzagging box: a cell draws a
+/// border only on the sides that face a DIFFERENT phase (or the edge of
+/// the visible month), so adjacent same-phase cells share an invisible
+/// seam and the outline naturally traces the actual boundary of however
+/// many days the phase spans.
+private struct PartialBorder: Shape {
+    var top: Bool
+    var bottom: Bool
+    var leading: Bool
+    var trailing: Bool
+
+    func path(in rect: CGRect) -> Path {
+        var p = Path()
+        if top {
+            p.move(to: CGPoint(x: rect.minX, y: rect.minY))
+            p.addLine(to: CGPoint(x: rect.maxX, y: rect.minY))
+        }
+        if bottom {
+            p.move(to: CGPoint(x: rect.minX, y: rect.maxY))
+            p.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY))
+        }
+        if leading {
+            p.move(to: CGPoint(x: rect.minX, y: rect.minY))
+            p.addLine(to: CGPoint(x: rect.minX, y: rect.maxY))
+        }
+        if trailing {
+            p.move(to: CGPoint(x: rect.maxX, y: rect.minY))
+            p.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY))
+        }
+        return p
+    }
+}
+
 /// A trend-based projection, not a plan-following one: `nativeForecast()`
 /// elsewhere in the app already answers "what would happen if every
 /// recommended day gets trained" — this instead asks "at the rate you've
@@ -289,8 +426,21 @@ struct TrendForecast {
     /// definition exactly (finger or pull load > 0), so this rate measures
     /// precisely what block() counts toward a training week — the two
     /// can't quietly drift apart.
-    private static func weeklyRate(bridge: EngineBridge, history: [String: NativeStore.Entry], today: String, windowDays: Int) -> Double {
-        let start = bridge.addDays(today, -windowDays)
+    ///
+    /// Bounded by the EARLIEST real entry in history, not just `windowDays`
+    /// back from today: a fixed 56-day lookback on an account only 2-3
+    /// weeks old (or a sparse sample-data seed) walked back through weeks
+    /// of "nothing logged" that predate the account existing at all —
+    /// counted identically to a real gap in training, which crushed the
+    /// rate toward zero and threw the projected dates a season out. Real
+    /// bug, not a sample-data artifact: a brand new Deadpoint account hits
+    /// this on day one. Returns the ACTUAL number of days the rate was
+    /// measured over, since it's often less than `windowDays` — the UI
+    /// caption says so rather than always claiming the full window.
+    private static func weeklyRate(bridge: EngineBridge, history: [String: NativeStore.Entry], today: String, windowDays: Int) -> (rate: Double, actualDays: Int) {
+        let earliest = history.keys.min() ?? today
+        let requestedStart = bridge.addDays(today, -windowDays)
+        let start = max(requestedStart, earliest) // ISO yyyy-MM-dd strings sort chronologically
         var trainingCount = 0
         var calendarCount = 0
         var d = start
@@ -299,19 +449,19 @@ struct TrendForecast {
             if let entry = history[d], bridge.isTraining(entry.t) { trainingCount += 1 }
             d = bridge.addDays(d, 1)
         }
-        guard calendarCount > 0 else { return 4 }
+        guard calendarCount > 0 else { return (4, 0) }
         // Floored, not left at zero: a genuine 0/window (e.g. a brand-new
         // account, or a long injury layoff) would otherwise divide the
         // projection by zero and produce a nonsense date far in the past
         // relative to today rather than just a very distant one.
         let daily = max(Double(trainingCount) / Double(calendarCount), 1.0 / 30.0)
-        return daily * 7
+        return (daily * 7, calendarCount)
     }
 
     static func compute(bridge: EngineBridge, history: [String: NativeStore.Entry]) -> TrendForecast {
         let today = bridge.today()
-        let windowDays = 56
-        let weekly = weeklyRate(bridge: bridge, history: history, today: today, windowDays: windowDays)
+        let (weekly, actualWindowDays) = weeklyRate(bridge: bridge, history: history, today: today, windowDays: 56)
+        let windowDays = actualWindowDays
         let calendarDaysPerTrainingDay = 7.0 / weekly
 
         guard let b = bridge.block(date: today) else {
