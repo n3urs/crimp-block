@@ -36,14 +36,23 @@ final class NativeStore {
         days = Dictionary(uniqueKeysWithValues: rows.map { ($0.date, Entry(t: $0.type, l: $0.load)) })
     }
 
-    func set(date: String, type: String, load: Double?) async throws {
+    /// `load` is read back in `Entry.l` (see `load(engineCore:)` above) but
+    /// nothing anywhere — native or web — has ever written a non-nil value
+    /// here since `exercise_loads` took over "what weight, on which
+    /// exercise" as its own table (see SUPABASE.md: "This is deliberately
+    /// NOT a column on `sessions`"). The write side of `sessions.load` was
+    /// simply never cleaned up after that split, so this always upserted a
+    /// literal `null` — dropped rather than left as a misleading parameter
+    /// nobody was ever meant to pass. The column itself stays in Supabase
+    /// (harmless, and dropping it is a schema change, not a code one).
+    func set(date: String, type: String) async throws {
         let prev = days[date]
-        days[date] = Entry(t: type, l: load)
+        days[date] = Entry(t: type, l: nil)
         do {
             guard let userID = client.session?.userID else { throw SupabaseClient.ClientError.notSignedIn }
             try await client.upsert(
                 table: "sessions",
-                rows: [["user_id": userID, "date": date, "type": type, "load": load]],
+                rows: [["user_id": userID, "date": date, "type": type]],
                 onConflict: "user_id,date"
             )
         } catch {

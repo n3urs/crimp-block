@@ -578,7 +578,7 @@ struct NativeAppView: View {
                     guard loads.on(ex.id, date: state.today) == nil, let kg = ex.weightKg else { continue }
                     try await loads.set(date: state.today, id: ex.id, kg: kg)
                 }
-                try await store.set(date: state.today, type: state.displayKey, load: nil)
+                try await store.set(date: state.today, type: state.displayKey)
                 celebrationTrigger += 1 // mirrors app.js's finish(): celebrate() fires on logging TODAY, never on undo
             }
             browsedKey = nil // mirrors app.js: logging/undoing TODAY resets browseIndex
@@ -608,7 +608,7 @@ struct NativeAppView: View {
         guard let store else { return }
         saveError = nil
         do {
-            try await store.set(date: date, type: key, load: nil)
+            try await store.set(date: date, type: key)
             if date == state?.today { browsedKey = nil }
             await reload()
         } catch {

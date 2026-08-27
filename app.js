@@ -65,16 +65,22 @@ var Store = {
      the next full reload silently dropped it. Both methods now roll the
      local state back and rethrow on failure, so callers can tell the user
      rather than losing the day quietly. */
-  set:async function(date, type, load){
+  /* `load` used to be a third param here, upserted straight onto `sessions`
+     — dead since exercise_loads took over "what weight, on which exercise"
+     as its own table (see SUPABASE.md: "This is deliberately NOT a column
+     on `sessions`"). Nothing has called this with a load value since; the
+     column stays in Supabase (harmless — dropping it is a schema change,
+     not a code one) but the write side no longer pretends to use it. */
+  set:async function(date, type){
     var prev=this._d[date];
-    this._d[date] = load ? {t:type, l:load} : {t:type};
+    this._d[date] = {t:type};
     var ures = await sb.auth.getUser();
     if(ures.error || !ures.data.user){
       this._d[date]=prev;
       throw new Error(ures.error ? ures.error.message : 'Not signed in');
     }
     var res = await sb.from('sessions').upsert(
-      {user_id:ures.data.user.id, date:date, type:type, load: load == null ? null : load},
+      {user_id:ures.data.user.id, date:date, type:type},
       {onConflict:'user_id,date'}
     );
     if(res.error){ this._d[date]=prev; throw new Error(res.error.message); }
@@ -251,7 +257,10 @@ function render(){
      to get right before you start, so it belongs before the exercises
      rather than a tap away. Suppressed once logged: the session is over,
      the ordering advice has expired. */
-  var msg = (isLogged ? 'Logged.' + (logged.l ? ' Top set ' + logged.l + 'kg.' : '') + ' ' : '') +
+  // 'Top set Xkg' used to read off logged.l here — dead since sessions.load
+  // stopped being written (see Store.set's own comment); exercise_loads is
+  // the only place a weight actually lives now.
+  var msg = (isLogged ? 'Logged. ' : '') +
     (dl && key!=='rest'
       ? 'Deload week — ' + (s.climb
           ? 'fewer hard attempts, and stop well short of failure. Times below are already cut.'

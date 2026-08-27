@@ -1,5 +1,8 @@
 node_modules/
 
+# Supabase service_role key — bypasses RLS for the whole project, never commit
+.env.local
+
 # Xcode local state and build output
 ios/build/
 ios/CrimpBlock.xcodeproj/xcuserdata/
