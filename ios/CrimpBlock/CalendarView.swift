@@ -413,15 +413,17 @@ struct CalendarView: View {
         var loggedCount = 0
         var trainingCount = 0
         var counts: [String: Int] = [:]
-        // climbHard splits into two counts by entry.sub rather than
-        // joining `counts`' single-key-per-type shape — everything else
-        // stays one bucket, this one specifically needed telling apart
-        // (see NativeStore.Entry.sub). Anything logged before that field
-        // existed (sub == nil) falls into "climb", the more generic
-        // bucket — "board" is the deliberate, specific choice, so
-        // ambiguous history shouldn't default into it.
+        // Board gets its own count rather than joining `counts`' single-
+        // key-per-type shape — climbHard as a whole still counts toward
+        // loggedCount/trainingCount/the calendar's own colouring above,
+        // this is purely an extra tally of the subset that was
+        // specifically characterised as a board session at log time (see
+        // NativeStore.Entry.sub). A climbHard day logged as "just a hard
+        // climb", or from before this existed (sub == nil), isn't a board
+        // session and isn't counted here — direct feedback: Oscar wants
+        // this stat to mean board sessions specifically, not climbHard
+        // minus the ones that weren't.
         var boardCount = 0
-        var justClimbCount = 0
         if monthStart <= lastRealDay {
             var d = monthStart
             while d <= lastRealDay {
@@ -429,9 +431,7 @@ struct CalendarView: View {
                     counts[entry.t, default: 0] += 1
                     if entry.t != "rest" { loggedCount += 1 }
                     if bridge.isTraining(entry.t) { trainingCount += 1 }
-                    if entry.t == "climbHard" {
-                        if entry.sub == "board" { boardCount += 1 } else { justClimbCount += 1 }
-                    }
+                    if entry.t == "climbHard" && entry.sub == "board" { boardCount += 1 }
                 }
                 d = bridge.addDays(d, 1)
             }
@@ -459,17 +459,22 @@ struct CalendarView: View {
         // place in this list from one month to the next.
         // Rest excluded — same reasoning as loggedCount above, it isn't a
         // "workout" and Oscar doesn't want it cluttering the breakdown.
-        // climbHard itself becomes up to two rows (Board / Hard Climb),
-        // sharing its one accent colour — split by count, not by a new
-        // colour, since the day cells and legend still show climbHard as
-        // one type; only this list distinguishes the two.
+        // climbHard itself becomes a single "Board" row rather than its
+        // own generic name — direct feedback: he wants this stat to mean
+        // board sessions specifically, not climbHard as a whole. A
+        // climbHard day NOT characterised as a board session (logged as
+        // "just a hard climb", or from before that choice existed) isn't
+        // shown here at all — it still counts toward SESSIONS LOGGED
+        // above and still colours its day on the grid, it just doesn't
+        // get its own row in this list.
         var breakdown: [(key: String, name: String, colour: Color, count: Int)] = []
         for key in EngineBridge.order {
             guard key != "rest" else { continue }
             if key == "climbHard" {
-                let colour = SessionColours.resolve(bridge.sessionColourVarName(key))
-                if boardCount > 0 { breakdown.append((key: "climbHard-board", name: "Board", colour: colour, count: boardCount)) }
-                if justClimbCount > 0 { breakdown.append((key: "climbHard-climb", name: "Hard Climb", colour: colour, count: justClimbCount)) }
+                if boardCount > 0 {
+                    breakdown.append((key: "climbHard-board", name: "Board",
+                                       colour: SessionColours.resolve(bridge.sessionColourVarName(key)), count: boardCount))
+                }
                 continue
             }
             guard let n = counts[key], n > 0 else { continue }
