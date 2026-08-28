@@ -323,6 +323,18 @@ final class EngineBridge {
         program.forProperty("sessions")?.forProperty(key)?.forProperty("c")?.toString() ?? "--gorse"
     }
 
+    /// `program.startDate` — the same anchor `block(date:)` itself counts
+    /// training days from internally (engine-core.js's `START_DATE`).
+    /// Exposed so an all-time stat (the calendar's Consistency figure) can
+    /// measure "days elapsed" over the EXACT same window block().total is
+    /// already counting training days over, rather than approximating it
+    /// off the earliest logged entry — those two dates can genuinely
+    /// differ (a program can start before the first real log lands).
+    func programStartDate() -> String? {
+        let v = program.forProperty("startDate")
+        return (v == nil || v!.isUndefined) ? nil : v?.toString()
+    }
+
     // MARK: - Session content (program.sessions[key] — read directly, not modelled)
 
     /// A standing reference page for a session — deliberately separate from

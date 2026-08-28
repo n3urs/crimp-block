@@ -21,6 +21,7 @@ struct CalendarView: View {
 
     @State private var visibleMonth: Date
     @State private var forecast: TrendForecast?
+    @State private var allTimeConsistency: (percent: Int, fraction: String)?
 
     private static let iso: DateFormatter = {
         let f = DateFormatter()
@@ -66,6 +67,7 @@ struct CalendarView: View {
         .background(SessionColours.bg)
         .onAppear {
             forecast = TrendForecast.compute(bridge: bridge, history: history)
+            allTimeConsistency = Self.computeAllTimeConsistency(bridge: bridge)
         }
     }
 
@@ -374,12 +376,36 @@ struct CalendarView: View {
     /// logged yet doesn't retroactively break an in-progress streak, the
     /// day just isn't over — so counting starts from yesterday in that
     /// one case, same as any habit-streak convention.
+    /// A missing day only breaks the streak if something was actually
+    /// due — direct feedback: "if you dont log something but its meant to
+    /// be a rest day anyway the streak will continue, but if... its
+    /// supposed to be a workout day then u loose the streak". So an
+    /// unlogged day still counts if decide(date) itself would have said
+    /// rest (nothing was due, nothing to log), and only genuinely breaks
+    /// the streak when a real training day went by unlogged. decide() is
+    /// accurate for any real past date the same way isDeload/phaseNameAt
+    /// already are — it's a pure function of the trailing logged history.
+    /// Bounded at programStartDate so this can't wander back into
+    /// pre-account history and count it as an unbroken streak of correctly
+    /// skipped rest days that were never really rest days at all.
     private var currentStreak: Int {
+        let startDate = bridge.programStartDate()
         var count = 0
         var d = bridge.today()
+        // Today gets a pass regardless of what's recommended — the day
+        // isn't over yet, so not having logged it yet doesn't retroactively
+        // break an in-progress streak. Every earlier day follows the real
+        // rule below.
         if history[d] == nil { d = bridge.addDays(d, -1) }
-        while history[d] != nil {
-            count += 1
+        while true {
+            if let startDate, d < startDate { break }
+            if history[d] != nil {
+                count += 1
+            } else if bridge.decide(date: d)?.k == "rest" {
+                count += 1
+            } else {
+                break
+            }
             d = bridge.addDays(d, -1)
             if count > 3650 { break } // sane backstop, not a real limit
         }
@@ -388,8 +414,6 @@ struct CalendarView: View {
 
     private struct MonthStats {
         let loggedCount: Int
-        let consistencyPercent: Int?
-        let consistencyFraction: String?
         let breakdown: [(key: String, name: String, colour: Color, count: Int)]
     }
 
@@ -397,10 +421,15 @@ struct CalendarView: View {
     /// `forecast` is deliberately fixed across months (it's "current
     /// pace", not scoped to any one page); this is the opposite on
     /// purpose, so it has to recompute every time `visibleMonth` changes.
+    /// Consistency used to live here too, scoped to whichever month was
+    /// visible — direct feedback: "i dont want it to be per month i want
+    /// total all time", so it moved out to `allTimeConsistency`, computed
+    /// once in onAppear right alongside `forecast` (same "fixed across
+    /// months" reasoning as that already has).
     private var monthStats: MonthStats {
         let today = bridge.today()
         guard let range = Self.calendar.range(of: .day, in: .month, for: visibleMonth) else {
-            return MonthStats(loggedCount: 0, consistencyPercent: nil, consistencyFraction: nil, breakdown: [])
+            return MonthStats(loggedCount: 0, breakdown: [])
         }
         let monthStart = Self.iso.string(from: visibleMonth)
         let monthEndDate = Self.calendar.date(byAdding: .day, value: range.count - 1, to: visibleMonth) ?? visibleMonth
@@ -411,7 +440,6 @@ struct CalendarView: View {
         let lastRealDay = min(monthEnd, today)
 
         var loggedCount = 0
-        var trainingCount = 0
         var counts: [String: Int] = [:]
         // Board gets its own count rather than joining `counts`' single-
         // key-per-type shape — climbHard as a whole still counts toward
@@ -430,27 +458,10 @@ struct CalendarView: View {
                 if let entry = history[d] {
                     counts[entry.t, default: 0] += 1
                     if entry.t != "rest" { loggedCount += 1 }
-                    if bridge.isTraining(entry.t) { trainingCount += 1 }
                     if entry.t == "climbHard" && entry.sub == "board" { boardCount += 1 }
                 }
                 d = bridge.addDays(d, 1)
             }
-        }
-
-        // Consistency against YOUR plan's own prescribed pace, not a
-        // generic number — the program targets `per` training days every
-        // 7 calendar days (block().per), so however many days have
-        // actually elapsed this month implies an expected count to weigh
-        // the real one against. Nil for a month that hasn't started yet
-        // (paged forward) — there's nothing to measure.
-        var consistencyPercent: Int? = nil
-        var consistencyFraction: String? = nil
-        if monthStart <= today, let b = bridge.block(date: today), b.per > 0,
-           let lastRealDate = Self.iso.date(from: lastRealDay) {
-            let daysElapsed = (Self.calendar.dateComponents([.day], from: visibleMonth, to: lastRealDate).day ?? 0) + 1
-            let expected = max(1, Int((Double(b.per) * Double(daysElapsed) / 7.0).rounded()))
-            consistencyPercent = Int((Double(trainingCount) / Double(expected) * 100).rounded())
-            consistencyFraction = "\(trainingCount)/\(expected)"
         }
 
         // EngineBridge.order, not sorted by count — matches the fixed
@@ -486,8 +497,30 @@ struct CalendarView: View {
                                colour: SessionColours.resolve(bridge.sessionColourVarName(key)), count: n))
         }
 
-        return MonthStats(loggedCount: loggedCount, consistencyPercent: consistencyPercent,
-                           consistencyFraction: consistencyFraction, breakdown: breakdown)
+        return MonthStats(loggedCount: loggedCount, breakdown: breakdown)
+    }
+
+    /// All-time, not month-scoped — computed once in onAppear (see body),
+    /// same "fixed regardless of which month is on screen" treatment as
+    /// `forecast`. Actual: block(today).total — training days banked
+    /// since program start, the exact same count block() itself already
+    /// uses for phase/deload progression, so this can never quietly drift
+    /// from what the rest of the app considers "trained". Expected: the
+    /// program's own per-week target scaled by calendar days elapsed
+    /// since program start (programStartDate(), NOT the earliest logged
+    /// entry — those can genuinely differ, and block().total is already
+    /// counted from the real start date, so the denominator has to match
+    /// that exact same window or the percentage would be measuring two
+    /// different periods against each other).
+    private static func computeAllTimeConsistency(bridge: EngineBridge) -> (percent: Int, fraction: String)? {
+        let today = bridge.today()
+        guard let b = bridge.block(date: today), b.per > 0,
+              let startDate = bridge.programStartDate(),
+              let startDateObj = iso.date(from: startDate), let todayObj = iso.date(from: today) else { return nil }
+        let daysElapsed = (calendar.dateComponents([.day], from: startDateObj, to: todayObj).day ?? 0) + 1
+        let expected = max(1, Int((Double(b.per) * Double(daysElapsed) / 7.0).rounded()))
+        let percent = Int((Double(b.total) / Double(expected) * 100).rounded())
+        return (percent, "\(b.total)/\(expected)")
     }
 
     private var statsPanel: some View {
@@ -501,8 +534,8 @@ struct CalendarView: View {
             HStack(alignment: .top, spacing: 0) {
                 statTile(value: "\(stats.loggedCount)", label: "SESSIONS LOGGED")
                 statTile(
-                    value: stats.consistencyPercent.map { "\($0)%" } ?? "—",
-                    label: stats.consistencyFraction.map { "CONSISTENCY · \($0)" } ?? "CONSISTENCY"
+                    value: allTimeConsistency.map { "\($0.percent)%" } ?? "—",
+                    label: allTimeConsistency.map { "CONSISTENCY · \($0.fraction)" } ?? "CONSISTENCY"
                 )
                 statTile(value: "\(currentStreak)", label: "DAY STREAK")
             }
