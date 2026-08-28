@@ -44,12 +44,15 @@ struct CalendarView: View {
     }
 
     var body: some View {
-        // Scrollable now that stats live below the legend — on a smaller
-        // screen, or a month whose phase-disclaimer text wraps to an extra
-        // line, a fixed VStack would clip the stats panel rather than let
-        // it scroll into view.
+        // Tightened (18pt spacing down to 13, dropped the Rest row) to
+        // actually fit on one screen with no scrolling on a real device —
+        // confirmed live. Still wrapped in a ScrollView, not a fixed
+        // VStack: that's a safety net for a Dynamic Type accessibility
+        // size or a small device, where it degrades to a quiet scroll
+        // instead of silently clipping the stats panel — invisible in
+        // the normal case since the content already fits.
         ScrollView {
-            VStack(alignment: .leading, spacing: 18) {
+            VStack(alignment: .leading, spacing: 13) {
                 topBar
                 monthNav
                 weekdayRow
@@ -442,8 +445,10 @@ struct CalendarView: View {
         // session order used everywhere else in the app (swipe order,
         // week dots), so the same session type always lands in the same
         // place in this list from one month to the next.
+        // Rest excluded — same reasoning as loggedCount above, it isn't a
+        // "workout" and Oscar doesn't want it cluttering the breakdown.
         let breakdown = EngineBridge.order.compactMap { key -> (key: String, name: String, colour: Color, count: Int)? in
-            guard let n = counts[key], n > 0 else { return nil }
+            guard key != "rest", let n = counts[key], n > 0 else { return nil }
             return (key: key, name: bridge.sessionInfo(key)?.name ?? key,
                     colour: SessionColours.resolve(bridge.sessionColourVarName(key)), count: n)
         }
@@ -454,7 +459,7 @@ struct CalendarView: View {
 
     private var statsPanel: some View {
         let stats = monthStats
-        return VStack(alignment: .leading, spacing: 14) {
+        return VStack(alignment: .leading, spacing: 10) {
             Rectangle().fill(SessionColours.s2).frame(height: 1)
             Text("STATS")
                 .font(AppFonts.mono(11, weight: .bold))
@@ -469,18 +474,24 @@ struct CalendarView: View {
                 statTile(value: "\(currentStreak)", label: "DAY STREAK")
             }
 
+            // Two columns, and the count sits right next to its own name
+            // instead of pushed to the far edge of a full-width row —
+            // direct feedback: with the count over on the right, the eye
+            // has to travel all the way across to match a row to its
+            // number. One compact "NAME · COUNT" block fixes that AND
+            // roughly halves the vertical space this takes, which matters
+            // now that the whole screen has to fit with no scrolling.
             if !stats.breakdown.isEmpty {
-                VStack(alignment: .leading, spacing: 7) {
+                LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)],
+                          alignment: .leading, spacing: 6) {
                     ForEach(stats.breakdown, id: \.key) { row in
-                        HStack(spacing: 8) {
+                        HStack(spacing: 6) {
                             RoundedRectangle(cornerRadius: 2).fill(row.colour).frame(width: 8, height: 8)
-                            Text(row.name.uppercased())
+                            Text("\(row.name.uppercased()) · \(row.count)")
                                 .font(AppFonts.mono(10, weight: .medium))
                                 .foregroundStyle(SessionColours.dim)
-                            Spacer(minLength: 8)
-                            Text("\(row.count)")
-                                .font(AppFonts.mono(10, weight: .bold))
-                                .foregroundStyle(SessionColours.faint)
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.85)
                         }
                     }
                 }
