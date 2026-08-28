@@ -21,7 +21,7 @@ struct CalendarView: View {
 
     @State private var visibleMonth: Date
     @State private var forecast: TrendForecast?
-    @State private var allTimeConsistency: (percent: Int, fraction: String)?
+    @State private var allTimeStats: AllTimeStats?
 
     private static let iso: DateFormatter = {
         let f = DateFormatter()
@@ -67,7 +67,7 @@ struct CalendarView: View {
         .background(SessionColours.bg)
         .onAppear {
             forecast = TrendForecast.compute(bridge: bridge, history: history)
-            allTimeConsistency = Self.computeAllTimeConsistency(bridge: bridge)
+            allTimeStats = Self.computeAllTimeStats(bridge: bridge, history: history)
         }
     }
 
@@ -368,122 +368,59 @@ struct CalendarView: View {
 
     // MARK: - Stats
 
-    /// Consecutive days with SOMETHING logged, walking back from today —
-    /// rest counts (logging rest is still showing up; this answers "are
-    /// you engaging with the plan daily", a different question from
-    /// TrendForecast's rate, which deliberately only counts training days).
-    /// A missing day breaks it, EXCEPT today itself: today not being
-    /// logged yet doesn't retroactively break an in-progress streak, the
-    /// day just isn't over — so counting starts from yesterday in that
-    /// one case, same as any habit-streak convention.
-    /// A missing day only breaks the streak if something was actually
-    /// due — direct feedback: "if you dont log something but its meant to
-    /// be a rest day anyway the streak will continue, but if... its
-    /// supposed to be a workout day then u loose the streak". So an
-    /// unlogged day still counts if decide(date) itself would have said
-    /// rest (nothing was due, nothing to log), and only genuinely breaks
-    /// the streak when a real training day went by unlogged. decide() is
-    /// accurate for any real past date the same way isDeload/phaseNameAt
-    /// already are — it's a pure function of the trailing logged history.
-    /// Bounded at programStartDate so this can't wander back into
-    /// pre-account history and count it as an unbroken streak of correctly
-    /// skipped rest days that were never really rest days at all.
-    private var currentStreak: Int {
-        let startDate = bridge.programStartDate()
-        var count = 0
-        var d = bridge.today()
-        // Today gets a pass regardless of what's recommended — the day
-        // isn't over yet, so not having logged it yet doesn't retroactively
-        // break an in-progress streak. Every earlier day follows the real
-        // rule below.
-        if history[d] == nil { d = bridge.addDays(d, -1) }
-        while true {
-            if let startDate, d < startDate { break }
-            if history[d] != nil {
-                count += 1
-            } else if bridge.decide(date: d)?.k == "rest" {
-                count += 1
-            } else {
-                break
-            }
-            d = bridge.addDays(d, -1)
-            if count > 3650 { break } // sane backstop, not a real limit
-        }
-        return count
-    }
-
-    private struct MonthStats {
+    /// Every number in the stats panel — all-time, none of it scoped to
+    /// `visibleMonth`. Direct feedback: "i want all the stats to be all
+    /// time stats not just the streak and consistancy so when u go to
+    /// other months it shows how many climbs and stuff ever". Computed
+    /// once in onAppear (see body) and cached, same "fixed regardless of
+    /// which page you're on" treatment `forecast` already has — a plain
+    /// computed property would silently look month-scoped again the
+    /// moment anything in it referenced `visibleMonth`.
+    private struct AllTimeStats {
         let loggedCount: Int
+        let consistencyPercent: Int?
+        let consistencyFraction: String?
+        let streak: Int
         let breakdown: [(key: String, name: String, colour: Color, count: Int)]
     }
 
-    /// A plain computed property, not cached in @State like `forecast` —
-    /// `forecast` is deliberately fixed across months (it's "current
-    /// pace", not scoped to any one page); this is the opposite on
-    /// purpose, so it has to recompute every time `visibleMonth` changes.
-    /// Consistency used to live here too, scoped to whichever month was
-    /// visible — direct feedback: "i dont want it to be per month i want
-    /// total all time", so it moved out to `allTimeConsistency`, computed
-    /// once in onAppear right alongside `forecast` (same "fixed across
-    /// months" reasoning as that already has).
-    private var monthStats: MonthStats {
+    private static func computeAllTimeStats(bridge: EngineBridge, history: [String: NativeStore.Entry]) -> AllTimeStats {
         let today = bridge.today()
-        guard let range = Self.calendar.range(of: .day, in: .month, for: visibleMonth) else {
-            return MonthStats(loggedCount: 0, breakdown: [])
-        }
-        let monthStart = Self.iso.string(from: visibleMonth)
-        let monthEndDate = Self.calendar.date(byAdding: .day, value: range.count - 1, to: visibleMonth) ?? visibleMonth
-        let monthEnd = Self.iso.string(from: monthEndDate)
-        // Only real, already-happened days get walked — a future month
-        // (or the not-yet-reached tail of the current one) has nothing
-        // logged by definition, and that isn't a "miss" to count against.
-        let lastRealDay = min(monthEnd, today)
 
+        // loggedCount/breakdown walk EVERY real entry in history, bounded
+        // only by "not the future" — deliberately NOT bounded at
+        // programStartDate the way consistency/streak below have to be.
+        // "How many climbs ever" is a literal count of what was actually
+        // logged; a real session 3 days before the program's official
+        // start is still a real session, even though block()'s own
+        // internal counting (which consistency/streak both have to match)
+        // never counts it.
         var loggedCount = 0
         var counts: [String: Int] = [:]
         // Board gets its own count rather than joining `counts`' single-
-        // key-per-type shape — climbHard as a whole still counts toward
-        // loggedCount/trainingCount/the calendar's own colouring above,
-        // this is purely an extra tally of the subset that was
-        // specifically characterised as a board session at log time (see
-        // NativeStore.Entry.sub). A climbHard day logged as "just a hard
-        // climb", or from before this existed (sub == nil), isn't a board
-        // session and isn't counted here — direct feedback: Oscar wants
-        // this stat to mean board sessions specifically, not climbHard
-        // minus the ones that weren't.
+        // key-per-type shape — see the breakdown-construction comment
+        // below for why climbHard becomes just this one row.
         var boardCount = 0
-        if monthStart <= lastRealDay {
-            var d = monthStart
-            while d <= lastRealDay {
-                if let entry = history[d] {
-                    counts[entry.t, default: 0] += 1
-                    if entry.t != "rest" { loggedCount += 1 }
-                    if entry.t == "climbHard" && entry.sub == "board" { boardCount += 1 }
-                }
-                d = bridge.addDays(d, 1)
-            }
+        for (date, entry) in history where date <= today {
+            counts[entry.t, default: 0] += 1
+            if entry.t != "rest" { loggedCount += 1 }
+            if entry.t == "climbHard" && entry.sub == "board" { boardCount += 1 }
         }
 
         // EngineBridge.order, not sorted by count — matches the fixed
         // session order used everywhere else in the app (swipe order,
-        // week dots), so the same session type always lands in the same
-        // place in this list from one month to the next.
-        // Rest excluded — same reasoning as loggedCount above, it isn't a
-        // "workout" and Oscar doesn't want it cluttering the breakdown.
-        // climbHard itself becomes a single "Board" row rather than its
-        // own generic name — direct feedback: he wants this stat to mean
-        // board sessions specifically, not climbHard as a whole. A
-        // climbHard day NOT characterised as a board session (logged as
-        // "just a hard climb", or from before that choice existed) isn't
-        // counted toward it — it still counts toward SESSIONS LOGGED
-        // above and still colours its day on the grid, it just isn't a
-        // board session.
-        //
-        // Unlike every other row here, Board always shows, even at zero
-        // — direct feedback: hiding it entirely when the count is 0 read
-        // as the feature not working rather than as an honest "you
-        // haven't tagged one yet". Every other type still only appears
-        // once it's actually been logged.
+        // week dots). Rest excluded — it isn't a "workout" and Oscar
+        // doesn't want it cluttering the breakdown. climbHard becomes a
+        // single "Board" row rather than its own generic name — direct
+        // feedback: he wants this stat to mean board sessions
+        // specifically, not climbHard as a whole. A climbHard day NOT
+        // characterised as a board session (logged as "just a hard
+        // climb", or from before that choice existed) isn't counted
+        // toward it — it still counts toward SESSIONS LOGGED above and
+        // still colours its day on the grid, it just isn't a board
+        // session. Unlike every other row here, Board always shows, even
+        // at zero — hiding it entirely at 0 read as the feature not
+        // working rather than an honest "you haven't tagged one yet".
         var breakdown: [(key: String, name: String, colour: Color, count: Int)] = []
         for key in EngineBridge.order {
             guard key != "rest" else { continue }
@@ -497,34 +434,65 @@ struct CalendarView: View {
                                colour: SessionColours.resolve(bridge.sessionColourVarName(key)), count: n))
         }
 
-        return MonthStats(loggedCount: loggedCount, breakdown: breakdown)
-    }
+        // Consistency: Actual = block(today).total — training days banked
+        // since program start, the exact same count block() itself
+        // already uses for phase/deload progression, so this can never
+        // quietly drift from what the rest of the app considers
+        // "trained". Expected = the program's own per-week target scaled
+        // by calendar days elapsed since program start (programStartDate(),
+        // NOT the earliest logged entry — those can genuinely differ, and
+        // block().total is already counted from the real start date, so
+        // the denominator has to match that exact same window or the
+        // percentage would be measuring two different periods against
+        // each other).
+        var consistencyPercent: Int? = nil
+        var consistencyFraction: String? = nil
+        let startDate = bridge.programStartDate()
+        if let b = bridge.block(date: today), b.per > 0, let startDate,
+           let startDateObj = iso.date(from: startDate), let todayObj = iso.date(from: today) {
+            let daysElapsed = (calendar.dateComponents([.day], from: startDateObj, to: todayObj).day ?? 0) + 1
+            let expected = max(1, Int((Double(b.per) * Double(daysElapsed) / 7.0).rounded()))
+            consistencyPercent = Int((Double(b.total) / Double(expected) * 100).rounded())
+            consistencyFraction = "\(b.total)/\(expected)"
+        }
 
-    /// All-time, not month-scoped — computed once in onAppear (see body),
-    /// same "fixed regardless of which month is on screen" treatment as
-    /// `forecast`. Actual: block(today).total — training days banked
-    /// since program start, the exact same count block() itself already
-    /// uses for phase/deload progression, so this can never quietly drift
-    /// from what the rest of the app considers "trained". Expected: the
-    /// program's own per-week target scaled by calendar days elapsed
-    /// since program start (programStartDate(), NOT the earliest logged
-    /// entry — those can genuinely differ, and block().total is already
-    /// counted from the real start date, so the denominator has to match
-    /// that exact same window or the percentage would be measuring two
-    /// different periods against each other).
-    private static func computeAllTimeConsistency(bridge: EngineBridge) -> (percent: Int, fraction: String)? {
-        let today = bridge.today()
-        guard let b = bridge.block(date: today), b.per > 0,
-              let startDate = bridge.programStartDate(),
-              let startDateObj = iso.date(from: startDate), let todayObj = iso.date(from: today) else { return nil }
-        let daysElapsed = (calendar.dateComponents([.day], from: startDateObj, to: todayObj).day ?? 0) + 1
-        let expected = max(1, Int((Double(b.per) * Double(daysElapsed) / 7.0).rounded()))
-        let percent = Int((Double(b.total) / Double(expected) * 100).rounded())
-        return (percent, "\(b.total)/\(expected)")
+        // Streak: consecutive days with SOMETHING logged, walking back
+        // from today — rest counts (logging rest is still showing up).
+        // Today gets a pass regardless of what's recommended — the day
+        // isn't over yet, so not having logged it yet doesn't
+        // retroactively break an in-progress streak. Every earlier day
+        // follows the real rule: a missing day only breaks the streak if
+        // something was actually due — direct feedback: "if you dont log
+        // something but its meant to be a rest day anyway the streak will
+        // continue, but if... its supposed to be a workout day then u
+        // loose the streak". decide(date) is accurate for any real past
+        // date the same way isDeload/phaseNameAt already are — it's a
+        // pure function of the trailing logged history. Bounded at
+        // programStartDate so this can't wander back into pre-account
+        // history and count it as an unbroken streak of correctly skipped
+        // rest days that were never really rest days at all.
+        var streak = 0
+        var d = today
+        if history[d] == nil { d = bridge.addDays(d, -1) }
+        while true {
+            if let startDate, d < startDate { break }
+            if history[d] != nil {
+                streak += 1
+            } else if bridge.decide(date: d)?.k == "rest" {
+                streak += 1
+            } else {
+                break
+            }
+            d = bridge.addDays(d, -1)
+            if streak > 3650 { break } // sane backstop, not a real limit
+        }
+
+        return AllTimeStats(loggedCount: loggedCount, consistencyPercent: consistencyPercent,
+                             consistencyFraction: consistencyFraction, streak: streak, breakdown: breakdown)
     }
 
     private var statsPanel: some View {
-        let stats = monthStats
+        let stats = allTimeStats
         return VStack(alignment: .leading, spacing: 10) {
             Rectangle().fill(SessionColours.s2).frame(height: 1)
             Text("STATS")
@@ -532,12 +500,12 @@ struct CalendarView: View {
                 .foregroundStyle(SessionColours.faint)
 
             HStack(alignment: .top, spacing: 0) {
-                statTile(value: "\(stats.loggedCount)", label: "SESSIONS LOGGED")
+                statTile(value: stats.map { "\($0.loggedCount)" } ?? "—", label: "SESSIONS LOGGED")
                 statTile(
-                    value: allTimeConsistency.map { "\($0.percent)%" } ?? "—",
-                    label: allTimeConsistency.map { "CONSISTENCY · \($0.fraction)" } ?? "CONSISTENCY"
+                    value: stats?.consistencyPercent.map { "\($0)%" } ?? "—",
+                    label: stats?.consistencyFraction.map { "CONSISTENCY · \($0)" } ?? "CONSISTENCY"
                 )
-                statTile(value: "\(currentStreak)", label: "DAY STREAK")
+                statTile(value: stats.map { "\($0.streak)" } ?? "—", label: "DAY STREAK")
             }
 
             // Two columns, and the count sits right next to its own name
@@ -547,7 +515,7 @@ struct CalendarView: View {
             // number. One compact "NAME · COUNT" block fixes that AND
             // roughly halves the vertical space this takes, which matters
             // now that the whole screen has to fit with no scrolling.
-            if !stats.breakdown.isEmpty {
+            if let stats, !stats.breakdown.isEmpty {
                 LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)],
                           alignment: .leading, spacing: 6) {
                     ForEach(stats.breakdown, id: \.key) { row in
