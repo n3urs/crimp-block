@@ -302,7 +302,10 @@ struct CalendarView: View {
                 }
             }
             if let dl = forecast?.deload {
-                Text("Next deload, at your pace: \(Self.displayDate(dl.start)) – \(Self.displayDate(dl.end))")
+                let isOngoing = bridge.block(date: bridge.today())?.w == 4
+                Text(isOngoing
+                    ? "This deload runs to \(Self.displayDate(dl.end)), at your pace"
+                    : "Next deload, at your pace: \(Self.displayDate(dl.start)) – \(Self.displayDate(dl.end))")
                     .font(AppFonts.mono(10.5, weight: .medium))
                     .foregroundStyle(SessionColours.dim)
             }
@@ -485,21 +488,31 @@ struct TrendForecast {
             return TrendForecast(weeklyRate: weekly, windowDays: windowDays, deload: nil)
         }
 
-        // Deload is week 4 of every block. Mid-deload right now (w == 4)?
-        // Then "next" means the one after THIS block finishes, not the one
-        // already under way (which is already visible as real logged days).
-        let trainingDaysToDeload = b.w < 4
-            ? max(0, b.per * 3 - b.total)
-            : max(0, b.per * 7 - b.total)
-
-        let deloadStartOffset = Int((Double(trainingDaysToDeload) * calendarDaysPerTrainingDay).rounded())
-        let deloadLengthOffset = max(1, Int((Double(b.per) * calendarDaysPerTrainingDay).rounded()))
-        let deloadStart = bridge.addDays(today, deloadStartOffset)
-        let deloadEnd = bridge.addDays(deloadStart, deloadLengthOffset)
-        // Only worth showing once it's genuinely ahead of today, not a
-        // deload that (per this projection) should already be under way —
-        // real logged days already speak for the present.
-        let deload: Deload? = deloadStartOffset > 0 ? Deload(start: deloadStart, end: deloadEnd) : nil
+        // Deload is week 4 of every block. This split matters and is not
+        // symmetric: mid-deload right now (w == 4) needs the days LEFT in
+        // THIS week, not the next one three weeks out. block() freezes at
+        // today's real progress for every future date (no new logged days
+        // to advance it), so raw isDeload() would ring every future day
+        // forever if reused past today — real bug, reported directly
+        // (deload only showed the 2 real days already logged, none of the
+        // week still ahead). Projecting the remaining training days this
+        // week needs, the same rate-based way the "next" branch already
+        // projects a whole window, fixes that without ringing indefinitely.
+        let deload: Deload?
+        if b.w == 4 {
+            let remainingTrainingDays = max(0, b.per - b.done)
+            let endOffset = max(1, Int((Double(remainingTrainingDays) * calendarDaysPerTrainingDay).rounded()))
+            deload = Deload(start: today, end: bridge.addDays(today, endOffset))
+        } else {
+            let trainingDaysToDeload = max(0, b.per * 3 - b.total)
+            let deloadStartOffset = Int((Double(trainingDaysToDeload) * calendarDaysPerTrainingDay).rounded())
+            let deloadLengthOffset = max(1, Int((Double(b.per) * calendarDaysPerTrainingDay).rounded()))
+            let deloadStart = bridge.addDays(today, deloadStartOffset)
+            let deloadEnd = bridge.addDays(deloadStart, deloadLengthOffset)
+            // Only worth showing once it's genuinely ahead of today, not a
+            // deload that (per this projection) should already be under way.
+            deload = deloadStartOffset > 0 ? Deload(start: deloadStart, end: deloadEnd) : nil
+        }
 
         return TrendForecast(weeklyRate: weekly, windowDays: windowDays, deload: deload)
     }
