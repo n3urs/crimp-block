@@ -58,6 +58,19 @@ enum SharedStore {
         defaults?.set(rawJSON, forKey: key)
     }
 
+    /// Called from signOut() — without this, the widget's App Group cache
+    /// outlives the session that wrote it. save() only ever gets called
+    /// while signed in, so a sign-out with no matching clear() left the
+    /// home screen widget showing the previous account's real training
+    /// data — today's session, upcoming days, all of it — for as long as
+    /// fourteen days after actually signing out, not any "signed out"
+    /// state. Reported directly: the widget's logged-out behaviour needed
+    /// checking because nothing had ever verified it showed the right
+    /// thing.
+    static func clear() {
+        defaults?.removeObject(forKey: key)
+    }
+
     static func load() -> Forecast? {
         guard let raw = defaults?.string(forKey: key),
               let data = raw.data(using: .utf8) else { return nil }

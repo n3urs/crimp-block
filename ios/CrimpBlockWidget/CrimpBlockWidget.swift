@@ -258,7 +258,13 @@ struct WidgetView: View {
             Text("DEADPOINT")
                 .font(.system(size: 10, weight: .bold, design: .monospaced))
                 .foregroundStyle(faint)
-            Text(entry.stale ? "Open the app to refresh" : "Open the app to get started")
+            // stale = signed in, cache just ran past its dates — "refresh"
+            // is accurate. No cache at all now also covers a genuine
+            // sign-out (signOut() clears it, see SharedStore.clear()), not
+            // only a fresh install — and "log in" is honestly true for
+            // both of those, so one message covers it without needing a
+            // fake three-way state the widget can't actually distinguish.
+            Text(entry.stale ? "Open the app to refresh" : "Log in to Deadpoint to continue")
                 .font(.system(size: 13, weight: .semibold))
                 .foregroundStyle(dim)
                 .fixedSize(horizontal: false, vertical: true)

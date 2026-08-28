@@ -548,6 +548,14 @@ struct NativeAppView: View {
         pickingDate = nil
         loadError = nil
         saveError = nil
+        // The doc comment above says every piece of this user's data gets
+        // dropped, not just left stale for whoever signs in next — that
+        // was never actually true for the widget's own cache, which
+        // save()s independently of everything reset above. Confirmed live:
+        // without this, the home screen widget kept showing the real
+        // signed-out account's session data, not any logged-out state.
+        SharedStore.clear()
+        WidgetCenter.shared.reloadAllTimelines()
     }
 
     /// Called from Settings' DELETE ACCOUNT confirmation. Throws rather
