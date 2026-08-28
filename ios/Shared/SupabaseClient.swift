@@ -264,9 +264,29 @@ final class SupabaseClient {
         }
     }
 
+    /// `URLSession.shared`'s default `timeoutIntervalForRequest` is 60s.
+    /// Confirmed directly against the live endpoint: `auth/v1/otp` — the
+    /// SEND CODE request — routinely takes 60-65s to respond even though
+    /// this project already has custom SMTP (Resend, via a Cloudflare-
+    /// managed domain) configured — so the delay is NOT the default
+    /// Supabase mailer, that theory was checked and ruled out. Root cause
+    /// still open (candidates: Resend/DNS auth lag, GoTrue's own request
+    /// path, a cold connection pooler) — see the conversation this was
+    /// fixed in for the live investigation. Whatever the true cause turns
+    /// out to be, the 60s client timeout was racing that ~61s response and
+    /// losing often enough to be the real cause of "pinwheels for ages,
+    /// then times out" even though the send had usually still gone
+    /// through server-side. This session exists solely to give that race
+    /// enough room; it does not fix the underlying slowness.
+    private static let session: URLSession = {
+        let config = URLSessionConfiguration.default
+        config.timeoutIntervalForRequest = 90
+        return URLSession(configuration: config)
+    }()
+
     @discardableResult
     private func send(_ req: URLRequest) async throws -> Data {
-        let (data, response) = try await URLSession.shared.data(for: req)
+        let (data, response) = try await Self.session.data(for: req)
         guard let http = response as? HTTPURLResponse else {
             throw ClientError.http(0, "no HTTP response")
         }
