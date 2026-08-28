@@ -44,15 +44,21 @@ struct CalendarView: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            topBar
-            monthNav
-            weekdayRow
-            monthGrid
-            legend
-            Spacer(minLength: 0)
+        // Scrollable now that stats live below the legend — on a smaller
+        // screen, or a month whose phase-disclaimer text wraps to an extra
+        // line, a fixed VStack would clip the stats panel rather than let
+        // it scroll into view.
+        ScrollView {
+            VStack(alignment: .leading, spacing: 18) {
+                topBar
+                monthNav
+                weekdayRow
+                monthGrid
+                legend
+                statsPanel
+            }
+            .padding(20)
         }
-        .padding(20)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .background(SessionColours.bg)
         .onAppear {
@@ -353,6 +359,148 @@ struct CalendarView: View {
                 .font(AppFonts.mono(10, weight: .medium))
                 .foregroundStyle(SessionColours.faint)
         }
+    }
+
+    // MARK: - Stats
+
+    /// Consecutive days with SOMETHING logged, walking back from today —
+    /// rest counts (logging rest is still showing up; this answers "are
+    /// you engaging with the plan daily", a different question from
+    /// TrendForecast's rate, which deliberately only counts training days).
+    /// A missing day breaks it, EXCEPT today itself: today not being
+    /// logged yet doesn't retroactively break an in-progress streak, the
+    /// day just isn't over — so counting starts from yesterday in that
+    /// one case, same as any habit-streak convention.
+    private var currentStreak: Int {
+        var count = 0
+        var d = bridge.today()
+        if history[d] == nil { d = bridge.addDays(d, -1) }
+        while history[d] != nil {
+            count += 1
+            d = bridge.addDays(d, -1)
+            if count > 3650 { break } // sane backstop, not a real limit
+        }
+        return count
+    }
+
+    private struct MonthStats {
+        let loggedCount: Int
+        let consistencyPercent: Int?
+        let consistencyFraction: String?
+        let breakdown: [(key: String, name: String, colour: Color, count: Int)]
+    }
+
+    /// A plain computed property, not cached in @State like `forecast` —
+    /// `forecast` is deliberately fixed across months (it's "current
+    /// pace", not scoped to any one page); this is the opposite on
+    /// purpose, so it has to recompute every time `visibleMonth` changes.
+    private var monthStats: MonthStats {
+        let today = bridge.today()
+        guard let range = Self.calendar.range(of: .day, in: .month, for: visibleMonth) else {
+            return MonthStats(loggedCount: 0, consistencyPercent: nil, consistencyFraction: nil, breakdown: [])
+        }
+        let monthStart = Self.iso.string(from: visibleMonth)
+        let monthEndDate = Self.calendar.date(byAdding: .day, value: range.count - 1, to: visibleMonth) ?? visibleMonth
+        let monthEnd = Self.iso.string(from: monthEndDate)
+        // Only real, already-happened days get walked — a future month
+        // (or the not-yet-reached tail of the current one) has nothing
+        // logged by definition, and that isn't a "miss" to count against.
+        let lastRealDay = min(monthEnd, today)
+
+        var loggedCount = 0
+        var trainingCount = 0
+        var counts: [String: Int] = [:]
+        if monthStart <= lastRealDay {
+            var d = monthStart
+            while d <= lastRealDay {
+                if let entry = history[d] {
+                    counts[entry.t, default: 0] += 1
+                    if entry.t != "rest" { loggedCount += 1 }
+                    if bridge.isTraining(entry.t) { trainingCount += 1 }
+                }
+                d = bridge.addDays(d, 1)
+            }
+        }
+
+        // Consistency against YOUR plan's own prescribed pace, not a
+        // generic number — the program targets `per` training days every
+        // 7 calendar days (block().per), so however many days have
+        // actually elapsed this month implies an expected count to weigh
+        // the real one against. Nil for a month that hasn't started yet
+        // (paged forward) — there's nothing to measure.
+        var consistencyPercent: Int? = nil
+        var consistencyFraction: String? = nil
+        if monthStart <= today, let b = bridge.block(date: today), b.per > 0,
+           let lastRealDate = Self.iso.date(from: lastRealDay) {
+            let daysElapsed = (Self.calendar.dateComponents([.day], from: visibleMonth, to: lastRealDate).day ?? 0) + 1
+            let expected = max(1, Int((Double(b.per) * Double(daysElapsed) / 7.0).rounded()))
+            consistencyPercent = Int((Double(trainingCount) / Double(expected) * 100).rounded())
+            consistencyFraction = "\(trainingCount)/\(expected)"
+        }
+
+        // EngineBridge.order, not sorted by count — matches the fixed
+        // session order used everywhere else in the app (swipe order,
+        // week dots), so the same session type always lands in the same
+        // place in this list from one month to the next.
+        let breakdown = EngineBridge.order.compactMap { key -> (key: String, name: String, colour: Color, count: Int)? in
+            guard let n = counts[key], n > 0 else { return nil }
+            return (key: key, name: bridge.sessionInfo(key)?.name ?? key,
+                    colour: SessionColours.resolve(bridge.sessionColourVarName(key)), count: n)
+        }
+
+        return MonthStats(loggedCount: loggedCount, consistencyPercent: consistencyPercent,
+                           consistencyFraction: consistencyFraction, breakdown: breakdown)
+    }
+
+    private var statsPanel: some View {
+        let stats = monthStats
+        return VStack(alignment: .leading, spacing: 14) {
+            Rectangle().fill(SessionColours.s2).frame(height: 1)
+            Text("STATS")
+                .font(AppFonts.mono(11, weight: .bold))
+                .foregroundStyle(SessionColours.faint)
+
+            HStack(alignment: .top, spacing: 0) {
+                statTile(value: "\(stats.loggedCount)", label: "SESSIONS LOGGED")
+                statTile(
+                    value: stats.consistencyPercent.map { "\($0)%" } ?? "—",
+                    label: stats.consistencyFraction.map { "CONSISTENCY · \($0)" } ?? "CONSISTENCY"
+                )
+                statTile(value: "\(currentStreak)", label: "DAY STREAK")
+            }
+
+            if !stats.breakdown.isEmpty {
+                VStack(alignment: .leading, spacing: 7) {
+                    ForEach(stats.breakdown, id: \.key) { row in
+                        HStack(spacing: 8) {
+                            RoundedRectangle(cornerRadius: 2).fill(row.colour).frame(width: 8, height: 8)
+                            Text(row.name.uppercased())
+                                .font(AppFonts.mono(10, weight: .medium))
+                                .foregroundStyle(SessionColours.dim)
+                            Spacer(minLength: 8)
+                            Text("\(row.count)")
+                                .font(AppFonts.mono(10, weight: .bold))
+                                .foregroundStyle(SessionColours.faint)
+                        }
+                    }
+                }
+                .padding(.top, 2)
+            }
+        }
+    }
+
+    private func statTile(value: String, label: String) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(value)
+                .font(AppFonts.heading(22))
+                .foregroundStyle(.white)
+            Text(label)
+                .font(AppFonts.mono(8.5, weight: .medium))
+                .foregroundStyle(SessionColours.faint)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     // MARK: - Month math (native Calendar, no JS round-trips per cell)
