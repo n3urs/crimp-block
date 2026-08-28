@@ -167,8 +167,15 @@ struct CalendarView: View {
     }
 
     private var weekdayRow: some View {
+        // Indices as identity, not the letters themselves — Tue/Thu and
+        // Sat/Sun share a letter, so `id: \.self` on the plain strings gave
+        // SwiftUI two cells with the same identity twice over ("the ID T
+        // occurs multiple times... undefined results", confirmed straight
+        // from a real Xcode console). Harmless-looking today only because
+        // this row never reorders or animates; still a real identity bug,
+        // not just log noise, so worth fixing rather than living with it.
         HStack(spacing: 0) {
-            ForEach(["M", "T", "W", "T", "F", "S", "S"], id: \.self) { d in
+            ForEach(Array(["M", "T", "W", "T", "F", "S", "S"].enumerated()), id: \.offset) { _, d in
                 Text(d)
                     .font(AppFonts.mono(10, weight: .medium))
                     .foregroundStyle(SessionColours.faint)
