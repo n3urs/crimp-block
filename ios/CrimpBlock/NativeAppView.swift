@@ -345,7 +345,7 @@ struct NativeAppView: View {
             let bridge = try EngineBridge(templateId: assignedTemplateID, startDate: startDate, modifiers: modifiers, sessionLog: currentSessionLogPayload(), loadLog: loads?.all() ?? [:])
             try finishLoad(bridge: bridge, label: session.email)
         } catch {
-            loadError = "\(error)"
+            loadError = SupabaseClient.friendlyMessage(for: error)
         }
     }
 
@@ -444,7 +444,7 @@ struct NativeAppView: View {
             profile = p
             await reload()
         } catch {
-            loadError = "\(error)"
+            loadError = SupabaseClient.friendlyMessage(for: error)
         }
     }
 
@@ -462,7 +462,7 @@ struct NativeAppView: View {
             try await profile?.advanceRehabPhase(to: rehabBridge.phaseIndex)
             await reload()
         } catch {
-            loadError = "\(error)"
+            loadError = SupabaseClient.friendlyMessage(for: error)
         }
     }
 
@@ -492,7 +492,7 @@ struct NativeAppView: View {
         do {
             try await profile?.markTutorialCompleted()
         } catch {
-            loadError = "Couldn't save your progress: \(error)"
+            loadError = "Couldn't save your progress: \(SupabaseClient.friendlyMessage(for: error))"
             return
         }
         await reload()

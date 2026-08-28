@@ -137,7 +137,7 @@ struct NativeSignInView: View {
             } catch {
                 sending = false
                 isError = true
-                message = "Something went wrong: \(error)"
+                message = "Couldn't send the code: \(SupabaseClient.friendlyMessage(for: error))"
             }
         }
     }
@@ -172,7 +172,7 @@ struct NativeSignInView: View {
         if case SupabaseClient.ClientError.http(403, _) = error {
             return "That code didn't work. Each code only works once, and only for a few minutes — tap BACK and send yourself a fresh one."
         }
-        return "Couldn't sign you in: \(error)"
+        return "Couldn't sign you in: \(SupabaseClient.friendlyMessage(for: error))"
     }
 
     /// A manually-drawn placeholder rather than TextField's built-in

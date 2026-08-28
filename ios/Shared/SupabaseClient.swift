@@ -52,6 +52,42 @@ final class SupabaseClient {
         }
     }
 
+    /// Every raw-network failure site in the app (SEND CODE, the initial
+    /// load, saving progress) used to interpolate the thrown `Error`
+    /// straight into user-facing copy — `"\(error)"`. For an `NSError`,
+    /// Swift's default string interpolation prints its full debug
+    /// description, not `localizedDescription`: a plain request timeout
+    /// came out as a multi-line `Error Domain=NSURLErrorDomain Code=-1001
+    /// "The request timed out." UserInfo={_kCFStreamErrorCodeKey=-2102,
+    /// ...}` dump — confirmed directly from a real timeout on a poor
+    /// connection. That reads as a crash report, not "your connection is
+    /// bad," and it is exactly what pushed a report of the app "acting
+    /// slow" into someone assuming SIGN OUT was the fix for a problem
+    /// signing out could never fix. This turns the common transport
+    /// failures into copy that names the actual condition and what to do
+    /// about it, and only falls through to `localizedDescription` (still
+    /// never the raw debug dump) for anything else.
+    static func friendlyMessage(for error: Error) -> String {
+        if let urlError = error as? URLError {
+            switch urlError.code {
+            case .timedOut:
+                return "That took too long — your connection looks slow or unstable. Check it and try again."
+            case .notConnectedToInternet:
+                return "No internet connection. Check you're online and try again."
+            case .networkConnectionLost:
+                return "The connection dropped partway through. Try again."
+            case .cannotFindHost, .cannotConnectToHost, .dnsLookupFailed:
+                return "Couldn't reach the server. Check your connection and try again."
+            default:
+                return "Network error — check your connection and try again."
+            }
+        }
+        if case ClientError.http(let code, _) = error {
+            return "Server error (\(code)) — try again in a moment."
+        }
+        return error.localizedDescription
+    }
+
     private let baseURL: URL
     private let anonKey: String
     private static let keychainKey = "session"
