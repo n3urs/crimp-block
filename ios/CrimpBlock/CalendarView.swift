@@ -464,17 +464,21 @@ struct CalendarView: View {
         // board sessions specifically, not climbHard as a whole. A
         // climbHard day NOT characterised as a board session (logged as
         // "just a hard climb", or from before that choice existed) isn't
-        // shown here at all — it still counts toward SESSIONS LOGGED
-        // above and still colours its day on the grid, it just doesn't
-        // get its own row in this list.
+        // counted toward it — it still counts toward SESSIONS LOGGED
+        // above and still colours its day on the grid, it just isn't a
+        // board session.
+        //
+        // Unlike every other row here, Board always shows, even at zero
+        // — direct feedback: hiding it entirely when the count is 0 read
+        // as the feature not working rather than as an honest "you
+        // haven't tagged one yet". Every other type still only appears
+        // once it's actually been logged.
         var breakdown: [(key: String, name: String, colour: Color, count: Int)] = []
         for key in EngineBridge.order {
             guard key != "rest" else { continue }
             if key == "climbHard" {
-                if boardCount > 0 {
-                    breakdown.append((key: "climbHard-board", name: "Board",
-                                       colour: SessionColours.resolve(bridge.sessionColourVarName(key)), count: boardCount))
-                }
+                breakdown.append((key: "climbHard-board", name: "Board",
+                                   colour: SessionColours.resolve(bridge.sessionColourVarName(key)), count: boardCount))
                 continue
             }
             guard let n = counts[key], n > 0 else { continue }
