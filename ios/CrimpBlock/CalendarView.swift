@@ -215,7 +215,20 @@ struct CalendarView: View {
         let dayNum = Self.calendar.component(.day, from: date)
         let isPast = dateStr <= today
         let loggedColour = isPast ? history[dateStr].map { SessionColours.resolve(bridge.sessionColourVarName($0.t)) } : nil
-        let isDeloadWindow = !isPast && forecast?.deload.map { dateStr >= $0.start && dateStr <= $0.end } == true
+        // Real for past/today — bridge.isDeload(date) is block(date).w==4,
+        // exactly what the top bar's own "· DELOAD" suffix already reads
+        // (see currentPositionLine above) — accurate for any real date the
+        // same way phaseNameAt already is. Only genuinely future dates fall
+        // back to the trend forecast's predicted window. Previously this
+        // was future-only on the assumption that "real logged days already
+        // speak for the present" — they don't: the logged fill colours by
+        // SESSION TYPE, not by deload status, so a currently-active real
+        // deload week never showed any deload signal at all. Reported
+        // directly: "I'm currently on a deload week but it's not showing
+        // up on the calendar."
+        let isDeloadWindow = isPast
+            ? bridge.isDeload(dateStr)
+            : forecast?.deload.map { dateStr >= $0.start && dateStr <= $0.end } == true
 
         // Which of this cell's 4 sides border a DIFFERENT phase (or the
         // edge of the visible month, which counts the same — the box
@@ -235,12 +248,10 @@ struct CalendarView: View {
         ZStack {
             RoundedRectangle(cornerRadius: 8)
                 .fill(loggedColour?.opacity(0.85) ?? (isPast ? SessionColours.s2 : SessionColours.s1))
-            // A future deload day is a RING, not a filled wash — same visual
-            // language as the session dots' own "recommended" ring
-            // elsewhere in the app (an outline marks something coming up,
-            // a fill marks something that's actually happened). Direct
-            // feedback: a solid colour block read as "this already
-            // happened", which a prediction never should. Red, not the
+            // A deload day is a RING, layered over whatever fill the cell
+            // already has (a real session's colour, or plain "no session")
+            // — it marks "this day is/was in a deload week" independently
+            // of what, if anything, got logged that day. Red, not the
             // deload week's own phase colour — Max Strength's box is
             // already gold, close enough to the old amber ring that a
             // deload landing inside it read as invisible/confusing.
@@ -285,7 +296,7 @@ struct CalendarView: View {
                 legendItem(colour: SessionColours.s2, label: "No session")
                 HStack(spacing: 6) {
                     Circle().strokeBorder(SessionColours.restC, lineWidth: 2).frame(width: 12, height: 12)
-                    Text("Predicted deload")
+                    Text("Deload week")
                         .font(AppFonts.mono(10, weight: .medium))
                         .foregroundStyle(SessionColours.faint)
                 }
