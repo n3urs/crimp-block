@@ -122,7 +122,7 @@ struct NativeAppView: View {
                         if ticks.contains(id) { ticks.remove(id) } else { ticks.insert(id) }
                     },
                     onTapWeight: { ex in editingExercise = ex },
-                    onTapDone: { Task { await toggleDone() } },
+                    onTapDone: { subType in Task { await toggleDone(subType: subType) } },
                     onBrowse: { key in browse(to: key) },
                     weekDays: weekDays(around: state),
                     onTapDay: { date in pickingDate = date },
@@ -582,7 +582,10 @@ struct NativeAppView: View {
     /// computed and saved BEFORE the day itself is logged, same ordering
     /// app.js uses and for the same reason (logging can tip the block into
     /// a deload week, which would change what target() says).
-    private func toggleDone() async {
+    /// `subType` is the climb-type confirmation's answer for a fresh
+    /// climbHard log ("board"/"climb"), nil for everything else — see
+    /// DailyCardView's onTapDone doc comment for where it comes from.
+    private func toggleDone(subType: String? = nil) async {
         guard let state, let store, let loads else { return }
         saveError = nil
         do {
@@ -593,7 +596,7 @@ struct NativeAppView: View {
                     guard loads.on(ex.id, date: state.today) == nil, let kg = ex.weightKg else { continue }
                     try await loads.set(date: state.today, id: ex.id, kg: kg)
                 }
-                try await store.set(date: state.today, type: state.displayKey)
+                try await store.set(date: state.today, type: state.displayKey, sub: subType)
                 celebrationTrigger += 1 // mirrors app.js's finish(): celebrate() fires on logging TODAY, never on undo
             }
             browsedKey = nil // mirrors app.js: logging/undoing TODAY resets browseIndex

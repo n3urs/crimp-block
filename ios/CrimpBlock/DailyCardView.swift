@@ -59,7 +59,11 @@ struct DailyCardView: View {
     var ticks: Set<String> = []
     var onToggleTick: ((String) -> Void)? = nil
     var onTapWeight: ((EngineBridge.RenderedExercise) -> Void)? = nil
-    var onTapDone: (() -> Void)? = nil
+    /// The `String?` is the climb-type choice ("board"/"climb") from the
+    /// confirmation below — nil for UNDO, a swap-free non-climbHard log,
+    /// or any caller (NativeEngineDemoView, TutorialDemoCardView) that
+    /// doesn't act on it. See handleDoneTap/showClimbTypeConfirm.
+    var onTapDone: ((String?) -> Void)? = nil
     var onBrowse: ((String) -> Void)? = nil
     var weekDays: [WeekDay] = []
     var onTapDay: ((String) -> Void)? = nil
@@ -120,6 +124,14 @@ struct DailyCardView: View {
     /// first log (loggedSessionKey nil) both skip this — only swapping
     /// which session counts for today confirms first. See handleDoneTap.
     @State private var showSwapConfirm = false
+    /// Gates a FRESH climbHard log behind "board session, or just a hard
+    /// climb?" — purely so history/stats can tell the two apart (see
+    /// NativeStore.Entry.sub). Only a fresh log asks; UNDO clears
+    /// whatever was already characterised, nothing new to ask. Composes
+    /// with showSwapConfirm rather than replacing it — see
+    /// handleDoneTap/proceedAfterSwap for how a swap onto climbHard
+    /// chains into this afterward instead of skipping it.
+    @State private var showClimbTypeConfirm = false
     /// Live horizontal position of the current session's content — 0 at
     /// rest, tracks a finger 1:1 during an active swipe (set directly in
     /// onChanged, never animated there), animated only when a drag
@@ -243,11 +255,29 @@ struct DailyCardView: View {
     /// today's logged session, so the button reads UNDO and needs no
     /// confirmation; `loggedSessionKey == nil` means nothing's logged yet
     /// today, so this is a plain first log, also no confirmation.
-    private func handleDoneTap(_ action: @escaping () -> Void) {
-        if !isLogged, let loggedSessionKey, loggedSessionKey != state.displayKey {
+    /// UNDO first (isLogged already true — clearing today's log needs
+    /// neither confirmation, there's nothing new to characterise), then
+    /// the swap check, THEN the climb-type check — a swap onto climbHard
+    /// still asks board-vs-climb afterward via proceedAfterSwap, it just
+    /// asks after the swap is confirmed rather than instead of it.
+    private func handleDoneTap(_ action: @escaping (String?) -> Void) {
+        if isLogged {
+            action(nil)
+        } else if let loggedSessionKey, loggedSessionKey != state.displayKey {
             showSwapConfirm = true
         } else {
-            action()
+            proceedToClimbTypeIfNeeded(action)
+        }
+    }
+
+    /// Shared by the direct path (handleDoneTap) and the post-swap path
+    /// (the swap dialog's own confirm button) so climbHard always asks,
+    /// whether this is a same-day swap onto it or a plain first log.
+    private func proceedToClimbTypeIfNeeded(_ action: @escaping (String?) -> Void) {
+        if state.displayKey == "climbHard" {
+            showClimbTypeConfirm = true
+        } else {
+            action(nil)
         }
     }
 
@@ -580,20 +610,36 @@ struct DailyCardView: View {
         )
         // Only reachable via handleDoneTap's swap branch, so onTapDone is
         // never nil here in practice — the Button that leads to it exists
-        // only `if let onTapDone`. Confirming re-runs the exact same
-        // action the direct tap would have, just gated behind an extra
-        // step.
+        // only `if let onTapDone`. Confirming routes through the SAME
+        // climb-type check the direct (no-swap) path uses, rather than
+        // logging immediately — a swap onto climbHard still needs to ask
+        // board-vs-climb, just after this confirms rather than instead.
         .confirmationDialog(
             "Log \(state.session.name) instead?",
             isPresented: $showSwapConfirm,
             titleVisibility: .visible
         ) {
-            Button("Log \(state.session.name.uppercased())") { onTapDone?() }
+            Button("Log \(state.session.name.uppercased())") {
+                if let onTapDone { proceedToClimbTypeIfNeeded(onTapDone) }
+            }
             Button("Cancel", role: .cancel) {}
         } message: {
             if let loggedSessionKey, let loggedName = state.bridge.sessionInfo(loggedSessionKey)?.name {
                 Text("You already logged \(loggedName.uppercased()) today — this will replace it.")
             }
+        }
+        // Purely for your own stats — board work and everything else
+        // "hard climb" covers train differently enough to be worth telling
+        // apart later, even though both log as the same climbHard session
+        // with the same prescription either way (see NativeStore.Entry.sub).
+        .confirmationDialog(
+            "Board session, or just a hard climb?",
+            isPresented: $showClimbTypeConfirm,
+            titleVisibility: .visible
+        ) {
+            Button("BOARD SESSION") { onTapDone?("board") }
+            Button("JUST A HARD CLIMB") { onTapDone?("climb") }
+            Button("Cancel", role: .cancel) {}
         }
         .sheet(isPresented: $showPlan) {
             PlanSheetView(bridge: state.bridge, block: state.block, today: state.today)

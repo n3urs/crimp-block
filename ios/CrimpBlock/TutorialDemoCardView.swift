@@ -110,7 +110,7 @@ struct TutorialDemoCardView: View {
                             if ticks.contains(id) { ticks.remove(id) } else { ticks.insert(id) }
                         },
                         onTapWeight: { _ in controller.handleTap("weightBadge") },
-                        onTapDone: {
+                        onTapDone: { _ in
                             // Toggle logged for whatever's ON SCREEN right
                             // now, matching the real app's "at most one
                             // logged session" model — mirrors

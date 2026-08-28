@@ -413,6 +413,15 @@ struct CalendarView: View {
         var loggedCount = 0
         var trainingCount = 0
         var counts: [String: Int] = [:]
+        // climbHard splits into two counts by entry.sub rather than
+        // joining `counts`' single-key-per-type shape — everything else
+        // stays one bucket, this one specifically needed telling apart
+        // (see NativeStore.Entry.sub). Anything logged before that field
+        // existed (sub == nil) falls into "climb", the more generic
+        // bucket — "board" is the deliberate, specific choice, so
+        // ambiguous history shouldn't default into it.
+        var boardCount = 0
+        var justClimbCount = 0
         if monthStart <= lastRealDay {
             var d = monthStart
             while d <= lastRealDay {
@@ -420,6 +429,9 @@ struct CalendarView: View {
                     counts[entry.t, default: 0] += 1
                     if entry.t != "rest" { loggedCount += 1 }
                     if bridge.isTraining(entry.t) { trainingCount += 1 }
+                    if entry.t == "climbHard" {
+                        if entry.sub == "board" { boardCount += 1 } else { justClimbCount += 1 }
+                    }
                 }
                 d = bridge.addDays(d, 1)
             }
@@ -447,10 +459,22 @@ struct CalendarView: View {
         // place in this list from one month to the next.
         // Rest excluded — same reasoning as loggedCount above, it isn't a
         // "workout" and Oscar doesn't want it cluttering the breakdown.
-        let breakdown = EngineBridge.order.compactMap { key -> (key: String, name: String, colour: Color, count: Int)? in
-            guard key != "rest", let n = counts[key], n > 0 else { return nil }
-            return (key: key, name: bridge.sessionInfo(key)?.name ?? key,
-                    colour: SessionColours.resolve(bridge.sessionColourVarName(key)), count: n)
+        // climbHard itself becomes up to two rows (Board / Hard Climb),
+        // sharing its one accent colour — split by count, not by a new
+        // colour, since the day cells and legend still show climbHard as
+        // one type; only this list distinguishes the two.
+        var breakdown: [(key: String, name: String, colour: Color, count: Int)] = []
+        for key in EngineBridge.order {
+            guard key != "rest" else { continue }
+            if key == "climbHard" {
+                let colour = SessionColours.resolve(bridge.sessionColourVarName(key))
+                if boardCount > 0 { breakdown.append((key: "climbHard-board", name: "Board", colour: colour, count: boardCount)) }
+                if justClimbCount > 0 { breakdown.append((key: "climbHard-climb", name: "Hard Climb", colour: colour, count: justClimbCount)) }
+                continue
+            }
+            guard let n = counts[key], n > 0 else { continue }
+            breakdown.append((key: key, name: bridge.sessionInfo(key)?.name ?? key,
+                               colour: SessionColours.resolve(bridge.sessionColourVarName(key)), count: n))
         }
 
         return MonthStats(loggedCount: loggedCount, consistencyPercent: consistencyPercent,

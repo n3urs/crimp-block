@@ -392,6 +392,28 @@ privileged (`is_admin()` only reads the caller's own JWT) or checks
 row otherwise — there's no code path that reaches the privileged query
 without that check passing first.
 
+**Board vs. hard-climb sub-type (2026-08-28)**: `sessions` gets one new
+nullable column so a `climbHard` day can record which of the two it
+actually was, asked at log time (see `DailyCardView`'s climb-type
+confirmation dialog):
+
+```sql
+alter table sessions add column sub text;
+```
+
+Nullable and generic on purpose — not a foreign key or enum, and not
+scoped to `climbHard` at the schema level, so it costs nothing for every
+other session type (`sub` just stays null) and doesn't need another
+migration if a second session ever wants its own sub-characterisation
+later. `null` also covers every `climbHard` day logged before this
+existed; `CalendarView`'s stats breakdown treats that the same as an
+explicit `"climb"` (the more generic bucket) rather than guessing
+`"board"` for old data. Native writes/reads this via `NativeStore.Entry
+.sub` / `NativeStore.set(date:type:sub:)`; app.js's `Store` doesn't
+write it (the native app is the one with the confirmation dialog), but
+reads harmlessly ignore the extra column same as any other client
+touching this table.
+
 **Subscription status is a known gap, not an oversight**: Phase D's
 entitlement check is client-side only (`Transaction.currentEntitlements`
 — see the plan), so there's no row anywhere in Supabase recording who's

@@ -10,8 +10,16 @@ import Observation
 final class NativeStore {
     private(set) var days: [String: Entry] = [:]
 
-    struct Entry: Codable { let t: String; let l: Double? }
-    private struct Row: Decodable { let date: String; let type: String; let load: Double? }
+    /// `sub` is a free-text sub-characterisation of `t`, currently only
+    /// ever set for `climbHard` ("board" or "climb") — asked for at log
+    /// time (see DailyCardView's climb-type confirmation) purely so
+    /// stats/history can tell an actual board session apart from a hard
+    /// climb that wasn't. nil for every other session type, and for any
+    /// climbHard day logged before this existed — treated as "climb" (the
+    /// more generic bucket) wherever that ambiguity has to resolve to
+    /// something, since "board" is the more specific, deliberate choice.
+    struct Entry: Codable { let t: String; let l: Double?; let sub: String? }
+    private struct Row: Decodable { let date: String; let type: String; let load: Double?; let sub: String? }
 
     private let client: SupabaseClient
     private let startDate: String
@@ -31,9 +39,9 @@ final class NativeStore {
     func load(engineCore: EngineBridgeDateHelper) async throws {
         let back = engineCore.addDays(engineCore.today(), -60)
         let from = back < startDate ? back : startDate
-        let data = try await client.select(table: "sessions", query: "select=date,type,load&date=gte.\(from)")
+        let data = try await client.select(table: "sessions", query: "select=date,type,load,sub&date=gte.\(from)")
         let rows = try JSONDecoder().decode([Row].self, from: data)
-        days = Dictionary(uniqueKeysWithValues: rows.map { ($0.date, Entry(t: $0.type, l: $0.load)) })
+        days = Dictionary(uniqueKeysWithValues: rows.map { ($0.date, Entry(t: $0.type, l: $0.load, sub: $0.sub)) })
     }
 
     /// `load` is read back in `Entry.l` (see `load(engineCore:)` above) but
@@ -45,14 +53,20 @@ final class NativeStore {
     /// literal `null` — dropped rather than left as a misleading parameter
     /// nobody was ever meant to pass. The column itself stays in Supabase
     /// (harmless, and dropping it is a schema change, not a code one).
-    func set(date: String, type: String) async throws {
+    ///
+    /// `sub` defaults to nil so every OTHER call site (undo/redo via the
+    /// week strip, any future plain log) is unaffected — only the Done
+    /// button's climb-type confirmation on a climbHard day ever passes a
+    /// real value. See SUPABASE.md for the `sessions.sub` column this
+    /// writes to.
+    func set(date: String, type: String, sub: String? = nil) async throws {
         let prev = days[date]
-        days[date] = Entry(t: type, l: nil)
+        days[date] = Entry(t: type, l: nil, sub: sub)
         do {
             guard let userID = client.session?.userID else { throw SupabaseClient.ClientError.notSignedIn }
             try await client.upsert(
                 table: "sessions",
-                rows: [["user_id": userID, "date": date, "type": type]],
+                rows: [["user_id": userID, "date": date, "type": type, "sub": sub]],
                 onConflict: "user_id,date"
             )
         } catch {
