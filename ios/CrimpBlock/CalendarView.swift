@@ -55,6 +55,7 @@ struct CalendarView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 13) {
                 topBar
+                planProgressBar
                 monthNav
                 weekdayRow
                 monthGrid
@@ -489,6 +490,60 @@ struct CalendarView: View {
 
         return AllTimeStats(loggedCount: loggedCount, consistencyPercent: consistencyPercent,
                              consistencyFraction: consistencyFraction, streak: streak, breakdown: breakdown)
+    }
+
+    /// Progress through the STRUCTURED plan — Base, Max Strength, Power —
+    /// ending at the block Performance starts, not the plan's nominal last
+    /// block. Performance itself has no finish line of its own to
+    /// progress toward: it's open-ended "climb and maintain", not a phase
+    /// with a further endpoint (see its own `d`escription in programs.js:
+    /// "climbing takes over... this is when the previous five months are
+    /// supposed to show up on rock"). Measured the same way consistency
+    /// is — real training days banked (block(today).total) against
+    /// however many the blocks before Performance need in total — so it
+    /// can never drift from what the rest of the app already considers
+    /// "trained". Capped at 100% for an account already past that point.
+    /// A plain computed property, not cached — phases is a lightweight
+    /// Swift array and this is one block() call, not a loop over history.
+    private var planProgress: (percent: Int, current: Int, total: Int)? {
+        guard let performanceFrom = bridge.phases.first(where: { $0.n == "Performance" })?.from,
+              performanceFrom > 1,
+              let b = bridge.block(date: bridge.today()) else { return nil }
+        let totalNeeded = (performanceFrom - 1) * b.per * 4
+        guard totalNeeded > 0 else { return nil }
+        let percent = min(100, Int((Double(b.total) / Double(totalNeeded) * 100).rounded()))
+        return (percent, b.total, totalNeeded)
+    }
+
+    private var planProgressBar: some View {
+        Group {
+            if let progress = planProgress {
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack(alignment: .firstTextBaseline) {
+                        Text("PLAN PROGRESS")
+                            .font(AppFonts.mono(9.5, weight: .medium))
+                            .foregroundStyle(SessionColours.faint)
+                        Spacer()
+                        Text("\(progress.percent)%")
+                            .font(AppFonts.mono(13, weight: .bold))
+                            .foregroundStyle(.white)
+                    }
+                    GeometryReader { geo in
+                        ZStack(alignment: .leading) {
+                            RoundedRectangle(cornerRadius: 4)
+                                .fill(SessionColours.s2)
+                            RoundedRectangle(cornerRadius: 4)
+                                .fill(currentPhaseColour ?? SessionColours.resolve("--gorse"))
+                                .frame(width: max(6, geo.size.width * CGFloat(progress.percent) / 100))
+                        }
+                    }
+                    .frame(height: 8)
+                    Text("\(progress.current)/\(progress.total) training days to Performance")
+                        .font(AppFonts.mono(9, weight: .medium))
+                        .foregroundStyle(SessionColours.faint)
+                }
+            }
+        }
     }
 
     private var statsPanel: some View {
