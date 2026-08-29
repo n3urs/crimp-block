@@ -2324,25 +2324,86 @@ Task 12 imports both `LoggedStamp` and `useDoneFlow`, renders the actual Done bu
 
 ### Task 12: Assemble `DailyCard` and ship Phase 2
 
+The layout paragraph below was checked against `DailyCardView.swift:355-492` directly and is accurate — no correction needed there. What was missing entirely: an Interfaces section (this task assembles 8 already-built pieces from Tasks 4 and 6-11, and none of their wiring was specified), where `ticks` (the local, per-session set of checked-off exercise ids) actually lives, how the swipe peek reuses the real content's own layout, and an honest scoping of "Step 3: verify full parity" against what this environment can actually do.
+
 **Files:**
 - Create: `deadpoint-rn/src/components/daily-card/DailyCard.tsx`
 - Create: `deadpoint-rn/app/(main)/card.tsx`
-- Reference: `DailyCardView.swift:355-492` (body layout)
+- Modify: `deadpoint-rn/app/index.tsx` (Task 3's temporary font-check screen — replace with a redirect now that a real destination exists)
+- Reference: `DailyCardView.swift:355-492` (body layout), `:856-902` (`peekContent`), `:1050-1066` (`exerciseRow`/`footer`), `ios/CrimpBlock/NativeAppView.swift:52,406,528,546` (`ticks` ownership)
 
-Layout: outer padding `20`, `VStack` spacing `18`. Order: week strip (with `10pt` extra bottom padding) → header → session dots → title block → scrolling exercise list. Only the exercise list scrolls; header, dots, and title stay pinned. Title is `Fonts.heading(32)` white; the `where` line is `Fonts.mono(13, 'medium')` in `accent`; the optional Guide pill sits below in `Fonts.mono(11, 'bold')`. Scroll indicators hidden. Reserve `64` of clearance at the list bottom for the floating Done button.
+**Interfaces:**
+- Consumes: `WeekStrip`+`WeekDay` (Task 10), `CardHeader` (Task 10), `SessionDots` (Task 10), `ExerciseRow` (Task 7), `LoggedStamp` (Task 11), `useDoneFlow` (Task 11), `useSwipeCarousel` (Task 9), `useStore`/`useLoads`/`useProfile` (Task 6), `createEngine`/`SESSION_ORDER`/`RenderedExercise` (Task 4).
+- Produces `DailyCard`:
+```typescript
+interface DailyCardProps {
+  session: { name: string; where: string; guide: { title: string } | null }; // state.session — guide is checked for presence only; tapping it is a no-op for now, see exclusions below
+  accent: string;
+  accentVarName: string;
+  exercises: RenderedExercise[];
+  ticks: Set<string>;               // OWNED BY THE CALLER (app/(main)/card.tsx), not this component — mirrors NativeAppView.swift's own `ticks`, which lives one level up from DailyCardView and resets on session/day change, not inside it
+  onToggleTick: (id: string) => void;
+  onTapWeight?: (ex: RenderedExercise) => void;
+  onTapRest?: (seconds: number) => void;
+  onStartInterval?: (interval: IntervalConfig) => void;
+  isLogged: boolean;                // is TODAY's logged session the one currently on screen
+  cardMessage: string;              // caller-computed (deload/easing-back guidance or the session's own note, in that priority) — this task renders it, doesn't compute it; no task in this plan has specified that computation yet, so treat it as an opaque string prop for now
+  weekDays: WeekDay[];
+  onTapDay?: (date: string) => void;
+  onTapCalendar?: () => void;
+  onTapSettings: () => void;
+  onTapPhaseBadge: () => void;
+  phaseName: string;
+  weekNumber: number;
+  today: string;
+  recommendedKey: string | null;
+  nextUp: { key: string; name: string; colour: string } | null;
+  celebrationTrigger: number;       // passed straight through to LoggedStamp
+  footerNote?: string;              // dev-diagnostic text, same role as NativeEngineDemoView.swift's own footerNote
+  doneFlow: ReturnType<typeof useDoneFlow>; // this task renders the Done button + wires the two confirm dialogs to it; useDoneFlow itself is constructed by the caller (it needs isLogged/loggedSessionKey/displayKey/onLog, all of which the caller already has)
+  // Swipe carousel wiring — all straight from Task 9's useSwipeCarousel, constructed by the caller:
+  panGesture: ReturnType<typeof useSwipeCarousel>['panGesture'];
+  translateX: ReturnType<typeof useSwipeCarousel>['translateX'];
+  peek: { session: { name: string; where: string }; accent: string; exercises: RenderedExercise[]; isLogged: boolean; message: string } | null; // caller-resolved from useSwipeCarousel's peekKey — null means no peek to render
+  onTapSession: (key: string) => void; // = useSwipeCarousel's animateTo, threaded into SessionDots
+}
+```
+
+**Explicitly out of scope for this task** (accept the prop/callback, do not build the feature):
+- **The sets tally.** `ExerciseRow` doesn't render one at all yet (Task 8 built `SetsTally` in isolation; wiring it in needs `src/data/prefs.ts` for `setsCounterEnabled`, which no task through 12 creates — see Task 8's own ledger note). Exercises render exactly as Task 7 left them.
+- **The Session Guide pill's tap target.** Render the pill per the layout spec below when `session.guide` is non-null, but its `onPress` is a no-op (or an optional `onTapGuide?: () => void` prop you may add if it's cheap — Swift's `showGuide = true` opens a whole reference-page screen this plan hasn't built).
+- **The confirmation dialogs' chrome.** `useDoneFlow` gives you `showSwapConfirm`/`showClimbTypeConfirm` booleans and confirm/cancel callbacks — render them with React Native's built-in `Alert.alert(...)` (two buttons: confirm/cancel, or three for the climb-type choice — "Board session" / "Just a hard climb" / cancel) rather than a custom modal. This plan hasn't chosen a modal/dialog library, and `Alert` needs no new dependency.
+- **`cardMessage`'s computation.** Swift's `cardMessage(for:isLogged:)` (deload/easing-back guidance, or the session's own `note`, in that priority, never combined) has not been ported by any task in this plan — accept it as an opaque string prop from the caller rather than inventing the logic here.
+
+Layout (`DailyCardView.swift:355-492`, confirmed accurate): outer padding `20`, outer `VStack` spacing `18`. Order: week strip (if `weekDays` non-empty, `10pt` extra bottom padding) → header → session dots (only if `onTapSession` — Swift's equivalent guard is `onBrowse != nil`, always true here since browsing is this plan's whole point) → title block → scrolling exercise list. Only the exercise list scrolls; everything above it stays pinned — a plain flex column sizes to its content, and only the inner scroll view expands to fill the remaining space, which is what actually pins the rest. Title `Fonts.heading(32)` white; `where` line `Fonts.mono(13, 'medium')` in `accent`; the optional Guide pill (`4pt` top margin) in `Fonts.mono(11, 'bold')` tinted `accent`, `s1` background, `1px s3` border, capsule, padding `10/5`, with an `8px` bold book-icon glyph (dependency-free, same precedent as `ExerciseRow`'s/`CardHeader`'s existing icon stand-ins) before the uppercased title. Scroll indicators hidden. Reserve `64`pt of clearance at the list bottom for the floating Done button (a `Color.clear`-equivalent spacer, only when a Done handler exists). `cardMessage` renders inside the scrolling area (it scrolls away with the list, not pinned — direct feedback captured in Swift's own comment at `:433-437`), `14`px, `semibold`+`accent` when `isLogged` else `regular`+`dim`. Exercise rows: flat list, `1px s2` divider between rows (not after the last), and the whole list gets `pointerEvents: isLogged ? 'none' : 'auto'` (Swift's `.allowsHitTesting(!isLogged)` — once logged, nothing in the list is tappable except via Undo).
+
+Swipe peek (`DailyCardView.swift:856-902`): when `peek` is non-null, render the SAME title-block-plus-scrolling-list structure as the real content (reusing one internal render function/sub-component for both, parameterized by which content to show — Swift's own comment is explicit about why: "same spacings, same message slot, same ScrollView wrapper... anything present there but missing here shifts everything below it, and that shift is visible as a jump"), but non-interactive (`pointerEvents: 'none'`, scroll disabled) and positioned behind the current layer with no offset of its own — sliding the current layer via `translateX` (from `useSwipeCarousel`) reveals it, like lifting a card off a stack. The peek's own exercise list gets `opacity: 0.35` when `peek.isLogged`, else full opacity (matches Swift's `peekLogged` dimming, a different signal from the real content's own `isLogged` hit-testing lock).
 
 - [ ] **Step 1: Assemble the components into `DailyCard.tsx`**
 
 - [ ] **Step 2: Wire it to real data in `app/(main)/card.tsx`**
 
-Use `useStore`/`useLoads`/`useProfile` from Task 6 and `createEngine` from Task 4.
+Use `useStore`/`useLoads`/`useProfile` (Task 6), `createEngine` (Task 4), and `useSwipeCarousel` (Task 9) together: `useStore`'s `days` + `useLoads`'s `all()` become `createEngine`'s `sessionLog`/`loadLog`; the resulting engine's `resolveExercises`/`decide`/`upNext`/`phaseNameAt`/`block` feed everything `DailyCard` needs. `ticks` is local `useState<Set<string>>` owned by this file (not `DailyCard`), reset on session/day change — mirrors `NativeAppView.swift`'s own ownership exactly (see the reference range above). Wire `useSwipeCarousel`'s `onBrowse` to whatever changes which day/session this screen is displaying, and resolve its `peekKey` into the `peek` prop shape `DailyCard` expects using the same engine.
 
-- [ ] **Step 3: Verify full parity on both platforms**
+- [ ] **Step 3: Replace the temporary root route**
 
-Sign in as the real account. Compare against the Swift build screen by screen: every session via swipe, tick and untick, sets tally, weight badge, Done and Undo.
-Expected: no visual or behavioural difference beyond the known platform divergences in the Risk Register.
+Task 3 built `app/index.tsx` as a placeholder font-check screen, explicitly slated for replacement once a real screen existed (see that task's own commit message). Replace its contents with an `expo-router` `Redirect` to `/card` — route groups (the parenthesized `(main)` segment) are stripped from the actual URL path, so `app/(main)/card.tsx` resolves to `/card`, not `/(main)/card` (confirmed against `expo-router`'s own `stripGroupSegmentsFromPath`):
+```typescript
+// app/index.tsx
+import { Redirect } from 'expo-router';
+export default function Index() {
+  return <Redirect href="/card" />;
+}
+```
+This is a placeholder redirect, not real auth-gated routing — the not-yet-written Phase 3 sign-in/onboarding plan will very likely replace this with a real `/` that branches on session state (matches the tracked follow-up noted when `app/(main)/card.tsx`'s route was first decided, back in Task 3's plan correction).
 
-- [ ] **Step 4: Commit**
+- [ ] **Step 4: Verify — deferred, more so than any prior task**
+
+Every device-verification step through Task 11 was deferred for the same reason (no simulator/dev-client build reachable from a dispatched subagent). This one is additionally blocked on two things that are ALSO still open regardless of device access: Task 5's live OTP sign-in confirmation (deferred, pending a human present to receive the code) and Task 9's on-device swipe-feel check. Do not attempt to route around either. State plainly in your report that this is deferred, and what specifically it's still waiting on (a real dev-client build, AND a completed sign-in). What IS achievable and expected in this task: `npx tsc --noEmit` clean, and if the assembled `DailyCard` can be smoke-tested against `NativeEngineDemoView.swift`'s own bundled sample data shape (no real Supabase call) via a lightweight test that just renders-in-spirit (asserts the prop wiring compiles and the peek/current shared render function produces sane output for two different `RenderedExercise[]` inputs) — do that if it's cheap; otherwise note it as a further gap, don't force it.
+
+Real full-parity verification (sign in as the real account, swipe every session and direction, tick/untick, weight badge, Done/Undo, side-by-side against the Swift build) happens once a real dev-client build exists and Oscar is present for the sign-in — this is the concrete next milestone after this task lands, not something this task itself can close out.
+
+- [ ] **Step 5: Commit**
 
 ```bash
 git add deadpoint-rn/src/components/daily-card/DailyCard.tsx deadpoint-rn/app
