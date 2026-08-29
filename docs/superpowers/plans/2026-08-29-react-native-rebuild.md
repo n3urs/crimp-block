@@ -130,10 +130,10 @@ Every Swift file, what it does, and its fate in the port. **9,678 lines across 4
 
 | File | Lines | iOS | Android |
 |---|---:|---|---|
-| `CrimpBlockWidget/CrimpBlockWidget.swift` | 311 | WidgetKit home-screen widget | **No RN equivalent.** Needs a native Kotlin `AppWidgetProvider` reading from shared storage. Separate effort. |
+| `CrimpBlockWidget/CrimpBlockWidget.swift` | 311 | WidgetKit home-screen widget | **Decided: not ported.** iOS keeps this native widget as-is; Android ships with no home-screen widget. |
 | `Shared/SubscriptionManager.swift` | 122 | StoreKit 2 entitlements | `react-native-iap` covers both, but Google Play Billing products must be created and the entitlement check rewritten. |
 | `Shared/IntervalTonePlayer.swift` | 119 | Synthesises "piano-ish" tones at runtime via `AVAudioEngine` (fundamental + 2nd harmonic at 0.28 gain, per-note envelopes) | **Runtime synthesis is impractical in RN.** Pre-render each cue to a `.wav`/`.m4a` at build time and play via `expo-av`. Must A/B against the current tones. |
-| `CrimpBlockWidget/RestTimerLiveActivity.swift` | 111 | ActivityKit Live Activity (Dynamic Island + lock screen) | **No Android equivalent exists.** Android gets an ongoing foreground notification with a chronometer instead. This is a genuine, unavoidable platform divergence — see Risk Register. |
+| `CrimpBlockWidget/RestTimerLiveActivity.swift` | 111 | ActivityKit Live Activity (Dynamic Island + lock screen) | **Decided: not ported.** iOS keeps this as-is; Android gets no equivalent, not even a notification stand-in. |
 | `Shared/TimerActivity.swift` | 22 | ActivityKit attributes | As above. |
 
 ### Tests to port (225 lines)
@@ -144,8 +144,8 @@ Every Swift file, what it does, and its fate in the port. **9,678 lines across 4
 
 ## Risk register — read before starting
 
-1. **Live Activities have no Android counterpart.** The rest timer currently surfaces in the Dynamic Island and on the lock screen. Android can only offer an ongoing notification. Accept the divergence explicitly; do not fake it.
-2. **Home-screen widgets are genuinely two implementations.** Nothing in RN unifies WidgetKit and Android App Widgets. Budget separate native work, or ship Android without a widget initially.
+1. **Live Activities — decided, out of scope.** The rest timer's Dynamic Island / lock-screen presence has no Android counterpart. iOS keeps the existing native `ActivityKit` implementation as-is (`RestTimerLiveActivity.swift`, `TimerActivity.swift` are not ported); Android gets no equivalent at all, not even a notification stand-in. Not revisited by this plan.
+2. **Home-screen widgets — decided, out of scope.** Nothing in RN unifies WidgetKit and Android App Widgets. iOS keeps its existing native `CrimpBlockWidget.swift` as-is; Android ships with no home-screen widget. Not revisited by this plan.
 3. **Audio tones will not be bit-identical.** Pre-rendered files replace runtime synthesis. Compare by ear against the current build before accepting.
 4. **The swipe carousel is the highest-risk UI element.** It must run on the UI thread via Reanimated worklets. A JS-thread implementation will feel laggy — which is precisely the complaint the current Swift implementation was rewritten to fix.
 5. **This replaces the shipping iOS app.** Do not remove the SwiftUI target until RN has passed a side-by-side parity review on a real device.
@@ -224,7 +224,7 @@ Each phase produces working, testable software on its own.
 | 4. Calendar | Month grid, phase borders, stats, plan progress | Own plan |
 | 5. Onboarding | Welcome, sign-in, quiz, tutorial spotlight, paywall | Own plan |
 | 6. Rehab track | Rehab card + rehab tutorial | Own plan |
-| 7. Platform extras | Widgets, Live Activity / ongoing notification, IAP | Own plan |
+| 7. Platform extras | IAP for both stores (widgets/Live Activity are decided out of scope — see Risk Register) | Own plan |
 | 8. Ship | Parity review, OTA pipeline, Play Store listing | Own plan |
 
 Phases 3–8 get their own plans written once Phase 2 lands, because the component patterns established there (how a Swift view maps to an RN component, how motion constants are applied, how parity is verified) are what those plans should follow. Writing them now would be guessing at those patterns.
