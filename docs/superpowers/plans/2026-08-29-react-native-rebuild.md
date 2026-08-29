@@ -1616,8 +1616,8 @@ The highest-risk element in the port. It **must** run on the UI thread.
 - Reference: `ios/CrimpBlock/DailyCardView.swift:919-969` (`swipeGesture`), `:212-238` (`commit`), `:179-191` (`animatedBrowse`)
 
 **Interfaces:**
-- Consumes: `SESSION_ORDER`, `Motion.swipe`.
-- Produces: `{ panGesture, translateX, peekKey, animateTo(key) }`
+- Consumes: `SESSION_ORDER`, `Motion.swipe`. Also, as of this correction, `displayKey` (the caller's real, authoritative current session key — Swift's `effectiveDisplayKey`) and `onBrowse(key)` (asks the caller to actually switch sessions — Swift's `onBrowse` callback prop). The original draft of this interface omitted both, which would have made `commit()`/`animatedBrowse()`'s real behaviour (actually changing the displayed session, and knowing when the real state has caught up so the peek can clear without a flash) impossible to implement — checked directly against `DailyCardView.swift:191-238`, both are genuinely load-bearing, not optional extras.
+- Produces: `{ panGesture, translateX, peekKey, animateTo(key) }` — unchanged from the original interface shape; `displayKey`/`onBrowse`/`scrollRef`/`containerWidth` become the hook's **input** parameters instead.
 
 - [ ] **Step 1: Write the failing test for the wrap-around index maths**
 
@@ -1666,26 +1666,210 @@ export function nextIndex(from: number, direction: -1 | 1, count: number): numbe
 Run: `npx jest __tests__/carousel.test.ts`
 Expected: PASS, 3 tests.
 
-- [ ] **Step 5: Build the Reanimated pan gesture**
+- [ ] **Step 5: Add the missing motion constant**
 
-Requirements, each mapping to a specific Swift behaviour:
+`Motion.swipe` (Task 2) covers the live-swipe commit animation (`completeDurationMs: 200`, `Easing.out`) but is missing a second, genuinely different value: `animatedBrowse()` (`DailyCardView.swift:198`) — the tap-driven equivalent used when browsing via a dot or NEXT rather than a live touch — uses `.easeInOut(duration: 0.3)`, a different duration AND a different curve, not a reuse of the swipe's own commit timing. Add it to `deadpoint-rn/src/design/motion.ts`:
 
-- `Gesture.Pan().minDistance(Motion.swipe.minimumDistance)` and `.simultaneousWithExternalGesture(scrollRef)` — the Swift code uses `.simultaneousGesture` precisely so it never competes with the inner scroll view.
-- Claim horizontality only once `abs(dx) > 12 && abs(dx) > abs(dy) * 1.5`; before that, apply **no** offset — ambiguous small movements must not get grabbed mid-vertical-scroll.
-- On claim, resolve the peek session via `nextIndex` and render it **behind** the current card at rest (no offset of its own), so sliding the top layer reveals it like lifting a card off a stack.
-- `translateX` follows the finger 1:1 in `onUpdate` with **no** animation — this is the fix for "a delay between swiping and it moving".
-- On end: past `containerWidth * 0.3` → `withTiming(±containerWidth, { duration: 200, easing: Easing.out })` then commit; otherwise `withSpring` tuned to `response 0.32 / damping 0.82`.
-- The peek is only cleared once the real `displayKey` catches up — clearing it earlier causes a visible flash back to the old session.
+```typescript
+// src/design/motion.ts — add this one field inside the existing `swipe` object
+    animatedBrowseDurationMs: 300, // NOT the same as completeDurationMs (200) — animatedBrowse() uses a distinct duration+curve (easeInOut) from the live-swipe commit (easeOut)
+```
 
-- [ ] **Step 6: Verify feel on a real device, both platforms**
+- [ ] **Step 6: Build the Reanimated pan gesture and `animateTo`**
 
-Swipe through all 7 sessions in both directions, including the wrap. Attempt a vertical scroll mid-list and confirm it is never hijacked.
-Expected: tracks the finger with no perceptible lag; spring-back feels identical to the Swift build held side by side.
+This is the highest-risk step in the whole plan — read it fully before writing any code. The full implementation, verified line-by-line against `DailyCardView.swift:919-969` (`swipeGesture`), `:191-203` (`animatedBrowse`), and `:224-238` (`commit`):
 
-- [ ] **Step 7: Commit**
+```typescript
+// src/components/daily-card/useSwipeCarousel.ts
+import { useCallback, useEffect, useRef, useState } from 'react';
+import type { RefObject } from 'react';
+import { Gesture } from 'react-native-gesture-handler';
+import { Easing, runOnJS, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
+import { SESSION_ORDER } from '../../engine';
+import { Motion } from '../../design/motion';
+
+/** dx < 0 (swiping left) advances; dx > 0 goes back. Wraps at both ends
+    rather than clamping — an earlier version stopped dead at either end
+    and was reverted on explicit feedback: a carousel that keeps going is
+    what was wanted. `+ count` before the modulo is required because
+    JS (like Swift) returns a negative result for a negative operand. */
+export function nextIndex(from: number, direction: -1 | 1, count: number): number {
+  return ((direction === -1 ? from + 1 : from - 1) + count) % count;
+}
+
+interface UseSwipeCarouselParams {
+  /** The caller's real, authoritative current session key — Swift's
+      `effectiveDisplayKey`. This hook never mutates it directly; it only
+      reads it and calls `onBrowse` to ask the caller to change it. */
+  displayKey: string;
+  containerWidth: number;
+  /** Swift's `onBrowse` callback prop — actually performs the session
+      switch on whatever owns real app state. */
+  onBrowse: (key: string) => void;
+  /** The inner exercise-list scroll view, so the pan gesture never
+      competes with it (Swift's reason for `.simultaneousGesture`).
+      Optional because this hook can be built and unit-tested (Steps 1-4)
+      before Task 12 has a real scroll view to pass in. */
+  scrollRef?: RefObject<React.Component | null>;
+}
+
+export function useSwipeCarousel({ displayKey, containerWidth, onBrowse, scrollRef }: UseSwipeCarouselParams) {
+  const translateX = useSharedValue(0);
+  const [peekKey, setPeekKeyState] = useState<string | null>(null);
+
+  // Shared-value mirror of peekKey, readable synchronously from worklets.
+  // React state set via setState during a gesture is NOT safe to read
+  // back from the same gesture's worklet: the closure a gesture callback
+  // runs with is captured when the gesture object was (re)created on the
+  // JS thread, and does not see a same-gesture state update — only a
+  // FUTURE gesture (after the next render) would. Shared values are the
+  // correct cross-thread-synchronized primitive for exactly this.
+  const peekTargetKey = useSharedValue<string | null>(null);
+  const horizontalClaimed = useSharedValue(false);
+
+  // The key a completed swipe/animateTo actually committed to, kept until
+  // `displayKey` (the caller's real state) catches up to it.
+  const pendingKey = useRef<string | null>(null);
+
+  const setPeek = useCallback((key: string | null) => setPeekKeyState(key), []);
+
+  const clearPeek = useCallback(() => {
+    setPeekKeyState(null);
+    pendingKey.current = null;
+  }, []);
+
+  const commit = useCallback((key: string) => {
+    pendingKey.current = key;
+    onBrowse(key);
+  }, [onBrowse]);
+
+  // Mirrors Swift's settleOnRealUpdate(): the peek is only cleared once
+  // the caller's own displayKey has genuinely caught up to what was
+  // committed — clearing it any earlier causes a one-frame flash back to
+  // the old session (see DailyCardView.swift's commit() doc comment,
+  // which this bug and fix are ported directly from).
+  useEffect(() => {
+    if (pendingKey.current !== null && displayKey === pendingKey.current) {
+      translateX.value = 0;
+      peekTargetKey.value = null;
+      clearPeek();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- translateX/peekTargetKey are stable shared-value refs, not reactive deps
+  }, [displayKey, clearPeek]);
+
+  const panGesture = Gesture.Pan()
+    .minDistance(Motion.swipe.minimumDistance)
+    .simultaneousWithExternalGesture(...(scrollRef ? [scrollRef] : []))
+    .onUpdate((e) => {
+      if (!horizontalClaimed.value) {
+        // Ambiguous small movements are left alone (no offset applied
+        // yet) so an ordinary vertical scroll attempt never gets grabbed
+        // as a swipe partway through it.
+        const claims =
+          Math.abs(e.translationX) > Motion.swipe.horizontalClaimDx &&
+          Math.abs(e.translationX) > Math.abs(e.translationY) * Motion.swipe.horizontalClaimRatio;
+        if (!claims) return;
+        horizontalClaimed.value = true;
+        const from = SESSION_ORDER.indexOf(displayKey);
+        if (from !== -1) {
+          const toIndex = nextIndex(from, e.translationX < 0 ? -1 : 1, SESSION_ORDER.length);
+          const key = SESSION_ORDER[toIndex];
+          peekTargetKey.value = key;
+          runOnJS(setPeek)(key);
+        }
+      }
+      // Follows the finger 1:1, no animation — this is the fix for "a
+      // delay between swiping and it moving".
+      translateX.value = e.translationX;
+    })
+    .onEnd(() => {
+      if (!horizontalClaimed.value) return;
+      horizontalClaimed.value = false;
+      const key = peekTargetKey.value;
+      const pastThreshold = key !== null && Math.abs(translateX.value) > containerWidth * Motion.swipe.commitFraction;
+      if (pastThreshold && key !== null) {
+        const goingNext = translateX.value < 0;
+        translateX.value = withTiming(
+          goingNext ? -containerWidth : containerWidth,
+          { duration: Motion.swipe.completeDurationMs, easing: Easing.out(Easing.ease) },
+          (finished) => {
+            if (finished) runOnJS(commit)(key);
+          }
+        );
+      } else {
+        // Spring-back constants are SwiftUI's `response`/`dampingFraction`
+        // names, not Reanimated's own `duration`/`dampingRatio` — the two
+        // physics models are not numerically identical (SwiftUI's
+        // `response` is a specific-fraction-of-motion time constant;
+        // Reanimated's `duration` is a perceptual-duration heuristic on a
+        // differently-parameterized spring), so this is a considered
+        // starting approximation, not a byte-exact port — real feel
+        // parity is part of Step 8's device verification, not
+        // guaranteed by this formula alone.
+        const startedWithKey = key;
+        translateX.value = withSpring(
+          0,
+          {
+            duration: Motion.swipe.springBack.response * 1000,
+            dampingRatio: Motion.swipe.springBack.dampingFraction,
+          },
+          (finished) => {
+            // Guards against a new swipe already having started before
+            // this spring-back settles — mirrors Swift's own
+            // capturedKey/peekKey equality check in the same spot.
+            if (finished && peekTargetKey.value === startedWithKey) {
+              peekTargetKey.value = null;
+              runOnJS(clearPeek)();
+            }
+          }
+        );
+      }
+    });
+
+  /** Mirror of dragOffset for the INCOMING session's stamp: one full
+      Tap-driven browsing (a WeekStrip dot, NEXT) — plays the exact same
+      slide-and-settle the swipe gesture does, just driven programmatically
+      instead of by a live touch, so the two ways of changing session never
+      look or feel like two different features. Ported from
+      `animatedBrowse(to:)`. */
+  const animateTo = useCallback(
+    (key: string) => {
+      if (key === displayKey) return;
+      const from = SESSION_ORDER.indexOf(displayKey);
+      const to = SESSION_ORDER.indexOf(key);
+      if (from === -1 || to === -1) return;
+      const goingNext = to >= from; // matches Swift exactly — NOT the same sign rule the live swipe gesture uses
+      peekTargetKey.value = key;
+      setPeek(key);
+      translateX.value = withTiming(
+        goingNext ? -containerWidth : containerWidth,
+        { duration: Motion.swipe.animatedBrowseDurationMs, easing: Easing.inOut(Easing.ease) },
+        (finished) => {
+          if (finished) runOnJS(commit)(key);
+        }
+      );
+    },
+    [displayKey, containerWidth, commit, setPeek, translateX, peekTargetKey]
+  );
+
+  return { panGesture, translateX, peekKey, animateTo };
+}
+```
+
+- [ ] **Step 7: Run the full suite and typecheck**
+
+Run: `npx jest` (expect the pre-existing suite plus the 3 `nextIndex` tests from Step 1, all passing) and `npx tsc --noEmit` from inside `deadpoint-rn/` (expect clean — strict mode is on).
+
+- [ ] **Step 8: Verify feel on a real device, both platforms — deferred**
+
+This cannot be verified without a real device/dev-client build (Task 3's Step 9 finding still applies, and is even more binding here: worklets specifically do not run correctly in Expo Go). If no simulator/emulator/dev-client build is available, state this plainly in your report — do not fake it. What the report SHOULD verify instead, as a partial substitute: that the file compiles through the project's real `babel.config.js` (`babel-preset-expo`, fixed just before this task — see the ledger) with the reanimated worklet transform actually active. Confirm this directly rather than assuming it: compile `useSwipeCarousel.ts` with `require('@babel/core').transformFileSync(...)` (default config resolution, no inline overrides) and check the output for `__workletHash`/`__pluginVersion` markers on the `.onUpdate`/`.onEnd` callback bodies, the same check the controller used to find and fix the babel config bug this task's own risk warning called for. If those markers are absent, STOP and report BLOCKED — that means the gesture callbacks would run on the JS thread in a real build, silently defeating this entire task's purpose, and is not something to route around with a different verification method.
+
+Real on-device feel verification (swipe through all 7 sessions both directions including the wrap, attempt a vertical scroll mid-list and confirm it's never hijacked, spring-back feel matched against the Swift build) happens once at controller level after Task 12, alongside the other deferred device checks.
+
+- [ ] **Step 9: Commit**
 
 ```bash
-git add deadpoint-rn/src/components/daily-card/useSwipeCarousel.ts deadpoint-rn/__tests__/carousel.test.ts
+git add deadpoint-rn/src/components/daily-card/useSwipeCarousel.ts deadpoint-rn/__tests__/carousel.test.ts deadpoint-rn/src/design/motion.ts
 git commit -m "feat(rn): port the swipe carousel as a UI-thread Reanimated gesture"
 ```
 
