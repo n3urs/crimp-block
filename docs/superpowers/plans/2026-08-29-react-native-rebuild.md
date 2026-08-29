@@ -1517,10 +1517,12 @@ git commit -m "feat(rn): port ExerciseRow with tick collapse, info toggle and cl
 - Reference: `ios/CrimpBlock/DailyCardView.swift:1316-1400`
 
 **Interfaces:**
-- Consumes: `ExerciseRow`'s `ex`, `accent`, `isTicked`.
-- Produces: `<SetsTally totalSets completedSets onTap onLongPressUndo />`
+- Consumes: `ex.prescription`/`ex.interval` shape from Task 4's `RenderedExercise`; `accent`; `Colours`, `Motion`.
+- Produces: `<SetsTally totalSets completedSets onTap onLongPressUndo />` — a fully **controlled** presentational component. It owns none of the business logic below; it just renders `completedSets`-of-`totalSets` pips and reports raw gesture intent.
 
 Spec: pips are `20×20` circles, spacing `7`, unlit `1.5` border in `s4`, lit filled `accent`. One tap zone covers the whole row — **not** one per pip (an earlier per-pip version was explicitly reverted). Long-press `450ms` removes the last completed set. Padding: `top 2`, `bottom 6` (the bottom gap was widened specifically to stop mis-taps landing on the Rest/START button below).
+
+**What this task does NOT include, and why:** in the real Swift source, `completedSets` state, the "filling the last pip auto-ticks the row" rule, and the `autoStartRestOnTally` behaviour all live directly inside `ExerciseRowView` (there is no separate Swift view for the tally — `setsTally()` is just a private method on it). The plan's RN decomposition deliberately splits the pip UI into its own reusable `SetsTally` component, which means that business logic has to live in whichever component actually renders `<SetsTally>` and owns `completedSets` — not in `SetsTally` itself. That integration is **not yet possible to build correctly**: `setsCounterEnabled`/`autoStartRestOnTally` are persisted user settings (Swift's `@AppStorage`), and the plan's own target file structure names the file that should carry their RN equivalent (`src/data/prefs.ts` — `AppStorage → MMKV`, `react-native-mmkv` already installed since Task 1) but no task from 1 through 12 actually creates it. Do not invent a settings/prefs module as part of this task — that is a real gap in the plan worth surfacing (noted in this task's completion record), not something to silently patch here. Build `SetsTally.tsx` as a complete, correctly-designed, fully-tested component in isolation; wiring it into `ExerciseRow` (adding `completedSets` state, the fill→`onToggleTick` rule, and the rest-on-tally behaviour) is deferred to whichever future task actually integrates it — most likely Task 12's `DailyCard` assembly, or a dedicated settings task if Oscar wants `prefs.ts` built first.
 
 - [ ] **Step 1: Write the failing test for `totalSets` detection**
 
@@ -1586,11 +1588,15 @@ Expected: PASS, 6 tests.
 
 - [ ] **Step 5: Build the pip row with tap + long-press**
 
-Use `Gesture.Exclusive(Gesture.LongPress().minDuration(Motion.setsTallyLongPressMs), Gesture.Tap())` from `react-native-gesture-handler`. Reproduce the `suppressNextTap` guard: a long-press that actually undid something must swallow the tap that fires on release. Filling the final pip calls `onToggleTick` (auto-ticks the row); `autoStartRestOnTally` starts the rest timer on each tap when enabled.
+Render `completedSets` filled pips and `totalSets - completedSets` unfilled ones, per the spec above. Confirmed available in the installed `react-native-gesture-handler@2.32.0`: `Gesture.Exclusive(...)` — "the first gesture has higher priority" per its own doc comment, so `Gesture.Exclusive(Gesture.LongPress().minDuration(Motion.setsTallyLongPressMs), Gesture.Tap())` (long-press listed first) correctly gives the long-press priority over the tap, matching Swift's `.simultaneousGesture` + a guard flag approach in spirit (recognize both independently, but resolve which one actually fired).
 
-- [ ] **Step 6: Verify on device**
+Reproduce the `suppressNextTap` guard **inside this component** (it is purely about gesture-recognizer coordination, not the business logic excluded above): when the long-press branch fires, call `onLongPressUndo()` and set an internal flag; when the tap branch fires immediately after (the same finger-lift that ends the long-press also completes as a tap), consume that flag and skip calling `onTap()` for that one release. A genuine follow-up tap after the flag is consumed calls `onTap()` normally.
 
-Tap through a 4-set exercise; long-press to remove one; confirm no double-count on release; confirm the row auto-ticks and collapses on the final pip.
+`onTap` and `onLongPressUndo` take no arguments and return nothing — the caller (not built in this task, see above) is what decides whether an `onTap` should actually increment anything, whether it fills the tally, and whether to auto-start a rest timer.
+
+- [ ] **Step 6: Verify — deferred**
+
+This can't be meaningfully verified in isolation yet: there is no integration wiring `SetsTally` into a real `ExerciseRow` instance in this task, so "tap through a 4-set exercise... confirm the row auto-ticks" isn't something this component alone can demonstrate (that behaviour lives in the not-yet-built caller). State this plainly in your report rather than fabricating a demo. What IS verifiable now: the `totalSetsFor` unit tests (Step 4) and — if you want extra confidence — a component-level test asserting `onTap`/`onLongPressUndo` fire the right number of times for a simulated tap/long-press-then-release sequence, using `react-native-gesture-handler`'s own test utilities if the project has them set up, or noted as a further gap in your report if it doesn't. Real end-to-end verification (tap-through, auto-tick, auto-rest) happens once the integration task exists.
 
 - [ ] **Step 7: Commit**
 
