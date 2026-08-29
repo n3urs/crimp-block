@@ -1710,7 +1710,7 @@ interface UseSwipeCarouselParams {
       competes with it (Swift's reason for `.simultaneousGesture`).
       Optional because this hook can be built and unit-tested (Steps 1-4)
       before Task 12 has a real scroll view to pass in. */
-  scrollRef?: RefObject<React.Component | null>;
+  scrollRef?: RefObject<React.Component | null>; // a component INSTANCE ref, matching what every real caller (a `ref` on a ScrollView) actually produces
 }
 
 export function useSwipeCarousel({ displayKey, containerWidth, onBrowse, scrollRef }: UseSwipeCarouselParams) {
@@ -1759,7 +1759,16 @@ export function useSwipeCarousel({ displayKey, containerWidth, onBrowse, scrollR
 
   const panGesture = Gesture.Pan()
     .minDistance(Motion.swipe.minimumDistance)
-    .simultaneousWithExternalGesture(...(scrollRef ? [scrollRef] : []))
+    // react-native-gesture-handler@2.32.0's own .d.ts types this method's
+    // ref parameter as RefObject<React.ComponentType | undefined | null>
+    // (a component CLASS/function), not RefObject<React.Component | null>
+    // (a component INSTANCE) — the type this hook's own scrollRef param
+    // uses. This cast is type-only — it changes nothing about what's
+    // passed to the gesture at runtime, it only bridges a library type
+    // declaration that doesn't match its own documented usage.
+    .simultaneousWithExternalGesture(
+      ...(scrollRef ? [scrollRef as unknown as RefObject<React.ComponentType | undefined | null>] : [])
+    )
     .onUpdate((e) => {
       if (!horizontalClaimed.value) {
         // Ambiguous small movements are left alone (no offset applied
@@ -1877,29 +1886,155 @@ git commit -m "feat(rn): port the swipe carousel as a UI-thread Reanimated gestu
 
 ### Task 10: `SessionDots`, `CardHeader`, `WeekStrip`
 
+This task's original brief had a spec paragraph but no Interfaces section at all for any of the three components — the only task in the plan missing one. Checked all three reference ranges directly and found real, load-bearing gaps beyond just the missing prop contracts: `SessionDots`' next-up chip is missing its two text styles entirely (brief only described layout, not font/size/colour); `WeekStrip` had **zero** spec coverage of any kind despite being one of the three named deliverables; and `SessionDots`' tap target genuinely needs `animateTo` from Task 9 (confirmed: Swift's `sessionDots` calls `animatedBrowse(to: key)` directly, `DailyCardView.swift:741`), which nothing in the original brief mentioned consuming.
+
+#### `SessionDots.tsx`
+
 **Files:**
 - Create: `deadpoint-rn/src/components/daily-card/SessionDots.tsx`
-- Create: `deadpoint-rn/src/components/daily-card/CardHeader.tsx`
-- Create: `deadpoint-rn/src/components/daily-card/WeekStrip.tsx`
-- Reference: `DailyCardView.swift:733-796` (dots + next-up), `:978-1036` (header), `ios/CrimpBlock/WeekStripView.swift`
+- Reference: `DailyCardView.swift:733-796`
 
-Exact spec:
+**Interfaces:**
+- Consumes: `SESSION_ORDER` (Task 4); `animateTo` (Task 9's `useSwipeCarousel` — Swift calls `animatedBrowse(to: key)` on tap, both for a dot and for the next-up chip).
+- Produces:
+```typescript
+interface SessionDotsProps {
+  currentKey: string;                      // Swift's effectiveDisplayKey
+  recommendedKey: string | null;           // Swift's `state.decision.k`, but only when `!todayIsLogged` — caller resolves that condition, this prop is just the already-resolved key or null
+  sessionColour: (key: string) => string;  // resolves a session key's accent colour, e.g. via `resolveColour(bridge.sessionColourVarName(key))`
+  nextUp: { key: string; name: string; colour: string } | null; // Swift's `nextUp` computed property (`state.bridge.upNext()` + `sessionInfo()`) — caller resolves this, not the component
+  onTapSession: (key: string) => void;     // = Task 9's `animateTo`
+}
+```
 
-- **Session dots:** inner circle `14×14`, `1.5` border; outline-only by default, filled `accent` when current. The recommendation ring is a **separate** `22×22` circle with a `1.5` border in the session's colour. Row spacing `9`; `10` between the dots group and the next-up chip. "Current" and "recommended" are independent signals.
-- **Next-up chip:** stacked (`NEXT` label + 7px dot above, name below, right-aligned, max 2 lines) — it shares a row with 7 dots and was truncating names when laid out inline.
-- **Header:** phase badge is an **outlined** pill (`s1` background, `1px s3` border, capsule) reading `PHASE · WK n` plus ` · DELOAD` on week 4, in `Fonts.mono(12, 'bold')` tinted `accent`, with an 8px chevron. Right side: date in `Fonts.mono(10.5, 'medium')` `faint` uppercase, formatted `EEE, d MMM` (en-GB), then optional calendar icon, then the settings gear — both `17`, `dim`, `8pt` left padding each.
+Exact spec (every value from `DailyCardView.swift:733-786`):
+- Row: `SESSION_ORDER`-length group of dots, spacing `9`, then a `10`pt gap, then the next-up chip (if `nextUp` is non-null) pushed to the far right (`flex: 1` spacer between).
+- Each dot's tap target is `22×22`. Inner circle `14×14`, border `1.5`: `s4` outline by default, filled `accent`-equivalent + no border when `key === currentKey` (use the resolved `sessionColour(key)` as both the fill and, when current, the border colour — Swift's `isCurrent ? colour : SessionColours.s4`).
+- Recommendation ring: a **separate**, wider `22×22` circle, border `1.5` in `sessionColour(key)`, rendered **behind** the inner circle, present only when `key === recommendedKey`. "Current" and "recommended" are independent — a dot can be neither, either, or both at once.
+- Next-up chip: tap target = `animateTo(nextUp.key)`. Stacked layout, right-aligned: top row = `NEXT` label (`Fonts.mono(9, 'medium')`, `faint`) + a `7×7` filled dot in `nextUp.colour`, `6`pt gap between label and dot; below that, `nextUp.name` uppercased, `13.5` size, `700`/bold weight, `dim` colour, right-aligned, max `2` lines, `4`pt gap from the row above.
 
-- [ ] **Step 1: Build all three components to the spec above**
+- [ ] **Step 1: Build `SessionDots.tsx` to the spec above**
 
-- [ ] **Step 2: Verify side by side against the Swift build**
+- [ ] **Step 2: Verify side by side against the Swift build — deferred**
 
-Expected: dot sizes, ring offsets, badge padding, and date format all match.
+No screen renders this component standalone until Task 12. If no simulator/dev-client build is available, state this plainly rather than faking it, per the same handling as every other deferred device-verification step in this plan (see Task 3's Step 9 for the original framing). Real verification happens at controller level after Task 12.
 
 - [ ] **Step 3: Commit**
 
 ```bash
-git add deadpoint-rn/src/components/daily-card
-git commit -m "feat(rn): port SessionDots, CardHeader and WeekStrip"
+git add deadpoint-rn/src/components/daily-card/SessionDots.tsx
+git commit -m "feat(rn): port SessionDots with the recommendation ring and next-up chip"
+```
+
+---
+
+#### `CardHeader.tsx`
+
+**Files:**
+- Create: `deadpoint-rn/src/components/daily-card/CardHeader.tsx`
+- Reference: `DailyCardView.swift:978-1036`
+
+**Interfaces:**
+- Produces:
+```typescript
+interface CardHeaderProps {
+  phaseName: string;              // state.phaseName
+  weekNumber: number;             // state.block.w — the component derives isDeload from `weekNumber === 4` itself, matching Swift's inline `state.block.w == 4` check, rather than taking a separate boolean prop
+  accent: string;                 // state.accent
+  today: string;                  // state.today, "yyyy-MM-dd"
+  onTapPhaseBadge: () => void;    // opens the not-yet-built plan modal (Swift's `showPlan = true`) — this task only wires the callback, not a modal
+  onTapSettings: () => void;      // opens the not-yet-built settings modal (Swift's `showSettings = true`) — same caveat
+  onTapCalendar?: () => void;     // optional — nil on the non-signed-in card in Swift too (see its own doc comment: "nil everywhere except the real signed-in card")
+}
+```
+
+Exact spec (every value from `DailyCardView.swift:978-1036`):
+- Phase badge: outlined capsule, `s1` background, `1px s3` border, padding `10/6`. Text: `` `${phaseName.toUpperCase()} · WK ${weekNumber}` `` plus `` ` · DELOAD` `` when `weekNumber === 4`, in `Fonts.mono(12, 'bold')`, tinted `accent`, `4`pt gap before an `8px` bold chevron-down glyph (also tinted `accent`).
+- Right side, left-to-right: formatted date, then (if `onTapCalendar` is supplied) a calendar icon, then the settings gear — the latter two both `17`px, `dim`, each with `8`pt left padding from whatever precedes it.
+- Date format: `EEE, d MMM` in en-GB (e.g. `Sat, 29 Aug`), `Fonts.mono(10.5, 'medium')`, `faint`, uppercase. **No date library exists in this project** — build it dependency-free with `Intl.DateTimeFormat`, but note that the formatter's own `.format()` output omits the comma Swift's format includes (`"Sat 29 Aug"`, not `"Sat, 29 Aug"`) — build the string from `.formatToParts()` instead of trusting the formatted string directly. Parse `today` (`"yyyy-MM-dd"`) with the local-time `Date(year, monthIndex, day)` constructor, not `new Date(dateString)` — the latter parses as UTC midnight and can silently shift a day in negative-UTC-offset timezones once reformatted in local time. Verified directly before writing this brief:
+  ```typescript
+  function formatHeaderDate(dateStr: string): string {
+    const [y, m, d] = dateStr.split('-').map(Number);
+    const date = new Date(y, m - 1, d);
+    const parts = new Intl.DateTimeFormat('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }).formatToParts(date);
+    const get = (type: string) => parts.find((p) => p.type === type)?.value ?? '';
+    return `${get('weekday')}, ${get('day')} ${get('month')}`;
+  }
+  // formatHeaderDate('2026-08-29') === 'Sat, 29 Aug' — confirmed by running this exact function.
+  ```
+
+- [ ] **Step 1: Build `CardHeader.tsx` to the spec above, including `formatHeaderDate` as an exported, independently testable function**
+
+- [ ] **Step 2: Write a test for `formatHeaderDate`**
+
+```typescript
+// __tests__/cardHeaderDate.test.ts
+import { formatHeaderDate } from '../src/components/daily-card/CardHeader';
+
+test('formats a date as "EEE, d MMM" en-GB, comma included', () => {
+  expect(formatHeaderDate('2026-08-29')).toBe('Sat, 29 Aug');
+});
+
+test('single-digit days are not zero-padded', () => {
+  expect(formatHeaderDate('2026-01-05')).toBe('Mon, 5 Jan');
+});
+
+test('does not shift a day at a year boundary', () => {
+  expect(formatHeaderDate('2026-12-31')).toBe('Thu, 31 Dec');
+});
+```
+
+Run: `npx jest __tests__/cardHeaderDate.test.ts` — expect PASS, 3 tests (these exact values were run for real before this brief was written).
+
+- [ ] **Step 3: Verify side by side against the Swift build — deferred**, same reasoning and handling as `SessionDots`' Step 2 above.
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add deadpoint-rn/src/components/daily-card/CardHeader.tsx deadpoint-rn/__tests__/cardHeaderDate.test.ts
+git commit -m "feat(rn): port CardHeader with the phase badge and date formatting"
+```
+
+---
+
+#### `WeekStrip.tsx`
+
+The original brief cited `WeekStripView.swift` as a reference but specified zero layout values for it — the file itself is short and simple enough to port directly rather than re-derive from a spec table.
+
+**Files:**
+- Create: `deadpoint-rn/src/components/daily-card/WeekStrip.tsx`
+- Reference: `ios/CrimpBlock/WeekStripView.swift:1-58` (only `WeekDay`/`WeekStripView` — `DayPickerView` in the same file is a separate, not-yet-built modal screen, out of scope here)
+
+**Interfaces:**
+- Produces:
+```typescript
+export interface WeekDay {
+  id: string;                       // date, "yyyy-MM-dd"
+  dayLetter: string;
+  colourVarName: string | null;     // null = nothing logged that day
+  isToday: boolean;
+}
+
+interface WeekStripProps {
+  days: WeekDay[];
+  onTapDay: (date: string) => void;
+}
+```
+
+Exact spec, direct port of `WeekStripView.swift:28-58` — every tile is an equal-width flex column (not a fixed size), `4`pt gap between tiles:
+- Bar: height `5`, radius `2`. Logged (`colourVarName` non-null): filled with `resolveColour(colourVarName)`. Not logged: `1.5px` `s4` outline, no fill.
+- Day letter: below the bar, `6`pt gap, `11`px monospace, `700`/bold weight when `isToday` else `600`/semibold, white when `isToday` else `faint`.
+- Tile: vertical padding `7`, background `s2` (radius `6`) when `isToday`, transparent otherwise. Whole tile is the tap target, calling `onTapDay(day.id)`.
+
+- [ ] **Step 1: Build `WeekStrip.tsx` to the spec above**
+
+- [ ] **Step 2: Verify side by side against the Swift build — deferred**, same reasoning and handling as above.
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add deadpoint-rn/src/components/daily-card/WeekStrip.tsx
+git commit -m "feat(rn): port WeekStrip"
 ```
 
 ---
