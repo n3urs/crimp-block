@@ -1422,7 +1422,7 @@ The largest single piece. `DailyCardView.swift` is 1,482 lines; it becomes ~6 fo
 
 **Interfaces:**
 - Consumes: `resolveExercises()` output from Task 4; `Colours`, `Fonts`, `Motion`.
-- Produces: `<ExerciseRow ex accent accentVarName isTicked onToggleTick onTapWeight />`
+- Produces: `<ExerciseRow ex accent accentVarName isTicked onToggleTick onTapWeight onTapRest onStartInterval />`
 
 Exact spec from the Swift source — every value is load-bearing:
 
@@ -1434,9 +1434,16 @@ Exact spec from the Swift source — every value is load-bearing:
 | Info icon | `12`, `faint`, toggles description with `easeInOut 150ms` |
 | Description | `12.5`, `dim` |
 | Prescription | `Fonts.mono(12, 'medium')`, `faint` — or `accent` when `phaseAdjusted` |
-| Rest button | `Fonts.mono(10.5, 'medium')`, `dim`, `1px s3` border, radius `3`, padding `10/6` |
-| START button (interval) | `Fonts.mono(10.5, 'semibold')`, `bg` on `accent`, radius `3` |
+| Weight badge (has a value) | `${kg}kg` (0-2 decimal places, trailing zeros trimmed — e.g. `22.5kg`, `20kg`, not `20.00kg`), `Fonts.mono(12, 'bold')`, `s3` background, radius `4`, padding `6/2`; text colour `accent` when `weightIsBump`, else `dim` |
+| Weight badge (no value yet, `hasWeightTracking`) | `SET kg` label, same font/padding, `faint` text, **dashed** `1px s4` border instead of a filled background — this is the only way to open the weight editor on a brand-new exercise with no history, so it must render even with nothing to show (see `resolveExercises`' own doc comment in Task 4 on why `hasWeightTracking` ≠ "has a weight") |
+| Rest button | `Fonts.mono(10.5, 'medium')`, `dim`, `1px s3` border, radius `3`, padding `10/6`; label `Rest M:SS` (e.g. `Rest 3:00` for 180s, seconds zero-padded) |
+| START button (interval) | `Fonts.mono(10.5, 'semibold')`, `bg` text colour on `accent` background, radius `3`, padding `10/6`; label literally `START` |
 | Ticked row | hides prescription, weight, description, tally, and timer buttons entirely |
+
+**Explicitly out of scope for this task** (do not build stubs or placeholders for these — just leave the relevant prop/behaviour out entirely):
+- **The sets tally** (the pip row between the prescription and the timer buttons, and its tap-to-add/long-press-to-undo behaviour) — that is Task 8's `SetsTally` component in full; this task's spec table's "Ticked row" line already accounts for hiding it once it exists.
+- **Real rest-timer / interval-timer behaviour.** In the Swift source, tapping Rest/START calls into `RestTimerController`/`IntervalTimerController` (see the file inventory's Global Constraints section) — neither exists yet in this plan; timers are a later, not-yet-written phase. Render the two buttons to the exact visual spec above (a real rest session's prescription always carries either `restSeconds` or an `interval`, so the buttons must be genuinely present, not TODO comments), but wire them to the two new optional callback props instead of a real controller: `onTapRest?: (seconds: number) => void` (called with `ex.restSeconds` when the Rest button is pressed) and `onStartInterval?: (interval: IntervalConfig) => void` (called with `ex.interval` — the `IntervalConfig` type from Task 4's `src/engine/types.ts` — when START is pressed). A future timers task supplies real implementations of both; until then, treat an absent callback as a normal, no-op case (the button still renders and is tappable, it just does nothing) — do not disable or hide the button when the callback is undefined, that would be a visible behaviour gap of its own the moment this ships.
+- **Tutorial-target signalling** (`onTutorialSignal`, `tutorialTarget` in the Swift source, driving the not-yet-built onboarding tour) — omit entirely, not a stub prop.
 
 - [ ] **Step 1: Port `clarifySets` with its test**
 
@@ -1490,10 +1497,9 @@ Expected: PASS, 3 tests.
 
 Use `Animated`/Reanimated `withTiming(…, { duration: Motion.tickCollapseMs })` on the container padding and on description opacity.
 
-- [ ] **Step 6: Verify against the Swift build side by side**
+- [ ] **Step 6: Verify against the Swift build side by side — deferred**
 
-Run both apps on the same session (Max Fingers), screenshot each, compare row height, checkbox size, font weights, and collapse animation.
-Expected: visually indistinguishable at 1× and 2× zoom.
+This isn't runnable yet regardless of who attempts it: `ExerciseRow` has no screen to render it standalone until Task 12 assembles `DailyCard`, and a real RN-side comparison needs a custom dev client build (Task 3's Step 9 finding — Expo Go can't load `react-native-worklets`), not just `expo start`. If no simulator/emulator/dev-client build is available in the current environment, do not fake this check or substitute something else silently — state plainly in your report that it's deferred and why, per the same handling as Task 3's Step 9. Real side-by-side visual parity (Max Fingers session, row height/checkbox/font weights/collapse animation, 1× and 2× zoom, both platforms) happens once at controller level after Task 12, when there is an actual screen to compare against the Swift build.
 
 - [ ] **Step 7: Commit**
 
