@@ -7,7 +7,7 @@ import type { BlockInfo, Decision, Phase, IntervalConfig, RenderedExercise } fro
 
 const core = require('./engine-core.js');
 
-export const SESSION_ORDER = core.ORDER as readonly string[];
+export const SESSION_ORDER = Object.freeze([...core.ORDER]) as readonly string[];
 
 export type { BlockInfo, Decision, Phase, IntervalConfig, RenderedExercise };
 

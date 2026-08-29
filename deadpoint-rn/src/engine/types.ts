@@ -23,6 +23,7 @@ export interface Phase {
   from: number;
   c: string;
   d: string;
+  cue?: string;
 }
 
 export interface IntervalConfig {

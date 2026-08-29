@@ -65,3 +65,43 @@ test('programStartDate is the program anchor, not the earliest log', () => {
   // Deliberately differs: earliest log is 07 Aug, program starts 10 Aug.
   expect(engine().programStartDate()).toBe('2026-08-10');
 });
+
+test('resolveExercises: maxFingers on a brand-new account (no loadLog history)', () => {
+  const e = createEngine(PROGRAMS['oscar@sullivanltd.co.uk'], { sessionLog: HISTORY, loadLog: {} });
+  const rows = e.resolveExercises('maxFingers', '2026-08-29', 'Base');
+  expect(rows).toHaveLength(5);
+
+  // Not weight-tracked (no `id` on the base exercise) and its prescription
+  // is deload/phase-exempt, so it's unchanged from base.
+  expect(rows.find(r => r.title === 'Warm up')).toMatchObject({
+    id: 'Warm up',
+    hasWeightTracking: false,
+    phaseAdjusted: false,
+  });
+
+  // hasWeightTracking must be "the exercise has an id", not "it has a
+  // weight" — with an empty loadLog there's no target() result yet, so
+  // weightKg is undefined even though hasWeightTracking is true. Base phase
+  // overrides this exercise's prescription, so phaseAdjusted is true.
+  const pickupHalf = rows.find(r => r.id === 'osc-pickup-half');
+  expect(pickupHalf).toBeDefined();
+  expect(pickupHalf!.hasWeightTracking).toBe(true);
+  expect(pickupHalf!.weightKg).toBeUndefined();
+  expect(pickupHalf!.phaseAdjusted).toBe(true);
+});
+
+test('resolveExercises: hangboard drops a ^skip-ruled exercise for this phase', () => {
+  const e = createEngine(PROGRAMS['oscar@sullivanltd.co.uk'], { sessionLog: HISTORY, loadLog: {} });
+  const rows = e.resolveExercises('hangboard', '2026-08-29', 'Base');
+
+  expect(rows.map(r => r.title)).not.toContain('Weighted hangs');
+
+  expect(rows.find(r => r.id === 'osc-rep20')).toMatchObject({
+    interval: { on: 7, off: 3, reps: 6 },
+  });
+});
+
+test('resolveExercises: rest sessions have no exercises', () => {
+  const e = createEngine(PROGRAMS['oscar@sullivanltd.co.uk'], { sessionLog: HISTORY, loadLog: {} });
+  expect(e.resolveExercises('rest', '2026-08-29', 'Base')).toEqual([]);
+});
