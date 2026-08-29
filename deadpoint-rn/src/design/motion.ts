@@ -8,6 +8,7 @@ export const Motion = {
     horizontalClaimRatio: 1.5,
     commitFraction: 0.3,
     completeDurationMs: 200,
+    animatedBrowseDurationMs: 300, // NOT the same as completeDurationMs (200) — animatedBrowse() uses a distinct duration+curve (easeInOut) from the live-swipe commit (easeOut)
     springBack: { response: 0.32, dampingFraction: 0.82 },
   },
   tickCollapseMs: 200,

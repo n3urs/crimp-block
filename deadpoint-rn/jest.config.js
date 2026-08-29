@@ -19,6 +19,8 @@ module.exports = {
       SetsTally, whose test imports the co-located `totalSetsFor` helper
       from a .tsx file that also imports both) ship ESM entries that throw
       "Must use import to load ES Module" under this same node-only setup.
+      react-native-reanimated (added for Task 9's useSwipeCarousel) ships
+      the same kind of ESM-only entry and throws identically.
       See the mock files in __mocks__/ for what each stands in for and why
       a no-op/stub is sufficient for the tests that need them. */
   moduleNameMapper: {
@@ -26,5 +28,6 @@ module.exports = {
     '^expo-secure-store$': '<rootDir>/__mocks__/expo-secure-store.js',
     '^react-native$': '<rootDir>/__mocks__/react-native.js',
     '^react-native-gesture-handler$': '<rootDir>/__mocks__/react-native-gesture-handler.js',
+    '^react-native-reanimated$': '<rootDir>/__mocks__/react-native-reanimated.js',
   },
 };
