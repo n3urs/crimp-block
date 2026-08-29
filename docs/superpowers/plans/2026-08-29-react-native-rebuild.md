@@ -496,7 +496,25 @@ export const Fonts = {
 Run: `npx jest __tests__/fonts.test.ts`
 Expected: PASS, 4 tests.
 
-- [ ] **Step 6: Load the fonts at app start**
+- [ ] **Step 6: Migrate the scaffold's entry point to expo-router**
+
+Task 1 scaffolded with `expo-template-blank-typescript` (classic `App.tsx` +
+`index.ts` entry) and installed `expo-router` as a dependency, but never
+switched the project over to router's file-based `app/` directory — there
+is no `deadpoint-rn/app/` yet. `app.json`'s `plugins` array already lists
+`"expo-router"` (added automatically by `npx expo install expo-router` in
+Task 1), so only the entry point and the directory itself are missing.
+This is a one-time migration; do it now because this is the first task
+that needs `app/_layout.tsx` to exist, and it will be needed by every task
+after this one.
+
+1. In `deadpoint-rn/package.json`, change `"main": "index.ts"` to
+   `"main": "expo-router/entry"`.
+2. Delete `deadpoint-rn/index.ts` and `deadpoint-rn/App.tsx` — expo-router
+   replaces both.
+3. Create `deadpoint-rn/app/` (new directory).
+
+- [ ] **Step 7: Load the fonts at app start**
 
 ```tsx
 // app/_layout.tsx
@@ -521,16 +539,47 @@ export default function RootLayout() {
 }
 ```
 
-- [ ] **Step 7: Verify the fonts render on device**
+- [ ] **Step 8: Add a temporary index route so the layout has something to render**
+
+expo-router's `<Stack>` needs at least one matched route or it shows its
+own "Unmatched Route" screen instead of app content. Task 12 replaces this
+file with the real `app/(main)/card.tsx` daily card screen — this is
+scaffolding to prove fonts load, not a permanent screen.
+
+```tsx
+// app/index.tsx
+import { Text, View } from 'react-native';
+import { Colours } from '../src/design/colours';
+import { Fonts } from '../src/design/fonts';
+
+export default function TempFontCheck() {
+  return (
+    <View style={{ flex: 1, backgroundColor: Colours.bg, alignItems: 'center', justifyContent: 'center' }}>
+      <Text style={{ color: Colours.fg, ...Fonts.heading(32) }}>Deadpoint</Text>
+    </View>
+  );
+}
+```
+
+- [ ] **Step 9: Verify the fonts render on device**
 
 Run: `npx expo start --ios`, then `npx expo start --android`
-Expected: a temporary test screen rendering `Fonts.heading(32)` text shows Archivo Black's distinctive heavy grotesque, **not** the system font, on both platforms.
+Expected: "Deadpoint" renders in Archivo Black's distinctive heavy
+grotesque, **not** the system font, on both platforms.
 
-- [ ] **Step 8: Commit**
+If no simulator/emulator is available in the current environment, it is
+acceptable to defer this literal device check to controller level (verify
+once real UI exists to check, e.g. after Task 12) — do not substitute a
+different check silently; state plainly in your report that this step was
+deferred and why.
+
+- [ ] **Step 10: Commit**
 
 ```bash
-git add deadpoint-rn/assets deadpoint-rn/src/design/fonts.ts deadpoint-rn/app/_layout.tsx deadpoint-rn/__tests__/fonts.test.ts
-git commit -m "feat(rn): bundle the four app fonts and port AppFonts"
+git add deadpoint-rn/assets deadpoint-rn/src/design/fonts.ts deadpoint-rn/app deadpoint-rn/__tests__/fonts.test.ts \
+        deadpoint-rn/package.json
+git rm deadpoint-rn/index.ts deadpoint-rn/App.tsx
+git commit -m "feat(rn): bundle the four app fonts, port AppFonts, migrate to expo-router"
 ```
 
 ---
