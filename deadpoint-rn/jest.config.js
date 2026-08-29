@@ -8,5 +8,4 @@ module.exports = {
     '**/__tests__/**/*.test.tsx',
   ],
   moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json', 'node'],
-  extensionsToTreatAsEsm: ['.ts', '.tsx'],
 };
