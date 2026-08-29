@@ -22,6 +22,9 @@ function chainableGesture() {
     onStart: () => gesture,
     onEnd: () => gesture,
     onTouchesDown: () => gesture,
+    minDistance: () => gesture,
+    simultaneousWithExternalGesture: () => gesture,
+    onUpdate: () => gesture,
   };
   return gesture;
 }
@@ -29,6 +32,7 @@ function chainableGesture() {
 const Gesture = {
   LongPress: () => chainableGesture(),
   Tap: () => chainableGesture(),
+  Pan: () => chainableGesture(),
   Exclusive: (...gestures) => gestures,
 };
 

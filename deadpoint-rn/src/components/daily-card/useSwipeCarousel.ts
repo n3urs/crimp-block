@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import type { RefObject } from 'react';
 import { Gesture } from 'react-native-gesture-handler';
 import { Easing, runOnJS, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
@@ -45,20 +45,38 @@ export function useSwipeCarousel({ displayKey, containerWidth, onBrowse, scrollR
   const horizontalClaimed = useSharedValue(false);
 
   // The key a completed swipe/animateTo actually committed to, kept until
-  // `displayKey` (the caller's real state) catches up to it.
-  const pendingKey = useRef<string | null>(null);
+  // `displayKey` (the caller's real state) catches up to it. Swift's
+  // `effectiveDisplayKey` (DailyCardView.swift:171-173) is `pendingCommitKey
+  // ?? state.displayKey` — this is that same concept, and it must be a
+  // shared value (not a plain ref) because the swipe gesture's `.onUpdate`
+  // worklet needs to read it synchronously off the UI thread: a second
+  // swipe/tap started in the narrow window between commit and the caller's
+  // re-render must still peek from the session already committed to, not
+  // the stale `displayKey` prop.
+  const pendingKeyShared = useSharedValue<string | null>(null);
 
   const setPeek = useCallback((key: string | null) => setPeekKeyState(key), []);
 
   const clearPeek = useCallback(() => {
     setPeekKeyState(null);
-    pendingKey.current = null;
-  }, []);
+    pendingKeyShared.value = null;
+  }, [pendingKeyShared]);
 
   const commit = useCallback((key: string) => {
-    pendingKey.current = key;
+    pendingKeyShared.value = key;
     onBrowse(key);
-  }, [onBrowse]);
+    // Swift's own safety net (DailyCardView.swift:244-250): if `displayKey`
+    // never ends up matching what we committed to (onBrowse silently
+    // failed, or the caller's own reload rejected it), the card must not be
+    // left stuck mid-swipe forever.
+    setTimeout(() => {
+      if (pendingKeyShared.value === key) {
+        translateX.value = 0;
+        pendingKeyShared.value = null;
+        clearPeek();
+      }
+    }, 1000);
+  }, [onBrowse, clearPeek, translateX, pendingKeyShared]);
 
   // Mirrors Swift's settleOnRealUpdate(): the peek is only cleared once
   // the caller's own displayKey has genuinely caught up to what was
@@ -66,12 +84,12 @@ export function useSwipeCarousel({ displayKey, containerWidth, onBrowse, scrollR
   // the old session (see DailyCardView.swift's commit() doc comment,
   // which this bug and fix are ported directly from).
   useEffect(() => {
-    if (pendingKey.current !== null && displayKey === pendingKey.current) {
+    if (pendingKeyShared.value !== null && displayKey === pendingKeyShared.value) {
       translateX.value = 0;
       peekTargetKey.value = null;
       clearPeek();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- translateX/peekTargetKey are stable shared-value refs, not reactive deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- translateX/peekTargetKey/pendingKeyShared are stable shared-value refs, not reactive deps
   }, [displayKey, clearPeek]);
 
   const panGesture = Gesture.Pan()
@@ -99,7 +117,11 @@ export function useSwipeCarousel({ displayKey, containerWidth, onBrowse, scrollR
           Math.abs(e.translationX) > Math.abs(e.translationY) * Motion.swipe.horizontalClaimRatio;
         if (!claims) return;
         horizontalClaimed.value = true;
-        const from = SESSION_ORDER.indexOf(displayKey);
+        // Swift's `effectiveDisplayKey` (DailyCardView.swift:171-173): peek
+        // from whatever session is already committed to, if one is in
+        // flight, not the stale `displayKey` prop.
+        const effectiveDisplayKey = pendingKeyShared.value ?? displayKey;
+        const from = SESSION_ORDER.indexOf(effectiveDisplayKey);
         if (from !== -1) {
           const toIndex = nextIndex(from, e.translationX < 0 ? -1 : 1, SESSION_ORDER.length);
           const key = SESSION_ORDER[toIndex];
@@ -163,8 +185,14 @@ export function useSwipeCarousel({ displayKey, containerWidth, onBrowse, scrollR
       `animatedBrowse(to:)`. */
   const animateTo = useCallback(
     (key: string) => {
-      if (key === displayKey) return;
-      const from = SESSION_ORDER.indexOf(displayKey);
+      // Swift's `effectiveDisplayKey` (DailyCardView.swift:171-173): animate
+      // from whatever session is already committed to, if one is in
+      // flight, not the stale `displayKey` prop. This runs on the JS
+      // thread (not a worklet), so reading `.value` here is just a normal
+      // property read.
+      const effectiveDisplayKey = pendingKeyShared.value ?? displayKey;
+      if (key === effectiveDisplayKey) return;
+      const from = SESSION_ORDER.indexOf(effectiveDisplayKey);
       const to = SESSION_ORDER.indexOf(key);
       if (from === -1 || to === -1) return;
       const goingNext = to >= from; // matches Swift exactly — NOT the same sign rule the live swipe gesture uses
@@ -178,7 +206,7 @@ export function useSwipeCarousel({ displayKey, containerWidth, onBrowse, scrollR
         }
       );
     },
-    [displayKey, containerWidth, commit, setPeek, translateX, peekTargetKey]
+    [displayKey, containerWidth, commit, setPeek, translateX, peekTargetKey, pendingKeyShared]
   );
 
   return { panGesture, translateX, peekKey, animateTo };
