@@ -840,8 +840,14 @@ const SecureStorageAdapter = {
   removeItem: (key: string) => SecureStore.deleteItemAsync(key),
 };
 
+/** Not a secret: already embedded in the public web bundle (app.js) by
+    design, same value, confirmed there. RLS on user_id is what actually
+    protects data, same as on web — see SupabaseClient.swift's doc comment
+    for the live confirmation that an unauthenticated GET returns [], not
+    other people's rows. Hardcoded rather than an env var for the same
+    reason app.js hardcodes it: there is nothing to keep out of the bundle. */
 const SUPABASE_URL = 'https://lbhsgkadlhcqqnlbfswr.supabase.co';
-const SUPABASE_ANON = process.env.EXPO_PUBLIC_SUPABASE_ANON!;
+const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxiaHNna2FkbGhjcXFubGJmc3dyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYzNTg2NzMsImV4cCI6MjEwMTkzNDY3M30.3Df2BW9YVfJYZVSalLWGsx54iY_RvnZdln71Kehljug';
 
 /** 90s, not the default — confirmed live against the real endpoint:
     auth/v1/otp takes 60-65s to respond even with custom SMTP (Resend)
@@ -861,16 +867,142 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON, {
 });
 ```
 
-- [ ] **Step 2: Verify a real OTP send against the live project**
+- [ ] **Step 2: Verify the client and its timeout wrapper without touching the live project**
 
-Run a one-off script that calls `supabase.auth.signInWithOtp({ email: 'oscar@sullivanltd.co.uk' })`.
-Expected: resolves without error (may take ~60s — that is the known server-side latency, not a bug). A real code arrives by email.
+Do NOT run a real `signInWithOtp` in this step — it sends an actual email
+through Oscar's real Supabase project (`SUPABASE_URL` above), which is a
+live production side effect on someone else's inbox and, per the account's
+own known ~60s send latency (see the `TIMEOUT_MS` comment above), a
+plausible source of real support load if triggered unattended. That
+verification requires Oscar present to receive and confirm the code — it
+is explicitly **not** something to automate here. Instead, verify what
+this step actually owns: the client constructs without throwing, and the
+90s abort wrapper genuinely aborts.
 
-- [ ] **Step 3: Commit**
+```typescript
+// __tests__/supabase-timeout.test.ts
+/** Exercises the exact same abort-wiring supabase.ts's `global.fetch`
+    override uses, in isolation, against a fetch that never resolves —
+    the one behaviour worth testing here (a hung request must not hang
+    forever). Not imported from supabase.ts because that file's fetch
+    override is an inline closure passed straight into createClient, not
+    an exported function — duplicating its four lines here is simpler and
+    more honest than exporting a function for the sole purpose of testing
+    it. If Step 1's wrapper logic ever changes, update this copy too. */
+function timeoutWrappedFetch(realFetch: typeof fetch, timeoutMs: number): typeof fetch {
+  return ((url: any, options: any = {}) => {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    return realFetch(url, { ...options, signal: controller.signal }).finally(() => clearTimeout(timer));
+  }) as typeof fetch;
+}
+
+test('a hung request is aborted once the timeout elapses, not left hanging', async () => {
+  jest.useFakeTimers();
+  const hangingFetch = jest.fn(
+    (_url: any, options: any) =>
+      new Promise((_resolve, reject) => {
+        options.signal.addEventListener('abort', () => reject(new Error('aborted')));
+      })
+  ) as unknown as typeof fetch;
+
+  const wrapped = timeoutWrappedFetch(hangingFetch, 90_000);
+  const result = wrapped('https://example.invalid');
+  const assertion = expect(result).rejects.toThrow('aborted');
+
+  jest.advanceTimersByTime(90_000);
+  await assertion;
+
+  jest.useRealTimers();
+});
+
+test('a request that resolves well within the timeout is not affected', async () => {
+  jest.useFakeTimers();
+  const fastFetch = jest.fn(async () => new Response('ok')) as unknown as typeof fetch;
+  const wrapped = timeoutWrappedFetch(fastFetch, 90_000);
+
+  await expect(wrapped('https://example.invalid')).resolves.toBeInstanceOf(Response);
+
+  jest.useRealTimers();
+});
+
+test('supabase client constructs without throwing, and exposes the auth methods this task needs', () => {
+  const { supabase } = require('../src/data/supabase');
+  expect(supabase).toBeTruthy();
+  expect(typeof supabase.auth.signInWithOtp).toBe('function');
+  expect(typeof supabase.auth.verifyOtp).toBe('function');
+  expect(typeof supabase.auth.signOut).toBe('function');
+});
+```
+
+Run: `npx jest __tests__/supabase-timeout.test.ts`
+Expected: PASS, 3 tests.
+
+The real end-to-end check — a live `sendOTP` actually delivering a working
+code to Oscar's inbox within the known ~60-65s window — happens once,
+manually, with Oscar present to check his email, the first time the sign-in
+screen exists to drive it (the not-yet-written Phase 3 auth-screen plan).
+Note this explicitly in your report as deferred, not skipped.
+
+- [ ] **Step 3: Write `useSession`, the auth hook**
+
+```typescript
+// src/data/useSession.ts
+import { useEffect, useState } from 'react';
+import type { Session } from '@supabase/supabase-js';
+import { supabase } from './supabase';
+
+/** Thin wrapper over the real supabase-js auth API — there is no hand-rolled
+    REST client here the way there is in SupabaseClient.swift, because unlike
+    iOS there IS a real JS SDK on this platform, and it already owns session
+    persistence, refresh, and the auth-state stream SupabaseClient.swift had
+    to hand-write (see its own doc comment on `@Observable` for exactly the
+    class of bug — a mutation nobody re-renders on — that a live
+    `onAuthStateChange` subscription avoids by construction). Throws on
+    error rather than swallowing it, same contract as sendOTP/verifyOTP in
+    SupabaseClient.swift being `async throws` — turning an error into
+    user-facing copy (SupabaseClient.friendlyMessage's job) is a UI-layer
+    concern for the not-yet-written sign-in screen, not this hook's. */
+export function useSession() {
+  const [session, setSession] = useState<Session | null>(null);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => setSession(data.session));
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, newSession) => {
+      setSession(newSession);
+    });
+    return () => listener.subscription.unsubscribe();
+  }, []);
+
+  return {
+    session,
+    /** Mirrors sb.auth.signInWithOtp in app.js / sendOTP(email:) in
+        SupabaseClient.swift — same code-entry flow, no magic-link redirect
+        to configure (see NativeSignInView.swift's doc comment for why a
+        typed code beats a link: a link opens a browser with separate
+        storage from this app). */
+    sendOTP: async (email: string) => {
+      const { error } = await supabase.auth.signInWithOtp({ email });
+      if (error) throw error;
+    },
+    verifyOTP: async (email: string, token: string) => {
+      const { error } = await supabase.auth.verifyOtp({ email, token, type: 'email' });
+      if (error) throw error;
+    },
+    signOut: async () => {
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+    },
+  };
+}
+```
+
+- [ ] **Step 4: Commit**
 
 ```bash
-git add deadpoint-rn/src/data/supabase.ts
-git commit -m "feat(rn): Supabase client with secure session storage and the 90s OTP timeout"
+git add deadpoint-rn/src/data/supabase.ts deadpoint-rn/src/data/useSession.ts \
+        deadpoint-rn/__tests__/supabase-timeout.test.ts
+git commit -m "feat(rn): Supabase client with secure session storage, the 90s OTP timeout, and the auth hook"
 ```
 
 ---
