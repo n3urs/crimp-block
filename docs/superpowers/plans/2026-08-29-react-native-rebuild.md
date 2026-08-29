@@ -2041,35 +2041,284 @@ git commit -m "feat(rn): port WeekStrip"
 
 ### Task 11: `LoggedStamp` and the Done flow
 
+The original brief said "Modify: `deadpoint-rn/src/components/daily-card/DailyCard.tsx`" — that file does not exist yet; Task 12 is the one that creates it. The Done-flow logic (`handleDoneTap`/`proceedToClimbTypeIfNeeded`) is a small state machine entangled with several pieces of `DailyCardView`'s own state in Swift (`isLogged`, `loggedSessionKey`, `state.displayKey`) — the natural RN home for it, given this plan's own pattern for exactly this kind of thing (see Task 9's `useSwipeCarousel`), is its own hook, not inline code bolted onto a file this task can't touch yet. Task 12 imports and wires up both `LoggedStamp` and this hook once `DailyCard.tsx` exists.
+
+Also checked `DailyCardView.swift:684-718` and `:220-242` (Swift's `commit()`, not originally cited) together, since the timing brief's prose reads as if the "reopening an already-logged day" and "browsing onto one" cases also trigger the big celebratory card — they explicitly do not. `commit()`'s own comment is unambiguous and more recent than the vaguer generic comment near the timing handlers: *"Browsing never shows the big card now, full stop — only a fresh DONE (via celebrationTrigger) does."* Grepped every assignment to `showLoggedStamp` in the file to confirm: it is set `true` in exactly one place, inside the `celebrationTrigger` handler, after the 1-second delay. This simplifies the actual component contract below to a single trigger signal, not a separately-controlled visibility flag.
+
+#### `LoggedStamp.tsx`
+
 **Files:**
 - Create: `deadpoint-rn/src/components/daily-card/LoggedStamp.tsx`
-- Modify: `deadpoint-rn/src/components/daily-card/DailyCard.tsx`
-- Reference: `DailyCardView.swift:807-836` (stamp), `:684-718` (timing), `:246-280` (`handleDoneTap`)
+- Reference: `DailyCardView.swift:807-836` (stamp), `:684-718` (timing), `:220-242` (`commit()` — confirms browsing never shows this)
 
-Spec: card max width `300`, padding `28/24`, `s1` background, radius `16`, `1.5` border in `accent` at 45% opacity, shadow `black 35% / radius 16 / y 6`. Contents: `LOGGED` in `Fonts.heading(38)` white, "Nice work today." at `14` `dim`, then a `1px s3` divider, `TOMORROW` in `Fonts.mono(10, 'bold')` `faint` with `1.2` letter-spacing, and tomorrow's session name at `17` bold in its own colour.
+**Interfaces:**
+- Produces:
+```typescript
+interface LoggedStampProps {
+  /** Increment (or otherwise change) this once per fresh DONE — mirrors
+      Swift's `celebrationTrigger`. Each change restarts the full timing
+      chain from the top, cancelling whatever chain was already running. */
+  trigger: number;
+  accent: string;
+  nextUp: { name: string; colour: string } | null; // null = the TOMORROW section is omitted entirely, not shown empty — confirmed: DailyCardView.swift:815 wraps the whole divider/label/name block in `if let nextUp`
+}
+```
 
-Timing chain, exactly: `celebrationTrigger` fires → wait `1000ms` → fade in over `250ms` → hold `2500ms` → fade out over `400ms`. The dismiss timer must be **cancellable** — an undo immediately followed by a re-log would otherwise let the first timer kill the second card early.
+Exact spec (`DailyCardView.swift:807-836`): card `maxWidth: 300`, padding `28`/`24` (horizontal/vertical), `s1` background, radius `16`, border `1.5` in `accent` at `45%` opacity, shadow `black` `35%` opacity / radius `16` / y-offset `6`. Contents, `10`pt vertical gap between each: `LOGGED` in `Fonts.heading(38)`, white; "Nice work today." at `14`, `dim`; then — only when `nextUp` is non-null — a `1px` `s3` divider (`6`pt vertical padding around it), `TOMORROW` in `Fonts.mono(10, 'bold')`, `faint`, `1.2` letter-spacing, and `nextUp.name` uppercased at `17`/bold in `nextUp.colour`.
 
-The Done button also owns two confirmation dialogs, in this order:
-1. **Swap confirm** — only when something else is already logged today and this is not it.
-2. **Climb-type confirm** — only for a *fresh* `climbHard` log: "Board session, or just a hard climb?" → writes `sub: 'board' | 'climb'`.
+Timing chain, exactly (`DailyCardView.swift:684-718`), entirely internal to this component — no external visibility prop:
+1. `trigger` changes → cancel any chain already in progress (both the reveal-delay timer and the hold-then-dismiss timer) → hide immediately (no animation).
+2. Wait `1000ms` → fade in over `250ms` (now visible).
+3. Once visible: hold `2500ms`, then fade out over `400ms` (now hidden again). This dismiss step must be **cancellable**: if `trigger` changes again before the hold completes (an undo immediately followed by a re-log), step 1 above must cancel it — the first completion's stale timer must never fire and cut the second card's reveal short.
 
-A swap onto `climbHard` must chain into the climb-type prompt *after* the swap confirms, not instead of it.
+- [ ] **Step 1: Write the failing test for the timing chain's cancellation contract**
 
-- [ ] **Step 1: Build `LoggedStamp` with the cancellable timing chain**
+No test-renderer library exists in this project (checked: `@testing-library/react` needs `react-dom`, which doesn't belong in an RN project and isn't installed — confirmed by actually trying it before writing this brief). Following the same pattern already proven throughout this plan (`nextIndex`, `totalSetsFor`, `applyOptimisticSet`/`rollback`), extract the timing chain as a plain, framework-free function that takes a callback instead of managing React state itself — testable directly with `jest.useFakeTimers()`, no hook-rendering harness needed at all.
 
-- [ ] **Step 2: Wire the two dialogs into the Done button**
+```typescript
+// __tests__/loggedStamp.test.ts
+import { createLoggedStampTimer } from '../src/components/daily-card/LoggedStamp';
 
-- [ ] **Step 3: Verify on device**
+jest.useFakeTimers();
 
-Log a session → confirm the 1s delay, fade in, 2.5s hold, fade out, then the small persistent "LOGGED" text remains. Undo and immediately re-log → confirm the second card is not cut short. Log a Hard Climb → confirm the board/climb prompt appears and writes `sub`.
+test('becomes visible 1000ms after trigger, not before', () => {
+  const calls: boolean[] = [];
+  const timer = createLoggedStampTimer((visible) => calls.push(visible));
+  timer.trigger();
+  expect(calls).toEqual([false]);
+  jest.advanceTimersByTime(999);
+  expect(calls).toEqual([false]);
+  jest.advanceTimersByTime(1);
+  expect(calls).toEqual([false, true]);
+});
+
+test('auto-dismisses after a 2500ms hold', () => {
+  const calls: boolean[] = [];
+  const timer = createLoggedStampTimer((visible) => calls.push(visible));
+  timer.trigger();
+  jest.advanceTimersByTime(1000);
+  expect(calls).toEqual([false, true]);
+  jest.advanceTimersByTime(2499);
+  expect(calls).toEqual([false, true]);
+  jest.advanceTimersByTime(1);
+  expect(calls).toEqual([false, true, false]);
+});
+
+test('a re-trigger during the hold cancels the first dismiss timer, not the second reveal', () => {
+  const calls: boolean[] = [];
+  const timer = createLoggedStampTimer((visible) => calls.push(visible));
+  timer.trigger();
+  jest.advanceTimersByTime(1000); // first card now visible, 2500ms hold started
+  jest.advanceTimersByTime(1000); // 1000ms into the hold
+  timer.trigger(); // undo + immediate re-log — must cancel the first hold's dismiss timer
+  expect(calls).toEqual([false, true, false]); // hidden immediately, no animation
+  // The first hold's dismiss would otherwise fire 1500ms from here (hold started
+  // at t=1000, holds 2500ms, we're at t=2000) — advance past that point and
+  // confirm only the SECOND trigger's own reveal happens, nothing extra.
+  jest.advanceTimersByTime(1000); // completes the second trigger's own 1000ms delay
+  expect(calls).toEqual([false, true, false, true]);
+});
+```
+
+Run: `npx jest __tests__/loggedStamp.test.ts` — expect FAIL (module not found), then implement Step 2 and re-run to confirm PASS, 3 tests (these exact 3 scenarios were run for real against the implementation below before this brief was written).
+
+- [ ] **Step 2: Implement `createLoggedStampTimer` and `LoggedStamp`**
+
+```typescript
+// src/components/daily-card/LoggedStamp.tsx — createLoggedStampTimer
+/** Framework-free timing state machine for the celebratory card's reveal/
+    hold/dismiss chain (DailyCardView.swift:684-718). Takes a plain
+    callback rather than managing React state directly so it's testable
+    without a component-rendering harness — LoggedStamp itself wraps this
+    in useState/useRef/useEffect. */
+export function createLoggedStampTimer(onVisibilityChange: (visible: boolean) => void) {
+  let revealTimer: ReturnType<typeof setTimeout> | null = null;
+  let dismissTimer: ReturnType<typeof setTimeout> | null = null;
+
+  function clearAll() {
+    if (revealTimer) { clearTimeout(revealTimer); revealTimer = null; }
+    if (dismissTimer) { clearTimeout(dismissTimer); dismissTimer = null; }
+  }
+
+  function trigger() {
+    clearAll(); // cancels BOTH a still-pending reveal and an in-progress hold — the undo-then-relog case this whole timer exists for
+    onVisibilityChange(false);
+    revealTimer = setTimeout(() => {
+      onVisibilityChange(true);
+      dismissTimer = setTimeout(() => {
+        onVisibilityChange(false);
+      }, 2500);
+    }, 1000);
+  }
+
+  function dispose() {
+    clearAll();
+  }
+
+  return { trigger, dispose };
+}
+```
+
+Wrap it in a hook (exact shape left to your judgment — a `useRef` holding one `createLoggedStampTimer` instance for the component's lifetime, a `useState<boolean>` fed by its callback, and a `useEffect` on the `trigger` prop that calls `.trigger()` on every change after the first — matching Swift's own default-false-on-mount, no-celebration-on-initial-render behaviour), then build `LoggedStamp` consuming that boolean plus `accent`/`nextUp` and rendering to the spec above (fade in over `250ms` when it becomes visible, fade out over `400ms` when it becomes hidden — use Reanimated `withTiming` on opacity for both, matching every other card animation in this plan).
+
+- [ ] **Step 3: Verify on device — deferred**
+
+No screen renders `LoggedStamp` standalone until Task 12. State this plainly rather than faking it, per the same handling used throughout this plan.
 
 - [ ] **Step 4: Commit**
 
 ```bash
-git add deadpoint-rn/src/components/daily-card
-git commit -m "feat(rn): port LoggedStamp timing chain and the Done confirmation flow"
+git add deadpoint-rn/src/components/daily-card/LoggedStamp.tsx deadpoint-rn/__tests__/loggedStamp.test.ts
+git commit -m "feat(rn): port LoggedStamp with its cancellable timing chain"
 ```
+
+---
+
+#### `useDoneFlow.ts`
+
+**Files:**
+- Create: `deadpoint-rn/src/components/daily-card/useDoneFlow.ts`
+- Reference: `DailyCardView.swift:246-282` (`handleDoneTap`, `proceedToClimbTypeIfNeeded`)
+
+**Interfaces:**
+- Produces:
+```typescript
+interface UseDoneFlowParams {
+  isLogged: boolean;                  // is TODAY's logged session the one currently on screen
+  loggedSessionKey: string | null;    // whatever IS logged today, regardless of what's on screen — null if nothing is
+  displayKey: string;
+  onLog: (sub?: 'board' | 'climb') => void; // the actual toggleDone/useStore.set call, invoked once every applicable confirmation has resolved
+}
+// Returns:
+// { showSwapConfirm, showClimbTypeConfirm, handleDoneTap, confirmSwap, cancelSwap, confirmClimbType, cancelClimbType }
+```
+
+Exact logic, direct port of `handleDoneTap`/`proceedToClimbTypeIfNeeded` (`DailyCardView.swift:263-282`) — UNDO first, then the swap check, THEN the climb-type check, so a swap onto `climbHard` chains into the climb-type prompt *after* the swap confirms, not instead of it. As with `LoggedStamp`, no test-renderer library exists in this project (confirmed the same way), so the decision logic is written as plain functions — given `{ isLogged, loggedSessionKey, displayKey }` (or, for the two confirm actions, whatever's needed to resume), return the next dialog-visibility state plus what to log, if anything — testable directly with no React involved at all. Verified against all 6 of the scenarios below by running this exact logic before writing this brief:
+
+```typescript
+// src/components/daily-card/useDoneFlow.ts — pure decision functions
+export interface DoneFlowState {
+  showSwapConfirm: boolean;
+  showClimbTypeConfirm: boolean;
+}
+
+/** `log`: `true` = call onLog() with no argument (a plain first log, or
+    UNDO); a `'board'`/`'climb'` string = call onLog(sub); `undefined` =
+    no log yet, just a dialog-visibility change. */
+export interface DoneFlowResult {
+  state: DoneFlowState;
+  log?: true | 'board' | 'climb';
+}
+
+const NO_DIALOGS: DoneFlowState = { showSwapConfirm: false, showClimbTypeConfirm: false };
+
+function computeProceedToClimbTypeIfNeeded(displayKey: string): DoneFlowResult {
+  if (displayKey === 'climbHard') {
+    return { state: { showSwapConfirm: false, showClimbTypeConfirm: true } };
+  }
+  return { state: NO_DIALOGS, log: true };
+}
+
+export function computeDoneTap(params: { isLogged: boolean; loggedSessionKey: string | null; displayKey: string }): DoneFlowResult {
+  const { isLogged, loggedSessionKey, displayKey } = params;
+  if (isLogged) return { state: NO_DIALOGS, log: true }; // UNDO — clearing today's log needs no confirmation
+  if (loggedSessionKey != null && loggedSessionKey !== displayKey) {
+    return { state: { showSwapConfirm: true, showClimbTypeConfirm: false } }; // something else is logged today, and this isn't it
+  }
+  return computeProceedToClimbTypeIfNeeded(displayKey);
+}
+
+export function computeConfirmSwap(displayKey: string): DoneFlowResult {
+  return computeProceedToClimbTypeIfNeeded(displayKey); // a swap onto climbHard still asks board-vs-climb afterward
+}
+
+export function computeConfirmClimbType(sub: 'board' | 'climb'): DoneFlowResult {
+  return { state: NO_DIALOGS, log: sub };
+}
+```
+
+- [ ] **Step 1: Write the failing test for all 6 scenarios**
+
+```typescript
+// __tests__/doneFlow.test.ts
+import { computeDoneTap, computeConfirmSwap, computeConfirmClimbType } from '../src/components/daily-card/useDoneFlow';
+
+test('UNDO (isLogged true) logs directly, no dialogs', () => {
+  expect(computeDoneTap({ isLogged: true, loggedSessionKey: 'pull', displayKey: 'pull' }))
+    .toEqual({ state: { showSwapConfirm: false, showClimbTypeConfirm: false }, log: true });
+});
+
+test('something else logged today shows the swap confirm first', () => {
+  expect(computeDoneTap({ isLogged: false, loggedSessionKey: 'pull', displayKey: 'climbHard' }))
+    .toEqual({ state: { showSwapConfirm: true, showClimbTypeConfirm: false } });
+});
+
+test('confirming a swap onto climbHard chains into the climb-type prompt, not a log', () => {
+  expect(computeConfirmSwap('climbHard'))
+    .toEqual({ state: { showSwapConfirm: false, showClimbTypeConfirm: true } });
+});
+
+test('a fresh log on a non-climbHard session with nothing else logged today needs no dialog', () => {
+  expect(computeDoneTap({ isLogged: false, loggedSessionKey: null, displayKey: 'pull' }))
+    .toEqual({ state: { showSwapConfirm: false, showClimbTypeConfirm: false }, log: true });
+});
+
+test('a fresh climbHard log with nothing else logged today asks board-vs-climb directly, no swap', () => {
+  expect(computeDoneTap({ isLogged: false, loggedSessionKey: null, displayKey: 'climbHard' }))
+    .toEqual({ state: { showSwapConfirm: false, showClimbTypeConfirm: true } });
+});
+
+test('confirming the climb-type prompt logs with the chosen sub', () => {
+  expect(computeConfirmClimbType('board'))
+    .toEqual({ state: { showSwapConfirm: false, showClimbTypeConfirm: false }, log: 'board' });
+});
+```
+
+Run: `npx jest __tests__/doneFlow.test.ts` — expect FAIL (module not found), then implement and re-run to confirm PASS, 6 tests (these exact 6 scenarios were run for real, against the logic above, before this brief was written).
+
+- [ ] **Step 2: Wrap the pure functions in `useDoneFlow`**
+
+```typescript
+// src/components/daily-card/useDoneFlow.ts — the hook, on top of the pure functions above
+import { useCallback, useState } from 'react';
+
+interface UseDoneFlowParams {
+  isLogged: boolean;
+  loggedSessionKey: string | null;
+  displayKey: string;
+  onLog: (sub?: 'board' | 'climb') => void;
+}
+
+export function useDoneFlow({ isLogged, loggedSessionKey, displayKey, onLog }: UseDoneFlowParams) {
+  const [state, setState] = useState<DoneFlowState>(NO_DIALOGS);
+
+  const applyResult = useCallback((result: DoneFlowResult) => {
+    setState(result.state);
+    if (result.log === true) onLog();
+    else if (result.log) onLog(result.log);
+  }, [onLog]);
+
+  const handleDoneTap = useCallback(() => {
+    applyResult(computeDoneTap({ isLogged, loggedSessionKey, displayKey }));
+  }, [isLogged, loggedSessionKey, displayKey, applyResult]);
+
+  const confirmSwap = useCallback(() => applyResult(computeConfirmSwap(displayKey)), [displayKey, applyResult]);
+  const cancelSwap = useCallback(() => setState((s) => ({ ...s, showSwapConfirm: false })), []);
+  const confirmClimbType = useCallback((sub: 'board' | 'climb') => applyResult(computeConfirmClimbType(sub)), [applyResult]);
+  const cancelClimbType = useCallback(() => setState((s) => ({ ...s, showClimbTypeConfirm: false })), []);
+
+  return { ...state, handleDoneTap, confirmSwap, cancelSwap, confirmClimbType, cancelClimbType };
+}
+```
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add deadpoint-rn/src/components/daily-card/useDoneFlow.ts deadpoint-rn/__tests__/doneFlow.test.ts
+git commit -m "feat(rn): port the Done-flow confirmation state machine as a hook"
+```
+
+Task 12 imports both `LoggedStamp` and `useDoneFlow`, renders the actual Done button and the two confirmation dialogs' UI (not built here — this task ships the state machine and the celebratory card, not the dialog chrome itself, which needs a real modal/alert primitive this plan hasn't chosen yet), and supplies `onLog` as the real `useStore.set(...)` call from Task 6.
 
 ---
 
