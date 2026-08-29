@@ -1018,6 +1018,8 @@ git commit -m "feat(rn): Supabase client with secure session storage, the 90s OT
 
 **Interfaces:**
 - Produces: `useStore()` → `{ days, get(date), set(date, type, sub?), clear(date), reload() }` — the `sub` column carries `"board"`/`"climb"` for climbHard days.
+- Produces: `useLoads()` → `{ byExercise, history(id), on(id, date), set(date, id, kg), all(), reload() }`.
+- Produces: `useProfile()` → `{ row, reload(), create(templateId, startDate, modifiers), assignRehab(injuryArea, startingPhaseIndex?), switchToStandard(), advanceRehabPhase(phaseIndex), markTutorialCompleted() }`.
 
 - [ ] **Step 1: Write the failing test for optimistic-write rollback**
 
@@ -1114,19 +1116,295 @@ export function useStore(startDate: string | null, today: string) {
 Run: `npx jest __tests__/store.test.ts`
 Expected: PASS, 3 tests.
 
-- [ ] **Step 5: Port `useLoads` and `useProfile` the same way**
+- [ ] **Step 5: Write the failing test for `useLoads`'s optimistic helpers**
 
-Follow `NativeLoads.swift` (table `exercise_loads`, primary key `user_id,date,ex`) and `NativeProfile.swift` (table `profiles`, including `track_type`, `rehab_injury_area`, `rehab_phase_index`, `tutorial_completed_at`). Both use the identical optimistic-write-then-rollback contract implemented above.
+`NativeLoads.swift`'s own doc comment says it plainly: "Same optimistic-write/rollback contract as NativeStore." Same shape of test as Step 1, one level deeper (per-exercise arrays, newest-first, matching `Loads._d`'s ordering in app.js — `engine-core.js`'s `target()`/`loadHistory()` assume `past[0]` is the most recent entry).
 
-- [ ] **Step 6: Verify against the live database**
+```typescript
+// __tests__/loads.test.ts
+import { applyOptimisticLoad, rollbackLoad } from '../src/data/useLoads';
 
-Sign in on device, log a session, confirm the row appears in Supabase, then undo it and confirm the row is deleted.
-Expected: row round-trips correctly; the `sub` column is populated for a climbHard "board" log.
+test('a new date for an exercise is appended and kept newest-first', () => {
+  const before = { 'osc-pinch': [{ date: '2026-08-20', kg: 20 }] };
+  const next = applyOptimisticLoad(before, 'osc-pinch', '2026-08-27', 22.5);
+  expect(next['osc-pinch']).toEqual([{ date: '2026-08-27', kg: 22.5 }, { date: '2026-08-20', kg: 20 }]);
+});
 
-- [ ] **Step 7: Commit**
+test('re-logging the same date updates that entry in place, not a duplicate', () => {
+  const before = { 'osc-pinch': [{ date: '2026-08-27', kg: 22.5 }, { date: '2026-08-20', kg: 20 }] };
+  const next = applyOptimisticLoad(before, 'osc-pinch', '2026-08-27', 25);
+  expect(next['osc-pinch']).toEqual([{ date: '2026-08-27', kg: 25 }, { date: '2026-08-20', kg: 20 }]);
+});
+
+test('a failed write rolls back to the previous array for that exercise only', () => {
+  const before = { 'osc-pinch': [{ date: '2026-08-20', kg: 20 }], 'osc-pickup-half': [{ date: '2026-08-19', kg: 15 }] };
+  const optimistic = applyOptimisticLoad(before, 'osc-pinch', '2026-08-27', 22.5);
+  expect(rollbackLoad(optimistic, 'osc-pinch', before['osc-pinch'])).toEqual(before);
+});
+```
+
+Run: `npx jest __tests__/loads.test.ts` — expect FAIL (module not found), then implement Step 6 below and re-run to confirm PASS, 3 tests.
+
+- [ ] **Step 6: Implement `useLoads`**
+
+```typescript
+// src/data/useLoads.ts
+import { useCallback, useEffect, useState } from 'react';
+import { supabase } from './supabase';
+
+export interface LoadEntry { date: string; kg: number; }
+export type LoadsByExercise = Record<string, LoadEntry[]>;
+
+/** Pure helpers, exported for test. Same optimistic-write/rollback contract
+    as useStore.ts's applyOptimisticSet/rollback (see NativeLoads.swift's
+    own doc comment). Entries stay newest-first per exercise. */
+export function applyOptimisticLoad(byExercise: LoadsByExercise, id: string, date: string, kg: number): LoadsByExercise {
+  const entries = byExercise[id] ?? [];
+  const idx = entries.findIndex(e => e.date === date);
+  const next = idx >= 0
+    ? entries.map((e, i) => (i === idx ? { date, kg } : e))
+    : [...entries, { date, kg }].sort((a, b) => (a.date > b.date ? -1 : 1));
+  return { ...byExercise, [id]: next };
+}
+
+export function rollbackLoad(byExercise: LoadsByExercise, id: string, previous: LoadEntry[]): LoadsByExercise {
+  return { ...byExercise, [id]: previous };
+}
+
+export function useLoads() {
+  const [byExercise, setByExercise] = useState<LoadsByExercise>({});
+
+  /** Not date-filtered, same reasoning as NativeLoads.load(): "what did I
+      lift last time" has to survive a long layoff, and the table is small
+      enough that loading all of it costs nothing. */
+  const reload = useCallback(async () => {
+    const { data, error } = await supabase.from('exercise_loads').select('date,ex,kg').order('date', { ascending: false });
+    if (error) {
+      // Genuinely missing table (migration not run yet) must not take the
+      // app down — weights just don't appear, same as NativeLoads.load()'s
+      // narrowed PGRST205 catch. Any other error still throws.
+      if (error.code === 'PGRST205') { setByExercise({}); return; }
+      throw error;
+    }
+    const grouped: LoadsByExercise = {};
+    for (const r of (data ?? []) as { date: string; ex: string; kg: number }[]) {
+      (grouped[r.ex] ??= []).push({ date: r.date, kg: r.kg });
+    }
+    setByExercise(grouped);
+  }, []);
+
+  useEffect(() => { reload(); }, [reload]);
+
+  const history = (id: string): LoadEntry[] => byExercise[id] ?? [];
+  const on = (id: string, date: string): LoadEntry | undefined => byExercise[id]?.find(e => e.date === date);
+
+  const set = useCallback(async (date: string, id: string, kg: number) => {
+    const previous = byExercise[id] ?? [];
+    setByExercise(b => applyOptimisticLoad(b, id, date, kg));
+    const { data: { user } } = await supabase.auth.getUser();
+    const { error } = await supabase.from('exercise_loads')
+      .upsert({ user_id: user!.id, date, ex: id, kg }, { onConflict: 'user_id,date,ex' });
+    if (error) { setByExercise(b => rollbackLoad(b, id, previous)); throw error; }
+  }, [byExercise]);
+
+  /** Matches NativeLoads.all() — the exact shape createEngine's `loadLog`
+      argument (Task 4) expects: exercise id -> {date,kg}[]. */
+  const all = useCallback((): LoadsByExercise => byExercise, [byExercise]);
+
+  return { byExercise, history, on, set, all, reload };
+}
+```
+
+- [ ] **Step 7: Implement `useProfile`**
+
+`NativeProfile.swift` does **not** use the optimistic-write/rollback contract Step 3 and Step 6 do — worth stating explicitly since it would be easy to assume every hook in this task follows the same pattern. Every one of its write methods updates local state only **after** its network call has already succeeded (see e.g. `create()`: the `row = Row(...)` line runs only once `client.upsert()` has returned without throwing). A failure before that point just throws, leaving `row` exactly as it was — there is nothing to roll back to. This port keeps that same after-success-only contract.
+
+```typescript
+// src/data/useProfile.ts
+import { useCallback, useEffect, useState } from 'react';
+import { supabase } from './supabase';
+
+/** Mirrors NativeProfile.Row field-for-field (see NativeProfile.swift's
+    CodingKeys for the camelCase<->snake_case mapping this hook performs
+    by hand at the query boundary, same translation Swift's Codable does
+    automatically). `modifiers` is a free-form JSON object (equipment/
+    injuryFlags/weaknesses/tripDate/daysPerWeek — see template-resolver.js)
+    — plain `Record<string, unknown>` here needs no Swift-style AnyCodable
+    wrapper, since JSON round-trips through JS objects natively. */
+export interface ProfileRow {
+  assignedTemplateId: string | null;
+  programStartDate: string;
+  modifiers: Record<string, unknown>;
+  tier: string;
+  quizCompletedAt: string | null;
+  tutorialCompletedAt: string | null;
+  trackType: string;
+  rehabInjuryArea: string | null;
+  rehabPhaseIndex: number | null;
+}
+
+interface ProfileDbRow {
+  assigned_template_id: string | null;
+  program_start_date: string;
+  modifiers: Record<string, unknown> | null;
+  tier: string;
+  quiz_completed_at: string | null;
+  tutorial_completed_at: string | null;
+  track_type: string;
+  rehab_injury_area: string | null;
+  rehab_phase_index: number | null;
+}
+
+function fromDbRow(r: ProfileDbRow): ProfileRow {
+  return {
+    assignedTemplateId: r.assigned_template_id,
+    programStartDate: r.program_start_date,
+    modifiers: r.modifiers ?? {},
+    tier: r.tier,
+    quizCompletedAt: r.quiz_completed_at,
+    tutorialCompletedAt: r.tutorial_completed_at,
+    trackType: r.track_type,
+    rehabInjuryArea: r.rehab_injury_area,
+    rehabPhaseIndex: r.rehab_phase_index,
+  };
+}
+
+const PROFILE_COLUMNS =
+  'assigned_template_id,program_start_date,modifiers,tier,quiz_completed_at,tutorial_completed_at,track_type,rehab_injury_area,rehab_phase_index';
+
+export function useProfile() {
+  const [row, setRow] = useState<ProfileRow | null>(null);
+
+  /** null `row` afterward means genuinely no profile yet (a real new user
+      who hasn't done the quiz) — distinct from a network/decode failure,
+      which throws instead of silently leaving `row` null, so the caller
+      doesn't mistake "couldn't check" for "definitely new." */
+  const reload = useCallback(async () => {
+    const { data, error } = await supabase.from('profiles').select(PROFILE_COLUMNS).maybeSingle();
+    if (error) throw error;
+    setRow(data ? fromDbRow(data as ProfileDbRow) : null);
+  }, []);
+
+  useEffect(() => { reload(); }, [reload]);
+
+  /** Called once, right after the quiz's standard branch — creates (or
+      re-creates, for someone switching back into standard who's never had
+      a standard assignment before) the profile that makes this a
+      template-assigned Standard-tier user from then on. */
+  const create = useCallback(async (templateId: string, startDate: string, modifiers: Record<string, unknown>) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    const quizCompletedAt = new Date().toISOString();
+    const { error } = await supabase.from('profiles').upsert({
+      user_id: user!.id,
+      assigned_template_id: templateId,
+      program_start_date: startDate,
+      modifiers,
+      tier: 'standard',
+      track_type: 'standard',
+      quiz_completed_at: quizCompletedAt,
+    }, { onConflict: 'user_id' });
+    if (error) throw error;
+    setRow(r => ({
+      assignedTemplateId: templateId, programStartDate: startDate, modifiers,
+      tier: 'standard', quizCompletedAt, tutorialCompletedAt: r?.tutorialCompletedAt ?? null,
+      trackType: 'standard', rehabInjuryArea: null, rehabPhaseIndex: null,
+    }));
+  }, []);
+
+  /** Assigns (or first-assigns) the rehab track. Deliberately omits
+      assigned_template_id/program_start_date/modifiers from the write
+      when a profile row already exists — upsert's merge-duplicates only
+      touches columns present in the payload, so any existing standard
+      assignment is left completely untouched underneath the rehab track,
+      ready to restore instantly via switchToStandard() once rehab
+      finishes. A brand-new user (no row yet) has no prior assignment to
+      preserve, so this also supplies today's date for program_start_date's
+      NOT NULL constraint in that case only — unused while trackType stays
+      "rehab". */
+  const assignRehab = useCallback(async (injuryArea: string, startingPhaseIndex = 0) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    const quizCompletedAt = new Date().toISOString();
+    const existing = row;
+    const payload: Record<string, unknown> = {
+      user_id: user!.id,
+      track_type: 'rehab',
+      rehab_injury_area: injuryArea,
+      rehab_phase_index: startingPhaseIndex,
+      quiz_completed_at: quizCompletedAt,
+    };
+    if (!existing) payload.program_start_date = new Date().toISOString().slice(0, 10);
+    const { error } = await supabase.from('profiles').upsert(payload, { onConflict: 'user_id' });
+    if (error) throw error;
+    setRow(existing
+      ? { ...existing, trackType: 'rehab', rehabInjuryArea: injuryArea, rehabPhaseIndex: startingPhaseIndex }
+      : {
+          assignedTemplateId: null, programStartDate: payload.program_start_date as string,
+          modifiers: {}, tier: 'standard', quizCompletedAt, tutorialCompletedAt: null,
+          trackType: 'rehab', rehabInjuryArea: injuryArea, rehabPhaseIndex: startingPhaseIndex,
+        });
+  }, [row]);
+
+  /** Restores the Standard track using whatever assignment already exists
+      on this profile — the "instant" path for someone who's finished
+      rehab, no requiz. PATCH (`.update`), not upsert — see
+      NativeProfile.switchToStandard()'s own comment: a partial upsert here
+      would fail program_start_date's NOT NULL check the same way
+      markTutorialCompleted's used to. */
+  const switchToStandard = useCallback(async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    const { error } = await supabase.from('profiles').update({ track_type: 'standard' }).eq('user_id', user!.id);
+    if (error) throw error;
+    setRow(r => (r ? { ...r, trackType: 'standard' } : r));
+  }, []);
+
+  /** Persists a new rehab phase index once every self-report criterion for
+      the current phase has been checked and the user confirms they're
+      ready to move on. */
+  const advanceRehabPhase = useCallback(async (phaseIndex: number) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    const { error } = await supabase.from('profiles').update({ rehab_phase_index: phaseIndex }).eq('user_id', user!.id);
+    if (error) throw error;
+    setRow(r => (r ? { ...r, rehabPhaseIndex: phaseIndex } : r));
+  }, []);
+
+  const markTutorialCompleted = useCallback(async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    const now = new Date().toISOString();
+    const { error } = await supabase.from('profiles').update({ tutorial_completed_at: now }).eq('user_id', user!.id);
+    if (error) throw error;
+    setRow(r => (r ? { ...r, tutorialCompletedAt: now } : r));
+  }, []);
+
+  return { row, reload, create, assignRehab, switchToStandard, advanceRehabPhase, markTutorialCompleted };
+}
+```
+
+- [ ] **Step 8: Run the full test suite**
+
+Run: `npx jest`
+Expected: PASS, everything from Tasks 1-6 combined (21 from Task 5 + the 3 new `loads.test.ts` tests = 24).
+
+- [ ] **Step 9: Live database verification — deferred, not run here**
+
+Do NOT sign in and write real rows as part of this task. `useStore`/
+`useLoads`/`useProfile` all write to Oscar's real `sessions`/
+`exercise_loads`/`profiles` tables — a bug in the optimistic-write or
+rollback logic run unattended could leave real training history
+corrupted (e.g. a botched rollback deleting a real logged session, or a
+malformed `profiles` upsert clobbering `track_type`/`rehab_injury_area`,
+which drives what the engine actually recommends). It also is not
+actually executable right now regardless: it requires a signed-in
+session, and Task 5's real sign-in flow is itself deferred pending a
+human present to receive a live OTP (see Task 5's Step 2). Note in your
+report that this step is deferred to the same later, human-supervised
+checkpoint as Task 5's live OTP confirmation — the first point both a
+real session and a real UI exist together to drive it end-to-end
+(Task 12 or the sign-in screen, whichever lands first).
+
+- [ ] **Step 10: Commit**
 
 ```bash
-git add deadpoint-rn/src/data deadpoint-rn/__tests__/store.test.ts
+git add deadpoint-rn/src/data deadpoint-rn/__tests__/store.test.ts deadpoint-rn/__tests__/loads.test.ts
 git commit -m "feat(rn): port NativeStore/NativeLoads/NativeProfile as hooks with optimistic writes"
 ```
 
