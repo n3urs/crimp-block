@@ -8,17 +8,23 @@ module.exports = {
     '**/__tests__/**/*.test.tsx',
   ],
   moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json', 'node'],
-  /** Both mocked because their real implementations are native-only and
+  /** All mocked because their real implementations are native-only and
       cannot run under plain Node (testEnvironment: 'node', no RN/jest-expo
       preset): react-native-url-polyfill/auto transitively requires the
       'react-native' package for Platform.OS, which ships Flow syntax this
       project's babel-preset-env/typescript transform doesn't strip;
       expo-secure-store's main entry resolves to a compiled native binding
-      that only exists inside an actual iOS/Android build. See the mock
-      files in __mocks__/ for what each stands in for and why a no-op is
-      sufficient for src/data/supabase.ts's tests. */
+      that only exists inside an actual iOS/Android build; react-native
+      itself and react-native-gesture-handler (added for Task 8's
+      SetsTally, whose test imports the co-located `totalSetsFor` helper
+      from a .tsx file that also imports both) ship ESM entries that throw
+      "Must use import to load ES Module" under this same node-only setup.
+      See the mock files in __mocks__/ for what each stands in for and why
+      a no-op/stub is sufficient for the tests that need them. */
   moduleNameMapper: {
     '^react-native-url-polyfill/auto$': '<rootDir>/__mocks__/react-native-url-polyfill-auto.js',
     '^expo-secure-store$': '<rootDir>/__mocks__/expo-secure-store.js',
+    '^react-native$': '<rootDir>/__mocks__/react-native.js',
+    '^react-native-gesture-handler$': '<rootDir>/__mocks__/react-native-gesture-handler.js',
   },
 };
