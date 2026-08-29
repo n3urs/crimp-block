@@ -1,0 +1,56 @@
+// src/data/useStore.ts
+import { useCallback, useEffect, useState } from 'react';
+import { supabase } from './supabase';
+
+export interface Entry { t: string; l: number | null; sub: string | null; }
+export type Days = Record<string, Entry>;
+
+/** Pure helpers, exported for test. Mirrors NativeStore.swift's contract:
+    write locally FIRST, then fire the network call, and roll the local
+    state back on failure — a failed write must never look identical to a
+    success. The app has to stay usable at the crag with no signal. */
+export function applyOptimisticSet(days: Days, date: string, type: string, sub: string | null): Days {
+  return { ...days, [date]: { t: type, l: null, sub } };
+}
+
+export function rollback(days: Days, date: string, previous: Entry | undefined): Days {
+  const next = { ...days };
+  if (previous) next[date] = previous; else delete next[date];
+  return next;
+}
+
+export function useStore(startDate: string | null, today: string) {
+  const [days, setDays] = useState<Days>({});
+
+  const reload = useCallback(async () => {
+    if (!startDate) return;
+    // Window reaches back to startDate AND a 60-day buffer before it —
+    // block progression counts every training day since day one, and
+    // backdating pre-start days is normal. See NativeStore.load().
+    const back = new Date(today); back.setDate(back.getDate() - 60);
+    const from = back.toISOString().slice(0, 10) < startDate ? back.toISOString().slice(0, 10) : startDate;
+    const { data, error } = await supabase.from('sessions').select('date,type,load,sub').gte('date', from);
+    if (error) throw error;
+    setDays(Object.fromEntries((data ?? []).map(r => [r.date, { t: r.type, l: r.load, sub: r.sub }])));
+  }, [startDate, today]);
+
+  useEffect(() => { reload(); }, [reload]);
+
+  const set = useCallback(async (date: string, type: string, sub: string | null = null) => {
+    const previous = days[date];
+    setDays(d => applyOptimisticSet(d, date, type, sub));
+    const { data: { user } } = await supabase.auth.getUser();
+    const { error } = await supabase.from('sessions')
+      .upsert({ user_id: user!.id, date, type, sub }, { onConflict: 'user_id,date' });
+    if (error) { setDays(d => rollback(d, date, previous)); throw error; }
+  }, [days]);
+
+  const clear = useCallback(async (date: string) => {
+    const previous = days[date];
+    setDays(d => rollback(d, date, undefined));
+    const { error } = await supabase.from('sessions').delete().eq('date', date);
+    if (error) { setDays(d => ({ ...d, [date]: previous! })); throw error; }
+  }, [days]);
+
+  return { days, get: (date: string) => days[date], set, clear, reload };
+}
