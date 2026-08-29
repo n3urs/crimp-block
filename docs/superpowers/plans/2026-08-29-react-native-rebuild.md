@@ -1,0 +1,1319 @@
+# Deadpoint React Native Rebuild — Implementation Plan
+
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+
+**Goal:** Rebuild Deadpoint's SwiftUI iOS app as a single React Native codebase that ships pixel-identical UI to both iOS and Android, reuses the existing JavaScript training engine untouched, and supports over-the-air updates.
+
+**Architecture:** The training logic (`engine-core.js` + programs/templates/resolvers, 2,143 lines) is already dependency-free JavaScript. React Native runs JavaScript as its native runtime, so that entire layer transfers with **zero porting** — and the 625 lines of JavaScriptCore marshalling that currently bridge it into Swift (`EngineBridge.swift`, `RehabBridge.swift`) are **deleted, not rewritten**. Likewise the hand-rolled 314-line REST client (`SupabaseClient.swift`) is replaced wholesale by the official `supabase-js`. What genuinely gets rebuilt is the UI layer: ~6,000 lines of SwiftUI views become React Native components, matched detail-for-detail against the Swift source.
+
+**Tech Stack:** Expo (SDK 54+) with EAS Build and `expo-updates` for OTA · TypeScript · `react-native-reanimated` v3 + `react-native-gesture-handler` v2 (UI-thread gestures/animation — non-negotiable for the swipe carousel) · `react-native-svg` (calendar phase borders, celebration particles) · `@supabase/supabase-js` · `expo-secure-store` · `expo-av` · `expo-notifications` · `react-native-iap`
+
+---
+
+## Global Constraints
+
+- **Visual parity is the acceptance bar.** Every colour, font size, corner radius, padding, and animation duration below is copied verbatim from the current Swift source. Deviation is a bug, not a judgement call.
+- **The JS engine files are copied byte-identical.** `engine-core.js`, `programs.js`, `templates.js`, `template-resolver.js`, `rehab-templates.js`, `rehab-resolver.js` are never edited during the port. If the engine needs a change, it changes in the shared source and both apps inherit it.
+- **The existing SwiftUI app stays live on TestFlight until RN reaches parity.** Nothing in `ios/` is deleted by this plan.
+- **Do not "improve" behaviour during the port.** Many oddities in the Swift source are deliberate fixes for reported bugs, documented in their own comments. Port the behaviour, keep the comment.
+- **Supabase schema is unchanged.** Tables `sessions` (`date`, `type`, `load`, `sub`), `exercise_loads`, `profiles`, `templates`. RLS keyed on `user_id`. Auth is email OTP.
+- **Minimum targets:** iOS 17.0 (matches current `IPHONEOS_DEPLOYMENT_TARGET`), Android 8.0 / API 26.
+
+### Design tokens — exact values from `ios/Shared/SessionColours.swift`
+
+| Token | Hex | Token | Hex |
+|---|---|---|---|
+| `bg` | `#181B22` | `fg` | `#EDEBE5` |
+| `s1` | `#1E222B` | `dim` | `#9AA0AE` |
+| `s2` | `#272C37` | `faint` | `#666C7A` |
+| `s3` | `#333947` | `go` | `#1FA24A` |
+| `s4` | `#454C5C` | `restC` | `#D6383D` |
+| | | `readyC` | `#D69A1F` |
+
+Named session/phase colours (referenced by name from `programs.js`):
+
+| Name | Hex | Name | Hex |
+|---|---|---|---|
+| `--gorse` | `#F2B134` | `--heather` | `#C9739B` |
+| `--tidepool` | `#4FB3A5` | `--grey` | `#5A6069` |
+| `--slate` | `#7B93E0` | | |
+
+Unrecognised names fall back to `--gorse`.
+
+### Typography — exact, from `ios/Shared/AppFonts.swift`
+
+All four are open-licensed Google Fonts already present as TTFs in `ios/CrimpBlock/Fonts/` and are copied verbatim into the RN app:
+
+- `ArchivoBlack-Regular.ttf` — the single heading role
+- `RobotoMono-Bold.ttf` / `RobotoMono-Medium.ttf` — all mono text (bold used for weights `semibold`/`bold`/`heavy`/`black`; medium otherwise)
+- `SpaceMono-Bold.ttf` — timer countdown digits **only**
+
+### Motion constants — exact, from `DailyCardView.swift`
+
+| Interaction | Value |
+|---|---|
+| Swipe gesture activation | `minimumDistance: 10` |
+| Horizontal claim threshold | `abs(dx) > 12 && abs(dx) > abs(dy) * 1.5` |
+| Swipe commit threshold | `abs(dragOffset) > containerWidth * 0.3` |
+| Swipe completion | `easeOut`, `0.2s` |
+| Swipe spring-back | `interactiveSpring(response: 0.32, dampingFraction: 0.82)` |
+| Tick collapse | `easeInOut`, `0.2s` |
+| Info-toggle expand | `easeInOut`, `0.15s` |
+| Sets-tally long-press undo | `0.45s` |
+| Logged stamp: delay before show | `1.0s` |
+| Logged stamp: fade in | `easeInOut`, `0.25s` |
+| Logged stamp: hold | `2.5s` |
+| Logged stamp: fade out | `easeInOut`, `0.4s` |
+| Rest-timer overlay slide | `easeInOut`, `0.2s` |
+| Rest-timer overlay refresh tick | `0.2s` |
+| Interval-timer refresh tick | `0.05s` |
+
+---
+
+## Complete inventory of the current app
+
+Every Swift file, what it does, and its fate in the port. **9,678 lines across 45 files.**
+
+### Deleted outright — no RN equivalent needed (625 lines)
+
+| File | Lines | Why it disappears |
+|---|---:|---|
+| `Shared/EngineBridge.swift` | 464 | Pure JavaScriptCore marshalling. In RN, `engine-core.js` is imported directly; every `bridge.decide(date:)` becomes `engine.decide(date)`. Its 30-method public API becomes a thin typed facade instead. |
+| `Shared/RehabBridge.swift` | 161 | Same — wraps `rehab-resolver.js`. |
+
+### Replaced by a library (360 lines)
+
+| File | Lines | Replacement |
+|---|---:|---|
+| `Shared/SupabaseClient.swift` | 314 | `@supabase/supabase-js` — auth, REST, session refresh, all of it. Note the 90s request timeout added for the known slow OTP endpoint must be reproduced in the client config. |
+| `Shared/Keychain.swift` | 46 | `expo-secure-store` |
+
+### UI to rebuild — the real work (~6,000 lines)
+
+| File | Lines | Notes for the port |
+|---|---:|---|
+| `DailyCardView.swift` | 1,482 | **The beast.** Swipe carousel with live finger-tracked peek layer, exercise rows (tick/collapse/sets-tally/long-press-undo/weight badge/info toggle/rest+interval buttons), header, session dots, next-up chip, logged stamp, card message, footer. Split into ~6 RN components. |
+| `CalendarView.swift` | 774 | Month grid, zigzag phase-boundary borders (`PartialBorder` shape → `react-native-svg`), deload rings, all-time stats panel, plan-progress bar, trend forecast. |
+| `NativeAppView.swift` | 657 | The app-level state machine: welcome → sign-in → quiz → tutorial → paywall → daily card / rehab card, plus all Supabase read/write orchestration. |
+| `IntakeQuizView.swift` | 452 | Multi-step onboarding quiz. Pairs with `QuizModel.swift`. |
+| `Shared/TutorialSpotlight.swift` | 420 | Anchor-based spotlight overlay using SwiftUI `PreferenceKey`/`Anchor<CGRect>`. RN equivalent: `onLayout`/`measureInWindow` into a context, masked overlay via SVG. |
+| `RehabCardView.swift` | 323 | Rehab-track daily card. |
+| `SettingsView.swift` | 317 | Account, sets-counter prefs, track switcher, delete account. |
+| `Shared/QuizModel.swift` | 276 | Quiz answer model + result → template mapping. Mostly pure logic, ports cleanly. |
+| `TutorialDemoCardView.swift` | 274 | Scripted tutorial card. |
+| `Shared/NativeProfile.swift` | 238 | `profiles` table access. Becomes a hook. |
+| `ContentView.swift` | 230 | Debug menu + the legacy `WebView` shell. **The WebView path can be dropped entirely.** |
+| `NativeSignInView.swift` | 227 | Email OTP two-step, resend cooldown, friendly error copy. |
+| `PlanSheetView.swift` | 200 | Phase/block plan sheet with progress bar. |
+| `PaywallView.swift` | 194 | StoreKit paywall → `react-native-iap`. |
+| `Shared/IntervalTimerController.swift` | 185 | Interval timer state machine. |
+| `IntervalTimerView.swift` | 147 | Full-screen interval timer UI, 0.05s tick. |
+| `WeekStripView.swift` | 136 | 7-day strip + `DayPickerView`. |
+| `RehabTutorialView.swift` | 122 | Rehab-specific walkthrough. |
+| `NativeEngineDemoView.swift` | 122 | Sample-data debug harness. Port last, or drop. |
+| `Shared/Forecast.swift` | 118 | Widget payload model + `appDay` (3am day-start) logic. **`appDay` must port exactly** — it's shared with the engine's own day boundary. |
+| `RestTimerOverlay.swift` | 110 | Bottom rest-timer bar. |
+| `Shared/NativeStore.swift` | 97 | `sessions` table, optimistic write + rollback. Becomes a hook. |
+| `Shared/RestTimerController.swift` | 91 | Rest timer state + Live Activity + notification scheduling. |
+| `QuizDemoView.swift` | 92 | Debug harness. Drop or port last. |
+| `MaxProgramPreviewView.swift` | 81 | Debug harness. Drop or port last. |
+| `Shared/NativeLoads.swift` | 77 | `exercise_loads` table. Becomes a hook. |
+| `CelebrationOverlay.swift` | 77 | Particle burst + checkmark on log. |
+| `WeightEditView.swift` | 71 | Weight stepper sheet. |
+| `SessionGuideView.swift` | 50 | Board Session Guide reference page. |
+| `WelcomeView.swift` | 46 | First-run splash. |
+| `Shared/AppFonts.swift` | 27 | → `src/design/fonts.ts` |
+| `Shared/SessionColours.swift` | 58 | → `src/design/colours.ts` |
+| `CrimpBlockApp.swift` | 12 | → Expo Router root layout |
+
+### Platform-specific — needs per-platform work (563 lines)
+
+| File | Lines | iOS | Android |
+|---|---:|---|---|
+| `CrimpBlockWidget/CrimpBlockWidget.swift` | 311 | WidgetKit home-screen widget | **No RN equivalent.** Needs a native Kotlin `AppWidgetProvider` reading from shared storage. Separate effort. |
+| `Shared/SubscriptionManager.swift` | 122 | StoreKit 2 entitlements | `react-native-iap` covers both, but Google Play Billing products must be created and the entitlement check rewritten. |
+| `Shared/IntervalTonePlayer.swift` | 119 | Synthesises "piano-ish" tones at runtime via `AVAudioEngine` (fundamental + 2nd harmonic at 0.28 gain, per-note envelopes) | **Runtime synthesis is impractical in RN.** Pre-render each cue to a `.wav`/`.m4a` at build time and play via `expo-av`. Must A/B against the current tones. |
+| `CrimpBlockWidget/RestTimerLiveActivity.swift` | 111 | ActivityKit Live Activity (Dynamic Island + lock screen) | **No Android equivalent exists.** Android gets an ongoing foreground notification with a chronometer instead. This is a genuine, unavoidable platform divergence — see Risk Register. |
+| `Shared/TimerActivity.swift` | 22 | ActivityKit attributes | As above. |
+
+### Tests to port (225 lines)
+
+`CrimpBlockTests/EngineBridgeTests.swift` (133), `RehabBridgeTests.swift` (55), `AppFontsTests.swift` (37). The engine tests become the **parity harness** — see Task 4.
+
+---
+
+## Risk register — read before starting
+
+1. **Live Activities have no Android counterpart.** The rest timer currently surfaces in the Dynamic Island and on the lock screen. Android can only offer an ongoing notification. Accept the divergence explicitly; do not fake it.
+2. **Home-screen widgets are genuinely two implementations.** Nothing in RN unifies WidgetKit and Android App Widgets. Budget separate native work, or ship Android without a widget initially.
+3. **Audio tones will not be bit-identical.** Pre-rendered files replace runtime synthesis. Compare by ear against the current build before accepting.
+4. **The swipe carousel is the highest-risk UI element.** It must run on the UI thread via Reanimated worklets. A JS-thread implementation will feel laggy — which is precisely the complaint the current Swift implementation was rewritten to fix.
+5. **This replaces the shipping iOS app.** Do not remove the SwiftUI target until RN has passed a side-by-side parity review on a real device.
+6. **In-app purchase products must be recreated for Google Play**, including a new subscription SKU and its own review cycle.
+
+---
+
+## Target file structure
+
+```
+deadpoint-rn/
+├── app/                              # expo-router
+│   ├── _layout.tsx                   # root: fonts, providers, theme
+│   ├── index.tsx                     # router state machine (NativeAppView.swift:63-198)
+│   ├── welcome.tsx
+│   ├── sign-in.tsx
+│   ├── quiz.tsx
+│   ├── paywall.tsx
+│   └── (main)/
+│       ├── card.tsx                  # daily card host
+│       ├── calendar.tsx
+│       └── rehab.tsx
+├── src/
+│   ├── engine/
+│   │   ├── engine-core.js            # COPIED VERBATIM — never edited
+│   │   ├── programs.js               # COPIED VERBATIM
+│   │   ├── templates.js              # COPIED VERBATIM
+│   │   ├── template-resolver.js      # COPIED VERBATIM
+│   │   ├── rehab-templates.js        # COPIED VERBATIM
+│   │   ├── rehab-resolver.js         # COPIED VERBATIM
+│   │   ├── index.ts                  # typed facade (replaces EngineBridge.swift)
+│   │   └── types.ts
+│   ├── design/
+│   │   ├── colours.ts                # SessionColours.swift
+│   │   ├── fonts.ts                  # AppFonts.swift
+│   │   └── motion.ts                 # the motion constants table above
+│   ├── data/
+│   │   ├── supabase.ts               # client + 90s timeout config
+│   │   ├── useSession.ts             # auth (SupabaseClient.swift auth half)
+│   │   ├── useStore.ts               # NativeStore.swift
+│   │   ├── useLoads.ts               # NativeLoads.swift
+│   │   └── useProfile.ts             # NativeProfile.swift
+│   ├── components/
+│   │   ├── daily-card/
+│   │   │   ├── DailyCard.tsx
+│   │   │   ├── CardHeader.tsx
+│   │   │   ├── SessionDots.tsx
+│   │   │   ├── ExerciseRow.tsx
+│   │   │   ├── SetsTally.tsx
+│   │   │   ├── LoggedStamp.tsx
+│   │   │   ├── WeekStrip.tsx
+│   │   │   └── useSwipeCarousel.ts
+│   │   ├── calendar/
+│   │   ├── timers/
+│   │   ├── tutorial/
+│   │   └── ui/                       # Pill, Divider, StatTile
+│   └── state/
+│       └── prefs.ts                  # AppStorage → MMKV
+├── assets/fonts/                     # the 4 TTFs, copied verbatim
+└── __tests__/
+    └── engine-parity.test.ts
+```
+
+---
+
+## Phase roadmap
+
+Each phase produces working, testable software on its own.
+
+| Phase | Delivers | Detailed tasks |
+|---|---|---|
+| **0. Foundation** | Expo app boots on both platforms with real fonts, colours, and the engine imported and proven identical to Swift's output | **In this plan** |
+| **1. Data layer** | Real Supabase auth + session/loads/profile reads and writes, verified against the live database | **In this plan** |
+| **2. Daily card** | The full daily card — swipe, ticks, tally, weights — running on real data on both platforms | **In this plan** |
+| 3. Timers | Rest timer, interval timer, audio cues, notifications | Own plan |
+| 4. Calendar | Month grid, phase borders, stats, plan progress | Own plan |
+| 5. Onboarding | Welcome, sign-in, quiz, tutorial spotlight, paywall | Own plan |
+| 6. Rehab track | Rehab card + rehab tutorial | Own plan |
+| 7. Platform extras | Widgets, Live Activity / ongoing notification, IAP | Own plan |
+| 8. Ship | Parity review, OTA pipeline, Play Store listing | Own plan |
+
+Phases 3–8 get their own plans written once Phase 2 lands, because the component patterns established there (how a Swift view maps to an RN component, how motion constants are applied, how parity is verified) are what those plans should follow. Writing them now would be guessing at those patterns.
+
+---
+
+## Phase 0 — Foundation
+
+### Task 1: Scaffold the Expo project
+
+**Files:**
+- Create: `deadpoint-rn/` (Expo TypeScript template)
+- Create: `deadpoint-rn/app.json`
+- Create: `deadpoint-rn/tsconfig.json`
+
+**Interfaces:**
+- Produces: a running Expo app on iOS Simulator and Android emulator.
+
+- [ ] **Step 1: Create the project**
+
+```bash
+cd /Users/oscarsullivan/crimp-block
+npx create-expo-app@latest deadpoint-rn --template expo-template-blank-typescript
+cd deadpoint-rn
+```
+
+- [ ] **Step 2: Install the core dependencies**
+
+```bash
+npx expo install expo-router react-native-safe-area-context react-native-screens \
+  react-native-reanimated react-native-gesture-handler react-native-svg \
+  expo-secure-store expo-av expo-notifications expo-updates expo-font
+npm install @supabase/supabase-js react-native-mmkv
+```
+
+- [ ] **Step 3: Verify it boots on iOS**
+
+Run: `npx expo start --ios`
+Expected: simulator opens, default Expo screen renders, no red screen.
+
+- [ ] **Step 4: Verify it boots on Android**
+
+Run: `npx expo start --android`
+Expected: emulator opens, same screen, no red screen.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add deadpoint-rn
+git commit -m "feat(rn): scaffold Expo project for the React Native rebuild"
+```
+
+---
+
+### Task 2: Port the design tokens
+
+**Files:**
+- Create: `deadpoint-rn/src/design/colours.ts`
+- Create: `deadpoint-rn/src/design/motion.ts`
+- Test: `deadpoint-rn/__tests__/colours.test.ts`
+- Reference: `ios/Shared/SessionColours.swift`
+
+**Interfaces:**
+- Produces: `Colours` (const object of hex strings), `resolveColour(name: string): string`, `Motion` (const object of durations/easings).
+
+- [ ] **Step 1: Write the failing test**
+
+```typescript
+// __tests__/colours.test.ts
+import { Colours, resolveColour } from '../src/design/colours';
+
+test('base palette matches SessionColours.swift exactly', () => {
+  expect(Colours.bg).toBe('#181B22');
+  expect(Colours.s1).toBe('#1E222B');
+  expect(Colours.s2).toBe('#272C37');
+  expect(Colours.s3).toBe('#333947');
+  expect(Colours.s4).toBe('#454C5C');
+  expect(Colours.fg).toBe('#EDEBE5');
+  expect(Colours.dim).toBe('#9AA0AE');
+  expect(Colours.faint).toBe('#666C7A');
+  expect(Colours.go).toBe('#1FA24A');
+  expect(Colours.restC).toBe('#D6383D');
+  expect(Colours.readyC).toBe('#D69A1F');
+});
+
+test('named colours resolve like SessionColours.resolve', () => {
+  expect(resolveColour('--gorse')).toBe('#F2B134');
+  expect(resolveColour('--tidepool')).toBe('#4FB3A5');
+  expect(resolveColour('--slate')).toBe('#7B93E0');
+  expect(resolveColour('--heather')).toBe('#C9739B');
+  expect(resolveColour('--grey')).toBe('#5A6069');
+});
+
+test('unknown names fall back to --gorse, matching Swift', () => {
+  expect(resolveColour('--nonsense')).toBe('#F2B134');
+});
+```
+
+- [ ] **Step 2: Run it to confirm it fails**
+
+Run: `npx jest __tests__/colours.test.ts`
+Expected: FAIL — `Cannot find module '../src/design/colours'`
+
+- [ ] **Step 3: Implement**
+
+```typescript
+// src/design/colours.ts
+/** Direct port of ios/Shared/SessionColours.swift. Values must stay
+    byte-identical to that file — it is the source of truth shared with
+    the still-shipping SwiftUI app. */
+export const Colours = {
+  bg: '#181B22',
+  s1: '#1E222B',
+  s2: '#272C37',
+  s3: '#333947',
+  s4: '#454C5C',
+  fg: '#EDEBE5',
+  dim: '#9AA0AE',
+  faint: '#666C7A',
+  go: '#1FA24A',
+  restC: '#D6383D',
+  readyC: '#D69A1F',
+} as const;
+
+const NAMED: Record<string, string> = {
+  '--gorse': '#F2B134',
+  '--tidepool': '#4FB3A5',
+  '--slate': '#7B93E0',
+  '--heather': '#C9739B',
+  '--grey': '#5A6069',
+};
+
+/** Falls back to --gorse for anything unrecognised, exactly as
+    SessionColours.resolve(_:) does. */
+export function resolveColour(variableName: string): string {
+  return NAMED[variableName] ?? NAMED['--gorse'];
+}
+```
+
+- [ ] **Step 4: Run the test to confirm it passes**
+
+Run: `npx jest __tests__/colours.test.ts`
+Expected: PASS, 3 tests.
+
+- [ ] **Step 5: Add the motion constants**
+
+```typescript
+// src/design/motion.ts
+/** Every value copied verbatim from DailyCardView.swift. These are not
+    taste calls — several were tuned against direct user feedback about
+    the card feeling laggy or abrupt. Changing one is a behaviour change. */
+export const Motion = {
+  swipe: {
+    minimumDistance: 10,
+    horizontalClaimDx: 12,
+    horizontalClaimRatio: 1.5,
+    commitFraction: 0.3,
+    completeDurationMs: 200,
+    springBack: { response: 0.32, dampingFraction: 0.82 },
+  },
+  tickCollapseMs: 200,
+  infoToggleMs: 150,
+  setsTallyLongPressMs: 450,
+  loggedStamp: {
+    delayBeforeShowMs: 1000,
+    fadeInMs: 250,
+    holdMs: 2500,
+    fadeOutMs: 400,
+  },
+  restOverlaySlideMs: 200,
+  restOverlayTickMs: 200,
+  intervalTickMs: 50,
+} as const;
+```
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add deadpoint-rn/src/design deadpoint-rn/__tests__/colours.test.ts
+git commit -m "feat(rn): port SessionColours and motion constants with parity tests"
+```
+
+---
+
+### Task 3: Bundle the real fonts
+
+**Files:**
+- Create: `deadpoint-rn/assets/fonts/` (4 TTFs copied from `ios/CrimpBlock/Fonts/`)
+- Create: `deadpoint-rn/src/design/fonts.ts`
+- Modify: `deadpoint-rn/app/_layout.tsx`
+- Reference: `ios/Shared/AppFonts.swift`
+
+**Interfaces:**
+- Produces: `Fonts.heading(size)`, `Fonts.mono(size, weight?)`, `Fonts.timerDigits(size)` — each returning `{ fontFamily, fontSize }`.
+
+- [ ] **Step 1: Copy the exact TTFs already in the repo**
+
+```bash
+mkdir -p deadpoint-rn/assets/fonts
+cp ios/CrimpBlock/Fonts/*.ttf deadpoint-rn/assets/fonts/
+ls deadpoint-rn/assets/fonts/
+```
+
+Expected output: `ArchivoBlack-Regular.ttf  RobotoMono-Bold.ttf  RobotoMono-Medium.ttf  SpaceMono-Bold.ttf`
+
+- [ ] **Step 2: Write the failing test**
+
+```typescript
+// __tests__/fonts.test.ts
+import { Fonts } from '../src/design/fonts';
+
+test('heading uses Archivo Black, matching AppFonts.heading', () => {
+  expect(Fonts.heading(32)).toEqual({ fontFamily: 'ArchivoBlack-Regular', fontSize: 32 });
+});
+
+test('mono picks the bold cut for bold-ish weights, matching AppFonts.mono', () => {
+  // AppFonts.boldWeights = [.bold, .heavy, .black, .semibold]
+  expect(Fonts.mono(12, 'bold').fontFamily).toBe('RobotoMono-Bold');
+  expect(Fonts.mono(12, 'semibold').fontFamily).toBe('RobotoMono-Bold');
+  expect(Fonts.mono(12, 'medium').fontFamily).toBe('RobotoMono-Medium');
+});
+
+test('mono defaults to bold, matching the Swift default parameter', () => {
+  expect(Fonts.mono(12).fontFamily).toBe('RobotoMono-Bold');
+});
+
+test('timer digits use Space Mono', () => {
+  expect(Fonts.timerDigits(48).fontFamily).toBe('SpaceMono-Bold');
+});
+```
+
+- [ ] **Step 3: Run it to confirm it fails**
+
+Run: `npx jest __tests__/fonts.test.ts`
+Expected: FAIL — module not found.
+
+- [ ] **Step 4: Implement**
+
+```typescript
+// src/design/fonts.ts
+/** Direct port of ios/Shared/AppFonts.swift, using the same four TTFs.
+    Archivo Black for the one heading role, Roboto Mono for everything
+    else monospaced, Space Mono for timer countdown digits only — all
+    picked in a live side-by-side against the real card, not chosen blind. */
+type MonoWeight = 'medium' | 'semibold' | 'bold' | 'heavy' | 'black';
+
+/** Mirrors AppFonts.boldWeights exactly: a static TTF has no continuous
+    weight axis, so this is an explicit allowlist, not a threshold. */
+const BOLD_WEIGHTS: ReadonlySet<string> = new Set(['bold', 'heavy', 'black', 'semibold']);
+
+export const Fonts = {
+  heading(fontSize: number) {
+    return { fontFamily: 'ArchivoBlack-Regular', fontSize };
+  },
+  mono(fontSize: number, weight: MonoWeight = 'bold') {
+    return {
+      fontFamily: BOLD_WEIGHTS.has(weight) ? 'RobotoMono-Bold' : 'RobotoMono-Medium',
+      fontSize,
+    };
+  },
+  timerDigits(fontSize: number) {
+    return { fontFamily: 'SpaceMono-Bold', fontSize };
+  },
+};
+```
+
+- [ ] **Step 5: Run the test to confirm it passes**
+
+Run: `npx jest __tests__/fonts.test.ts`
+Expected: PASS, 4 tests.
+
+- [ ] **Step 6: Load the fonts at app start**
+
+```tsx
+// app/_layout.tsx
+import { useFonts } from 'expo-font';
+import { Stack } from 'expo-router';
+import { View } from 'react-native';
+import { Colours } from '../src/design/colours';
+
+export default function RootLayout() {
+  const [loaded] = useFonts({
+    'ArchivoBlack-Regular': require('../assets/fonts/ArchivoBlack-Regular.ttf'),
+    'RobotoMono-Bold': require('../assets/fonts/RobotoMono-Bold.ttf'),
+    'RobotoMono-Medium': require('../assets/fonts/RobotoMono-Medium.ttf'),
+    'SpaceMono-Bold': require('../assets/fonts/SpaceMono-Bold.ttf'),
+  });
+
+  // Holding on the app's own background colour rather than white avoids
+  // a light flash on launch against this dark UI.
+  if (!loaded) return <View style={{ flex: 1, backgroundColor: Colours.bg }} />;
+
+  return <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: Colours.bg } }} />;
+}
+```
+
+- [ ] **Step 7: Verify the fonts render on device**
+
+Run: `npx expo start --ios`, then `npx expo start --android`
+Expected: a temporary test screen rendering `Fonts.heading(32)` text shows Archivo Black's distinctive heavy grotesque, **not** the system font, on both platforms.
+
+- [ ] **Step 8: Commit**
+
+```bash
+git add deadpoint-rn/assets deadpoint-rn/src/design/fonts.ts deadpoint-rn/app/_layout.tsx deadpoint-rn/__tests__/fonts.test.ts
+git commit -m "feat(rn): bundle the four app fonts and port AppFonts"
+```
+
+---
+
+### Task 4: Import the engine and prove parity with Swift
+
+This is the single most important task in the plan. It proves the core premise — that the engine transfers untouched — and it produces the harness every later phase leans on.
+
+**Files:**
+- Create: `deadpoint-rn/src/engine/*.js` (6 files copied verbatim)
+- Create: `deadpoint-rn/src/engine/index.ts`
+- Create: `deadpoint-rn/src/engine/types.ts`
+- Test: `deadpoint-rn/__tests__/engine-parity.test.ts`
+- Reference: `ios/Shared/EngineBridge.swift`, `ios/CrimpBlockTests/EngineBridgeTests.swift`
+
+**Interfaces:**
+- Produces: `createEngine(program, data)` returning a typed facade with `today()`, `addDays()`, `decide()`, `block()`, `phaseNameAt()`, `isDeload()`, `isReturning()`, `isTraining()`, `upNext()`, `forecast()`, `phases`, `phaseIndexAt()`, `sessionInfo()`, `resolveExercises()`, `sessionColourVarName()`, `programStartDate()` — the same surface `EngineBridge.swift` exposes.
+- Produces: `SESSION_ORDER` — `['maxFingers','hangboard','pull','climbHard','outdoorHard','climbEasy','rest']` (from `EngineBridge.order`).
+
+- [ ] **Step 1: Copy the engine files verbatim**
+
+```bash
+mkdir -p deadpoint-rn/src/engine
+cp engine-core.js programs.js templates.js template-resolver.js \
+   rehab-templates.js rehab-resolver.js deadpoint-rn/src/engine/
+```
+
+- [ ] **Step 2: Confirm they are byte-identical**
+
+```bash
+for f in engine-core.js programs.js templates.js template-resolver.js rehab-templates.js rehab-resolver.js; do
+  diff -q "$f" "deadpoint-rn/src/engine/$f" && echo "OK $f"
+done
+```
+
+Expected: `OK` for all six, no diff output.
+
+- [ ] **Step 3: Write the failing parity test**
+
+These expectations are the *real* values from Oscar's account, already verified against the live engine during the calendar work. If RN's engine disagrees with any of them, the port is broken.
+
+```typescript
+// __tests__/engine-parity.test.ts
+import { createEngine, SESSION_ORDER } from '../src/engine';
+const PROGRAMS = require('../src/engine/programs.js');
+
+/** Oscar's real logged history, 7–28 Aug 2026, fetched from Supabase.
+    Used because its expected outputs were independently verified against
+    the live JS engine while building the calendar. */
+const HISTORY: Record<string, { t: string }> = {
+  '2026-08-07': { t: 'maxFingers' }, '2026-08-08': { t: 'climbHard' },
+  '2026-08-09': { t: 'outdoorHard' }, '2026-08-10': { t: 'rest' },
+  '2026-08-11': { t: 'hangboard' },  '2026-08-12': { t: 'pull' },
+  '2026-08-13': { t: 'rest' },       '2026-08-14': { t: 'rest' },
+  '2026-08-15': { t: 'maxFingers' }, '2026-08-16': { t: 'rest' },
+  '2026-08-17': { t: 'hangboard' },  '2026-08-18': { t: 'pull' },
+  '2026-08-19': { t: 'maxFingers' }, '2026-08-20': { t: 'rest' },
+  '2026-08-21': { t: 'outdoorHard' },'2026-08-22': { t: 'pull' },
+  '2026-08-23': { t: 'maxFingers' }, '2026-08-24': { t: 'climbHard' },
+  '2026-08-25': { t: 'rest' },       '2026-08-26': { t: 'maxFingers' },
+  '2026-08-27': { t: 'pull' },       '2026-08-28': { t: 'rest' },
+};
+
+const engine = () =>
+  createEngine(PROGRAMS['oscar@sullivanltd.co.uk'], { sessionLog: HISTORY, loadLog: {} });
+
+test('session order matches EngineBridge.order exactly', () => {
+  expect(SESSION_ORDER).toEqual([
+    'maxFingers', 'hangboard', 'pull', 'climbHard', 'outdoorHard', 'climbEasy', 'rest',
+  ]);
+});
+
+test('block() on 2026-08-29 matches the verified Swift output', () => {
+  expect(engine().block('2026-08-29')).toMatchObject({ b: 1, w: 4, per: 4, total: 12 });
+});
+
+test('isDeload agrees with block().w === 4', () => {
+  expect(engine().isDeload('2026-08-29')).toBe(true);
+});
+
+test('phaseNameAt returns the real phase', () => {
+  expect(engine().phaseNameAt('2026-08-29')).toBe('Base');
+});
+
+test('decide() reproduces the deload hard-day cap verbatim', () => {
+  // Verified live: 4 hard days in the trailing window, cap is 3 in a deload week.
+  const d = engine().decide('2026-08-29');
+  expect(d.k).toBe('rest');
+  expect(d.why).toContain('deload week');
+});
+
+test('a gap on a real rest day still recommends rest (streak logic depends on this)', () => {
+  const withGap = { ...HISTORY };
+  delete withGap['2026-08-20'];
+  const e = createEngine(PROGRAMS['oscar@sullivanltd.co.uk'], { sessionLog: withGap, loadLog: {} });
+  expect(e.decide('2026-08-20').k).toBe('rest');
+});
+
+test('a gap on a real workout day does NOT recommend rest', () => {
+  const withGap = { ...HISTORY };
+  delete withGap['2026-08-19'];
+  const e = createEngine(PROGRAMS['oscar@sullivanltd.co.uk'], { sessionLog: withGap, loadLog: {} });
+  expect(e.decide('2026-08-19').k).toBe('maxFingers');
+});
+
+test('programStartDate is the program anchor, not the earliest log', () => {
+  // Deliberately differs: earliest log is 07 Aug, program starts 10 Aug.
+  expect(engine().programStartDate()).toBe('2026-08-10');
+});
+```
+
+- [ ] **Step 4: Run it to confirm it fails**
+
+Run: `npx jest __tests__/engine-parity.test.ts`
+Expected: FAIL — `Cannot find module '../src/engine'`
+
+- [ ] **Step 5: Write the typed facade**
+
+```typescript
+// src/engine/index.ts
+/** Replaces ios/Shared/EngineBridge.swift entirely. That file existed only
+    to marshal values across JavaScriptCore; in React Native the engine IS
+    native, so this is a thin typed wrapper over the same calls rather than
+    a bridge. Method names deliberately match EngineBridge's so the Swift
+    source stays a readable reference during the port. */
+const core = require('./engine-core.js');
+
+export const SESSION_ORDER = core.ORDER as readonly string[];
+
+export interface BlockInfo { b: number; w: number; done: number; per: number; total: number; wIdx: number; over: boolean; }
+export interface Decision { k: string; why: string; }
+export interface Phase { n: string; from: number; c: string; d: string; }
+
+export function createEngine(program: any, data: { sessionLog: any; loadLog: any }) {
+  const e = core.createEngine(program, data);
+  return {
+    today: (): string => core.today(),
+    addDays: (date: string, n: number): string => core.addDays(date, n),
+    decide: (date: string): Decision => e.decide(date),
+    block: (date: string): BlockInfo => e.block(date),
+    phaseNameAt: (date: string): string => e.phaseNameAt(date),
+    isDeload: (date: string): boolean => e.isDeload(date),
+    isReturning: (date: string): boolean => e.isReturning(date),
+    isTraining: (type: string): boolean => e.isTraining(type),
+    upNext: () => e.upNext(),
+    forecast: (days: number) => e.forecast(days),
+    phaseIndexAt: (b: number): number => e.phaseIndexAt(b),
+    get phases(): Phase[] { return program.phases ?? []; },
+    programStartDate: (): string | undefined => program.startDate,
+    sessionColourVarName: (key: string): string => program.sessions?.[key]?.c ?? '--gorse',
+    sessionInfo: (key: string) => program.sessions?.[key],
+    resolveExercises: (key: string, date: string, phaseName: string): RenderedExercise[] =>
+      resolveExercises(e, program, key, date, phaseName),
+  };
+}
+
+export interface IntervalConfig { on: number; off: number; reps: number; }
+export interface RenderedExercise {
+  id: string; title: string; prescription: string; phaseAdjusted: boolean;
+  description?: string; restSeconds?: number; weightKg?: number;
+  weightIsBump: boolean; hasWeightTracking: boolean; step: number;
+  interval?: IntervalConfig;
+}
+
+/** Faithful port of EngineBridge.resolveExercises(for:date:phaseName:).
+    Note how much of the Swift version was pure JSValue marshalling — here
+    it is ordinary property access, which is the whole point of the move.
+    Two behaviours are easy to lose and both matter:
+      · `phaseAdjusted` compares the BASE prescription against the resolved
+        one, and is what tints a phase-overridden prescription in the accent
+        colour instead of grey.
+      · `hasWeightTracking` is "the exercise has an id", NOT "it has a
+        weight" — an exercise with no history yet has no target() result but
+        must still show the dashed "SET kg" badge, or a brand-new account
+        can never record a first weight. */
+function resolveExercises(e: any, program: any, key: string, date: string, phaseName: string): RenderedExercise[] {
+  const raw = program.sessions?.[key]?.x;
+  if (!Array.isArray(raw)) return [];
+
+  const out: RenderedExercise[] = [];
+  for (const base of raw) {
+    const resolved = e.resolveEx(base, key, date, phaseName);
+    if (resolved == null) continue;
+
+    const ex = resolved.e;
+    const m: string = resolved.m ?? '';
+    const title: string = ex?.t ?? '?';
+    const hasWeightTracking = ex?.id != null;
+
+    let weightKg: number | undefined;
+    let weightIsBump = false;
+    let step = 2.5;
+    if (hasWeightTracking) {
+      if (ex.step != null) step = ex.step;
+      const tg = e.target(ex, date);
+      if (tg != null) { weightKg = tg.kg; weightIsBump = tg.bump ?? false; }
+    }
+
+    const iv = ex?.interval;
+    const interval: IntervalConfig | undefined =
+      iv?.on != null && iv?.off != null && iv?.reps != null
+        ? { on: iv.on, off: iv.off, reps: iv.reps }
+        : undefined;
+
+    out.push({
+      id: hasWeightTracking ? String(ex.id) : title,
+      title,
+      prescription: m,
+      phaseAdjusted: base.m != null && base.m !== m,
+      description: ex?.d ?? undefined,
+      restSeconds: ex?.r ?? undefined,
+      weightKg, weightIsBump, hasWeightTracking, step, interval,
+    });
+  }
+  return out;
+}
+```
+
+- [ ] **Step 6: Run the test to confirm it passes**
+
+Run: `npx jest __tests__/engine-parity.test.ts`
+Expected: PASS, 8 tests. If `decide()` or `block()` disagree, **stop** — the engine copy or the facade is wrong, and everything downstream inherits the error.
+
+- [ ] **Step 7: Commit**
+
+```bash
+git add deadpoint-rn/src/engine deadpoint-rn/__tests__/engine-parity.test.ts
+git commit -m "feat(rn): import the JS engine verbatim and prove parity against verified Swift outputs"
+```
+
+---
+
+## Phase 1 — Data layer
+
+### Task 5: Supabase client and auth
+
+**Files:**
+- Create: `deadpoint-rn/src/data/supabase.ts`
+- Create: `deadpoint-rn/src/data/useSession.ts`
+- Reference: `ios/Shared/SupabaseClient.swift`, `ios/CrimpBlock/NativeSignInView.swift`
+
+**Interfaces:**
+- Produces: `supabase` client instance; `useSession()` → `{ session, sendOTP(email), verifyOTP(email, token), signOut() }`.
+
+- [ ] **Step 1: Create the client with the 90s timeout**
+
+```typescript
+// src/data/supabase.ts
+import 'react-native-url-polyfill/auto';
+import { createClient } from '@supabase/supabase-js';
+import * as SecureStore from 'expo-secure-store';
+
+/** expo-secure-store replaces ios/Shared/Keychain.swift. The access token is
+    a bearer credential — AsyncStorage (plain, unencrypted) is the wrong place. */
+const SecureStorageAdapter = {
+  getItem: (key: string) => SecureStore.getItemAsync(key),
+  setItem: (key: string, value: string) => SecureStore.setItemAsync(key, value),
+  removeItem: (key: string) => SecureStore.deleteItemAsync(key),
+};
+
+const SUPABASE_URL = 'https://lbhsgkadlhcqqnlbfswr.supabase.co';
+const SUPABASE_ANON = process.env.EXPO_PUBLIC_SUPABASE_ANON!;
+
+/** 90s, not the default — confirmed live against the real endpoint:
+    auth/v1/otp takes 60-65s to respond even with custom SMTP (Resend)
+    configured, so the default timeout was racing it and reporting a
+    slow-but-successful send as a hard failure. See SupabaseClient.swift. */
+const TIMEOUT_MS = 90_000;
+
+export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON, {
+  auth: { storage: SecureStorageAdapter, autoRefreshToken: true, persistSession: true, detectSessionInUrl: false },
+  global: {
+    fetch: (url, options = {}) => {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+      return fetch(url, { ...options, signal: controller.signal }).finally(() => clearTimeout(timer));
+    },
+  },
+});
+```
+
+- [ ] **Step 2: Verify a real OTP send against the live project**
+
+Run a one-off script that calls `supabase.auth.signInWithOtp({ email: 'oscar@sullivanltd.co.uk' })`.
+Expected: resolves without error (may take ~60s — that is the known server-side latency, not a bug). A real code arrives by email.
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add deadpoint-rn/src/data/supabase.ts
+git commit -m "feat(rn): Supabase client with secure session storage and the 90s OTP timeout"
+```
+
+---
+
+### Task 6: Session, loads, and profile hooks
+
+**Files:**
+- Create: `deadpoint-rn/src/data/useStore.ts`
+- Create: `deadpoint-rn/src/data/useLoads.ts`
+- Create: `deadpoint-rn/src/data/useProfile.ts`
+- Test: `deadpoint-rn/__tests__/store.test.ts`
+- Reference: `ios/Shared/NativeStore.swift`, `NativeLoads.swift`, `NativeProfile.swift`
+
+**Interfaces:**
+- Produces: `useStore()` → `{ days, get(date), set(date, type, sub?), clear(date), reload() }` — the `sub` column carries `"board"`/`"climb"` for climbHard days.
+
+- [ ] **Step 1: Write the failing test for optimistic-write rollback**
+
+```typescript
+// __tests__/store.test.ts
+import { applyOptimisticSet, rollback } from '../src/data/useStore';
+
+test('an optimistic set writes locally before the network call', () => {
+  const days = {};
+  const next = applyOptimisticSet(days, '2026-08-29', 'pull', null);
+  expect(next['2026-08-29']).toEqual({ t: 'pull', l: null, sub: null });
+});
+
+test('a failed write rolls back to the previous entry, not to empty', () => {
+  const before = { '2026-08-29': { t: 'rest', l: null, sub: null } };
+  const optimistic = applyOptimisticSet(before, '2026-08-29', 'pull', null);
+  expect(rollback(optimistic, '2026-08-29', before['2026-08-29'])).toEqual(before);
+});
+
+test('climbHard carries its board/climb sub-type', () => {
+  const next = applyOptimisticSet({}, '2026-08-29', 'climbHard', 'board');
+  expect(next['2026-08-29'].sub).toBe('board');
+});
+```
+
+- [ ] **Step 2: Run it to confirm it fails**
+
+Run: `npx jest __tests__/store.test.ts`
+Expected: FAIL — module not found.
+
+- [ ] **Step 3: Implement the optimistic helpers and the hook**
+
+```typescript
+// src/data/useStore.ts
+import { useCallback, useEffect, useState } from 'react';
+import { supabase } from './supabase';
+
+export interface Entry { t: string; l: number | null; sub: string | null; }
+export type Days = Record<string, Entry>;
+
+/** Pure helpers, exported for test. Mirrors NativeStore.swift's contract:
+    write locally FIRST, then fire the network call, and roll the local
+    state back on failure — a failed write must never look identical to a
+    success. The app has to stay usable at the crag with no signal. */
+export function applyOptimisticSet(days: Days, date: string, type: string, sub: string | null): Days {
+  return { ...days, [date]: { t: type, l: null, sub } };
+}
+
+export function rollback(days: Days, date: string, previous: Entry | undefined): Days {
+  const next = { ...days };
+  if (previous) next[date] = previous; else delete next[date];
+  return next;
+}
+
+export function useStore(startDate: string | null, today: string) {
+  const [days, setDays] = useState<Days>({});
+
+  const reload = useCallback(async () => {
+    if (!startDate) return;
+    // Window reaches back to startDate AND a 60-day buffer before it —
+    // block progression counts every training day since day one, and
+    // backdating pre-start days is normal. See NativeStore.load().
+    const back = new Date(today); back.setDate(back.getDate() - 60);
+    const from = back.toISOString().slice(0, 10) < startDate ? back.toISOString().slice(0, 10) : startDate;
+    const { data, error } = await supabase.from('sessions').select('date,type,load,sub').gte('date', from);
+    if (error) throw error;
+    setDays(Object.fromEntries((data ?? []).map(r => [r.date, { t: r.type, l: r.load, sub: r.sub }])));
+  }, [startDate, today]);
+
+  useEffect(() => { reload(); }, [reload]);
+
+  const set = useCallback(async (date: string, type: string, sub: string | null = null) => {
+    const previous = days[date];
+    setDays(d => applyOptimisticSet(d, date, type, sub));
+    const { data: { user } } = await supabase.auth.getUser();
+    const { error } = await supabase.from('sessions')
+      .upsert({ user_id: user!.id, date, type, sub }, { onConflict: 'user_id,date' });
+    if (error) { setDays(d => rollback(d, date, previous)); throw error; }
+  }, [days]);
+
+  const clear = useCallback(async (date: string) => {
+    const previous = days[date];
+    setDays(d => rollback(d, date, undefined));
+    const { error } = await supabase.from('sessions').delete().eq('date', date);
+    if (error) { setDays(d => ({ ...d, [date]: previous! })); throw error; }
+  }, [days]);
+
+  return { days, get: (date: string) => days[date], set, clear, reload };
+}
+```
+
+- [ ] **Step 4: Run the test to confirm it passes**
+
+Run: `npx jest __tests__/store.test.ts`
+Expected: PASS, 3 tests.
+
+- [ ] **Step 5: Port `useLoads` and `useProfile` the same way**
+
+Follow `NativeLoads.swift` (table `exercise_loads`, primary key `user_id,date,ex`) and `NativeProfile.swift` (table `profiles`, including `track_type`, `rehab_injury_area`, `rehab_phase_index`, `tutorial_completed_at`). Both use the identical optimistic-write-then-rollback contract implemented above.
+
+- [ ] **Step 6: Verify against the live database**
+
+Sign in on device, log a session, confirm the row appears in Supabase, then undo it and confirm the row is deleted.
+Expected: row round-trips correctly; the `sub` column is populated for a climbHard "board" log.
+
+- [ ] **Step 7: Commit**
+
+```bash
+git add deadpoint-rn/src/data deadpoint-rn/__tests__/store.test.ts
+git commit -m "feat(rn): port NativeStore/NativeLoads/NativeProfile as hooks with optimistic writes"
+```
+
+---
+
+## Phase 2 — The daily card
+
+The largest single piece. `DailyCardView.swift` is 1,482 lines; it becomes ~6 focused components. Build them bottom-up so each is independently reviewable.
+
+### Task 7: `ExerciseRow` — tick, collapse, info toggle, weight badge
+
+**Files:**
+- Create: `deadpoint-rn/src/components/daily-card/ExerciseRow.tsx`
+- Reference: `ios/CrimpBlock/DailyCardView.swift:1100-1311` (`ExerciseRowView`)
+
+**Interfaces:**
+- Consumes: `resolveExercises()` output from Task 4; `Colours`, `Fonts`, `Motion`.
+- Produces: `<ExerciseRow ex accent accentVarName isTicked onToggleTick onTapWeight />`
+
+Exact spec from the Swift source — every value is load-bearing:
+
+| Element | Spec |
+|---|---|
+| Row padding (vertical) | `16` unticked → `11` ticked, animated `easeInOut 200ms` |
+| Checkbox | `26×26`, corner radius `3`, border `1.5` in `s4`; ticked fills `accent` with a `bg`-coloured checkmark at size 13 bold |
+| Title | `15.5` bold, white; ticked → `faint` + strikethrough |
+| Info icon | `12`, `faint`, toggles description with `easeInOut 150ms` |
+| Description | `12.5`, `dim` |
+| Prescription | `Fonts.mono(12, 'medium')`, `faint` — or `accent` when `phaseAdjusted` |
+| Rest button | `Fonts.mono(10.5, 'medium')`, `dim`, `1px s3` border, radius `3`, padding `10/6` |
+| START button (interval) | `Fonts.mono(10.5, 'semibold')`, `bg` on `accent`, radius `3` |
+| Ticked row | hides prescription, weight, description, tally, and timer buttons entirely |
+
+- [ ] **Step 1: Port `clarifySets` with its test**
+
+```typescript
+// __tests__/clarifySets.test.ts
+import { clarifySets } from '../src/components/daily-card/clarifySets';
+
+test('labels an unambiguous leading set count', () => {
+  expect(clarifySets('3 × 8')).toBe('3 sets × 8');
+});
+
+test('leaves a duration-first prescription alone', () => {
+  // "10s × 5" is a hold duration first — labelling it "10 sets" would be wrong.
+  expect(clarifySets('10s × 5')).toBe('10s × 5');
+});
+
+test('leaves a cycle description alone', () => {
+  expect(clarifySets('5 min on / 5 min off × 3')).toBe('5 min on / 5 min off × 3');
+});
+```
+
+- [ ] **Step 2: Run it to confirm it fails**
+
+Run: `npx jest __tests__/clarifySets.test.ts`
+Expected: FAIL — module not found.
+
+- [ ] **Step 3: Implement**
+
+```typescript
+// src/components/daily-card/clarifySets.ts
+/** Direct port of clarifySets() in DailyCardView.swift. Prescription text is
+    free-form across templates.js/programs.js, and a blind "first number is
+    sets" transform is actively wrong for real entries ("10s × 5" is a hold
+    duration first; "5 min on / 5 min off × 3" has no leading set count).
+    Only the one unambiguous pattern is touched: a plain leading integer
+    followed by "×" with nothing but whitespace between. */
+export function clarifySets(s: string): string {
+  if (!/^\d+\s*×/.test(s)) return s;
+  const count = s.match(/^\d+/)![0];
+  const rest = s.slice(s.indexOf('×') + 1);
+  return `${count} sets ×${rest}`;
+}
+```
+
+- [ ] **Step 4: Run the test to confirm it passes**
+
+Run: `npx jest __tests__/clarifySets.test.ts`
+Expected: PASS, 3 tests.
+
+- [ ] **Step 5: Build `ExerciseRow.tsx` to the spec table above**
+
+Use `Animated`/Reanimated `withTiming(…, { duration: Motion.tickCollapseMs })` on the container padding and on description opacity.
+
+- [ ] **Step 6: Verify against the Swift build side by side**
+
+Run both apps on the same session (Max Fingers), screenshot each, compare row height, checkbox size, font weights, and collapse animation.
+Expected: visually indistinguishable at 1× and 2× zoom.
+
+- [ ] **Step 7: Commit**
+
+```bash
+git add deadpoint-rn/src/components/daily-card deadpoint-rn/__tests__/clarifySets.test.ts
+git commit -m "feat(rn): port ExerciseRow with tick collapse, info toggle and clarifySets"
+```
+
+---
+
+### Task 8: `SetsTally` — tap to add, long-press to undo
+
+**Files:**
+- Create: `deadpoint-rn/src/components/daily-card/SetsTally.tsx`
+- Reference: `ios/CrimpBlock/DailyCardView.swift:1316-1400`
+
+**Interfaces:**
+- Consumes: `ExerciseRow`'s `ex`, `accent`, `isTicked`.
+- Produces: `<SetsTally totalSets completedSets onTap onLongPressUndo />`
+
+Spec: pips are `20×20` circles, spacing `7`, unlit `1.5` border in `s4`, lit filled `accent`. One tap zone covers the whole row — **not** one per pip (an earlier per-pip version was explicitly reverted). Long-press `450ms` removes the last completed set. Padding: `top 2`, `bottom 6` (the bottom gap was widened specifically to stop mis-taps landing on the Rest/START button below).
+
+- [ ] **Step 1: Write the failing test for `totalSets` detection**
+
+```typescript
+// __tests__/setsTally.test.ts
+import { totalSetsFor } from '../src/components/daily-card/SetsTally';
+
+test('detects "N ×" as a set count', () => {
+  expect(totalSetsFor({ prescription: '3 × 8', interval: null })).toBe(3);
+});
+
+test('detects bare "N sets" and "N supersets"', () => {
+  expect(totalSetsFor({ prescription: '3 sets', interval: null })).toBe(3);
+  expect(totalSetsFor({ prescription: '3 supersets', interval: null })).toBe(3);
+});
+
+test('does NOT treat "15 min" as 15 sets', () => {
+  // A live bug this exact guard was added to fix: a 15-minute warm-up
+  // rendered a 15-pip tally.
+  expect(totalSetsFor({ prescription: '15 min', interval: null })).toBeNull();
+});
+
+test('does NOT tally a range like "4–5 sets"', () => {
+  expect(totalSetsFor({ prescription: '4–5 sets', interval: null })).toBeNull();
+});
+
+test('never tallies an interval exercise', () => {
+  expect(totalSetsFor({ prescription: '3 × 8', interval: { on: 7, off: 3, reps: 6 } })).toBeNull();
+});
+
+test('does not tally a single set', () => {
+  expect(totalSetsFor({ prescription: '1 × 8', interval: null })).toBeNull();
+});
+```
+
+- [ ] **Step 2: Run it to confirm it fails**
+
+Run: `npx jest __tests__/setsTally.test.ts`
+Expected: FAIL — module not found.
+
+- [ ] **Step 3: Implement `totalSetsFor`**
+
+```typescript
+// src/components/daily-card/SetsTally.tsx (helper export)
+/** Port of ExerciseRowView.totalSets in DailyCardView.swift. Only two
+    leading-number phrasings in the template library are unambiguously a
+    set count: "N × ..." and bare "N sets"/"N supersets". A range ("4–5
+    sets") deliberately does not match — there is no single right pip
+    count for a range. Interval exercises are excluded because they get
+    their own full-screen set tracking. */
+export function totalSetsFor(ex: { prescription: string; interval: unknown }): number | null {
+  if (ex.interval) return null;
+  if (!/^\d+\s*(?:×|(?:super)?sets?\b)/.test(ex.prescription)) return null;
+  const n = parseInt(ex.prescription.match(/^\d+/)![0], 10);
+  return n > 1 ? n : null;
+}
+```
+
+- [ ] **Step 4: Run the test to confirm it passes**
+
+Run: `npx jest __tests__/setsTally.test.ts`
+Expected: PASS, 6 tests.
+
+- [ ] **Step 5: Build the pip row with tap + long-press**
+
+Use `Gesture.Exclusive(Gesture.LongPress().minDuration(Motion.setsTallyLongPressMs), Gesture.Tap())` from `react-native-gesture-handler`. Reproduce the `suppressNextTap` guard: a long-press that actually undid something must swallow the tap that fires on release. Filling the final pip calls `onToggleTick` (auto-ticks the row); `autoStartRestOnTally` starts the rest timer on each tap when enabled.
+
+- [ ] **Step 6: Verify on device**
+
+Tap through a 4-set exercise; long-press to remove one; confirm no double-count on release; confirm the row auto-ticks and collapses on the final pip.
+
+- [ ] **Step 7: Commit**
+
+```bash
+git add deadpoint-rn/src/components/daily-card/SetsTally.tsx deadpoint-rn/__tests__/setsTally.test.ts
+git commit -m "feat(rn): port SetsTally with tap-to-add and long-press undo"
+```
+
+---
+
+### Task 9: `useSwipeCarousel` — the finger-tracked session swipe
+
+The highest-risk element in the port. It **must** run on the UI thread.
+
+**Files:**
+- Create: `deadpoint-rn/src/components/daily-card/useSwipeCarousel.ts`
+- Reference: `ios/CrimpBlock/DailyCardView.swift:919-969` (`swipeGesture`), `:212-238` (`commit`), `:179-191` (`animatedBrowse`)
+
+**Interfaces:**
+- Consumes: `SESSION_ORDER`, `Motion.swipe`.
+- Produces: `{ panGesture, translateX, peekKey, animateTo(key) }`
+
+- [ ] **Step 1: Write the failing test for the wrap-around index maths**
+
+```typescript
+// __tests__/carousel.test.ts
+import { nextIndex } from '../src/components/daily-card/useSwipeCarousel';
+
+test('stepping forward from the last session wraps to the first', () => {
+  // rest (6) -> maxFingers (0)
+  expect(nextIndex(6, -1, 7)).toBe(0);
+});
+
+test('stepping back from the first session wraps to the last', () => {
+  // maxFingers (0) -> rest (6). Swift's % returns -1 here, so the raw
+  // index must be pushed positive before the modulo.
+  expect(nextIndex(0, 1, 7)).toBe(6);
+});
+
+test('ordinary steps are unaffected', () => {
+  expect(nextIndex(2, -1, 7)).toBe(3);
+  expect(nextIndex(2, 1, 7)).toBe(1);
+});
+```
+
+- [ ] **Step 2: Run it to confirm it fails**
+
+Run: `npx jest __tests__/carousel.test.ts`
+Expected: FAIL — module not found.
+
+- [ ] **Step 3: Implement**
+
+```typescript
+// src/components/daily-card/useSwipeCarousel.ts
+/** dx < 0 (swiping left) advances; dx > 0 goes back. Wraps at both ends
+    rather than clamping — an earlier version stopped dead at either end
+    and was reverted on explicit feedback: a carousel that keeps going is
+    what was wanted. `+ count` before the modulo is required because
+    JS (like Swift) returns a negative result for a negative operand. */
+export function nextIndex(from: number, direction: -1 | 1, count: number): number {
+  return ((direction === -1 ? from + 1 : from - 1) + count) % count;
+}
+```
+
+- [ ] **Step 4: Run the test to confirm it passes**
+
+Run: `npx jest __tests__/carousel.test.ts`
+Expected: PASS, 3 tests.
+
+- [ ] **Step 5: Build the Reanimated pan gesture**
+
+Requirements, each mapping to a specific Swift behaviour:
+
+- `Gesture.Pan().minDistance(Motion.swipe.minimumDistance)` and `.simultaneousWithExternalGesture(scrollRef)` — the Swift code uses `.simultaneousGesture` precisely so it never competes with the inner scroll view.
+- Claim horizontality only once `abs(dx) > 12 && abs(dx) > abs(dy) * 1.5`; before that, apply **no** offset — ambiguous small movements must not get grabbed mid-vertical-scroll.
+- On claim, resolve the peek session via `nextIndex` and render it **behind** the current card at rest (no offset of its own), so sliding the top layer reveals it like lifting a card off a stack.
+- `translateX` follows the finger 1:1 in `onUpdate` with **no** animation — this is the fix for "a delay between swiping and it moving".
+- On end: past `containerWidth * 0.3` → `withTiming(±containerWidth, { duration: 200, easing: Easing.out })` then commit; otherwise `withSpring` tuned to `response 0.32 / damping 0.82`.
+- The peek is only cleared once the real `displayKey` catches up — clearing it earlier causes a visible flash back to the old session.
+
+- [ ] **Step 6: Verify feel on a real device, both platforms**
+
+Swipe through all 7 sessions in both directions, including the wrap. Attempt a vertical scroll mid-list and confirm it is never hijacked.
+Expected: tracks the finger with no perceptible lag; spring-back feels identical to the Swift build held side by side.
+
+- [ ] **Step 7: Commit**
+
+```bash
+git add deadpoint-rn/src/components/daily-card/useSwipeCarousel.ts deadpoint-rn/__tests__/carousel.test.ts
+git commit -m "feat(rn): port the swipe carousel as a UI-thread Reanimated gesture"
+```
+
+---
+
+### Task 10: `SessionDots`, `CardHeader`, `WeekStrip`
+
+**Files:**
+- Create: `deadpoint-rn/src/components/daily-card/SessionDots.tsx`
+- Create: `deadpoint-rn/src/components/daily-card/CardHeader.tsx`
+- Create: `deadpoint-rn/src/components/daily-card/WeekStrip.tsx`
+- Reference: `DailyCardView.swift:733-796` (dots + next-up), `:978-1036` (header), `ios/CrimpBlock/WeekStripView.swift`
+
+Exact spec:
+
+- **Session dots:** inner circle `14×14`, `1.5` border; outline-only by default, filled `accent` when current. The recommendation ring is a **separate** `22×22` circle with a `1.5` border in the session's colour. Row spacing `9`; `10` between the dots group and the next-up chip. "Current" and "recommended" are independent signals.
+- **Next-up chip:** stacked (`NEXT` label + 7px dot above, name below, right-aligned, max 2 lines) — it shares a row with 7 dots and was truncating names when laid out inline.
+- **Header:** phase badge is an **outlined** pill (`s1` background, `1px s3` border, capsule) reading `PHASE · WK n` plus ` · DELOAD` on week 4, in `Fonts.mono(12, 'bold')` tinted `accent`, with an 8px chevron. Right side: date in `Fonts.mono(10.5, 'medium')` `faint` uppercase, formatted `EEE, d MMM` (en-GB), then optional calendar icon, then the settings gear — both `17`, `dim`, `8pt` left padding each.
+
+- [ ] **Step 1: Build all three components to the spec above**
+
+- [ ] **Step 2: Verify side by side against the Swift build**
+
+Expected: dot sizes, ring offsets, badge padding, and date format all match.
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add deadpoint-rn/src/components/daily-card
+git commit -m "feat(rn): port SessionDots, CardHeader and WeekStrip"
+```
+
+---
+
+### Task 11: `LoggedStamp` and the Done flow
+
+**Files:**
+- Create: `deadpoint-rn/src/components/daily-card/LoggedStamp.tsx`
+- Modify: `deadpoint-rn/src/components/daily-card/DailyCard.tsx`
+- Reference: `DailyCardView.swift:807-836` (stamp), `:684-718` (timing), `:246-280` (`handleDoneTap`)
+
+Spec: card max width `300`, padding `28/24`, `s1` background, radius `16`, `1.5` border in `accent` at 45% opacity, shadow `black 35% / radius 16 / y 6`. Contents: `LOGGED` in `Fonts.heading(38)` white, "Nice work today." at `14` `dim`, then a `1px s3` divider, `TOMORROW` in `Fonts.mono(10, 'bold')` `faint` with `1.2` letter-spacing, and tomorrow's session name at `17` bold in its own colour.
+
+Timing chain, exactly: `celebrationTrigger` fires → wait `1000ms` → fade in over `250ms` → hold `2500ms` → fade out over `400ms`. The dismiss timer must be **cancellable** — an undo immediately followed by a re-log would otherwise let the first timer kill the second card early.
+
+The Done button also owns two confirmation dialogs, in this order:
+1. **Swap confirm** — only when something else is already logged today and this is not it.
+2. **Climb-type confirm** — only for a *fresh* `climbHard` log: "Board session, or just a hard climb?" → writes `sub: 'board' | 'climb'`.
+
+A swap onto `climbHard` must chain into the climb-type prompt *after* the swap confirms, not instead of it.
+
+- [ ] **Step 1: Build `LoggedStamp` with the cancellable timing chain**
+
+- [ ] **Step 2: Wire the two dialogs into the Done button**
+
+- [ ] **Step 3: Verify on device**
+
+Log a session → confirm the 1s delay, fade in, 2.5s hold, fade out, then the small persistent "LOGGED" text remains. Undo and immediately re-log → confirm the second card is not cut short. Log a Hard Climb → confirm the board/climb prompt appears and writes `sub`.
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add deadpoint-rn/src/components/daily-card
+git commit -m "feat(rn): port LoggedStamp timing chain and the Done confirmation flow"
+```
+
+---
+
+### Task 12: Assemble `DailyCard` and ship Phase 2
+
+**Files:**
+- Create: `deadpoint-rn/src/components/daily-card/DailyCard.tsx`
+- Create: `deadpoint-rn/app/(main)/card.tsx`
+- Reference: `DailyCardView.swift:355-492` (body layout)
+
+Layout: outer padding `20`, `VStack` spacing `18`. Order: week strip (with `10pt` extra bottom padding) → header → session dots → title block → scrolling exercise list. Only the exercise list scrolls; header, dots, and title stay pinned. Title is `Fonts.heading(32)` white; the `where` line is `Fonts.mono(13, 'medium')` in `accent`; the optional Guide pill sits below in `Fonts.mono(11, 'bold')`. Scroll indicators hidden. Reserve `64` of clearance at the list bottom for the floating Done button.
+
+- [ ] **Step 1: Assemble the components into `DailyCard.tsx`**
+
+- [ ] **Step 2: Wire it to real data in `app/(main)/card.tsx`**
+
+Use `useStore`/`useLoads`/`useProfile` from Task 6 and `createEngine` from Task 4.
+
+- [ ] **Step 3: Verify full parity on both platforms**
+
+Sign in as the real account. Compare against the Swift build screen by screen: every session via swipe, tick and untick, sets tally, weight badge, Done and Undo.
+Expected: no visual or behavioural difference beyond the known platform divergences in the Risk Register.
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add deadpoint-rn/src/components/daily-card/DailyCard.tsx deadpoint-rn/app
+git commit -m "feat(rn): assemble the daily card on real data — Phase 2 complete"
+```
+
+---
+
+## What is deliberately *not* in this plan
+
+- **Phases 3–8 task breakdowns.** They get their own plans, written once Phase 2 proves the component-mapping patterns. Writing them now would be guessing.
+- **Deleting the SwiftUI app.** It stays on TestFlight until RN passes a device parity review.
+- **Android widget and Live Activity replacements.** Scoped in Phase 7 with their divergences already recorded in the Risk Register.
