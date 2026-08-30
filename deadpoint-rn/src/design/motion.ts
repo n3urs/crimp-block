@@ -23,4 +23,16 @@ export const Motion = {
   restOverlaySlideMs: 200,
   restOverlayTickMs: 200,
   intervalTickMs: 50,
+  /** IntervalTimerController's OWN ticker — distinct from intervalTickMs
+      above, which is IntervalTimerView's separate, faster 50ms ticker used
+      only for smooth progress-bar rendering. The controller ticks at this
+      slower rate to decide phase transitions (Timer.scheduledTimer(
+      withTimeInterval: 0.2...) in IntervalTimerController.swift's start()).
+      Two different timers at two different rates for two different jobs,
+      exactly as the Swift source has them. */
+  intervalControllerTickMs: 200,
+  /** How long a finished interval timer's DONE state stays on screen
+      before auto-clearing (IntervalTimerController.finish()'s
+      `DispatchQueue.main.asyncAfter(deadline: .now() + 1.4)`). */
+  intervalDoneAutoClearMs: 1400,
 } as const;
