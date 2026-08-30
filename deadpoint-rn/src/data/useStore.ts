@@ -19,7 +19,7 @@ export function rollback(days: Days, date: string, previous: Entry | undefined):
   return next;
 }
 
-export function useStore(startDate: string | null, today: string) {
+export function useStore(startDate: string | null, today: string, userId: string) {
   const [days, setDays] = useState<Days>({});
 
   const reload = useCallback(async () => {
@@ -39,11 +39,16 @@ export function useStore(startDate: string | null, today: string) {
   const set = useCallback(async (date: string, type: string, sub: string | null = null) => {
     const previous = days[date];
     setDays(d => applyOptimisticSet(d, date, type, sub));
-    const { data: { user } } = await supabase.auth.getUser();
+    // userId comes from useSession()'s already-held session (no network
+    // round trip) — see this file's own doc comment above and the Task 12
+    // final-review fix that removed a `supabase.auth.getUser()` call from
+    // this exact spot: that call could hang/reject offline, or resolve
+    // `{ user: null }` and throw on `user!.id`, in both cases OUTSIDE this
+    // try's error handling, leaving the optimistic write un-rolled-back.
     const { error } = await supabase.from('sessions')
-      .upsert({ user_id: user!.id, date, type, sub }, { onConflict: 'user_id,date' });
+      .upsert({ user_id: userId, date, type, sub }, { onConflict: 'user_id,date' });
     if (error) { setDays(d => rollback(d, date, previous)); throw error; }
-  }, [days]);
+  }, [days, userId]);
 
   const clear = useCallback(async (date: string) => {
     const previous = days[date];

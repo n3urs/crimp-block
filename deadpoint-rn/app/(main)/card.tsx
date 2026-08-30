@@ -35,6 +35,14 @@ function dayLetter(date: string): string {
 export default function Card() {
   const { session } = useSession();
   const email = session?.user?.email ?? null;
+  // Same "not confirmed yet" idiom as `email` above — useStore/useLoads
+  // must be called unconditionally (rules of hooks), so before the
+  // session resolves this is '', which the real write path (onLog/onLog's
+  // loads.set) can only ever reach after a user interaction, by which
+  // point the session has long since loaded. Passing the id straight
+  // from the already-held session (no network call) is the whole point
+  // of this fix — see useStore.ts/useLoads.ts's doc comments.
+  const userId = session?.user?.id ?? '';
 
   // No template-resolver task exists anywhere in Tasks 1-12 (confirmed:
   // src/engine/template-resolver.js exists on disk but nothing in this
@@ -45,7 +53,7 @@ export default function Card() {
   const program = useMemo(() => PROGRAMS[(email ?? '').toLowerCase()] ?? PROGRAMS.default, [email]);
 
   const profile = useProfile();
-  const loads = useLoads();
+  const loads = useLoads(userId);
 
   // engine.today() is a pure passthrough to engine-core's own today() —
   // it reads neither `program` nor the log data, so this cheap throwaway
@@ -60,7 +68,7 @@ export default function Card() {
   // useStore's fetch immediately off the program's own default avoids an
   // initial null-startDate stall while the profile row is still in flight.
   const startDate = profile.row?.programStartDate ?? program.startDate ?? null;
-  const store = useStore(startDate, today);
+  const store = useStore(startDate, today, userId);
 
   const engine = useMemo(
     () => createEngine(program, { sessionLog: store.days, loadLog: loads.all() }),

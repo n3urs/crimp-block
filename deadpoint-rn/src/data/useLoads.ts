@@ -21,7 +21,7 @@ export function rollbackLoad(byExercise: LoadsByExercise, id: string, previous: 
   return { ...byExercise, [id]: previous };
 }
 
-export function useLoads() {
+export function useLoads(userId: string) {
   const [byExercise, setByExercise] = useState<LoadsByExercise>({});
 
   /** Not date-filtered, same reasoning as NativeLoads.load(): "what did I
@@ -51,11 +51,16 @@ export function useLoads() {
   const set = useCallback(async (date: string, id: string, kg: number) => {
     const previous = byExercise[id] ?? [];
     setByExercise(b => applyOptimisticLoad(b, id, date, kg));
-    const { data: { user } } = await supabase.auth.getUser();
+    // userId comes from useSession()'s already-held session (no network
+    // round trip) — see useStore.ts's matching fix and doc comment: a
+    // `supabase.auth.getUser()` call here could hang/reject offline, or
+    // resolve `{ user: null }` and throw on `user!.id`, in both cases
+    // OUTSIDE this try's error handling, leaving the optimistic write
+    // un-rolled-back.
     const { error } = await supabase.from('exercise_loads')
-      .upsert({ user_id: user!.id, date, ex: id, kg }, { onConflict: 'user_id,date,ex' });
+      .upsert({ user_id: userId, date, ex: id, kg }, { onConflict: 'user_id,date,ex' });
     if (error) { setByExercise(b => rollbackLoad(b, id, previous)); throw error; }
-  }, [byExercise]);
+  }, [byExercise, userId]);
 
   /** Matches NativeLoads.all() — the exact shape createEngine's `loadLog`
       argument (Task 4) expects: exercise id -> {date,kg}[]. */
