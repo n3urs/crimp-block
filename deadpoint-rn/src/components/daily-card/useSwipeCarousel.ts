@@ -9,8 +9,24 @@ import { Motion } from '../../design/motion';
     rather than clamping — an earlier version stopped dead at either end
     and was reverted on explicit feedback: a carousel that keeps going is
     what was wanted. `+ count` before the modulo is required because
-    JS (like Swift) returns a negative result for a negative operand. */
+    JS (like Swift) returns a negative result for a negative operand.
+
+    Marked as a worklet: it's called synchronously from inside the pan
+    gesture's `.onUpdate` handler below, which itself runs on the UI
+    thread. Without this directive, Reanimated's worklets runtime
+    correctly refuses the call — confirmed live, on a real device, this
+    exact function crashing with "[Worklets] Tried to synchronously call
+    a Remote Function. Called 'nextIndex' on the UI Runtime." the moment
+    a real swipe gesture actually ran (Jest never exercises this path —
+    it only ever calls `nextIndex` directly as a plain function, never
+    from within a real worklet, so this was invisible to every test in
+    this branch until a real device build hit it). The directive doesn't
+    change this function's own behaviour or its plain-JS callers (this
+    file's own `animateTo`, and `__tests__/carousel.test.ts`) — it only
+    tells the worklets babel plugin to also compile a UI-thread-callable
+    copy. */
 export function nextIndex(from: number, direction: -1 | 1, count: number): number {
+  'worklet';
   return ((direction === -1 ? from + 1 : from - 1) + count) % count;
 }
 
