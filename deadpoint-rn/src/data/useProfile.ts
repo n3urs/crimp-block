@@ -50,7 +50,14 @@ function fromDbRow(r: ProfileDbRow): ProfileRow {
 const PROFILE_COLUMNS =
   'assigned_template_id,program_start_date,modifiers,tier,quiz_completed_at,tutorial_completed_at,track_type,rehab_injury_area,rehab_phase_index';
 
-export function useProfile() {
+/** `userId` comes from the caller's already-held session (`useSession()`),
+    not a fresh `supabase.auth.getUser()` call inside each write — a
+    network round-trip on the write path meant a genuine offline write
+    threw OUTSIDE the `if (error)` rollback block below (`getUser()`
+    itself failing, or resolving with `user: null` and crashing on
+    `user!.id`), leaving the optimistic state uncorrected. Same fix as
+    useStore.ts/useLoads.ts, for the identical reason. */
+export function useProfile(userId: string) {
   const [row, setRow] = useState<ProfileRow | null>(null);
 
   /** null `row` afterward means genuinely no profile yet (a real new user
@@ -70,10 +77,9 @@ export function useProfile() {
       a standard assignment before) the profile that makes this a
       template-assigned Standard-tier user from then on. */
   const create = useCallback(async (templateId: string, startDate: string, modifiers: Record<string, unknown>) => {
-    const { data: { user } } = await supabase.auth.getUser();
     const quizCompletedAt = new Date().toISOString();
     const { error } = await supabase.from('profiles').upsert({
-      user_id: user!.id,
+      user_id: userId,
       assigned_template_id: templateId,
       program_start_date: startDate,
       modifiers,
@@ -87,7 +93,7 @@ export function useProfile() {
       tier: 'standard', quizCompletedAt, tutorialCompletedAt: r?.tutorialCompletedAt ?? null,
       trackType: 'standard', rehabInjuryArea: null, rehabPhaseIndex: null,
     }));
-  }, []);
+  }, [userId]);
 
   /** Assigns (or first-assigns) the rehab track. Deliberately omits
       assigned_template_id/program_start_date/modifiers from the write
@@ -100,11 +106,10 @@ export function useProfile() {
       NOT NULL constraint in that case only — unused while trackType stays
       "rehab". */
   const assignRehab = useCallback(async (injuryArea: string, startingPhaseIndex = 0) => {
-    const { data: { user } } = await supabase.auth.getUser();
     const quizCompletedAt = new Date().toISOString();
     const existing = row;
     const payload: Record<string, unknown> = {
-      user_id: user!.id,
+      user_id: userId,
       track_type: 'rehab',
       rehab_injury_area: injuryArea,
       rehab_phase_index: startingPhaseIndex,
@@ -120,7 +125,7 @@ export function useProfile() {
           modifiers: {}, tier: 'standard', quizCompletedAt, tutorialCompletedAt: null,
           trackType: 'rehab', rehabInjuryArea: injuryArea, rehabPhaseIndex: startingPhaseIndex,
         });
-  }, [row]);
+  }, [row, userId]);
 
   /** Restores the Standard track using whatever assignment already exists
       on this profile — the "instant" path for someone who's finished
@@ -129,29 +134,26 @@ export function useProfile() {
       would fail program_start_date's NOT NULL check the same way
       markTutorialCompleted's used to. */
   const switchToStandard = useCallback(async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    const { error } = await supabase.from('profiles').update({ track_type: 'standard' }).eq('user_id', user!.id);
+    const { error } = await supabase.from('profiles').update({ track_type: 'standard' }).eq('user_id', userId);
     if (error) throw error;
     setRow(r => (r ? { ...r, trackType: 'standard' } : r));
-  }, []);
+  }, [userId]);
 
   /** Persists a new rehab phase index once every self-report criterion for
       the current phase has been checked and the user confirms they're
       ready to move on. */
   const advanceRehabPhase = useCallback(async (phaseIndex: number) => {
-    const { data: { user } } = await supabase.auth.getUser();
-    const { error } = await supabase.from('profiles').update({ rehab_phase_index: phaseIndex }).eq('user_id', user!.id);
+    const { error } = await supabase.from('profiles').update({ rehab_phase_index: phaseIndex }).eq('user_id', userId);
     if (error) throw error;
     setRow(r => (r ? { ...r, rehabPhaseIndex: phaseIndex } : r));
-  }, []);
+  }, [userId]);
 
   const markTutorialCompleted = useCallback(async () => {
-    const { data: { user } } = await supabase.auth.getUser();
     const now = new Date().toISOString();
-    const { error } = await supabase.from('profiles').update({ tutorial_completed_at: now }).eq('user_id', user!.id);
+    const { error } = await supabase.from('profiles').update({ tutorial_completed_at: now }).eq('user_id', userId);
     if (error) throw error;
     setRow(r => (r ? { ...r, tutorialCompletedAt: now } : r));
-  }, []);
+  }, [userId]);
 
   return { row, reload, create, assignRehab, switchToStandard, advanceRehabPhase, markTutorialCompleted };
 }

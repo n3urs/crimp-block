@@ -52,7 +52,7 @@ export default function Card() {
   // a judgment call the brief's Step 2 left open; see the Task 12 report.
   const program = useMemo(() => PROGRAMS[(email ?? '').toLowerCase()] ?? PROGRAMS.default, [email]);
 
-  const profile = useProfile();
+  const profile = useProfile(userId);
   const loads = useLoads(userId);
 
   // engine.today() is a pure passthrough to engine-core's own today() —
