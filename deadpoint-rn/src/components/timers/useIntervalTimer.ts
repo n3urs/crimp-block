@@ -3,7 +3,7 @@
     Timer.scheduledTimer(withTimeInterval: 0.2...)), pause/resume,
     mute, and tone playback. Not unit tested directly (see this plan's
     Global Constraints on hooks) — verified live on device in Task 6. */
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { IntervalConfig } from '../../engine/types';
 import { Motion } from '../../design/motion';
 import { play } from './tones';
@@ -141,6 +141,13 @@ export function useIntervalTimer() {
     const s = stateRef.current;
     if (s) setAndTrack({ ...s, isMuted: isMutedRef.current });
   }, [setAndTrack]);
+
+  // Belt-and-braces cleanup if the owning screen ever unmounts mid-timer
+  // (e.g. navigating away without hitting STOP) — without this the tick
+  // interval and the done-state auto-clear timeout would keep firing
+  // forever against a detached stateRef, including continuing to play
+  // audible tones. Same precedent as useRestTimer.ts's own unmount effect.
+  useEffect(() => () => clearTimers(), [clearTimers]);
 
   return { state, start, stop, pause, resume, toggleMute };
 }
