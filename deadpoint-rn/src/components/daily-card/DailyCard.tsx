@@ -43,7 +43,11 @@ import type { useSwipeCarousel } from './useSwipeCarousel';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colours } from '../../design/colours';
 import { Fonts } from '../../design/fonts';
-import type { IntervalConfig, RenderedExercise } from '../../engine/types';
+import type { RenderedExercise } from '../../engine/types';
+import { useRestTimer } from '../timers/useRestTimer';
+import { useIntervalTimer } from '../timers/useIntervalTimer';
+import { RestTimerOverlay } from '../timers/RestTimerOverlay';
+import { IntervalTimerView } from '../timers/IntervalTimerView';
 
 export interface DailyCardPeek {
   session: { name: string; where: string };
@@ -62,8 +66,8 @@ export interface DailyCardProps {
   ticks: Set<string>;
   onToggleTick: (id: string) => void;
   onTapWeight?: (ex: RenderedExercise) => void;
-  onTapRest?: (seconds: number) => void;
-  onStartInterval?: (interval: IntervalConfig) => void;
+  onTapRest?: (ex: RenderedExercise) => void;
+  onStartInterval?: (ex: RenderedExercise) => void;
   /** is TODAY's logged session the one currently on screen */
   isLogged: boolean;
   /** caller-computed (deload/easing-back guidance or the session's own
@@ -107,6 +111,13 @@ export interface DailyCardProps {
       useSwipeCarousel's pan gesture can register
       `.simultaneousWithExternalGesture` against it. */
   scrollRef?: RefObject<React.Component | null>;
+  /** Own hook-return-object shape, same precedent as doneFlow above.
+      DailyCard renders RestTimerOverlay/IntervalTimerView directly off
+      these — it doesn't need to know how onTapRest/onStartInterval are
+      implemented (card.tsx owns that), only that these two objects exist
+      to drive the two overlays. */
+  restTimer: ReturnType<typeof useRestTimer>;
+  intervalTimer: ReturnType<typeof useIntervalTimer>;
 }
 
 /** Dependency-free stand-in for SF Symbol "book.closed" — same precedent
@@ -143,8 +154,8 @@ interface CardBodyProps {
   ticks: Set<string>;
   onToggleTick?: (id: string) => void;
   onTapWeight?: (ex: RenderedExercise) => void;
-  onTapRest?: (seconds: number) => void;
-  onStartInterval?: (interval: IntervalConfig) => void;
+  onTapRest?: (ex: RenderedExercise) => void;
+  onStartInterval?: (ex: RenderedExercise) => void;
   message: string;
   /** true -> 14px semibold+accent; false -> 14px regular+dim. Real
       content passes `isLogged`, the peek passes its own `peekLogged`. */
@@ -259,6 +270,7 @@ export function DailyCard(props: DailyCardProps) {
     onTapGuide, phaseName, weekNumber, today, recommendedKey, nextUp,
     celebrationTrigger, footerNote, doneFlow, panGesture, translateX,
     peek, onTapSession, sessionColour, displayKey, scrollRef,
+    restTimer, intervalTimer,
   } = props;
 
   // The two confirmation dialogs' CHROME is explicitly out of scope (the
@@ -419,6 +431,20 @@ export function DailyCard(props: DailyCardProps) {
       <Animated.View style={[styles.loggedStampLayer, slideStyle]} pointerEvents="none">
         <LoggedStamp trigger={celebrationTrigger} accent={accent} nextUp={nextUp} />
       </Animated.View>
+
+      {restTimer.state != null && (
+        <RestTimerOverlay state={restTimer.state} onStop={restTimer.stop} />
+      )}
+
+      {intervalTimer.state != null && (
+        <IntervalTimerView
+          state={intervalTimer.state}
+          onPause={intervalTimer.pause}
+          onResume={intervalTimer.resume}
+          onStop={intervalTimer.stop}
+          onToggleMute={intervalTimer.toggleMute}
+        />
+      )}
     </View>
   );
 }

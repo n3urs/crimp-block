@@ -18,6 +18,10 @@ import { useSwipeCarousel } from '../../src/components/daily-card/useSwipeCarous
 import { useDoneFlow } from '../../src/components/daily-card/useDoneFlow';
 import { DailyCard, type DailyCardPeek } from '../../src/components/daily-card/DailyCard';
 import type { WeekDay } from '../../src/components/daily-card/WeekStrip';
+import type { RenderedExercise } from '../../src/engine/types';
+import { useRestTimer } from '../../src/components/timers/useRestTimer';
+import { useIntervalTimer } from '../../src/components/timers/useIntervalTimer';
+import { leadingInt } from '../../src/components/timers/intervalTimerLogic';
 
 // programs.js is plain JS (no .d.ts), same require-not-import pattern the
 // engine facade itself uses internally (src/engine/index.ts:8) and that
@@ -103,6 +107,9 @@ export default function Card() {
   }, []);
 
   const [celebrationTrigger, setCelebrationTrigger] = useState(0);
+
+  const restTimer = useRestTimer();
+  const intervalTimer = useIntervalTimer();
 
   const phaseName = engine.phaseNameAt(today);
   const exercises = engine.resolveExercises(displayKey, today, phaseName);
@@ -207,6 +214,17 @@ export default function Card() {
     setBrowsedKey(null); // logging/undoing TODAY resets browsing
   }, [isLogged, store, loads, today, displayKey, exercises, ticks]);
 
+  const handleTapRest = useCallback((ex: RenderedExercise) => {
+    if (ex.restSeconds == null) return;
+    restTimer.start(ex.restSeconds, ex.title, accent);
+  }, [restTimer, accent]);
+
+  const handleStartInterval = useCallback((ex: RenderedExercise) => {
+    if (ex.interval == null) return;
+    const sets = Math.max(1, leadingInt(ex.prescription) ?? 1);
+    intervalTimer.start(ex.interval, ex.restSeconds ?? 120, sets, ex.title);
+  }, [intervalTimer]);
+
   const doneFlow = useDoneFlow({ isLogged, loggedSessionKey, displayKey, onLog });
 
   const footerNote = `React Native (live data) · ${email ?? ''} · ${today}`;
@@ -236,6 +254,10 @@ export default function Card() {
       // not a someday nice-to-have.
       onTapDay={() => {}}
       onTapCalendar={() => {}}
+      onTapRest={handleTapRest}
+      onStartInterval={handleStartInterval}
+      restTimer={restTimer}
+      intervalTimer={intervalTimer}
       onTapSettings={() => {}}
       onTapPhaseBadge={() => {}}
       onTapGuide={() => {}}

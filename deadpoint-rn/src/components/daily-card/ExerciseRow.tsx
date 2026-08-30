@@ -17,7 +17,7 @@ import Animated, {
 import { Colours } from '../../design/colours';
 import { Fonts } from '../../design/fonts';
 import { Motion } from '../../design/motion';
-import type { IntervalConfig, RenderedExercise } from '../../engine/types';
+import type { RenderedExercise } from '../../engine/types';
 import { clarifySets } from './clarifySets';
 
 export interface ExerciseRowProps {
@@ -34,13 +34,17 @@ export interface ExerciseRowProps {
   isTicked: boolean;
   onToggleTick?: (id: string) => void;
   onTapWeight?: (ex: RenderedExercise) => void;
-  /** Called with ex.restSeconds when the Rest button is pressed. No real
-      timer controller exists yet — an absent callback is a normal no-op,
+  /** Called with the whole exercise when the Rest button is pressed —
+      starting a real timer needs ex.title and ex.restSeconds, not just
+      the raw seconds this used to pass (matches onTapWeight's own
+      whole-exercise shape above). An absent callback is a normal no-op,
       not a reason to hide or disable the button. */
-  onTapRest?: (seconds: number) => void;
-  /** Called with ex.interval when START is pressed. Same no-op contract as
-      onTapRest above. */
-  onStartInterval?: (interval: IntervalConfig) => void;
+  onTapRest?: (ex: RenderedExercise) => void;
+  /** Called with the whole exercise when START is pressed — starting the
+      interval timer needs ex.title, ex.restSeconds (used as setRestSecs),
+      and ex.prescription (to derive the set count), not just ex.interval
+      alone. Same no-op contract as onTapRest above. */
+  onStartInterval?: (ex: RenderedExercise) => void;
 }
 
 const easeInOut = Easing.inOut(Easing.ease);
@@ -209,7 +213,7 @@ export function ExerciseRow({
 
         {showRight && ex.interval != null ? (
           <Pressable
-            onPress={() => onStartInterval?.(ex.interval as IntervalConfig)}
+            onPress={() => onStartInterval?.(ex)}
             style={[styles.startButton, { backgroundColor: accent }]}
             accessibilityRole="button"
             accessibilityLabel={`Start interval timer for ${ex.title}`}
@@ -218,7 +222,7 @@ export function ExerciseRow({
           </Pressable>
         ) : showRight && ex.restSeconds != null ? (
           <Pressable
-            onPress={() => onTapRest?.(ex.restSeconds as number)}
+            onPress={() => onTapRest?.(ex)}
             style={styles.restButton}
             accessibilityRole="button"
             accessibilityLabel={`Start rest timer for ${ex.title}`}
