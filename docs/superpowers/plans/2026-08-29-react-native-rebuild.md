@@ -159,7 +159,7 @@ Every Swift file, what it does, and its fate in the port. **9,678 lines across 4
 deadpoint-rn/
 ├── app/                              # expo-router
 │   ├── _layout.tsx                   # root: fonts, providers, theme
-│   ├── index.tsx                     # router state machine (NativeAppView.swift:63-198)
+│   ├── index.tsx                     # placeholder redirect to /card (Task 12) — becomes the real router state machine (NativeAppView.swift:63-198: welcome/sign-in/quiz/paywall branching) once Phase 3's auth/onboarding plan is written
 │   ├── welcome.tsx
 │   ├── sign-in.tsx
 │   ├── quiz.tsx
@@ -187,7 +187,8 @@ deadpoint-rn/
 │   │   ├── useSession.ts             # auth (SupabaseClient.swift auth half)
 │   │   ├── useStore.ts               # NativeStore.swift
 │   │   ├── useLoads.ts               # NativeLoads.swift
-│   │   └── useProfile.ts             # NativeProfile.swift
+│   │   ├── useProfile.ts             # NativeProfile.swift
+│   │   └── prefs.ts                  # AppStorage → MMKV (setsCounterEnabled, autoStartRestOnTally — not yet built, see Task 8's completion notes)
 │   ├── components/
 │   │   ├── daily-card/
 │   │   │   ├── DailyCard.tsx
@@ -197,13 +198,13 @@ deadpoint-rn/
 │   │   │   ├── SetsTally.tsx
 │   │   │   ├── LoggedStamp.tsx
 │   │   │   ├── WeekStrip.tsx
-│   │   │   └── useSwipeCarousel.ts
+│   │   │   ├── clarifySets.ts
+│   │   │   ├── useSwipeCarousel.ts
+│   │   │   └── useDoneFlow.ts
 │   │   ├── calendar/
 │   │   ├── timers/
 │   │   ├── tutorial/
-│   │   └── ui/                       # Pill, Divider, StatTile
-│   └── state/
-│       └── prefs.ts                  # AppStorage → MMKV
+│   │   └── ui/                       # Pill, Divider, StatTile — not yet built; see the final Phase 0-2 review's Duplicated Logic section for the icon/pill consolidation this is meant to absorb
 ├── assets/fonts/                     # the 4 TTFs, copied verbatim
 └── __tests__/
     └── engine-parity.test.ts
@@ -1881,6 +1882,12 @@ Real on-device feel verification (swipe through all 7 sessions both directions i
 git add deadpoint-rn/src/components/daily-card/useSwipeCarousel.ts deadpoint-rn/__tests__/carousel.test.ts deadpoint-rn/src/design/motion.ts
 git commit -m "feat(rn): port the swipe carousel as a UI-thread Reanimated gesture"
 ```
+
+**Retroactive plan correction (added after Task 9's own review, commit `4283700`):** the Step 6 code above is what was reviewed and dispatched, but the shipped file differs from it in two ways the review found necessary, both real fixes rather than deviations to avoid:
+1. `pendingKey` is a `useSharedValue<string | null>` in the shipped code, not the plain `useRef<string | null>` shown above — a plain ref isn't safely readable from inside the `.onUpdate` worklet (the same cross-thread hazard `peekTargetKey` already exists to avoid), and both `.onUpdate`/`animateTo` need to compute an *effective* display key (`pendingKeyShared.value ?? displayKey`, mirroring Swift's `effectiveDisplayKey = pendingCommitKey ?? state.displayKey`) so a second swipe started mid-commit doesn't peek from a stale key.
+2. `commit()` in the shipped code also arms a 1-second stuck-card safety net (`setTimeout` that force-clears the peek if `displayKey` never catches up), matching `DailyCardView.swift:244-250`'s own explicit "don't leave the card stuck mid-swipe forever" comment — omitted from the printed code above by oversight, not by decision.
+
+If this file is ever touched again, treat the shipped `useSwipeCarousel.ts` as ground truth over this printed block, not the reverse.
 
 ---
 

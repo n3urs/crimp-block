@@ -219,9 +219,13 @@ export default function Card() {
       // icon/badge still render (matching Swift's real signed-in card
       // always supplying all of these), same "no-op until a later phase"
       // precedent already used for ExerciseRow's onTapRest/onStartInterval.
-      // No session in programs.js has a `guide` field yet, so onTapGuide
-      // is never actually reachable today, but it's free to wire for when
-      // one does.
+      // NOT hypothetical: oscar@sullivanltd.co.uk's real climbHard session
+      // already has a `guide` field (programs.js), so the pill genuinely
+      // renders and no-ops on his real account today, not just someday.
+      // Task 12's brief explicitly scopes SessionGuideView's real modal as
+      // out of this task's scope (no task has ported it yet) — this is a
+      // real, live gap worth prioritising in whatever plan covers it next,
+      // not a someday nice-to-have.
       onTapDay={() => {}}
       onTapCalendar={() => {}}
       onTapSettings={() => {}}
