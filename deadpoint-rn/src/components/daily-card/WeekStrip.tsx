@@ -36,6 +36,8 @@ export function WeekStrip({ days, onTapDay }: WeekStripProps) {
           key={day.id}
           onPress={() => onTapDay(day.id)}
           style={[styles.tile, day.isToday && styles.tileToday]}
+          accessibilityRole="button"
+          accessibilityLabel={`${day.id}${day.isToday ? ', today' : ''}, ${day.colourVarName != null ? 'session logged' : 'no session logged'}`}
         >
           {day.colourVarName != null ? (
             <View style={[styles.bar, { backgroundColor: resolveColour(day.colourVarName) }]} />

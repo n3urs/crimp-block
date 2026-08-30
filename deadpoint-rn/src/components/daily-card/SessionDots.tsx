@@ -44,6 +44,19 @@ const INNER_SIZE = 14;
 const DOT_BORDER_WIDTH = 1.5;
 const NEXT_UP_DOT_SIZE = 7;
 
+/** SessionDots only ever receives raw session keys ("maxFingers",
+    "climbHard"), never the human-readable names `engine.sessionInfo()`
+    resolves elsewhere (see this file's own top comment: it deliberately
+    doesn't know session names) — this is a screen-reader-only label, not
+    a change to anything visible, so a plain camelCase splitter is enough
+    to make each dot announce something a VoiceOver/TalkBack user can act
+    on ("maxFingers" -> "Max Fingers") without threading a new name prop
+    through every caller. */
+function humanizeSessionKey(key: string): string {
+  const spaced = key.replace(/([a-z0-9])([A-Z])/g, '$1 $2');
+  return spaced.charAt(0).toUpperCase() + spaced.slice(1);
+}
+
 export function SessionDots({
   currentKey,
   recommendedKey,
@@ -64,6 +77,9 @@ export function SessionDots({
               onPress={() => onTapSession(key)}
               hitSlop={4}
               style={styles.dotTapTarget}
+              accessibilityRole="button"
+              accessibilityState={{ selected: isCurrent }}
+              accessibilityLabel={`${humanizeSessionKey(key)} session${isRecommended ? ', recommended today' : ''}`}
             >
               {/* Recommendation ring: a separate, wider circle rendered
                   BEHIND the inner circle — declared first so the inner
@@ -91,7 +107,12 @@ export function SessionDots({
       <View style={styles.spacer} />
 
       {nextUp != null && (
-        <Pressable onPress={() => onTapSession(nextUp.key)} style={styles.nextUp}>
+        <Pressable
+          onPress={() => onTapSession(nextUp.key)}
+          style={styles.nextUp}
+          accessibilityRole="button"
+          accessibilityLabel={`Next up: ${nextUp.name}`}
+        >
           <View style={styles.nextUpTopRow}>
             <Text style={styles.nextUpLabel}>NEXT</Text>
             <View style={[styles.nextUpDot, { backgroundColor: nextUp.colour }]} />

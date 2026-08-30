@@ -141,6 +141,9 @@ export function ExerciseRow({
           onPress={() => onToggleTick(ex.id)}
           hitSlop={8}
           style={styles.checkboxPressable}
+          accessibilityRole="checkbox"
+          accessibilityState={{ checked: isTicked }}
+          accessibilityLabel={isTicked ? `Mark ${ex.title} as not done` : `Mark ${ex.title} as done`}
         >
           <View style={[styles.checkbox, isTicked && { backgroundColor: accent, borderColor: 'transparent' }]}>
             {isTicked && <Text style={styles.checkmark}>✓</Text>}
@@ -158,7 +161,13 @@ export function ExerciseRow({
               {ex.title.toUpperCase()}
             </Text>
             {showRight && ex.description != null && (
-              <Pressable onPress={() => setShowDetail((v) => !v)} hitSlop={8}>
+              <Pressable
+                onPress={() => setShowDetail((v) => !v)}
+                hitSlop={8}
+                accessibilityRole="button"
+                accessibilityState={{ expanded: showDetail }}
+                accessibilityLabel={showDetail ? `Hide description for ${ex.title}` : `Show description for ${ex.title}`}
+              >
                 <InfoIcon color={Colours.faint} />
               </Pressable>
             )}
@@ -180,9 +189,13 @@ export function ExerciseRow({
                   label={formatWeightKg(ex.weightKg)}
                   colour={ex.weightIsBump ? accent : Colours.dim}
                   onPress={onTapWeight ? () => onTapWeight(ex) : undefined}
+                  accessibilityLabel={`Edit recorded weight for ${ex.title}, currently ${formatWeightKg(ex.weightKg)}`}
                 />
               ) : ex.hasWeightTracking ? (
-                <SetWeightBadge onPress={onTapWeight ? () => onTapWeight(ex) : undefined} />
+                <SetWeightBadge
+                  onPress={onTapWeight ? () => onTapWeight(ex) : undefined}
+                  accessibilityLabel={`Set weight for ${ex.title}`}
+                />
               ) : null}
             </View>
           )}
@@ -198,6 +211,8 @@ export function ExerciseRow({
           <Pressable
             onPress={() => onStartInterval?.(ex.interval as IntervalConfig)}
             style={[styles.startButton, { backgroundColor: accent }]}
+            accessibilityRole="button"
+            accessibilityLabel={`Start interval timer for ${ex.title}`}
           >
             <Text style={styles.startButtonText}>START</Text>
           </Pressable>
@@ -205,6 +220,8 @@ export function ExerciseRow({
           <Pressable
             onPress={() => onTapRest?.(ex.restSeconds as number)}
             style={styles.restButton}
+            accessibilityRole="button"
+            accessibilityLabel={`Start rest timer for ${ex.title}`}
           >
             <Text style={styles.restButtonText}>{formatRestLabel(ex.restSeconds)}</Text>
           </Pressable>
@@ -218,26 +235,36 @@ function WeightBadge({
   label,
   colour,
   onPress,
+  accessibilityLabel,
 }: {
   label: string;
   colour: string;
   onPress?: () => void;
+  accessibilityLabel?: string;
 }) {
   const content = (
     <View style={styles.weightBadge}>
       <Text style={[styles.weightBadgeText, { color: colour }]}>{label}</Text>
     </View>
   );
-  return onPress ? <Pressable onPress={onPress}>{content}</Pressable> : content;
+  return onPress ? (
+    <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={accessibilityLabel}>
+      {content}
+    </Pressable>
+  ) : content;
 }
 
-function SetWeightBadge({ onPress }: { onPress?: () => void }) {
+function SetWeightBadge({ onPress, accessibilityLabel }: { onPress?: () => void; accessibilityLabel?: string }) {
   const content = (
     <View style={styles.setWeightBadge}>
       <Text style={[styles.weightBadgeText, { color: Colours.faint }]}>SET kg</Text>
     </View>
   );
-  return onPress ? <Pressable onPress={onPress}>{content}</Pressable> : content;
+  return onPress ? (
+    <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={accessibilityLabel}>
+      {content}
+    </Pressable>
+  ) : content;
 }
 
 const styles = StyleSheet.create({

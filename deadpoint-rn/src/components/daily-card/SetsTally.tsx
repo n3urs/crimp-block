@@ -104,7 +104,13 @@ export function SetsTally({ totalSets, completedSets, accent, onTap, onLongPress
   return (
     <View style={styles.outer}>
       <GestureDetector gesture={gesture}>
-        <View style={styles.row}>
+        <View
+          style={styles.row}
+          accessible
+          accessibilityRole="button"
+          accessibilityLabel={`${completedSets} of ${totalSets} sets completed`}
+          accessibilityHint="Double tap to log a set. Double tap and hold to undo the last one."
+        >
           {pips.map((lit, i) => (
             <View
               key={i}

@@ -136,7 +136,12 @@ export function CardHeader({
 
   return (
     <View style={styles.header}>
-      <Pressable onPress={onTapPhaseBadge} style={styles.badge}>
+      <Pressable
+        onPress={onTapPhaseBadge}
+        style={styles.badge}
+        accessibilityRole="button"
+        accessibilityLabel={`View training plan details, ${badgeLabel}`}
+      >
         <Text style={[styles.badgeText, { color: accent }]}>{badgeLabel}</Text>
         <ChevronDownIcon color={accent} />
       </Pressable>
@@ -144,11 +149,21 @@ export function CardHeader({
       <View style={styles.rightGroup}>
         <Text style={styles.date}>{formatHeaderDate(today)}</Text>
         {onTapCalendar != null && (
-          <Pressable onPress={onTapCalendar} style={styles.iconButton}>
+          <Pressable
+            onPress={onTapCalendar}
+            style={styles.iconButton}
+            accessibilityRole="button"
+            accessibilityLabel="Open calendar"
+          >
             <CalendarIcon color={Colours.dim} size={RIGHT_ICON_SIZE} />
           </Pressable>
         )}
-        <Pressable onPress={onTapSettings} style={styles.iconButton}>
+        <Pressable
+          onPress={onTapSettings}
+          style={styles.iconButton}
+          accessibilityRole="button"
+          accessibilityLabel="Open settings"
+        >
           <GearIcon color={Colours.dim} size={RIGHT_ICON_SIZE} />
         </Pressable>
       </View>

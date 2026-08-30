@@ -188,7 +188,12 @@ export function CardBody({
         <Text style={styles.title}>{session.name.toUpperCase()}</Text>
         <Text style={[styles.where, { color: accent }]}>{session.where}</Text>
         {guide != null && (
-          <Pressable onPress={onTapGuide} style={styles.guidePill}>
+          <Pressable
+            onPress={onTapGuide}
+            style={styles.guidePill}
+            accessibilityRole="button"
+            accessibilityLabel={`View training guide: ${guide.title}`}
+          >
             <BookIcon color={accent} />
             <Text style={[styles.guideText, { color: accent }]}>{guide.title.toUpperCase()}</Text>
           </Pressable>
@@ -390,6 +395,8 @@ export function DailyCard(props: DailyCardProps) {
       <Pressable
         onPress={doneFlow.handleDoneTap}
         style={[styles.doneButton, { backgroundColor: isLogged ? Colours.s2 : accent }]}
+        accessibilityRole="button"
+        accessibilityLabel={isLogged ? 'Undo logged workout' : 'Mark workout as done'}
       >
         <Text style={[styles.doneButtonText, { color: isLogged ? Colours.dim : Colours.bg }]}>
           {isLogged ? 'UNDO' : 'DONE THIS WORKOUT'}
