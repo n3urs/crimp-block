@@ -34,7 +34,16 @@ export function useStore(startDate: string | null, today: string, userId: string
     setDays(Object.fromEntries((data ?? []).map(r => [r.date, { t: r.type, l: r.load, sub: r.sub }])));
   }, [startDate, today]);
 
-  useEffect(() => { reload(); }, [reload]);
+  // reload() can throw (a real Supabase/RLS failure — confirmed live: with
+  // no signed-in session yet, an anon-key request against `sessions` can
+  // come back as a genuine error, not just an empty array). Calling an
+  // async function fire-and-forget from a synchronous effect body means
+  // that throw becomes a true UNCAUGHT PROMISE REJECTION — caught live on
+  // a real device build (an "Uncaught (in promise...)" toast on first
+  // launch, before any sign-in). `.catch` here doesn't hide the failure —
+  // just stops it from crashing/toasting as unhandled; `days` simply stays
+  // at its initial empty state, same as any other reload failure.
+  useEffect(() => { reload().catch((e) => console.error('useStore.reload failed:', e)); }, [reload]);
 
   const set = useCallback(async (date: string, type: string, sub: string | null = null) => {
     const previous = days[date];

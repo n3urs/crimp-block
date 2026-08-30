@@ -43,7 +43,13 @@ export function useLoads(userId: string) {
     setByExercise(grouped);
   }, []);
 
-  useEffect(() => { reload(); }, [reload]);
+  // Same fix as useStore.ts: reload() can throw a real error (confirmed
+  // live on device — an anon-key request before any sign-in), and calling
+  // it fire-and-forget from a synchronous effect body turns that into a
+  // genuine uncaught promise rejection. `.catch` stops the crash/toast
+  // without hiding the failure — byExercise just stays at its initial
+  // empty state, same as any other reload failure.
+  useEffect(() => { reload().catch((e) => console.error('useLoads.reload failed:', e)); }, [reload]);
 
   const history = (id: string): LoadEntry[] => byExercise[id] ?? [];
   const on = (id: string, date: string): LoadEntry | undefined => byExercise[id]?.find(e => e.date === date);

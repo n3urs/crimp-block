@@ -70,7 +70,13 @@ export function useProfile(userId: string) {
     setRow(data ? fromDbRow(data as ProfileDbRow) : null);
   }, []);
 
-  useEffect(() => { reload(); }, [reload]);
+  // Same fix as useStore.ts/useLoads.ts: reload() can throw (confirmed
+  // live on device), and calling it fire-and-forget from a synchronous
+  // effect body turns that into a genuine uncaught promise rejection.
+  // `.catch` stops the crash/toast without hiding the failure — `row`
+  // simply stays null, same as the "genuinely no profile yet" case this
+  // function's own doc comment already describes.
+  useEffect(() => { reload().catch((e) => console.error('useProfile.reload failed:', e)); }, [reload]);
 
   /** Called once, right after the quiz's standard branch — creates (or
       re-creates, for someone switching back into standard who's never had
