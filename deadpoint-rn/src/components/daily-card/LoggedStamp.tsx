@@ -50,8 +50,8 @@ export function createLoggedStampTimer(onVisibilityChange: (visible: boolean) =>
       onVisibilityChange(true);
       dismissTimer = setTimeout(() => {
         onVisibilityChange(false);
-      }, 2500);
-    }, 1000);
+      }, Motion.loggedStamp.holdMs);
+    }, Motion.loggedStamp.delayBeforeShowMs);
   }
 
   function dispose() {
