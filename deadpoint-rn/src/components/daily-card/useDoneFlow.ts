@@ -61,16 +61,26 @@ interface UseDoneFlowParams {
   displayKey: string;
   /** the actual toggleDone/useStore.set call, invoked once every
       applicable confirmation has resolved */
-  onLog: (sub?: 'board' | 'climb') => void;
+  onLog: (sub?: 'board' | 'climb') => void | Promise<void>;
 }
 
 export function useDoneFlow({ isLogged, loggedSessionKey, displayKey, onLog }: UseDoneFlowParams) {
   const [state, setState] = useState<DoneFlowState>(NO_DIALOGS);
 
+  // Same uncaught-promise-rejection bug class fixed in useStore.ts/
+  // useLoads.ts/useProfile.ts/useSession.ts, but from a button tap instead
+  // of a useEffect: onLog is async (card.tsx's real onLog awaits
+  // store.set/loads.set), and this call site never awaited or caught it —
+  // confirmed live, tapping Done while signed out (no sign-in screen
+  // exists yet — see useStore.ts's set() doc comment) threw a real
+  // "invalid input syntax for type uuid" error that reached the UI as an
+  // uncaught-promise-rejection toast. `.catch` doesn't hide a real
+  // failure (still logged), it just stops it from crashing/toasting as
+  // unhandled — same contract as every other fix of this bug class.
   const applyResult = useCallback((result: DoneFlowResult) => {
     setState(result.state);
-    if (result.log === true) onLog();
-    else if (result.log) onLog(result.log);
+    if (result.log === true) Promise.resolve(onLog()).catch((e) => console.error('useDoneFlow.onLog failed:', e));
+    else if (result.log) Promise.resolve(onLog(result.log)).catch((e) => console.error('useDoneFlow.onLog failed:', e));
   }, [onLog]);
 
   const handleDoneTap = useCallback(() => {

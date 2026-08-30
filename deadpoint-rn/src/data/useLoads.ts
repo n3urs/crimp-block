@@ -60,6 +60,12 @@ export function useLoads(userId: string) {
   const on = (id: string, date: string): LoadEntry | undefined => byExercise[id]?.find(e => e.date === date);
 
   const set = useCallback(async (date: string, id: string, kg: number) => {
+    // See useStore.ts's matching set()/clear() guard: with no sign-in
+    // screen built yet, userId can genuinely be '' here, and upserting
+    // `user_id: ''` fails Postgres's own uuid-column validation before
+    // RLS runs — surfaced live as an uncaught-promise-rejection toast
+    // when this ran from onLog's auto-record-weight step.
+    if (!userId) throw new Error('Not signed in — cannot save.');
     const previous = byExercise[id] ?? [];
     setByExercise(b => applyOptimisticLoad(b, id, date, kg));
     // userId comes from useSession()'s already-held session (no network

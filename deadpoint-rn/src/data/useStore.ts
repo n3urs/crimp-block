@@ -50,6 +50,18 @@ export function useStore(startDate: string | null, today: string, userId: string
   useEffect(() => { reload().catch((e) => console.error('useStore.reload failed:', e)); }, [reload]);
 
   const set = useCallback(async (date: string, type: string, sub: string | null = null) => {
+    // Real bug, caught live tapping Done on a fresh (not-yet-signed-in)
+    // build: with no sign-in screen built yet (see app/index.tsx's own
+    // doc comment — Phase 3 scope, not built through Task 12), userId is
+    // '' here, and upserting `user_id: ''` isn't just "will fail
+    // gracefully" — Postgres rejects it before RLS even runs
+    // ("invalid input syntax for type uuid: \"\""), and that rejection
+    // reached the UI as a genuine uncaught-promise-rejection toast, the
+    // same failure class as the reload() guards above but on the WRITE
+    // path, which had never had one. Thrown before the optimistic update
+    // so there's no flash-then-rollback on a write that was never going
+    // to succeed.
+    if (!userId) throw new Error('Not signed in — cannot save.');
     const previous = days[date];
     setDays(d => applyOptimisticSet(d, date, type, sub));
     // userId comes from useSession()'s already-held session (no network
@@ -64,11 +76,12 @@ export function useStore(startDate: string | null, today: string, userId: string
   }, [days, userId]);
 
   const clear = useCallback(async (date: string) => {
+    if (!userId) throw new Error('Not signed in — cannot save.'); // see set()'s doc comment
     const previous = days[date];
     setDays(d => rollback(d, date, undefined));
     const { error } = await supabase.from('sessions').delete().eq('date', date);
     if (error) { setDays(d => ({ ...d, [date]: previous! })); throw error; }
-  }, [days]);
+  }, [days, userId]);
 
   return { days, get: (date: string) => days[date], set, clear, reload };
 }
