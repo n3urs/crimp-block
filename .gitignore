@@ -11,3 +11,5 @@ DerivedData/
 *.xcarchive
 youtube-transcript/
 .worktrees/
+sdd/
+.DS_Store
