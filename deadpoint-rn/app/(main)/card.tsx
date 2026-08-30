@@ -42,7 +42,7 @@ export default function Card() {
   // email, exactly as __tests__/engine-parity.test.ts already exercises
   // it, with a 'default' entry in the same file for anyone else. This is
   // a judgment call the brief's Step 2 left open; see the Task 12 report.
-  const program = useMemo(() => PROGRAMS[email ?? ''] ?? PROGRAMS.default, [email]);
+  const program = useMemo(() => PROGRAMS[(email ?? '').toLowerCase()] ?? PROGRAMS.default, [email]);
 
   const profile = useProfile();
   const loads = useLoads();
