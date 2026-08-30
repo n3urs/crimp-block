@@ -28,6 +28,11 @@ export function useLoads(userId: string) {
       lift last time" has to survive a long layoff, and the table is small
       enough that loading all of it costs nothing. */
   const reload = useCallback(async () => {
+    // Same reasoning as useStore.ts: `exercise_loads` is RLS-protected
+    // with no explicit user_id filter, so an anon-key request before any
+    // sign-in is a genuine, expected, routine non-result — not worth a
+    // real network round trip or a caught console.error either.
+    if (!userId) return;
     const { data, error } = await supabase.from('exercise_loads').select('date,ex,kg').order('date', { ascending: false });
     if (error) {
       // Genuinely missing table (migration not run yet) must not take the
@@ -41,14 +46,14 @@ export function useLoads(userId: string) {
       (grouped[r.ex] ??= []).push({ date: r.date, kg: r.kg });
     }
     setByExercise(grouped);
-  }, []);
+  }, [userId]);
 
-  // Same fix as useStore.ts: reload() can throw a real error (confirmed
-  // live on device — an anon-key request before any sign-in), and calling
-  // it fire-and-forget from a synchronous effect body turns that into a
-  // genuine uncaught promise rejection. `.catch` stops the crash/toast
-  // without hiding the failure — byExercise just stays at its initial
-  // empty state, same as any other reload failure.
+  // A genuine failure (once signed in) can still throw here — reload() is
+  // fired fire-and-forget from a synchronous effect body, so without this
+  // .catch that throw would be a true uncaught promise rejection
+  // (confirmed live on a real device before the `!userId` guard above
+  // existed). `.catch` doesn't hide a real failure, it just stops it from
+  // crashing/toasting as unhandled.
   useEffect(() => { reload().catch((e) => console.error('useLoads.reload failed:', e)); }, [reload]);
 
   const history = (id: string): LoadEntry[] => byExercise[id] ?? [];

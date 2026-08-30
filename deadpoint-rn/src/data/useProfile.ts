@@ -65,16 +65,25 @@ export function useProfile(userId: string) {
       which throws instead of silently leaving `row` null, so the caller
       doesn't mistake "couldn't check" for "definitely new." */
   const reload = useCallback(async () => {
+    // Same reasoning as useStore.ts/useLoads.ts: `profiles` is RLS-
+    // protected with no explicit user_id filter, so an anon-key request
+    // before any sign-in is expected and routine, not a real failure —
+    // and "not signed in yet" correctly collapses to the same `row: null`
+    // state as "genuinely no profile yet" below; there's nothing to
+    // distinguish it from until a session actually exists.
+    if (!userId) return;
     const { data, error } = await supabase.from('profiles').select(PROFILE_COLUMNS).maybeSingle();
     if (error) throw error;
     setRow(data ? fromDbRow(data as ProfileDbRow) : null);
-  }, []);
+  }, [userId]);
 
-  // Same fix as useStore.ts/useLoads.ts: reload() can throw (confirmed
-  // live on device), and calling it fire-and-forget from a synchronous
-  // effect body turns that into a genuine uncaught promise rejection.
-  // `.catch` stops the crash/toast without hiding the failure — `row`
-  // simply stays null, same as the "genuinely no profile yet" case this
+  // A genuine failure (once signed in) can still throw here — reload() is
+  // fired fire-and-forget from a synchronous effect body, so without this
+  // .catch that throw would be a true uncaught promise rejection
+  // (confirmed live on a real device before the `!userId` guard above
+  // existed). `.catch` doesn't hide a real failure, it just stops it from
+  // crashing/toasting as unhandled — `row` simply stays null, same as the
+  // "genuinely no profile yet" case this
   // function's own doc comment already describes.
   useEffect(() => { reload().catch((e) => console.error('useProfile.reload failed:', e)); }, [reload]);
 
