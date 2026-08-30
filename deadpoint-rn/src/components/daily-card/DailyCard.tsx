@@ -40,6 +40,7 @@ import { ExerciseRow } from './ExerciseRow';
 import { LoggedStamp } from './LoggedStamp';
 import type { useDoneFlow } from './useDoneFlow';
 import type { useSwipeCarousel } from './useSwipeCarousel';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colours } from '../../design/colours';
 import { Fonts } from '../../design/fonts';
 import type { IntervalConfig, RenderedExercise } from '../../engine/types';
@@ -308,10 +309,22 @@ export function DailyCard(props: DailyCardProps) {
   // out from under it.
   const slideStyle = useAnimatedStyle(() => ({ transform: [{ translateX: translateX.value }] }));
 
+  // Confirmed live on device, real bug Oscar caught: the week strip
+  // rendered starting at y=0, sitting behind the Dynamic Island/status
+  // bar/time. Matches Swift's own split exactly — DailyCardView.swift
+  // never opts out of the safe area (only its background does, via
+  // NativeAppView.swift:148's `.ignoresSafeArea()`), so SwiftUI's default
+  // safe-area-respecting layout already kept it clear; RN has no such
+  // default and needs the inset added explicitly. `styles.root`'s
+  // background still bleeds edge-to-edge (unaffected) — only the padded
+  // content's top gets pushed down, and only by the ADDITIONAL device
+  // inset on top of the existing 20pt padding, not instead of it.
+  const insets = useSafeAreaInsets();
+
   return (
     <View style={styles.root}>
       <GestureDetector gesture={panGesture}>
-        <View style={styles.padded}>
+        <View style={[styles.padded, { paddingTop: 20 + insets.top }]}>
           {onTapDay != null && weekDays.length > 0 && (
             <View style={styles.weekStripSpacing}>
               <WeekStrip days={weekDays} onTapDay={onTapDay} />

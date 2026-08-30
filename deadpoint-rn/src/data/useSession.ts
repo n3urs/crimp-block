@@ -17,7 +17,18 @@ export function useSession() {
   const [session, setSession] = useState<Session | null>(null);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => setSession(data.session));
+    // Same bug class as useStore.ts/useLoads.ts/useProfile.ts, found
+    // afterward on the same real device: a real getSession() failure
+    // (a genuine possibility — e.g. the underlying SecureStorageAdapter
+    // read failing) would otherwise be a true uncaught promise
+    // rejection, since a bare `.then` with no `.catch` on a fire-and-
+    // forget call inside a synchronous effect body leaves nothing to
+    // handle it. `.catch` doesn't hide a real failure, it just stops it
+    // from crashing/toasting as unhandled — `session` simply stays null,
+    // same as any other not-signed-in state.
+    supabase.auth.getSession()
+      .then(({ data }) => setSession(data.session))
+      .catch((e) => console.error('useSession.getSession failed:', e));
     const { data: listener } = supabase.auth.onAuthStateChange((_event, newSession) => {
       setSession(newSession);
     });

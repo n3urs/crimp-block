@@ -21,6 +21,9 @@ module.exports = {
       "Must use import to load ES Module" under this same node-only setup.
       react-native-reanimated (added for Task 9's useSwipeCarousel) ships
       the same kind of ESM-only entry and throws identically.
+      react-native-safe-area-context (added when DailyCard.tsx started
+      using useSafeAreaInsets() to fix a real safe-area bug) pulls in
+      react-native's own codegenNativeComponent.js and throws the same way.
       See the mock files in __mocks__/ for what each stands in for and why
       a no-op/stub is sufficient for the tests that need them. */
   moduleNameMapper: {
@@ -29,5 +32,6 @@ module.exports = {
     '^react-native$': '<rootDir>/__mocks__/react-native.js',
     '^react-native-gesture-handler$': '<rootDir>/__mocks__/react-native-gesture-handler.js',
     '^react-native-reanimated$': '<rootDir>/__mocks__/react-native-reanimated.js',
+    '^react-native-safe-area-context$': '<rootDir>/__mocks__/react-native-safe-area-context.js',
   },
 };
