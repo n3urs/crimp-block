@@ -16,7 +16,18 @@
     inside JSX, evaluated lazily when the component actually renders) —
     real rendering/hit-testing behaviour is NOT exercised by this mock or
     by setsTally.test.ts. Extend this file, don't fork it, if a future
-    task's test needs more of the real API surface. */
+    task's test needs more of the real API surface.
+
+    Extended for Task 12 (DailyCard): __tests__/dailyCard.test.ts imports
+    `DailyCard.tsx`, whose module-level `StyleSheet.create(...)` call
+    spreads `StyleSheet.absoluteFill` and whose JSX/effects reference
+    `ScrollView`/`Alert` — none of those are invoked or dereferenced by
+    the test (it only calls the hook-free `CardBody` sub-component
+    directly and inspects the returned element tree; `ScrollView`/`Alert`
+    only ever appear as an unevaluated JSX element type or inside an
+    effect body that never runs outside a real render), so these three
+    additions are the same "just enough to make module-level evaluation
+    succeed" bar as the original four exports, not real implementations. */
 function View() {
   return null;
 }
@@ -26,8 +37,15 @@ function Text() {
 function Pressable() {
   return null;
 }
+function ScrollView() {
+  return null;
+}
+const Alert = {
+  alert: () => {},
+};
 const StyleSheet = {
   create: (styles) => styles,
+  absoluteFill: { position: 'absolute', left: 0, right: 0, top: 0, bottom: 0 },
 };
 
-module.exports = { View, Text, Pressable, StyleSheet };
+module.exports = { View, Text, Pressable, ScrollView, Alert, StyleSheet };
