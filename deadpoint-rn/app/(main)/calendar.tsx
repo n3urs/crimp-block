@@ -3,6 +3,7 @@ import React, { useMemo } from 'react';
 import { useRouter } from 'expo-router';
 import { useSession } from '../../src/data/useSession';
 import { useStore } from '../../src/data/useStore';
+import { useProfile } from '../../src/data/useProfile';
 import { createEngine } from '../../src/engine';
 import { CalendarScreen } from '../../src/screens/calendar/CalendarScreen';
 
@@ -14,9 +15,11 @@ export default function Calendar() {
   const email = session?.user?.email ?? null;
   const userId = session?.user?.id ?? '';
   const program = useMemo(() => PROGRAMS[(email ?? '').toLowerCase()] ?? PROGRAMS.default, [email]);
+  const profile = useProfile(userId);
 
   const [today] = React.useState(() => createEngine(program, { sessionLog: {}, loadLog: {} }).today());
-  const store = useStore(program.startDate ?? null, today, userId);
+  const startDate = profile.row?.programStartDate ?? program.startDate ?? null;
+  const store = useStore(startDate, today, userId);
   const engine = useMemo(() => createEngine(program, { sessionLog: store.days, loadLog: {} }), [program, store.days]);
 
   return <CalendarScreen engine={engine} history={store.days} today={today} onDismiss={() => router.back()} />;
