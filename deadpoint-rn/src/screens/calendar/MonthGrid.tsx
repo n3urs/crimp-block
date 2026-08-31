@@ -2,7 +2,7 @@ import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { Colours } from '../../design/colours';
 import { Fonts } from '../../design/fonts';
-import { DayCell, type DayCellData } from './DayCell';
+import { DayCell, CELL_HEIGHT, type DayCellData } from './DayCell';
 
 const WEEKDAY_LETTERS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 const CELL_GAP = 4;
@@ -25,7 +25,7 @@ export function MonthGrid({ cells }: { cells: (DayCellData | null)[] }) {
         <View key={rowIdx} style={styles.row}>
           {row.map((cell, colIdx) => (
             <View key={colIdx} style={styles.cellWrapper}>
-              {cell != null ? <DayCell data={cell} /> : <View style={{ height: 38 }} />}
+              {cell != null ? <DayCell data={cell} /> : <View style={{ height: CELL_HEIGHT }} />}
             </View>
           ))}
         </View>
