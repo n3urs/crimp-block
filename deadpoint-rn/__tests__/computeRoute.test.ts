@@ -29,6 +29,31 @@ test('a built-in account still gets the tutorial once, tracked device-locally', 
   expect(computeRoute({ ...base, isBuiltInProgram: true, hasSeenBuiltInTutorial: false })).toBe('/tutorial');
 });
 
+// Fix 4 (Task 11 bug-fix pass): pins "a built-in account's route is decided
+// entirely independent of every server-side profile field" — under-tested
+// before this pass, which only covered quizCompletedAt (above). A built-in
+// account never takes the quiz, so it has no real trackType in practice,
+// but computeRoute's own branch structure should still be pinned to prove
+// the built-in path structurally can't reach the rehab check at all: it
+// returns before the `trackType === 'rehab'` line is ever evaluated.
+test('a built-in account with a rehab trackType still resolves to /card, never /rehab-coming-soon', () => {
+  expect(computeRoute({
+    ...base, isBuiltInProgram: true, hasSeenBuiltInTutorial: true,
+    quizCompletedAt: '2026-08-01T00:00:00Z', tutorialCompletedAt: '2026-08-01T00:00:00Z',
+    trackType: 'rehab',
+  })).toBe('/card');
+});
+
+// Fix 4, second case: proves the built-in branch uses ONLY the device-local
+// hasSeenBuiltInTutorial flag, never the server-side tutorialCompletedAt
+// field, even when tutorialCompletedAt is a real (non-null) timestamp.
+test('a built-in account with tutorialCompletedAt set but hasSeenBuiltInTutorial false still resolves to /tutorial', () => {
+  expect(computeRoute({
+    ...base, isBuiltInProgram: true, hasSeenBuiltInTutorial: false,
+    tutorialCompletedAt: '2026-08-01T00:00:00Z',
+  })).toBe('/tutorial');
+});
+
 test('a quiz-eligible account with no quizCompletedAt needs the quiz', () => {
   expect(computeRoute(base)).toBe('/quiz');
 });

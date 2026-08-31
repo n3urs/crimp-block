@@ -151,8 +151,10 @@ export default function Tutorial() {
   // `profile.markTutorialCompleted()` for a quiz-built (non-built-in)
   // account, or `markBuiltInTutorialSeen(email)` for a built-in one
   // (this screen is only ever reached signed-in, so `email` is real by
-  // the time `onDone` can fire; the `if (email)` guard below is just
-  // defensive). `isBuiltInProgram` is the same shared function
+  // the time `onDone` can fire; the `!email` branch below is defensive
+  // hardening only — confirmed practically unreachable, since session/
+  // email resolves long before a user finishes the whole tutorial).
+  // `isBuiltInProgram` is the same shared function
   // app/index.tsx's own gating imports from `src/routing/computeRoute.ts`
   // — this task's design cleanup, so it's defined exactly once rather
   // than duplicated in both call sites, as the plan's own draft did.
@@ -163,8 +165,19 @@ export default function Tutorial() {
   const profile = useProfile(userId);
   const onDone = async () => {
     try {
-      if (isBuiltInProgram(email)) {
-        if (email) await markBuiltInTutorialSeen(email);
+      // Fix 5: `isBuiltInProgram(null)` returns `false` (see
+      // computeRoute.ts), so an earlier version of this check that only
+      // branched on `isBuiltInProgram(email)` silently fell into the
+      // "normal account" `else` branch whenever `email` was falsy — the
+      // wrong-silent direction, since a null email can't sensibly own a
+      // real profile completion either. Handle `!email` explicitly first
+      // instead, matching this codebase's established "log and continue"
+      // pattern for unexpected states: skip BOTH writes (there is no
+      // clear owner for either one) and still redirect.
+      if (!email) {
+        console.error('tutorial onDone: email is null at completion time — skipping both markBuiltInTutorialSeen and profile.markTutorialCompleted (no clear owner for the write).');
+      } else if (isBuiltInProgram(email)) {
+        await markBuiltInTutorialSeen(email);
       } else {
         await profile.markTutorialCompleted();
       }

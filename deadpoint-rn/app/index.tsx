@@ -19,8 +19,8 @@
     as-is — no `as any` cast needed, unlike the brief's own hedge on this
     exact point.
 
-    Two adaptations from the plan's draft, both about not routing off a
-    value that hasn't genuinely settled yet:
+    Adaptations from the plan's draft, all about not routing off a value
+    that hasn't genuinely settled yet:
 
     1) `useSession()` exposes no "has the initial getSession() resolved"
        signal of its own — `session` starts (and, for a genuinely
@@ -33,36 +33,80 @@
        auth does. Fixed here by subscribing to the same
        `onAuthStateChange` stream useSession.ts's own effect already
        subscribes to (rather than an extra parallel `getSession()` call,
-       which would race the hook's own call with no ordering
-       guarantee): supabase-js notifies every registered listener for a
-       given event in one synchronous loop, so this listener and
-       useSession's fire together, and with React's batching land in the
-       same render — by the time `authReady` is true, `session` already
-       reflects the real value in that same pass.
+       which would race the hook's own call with no ordering guarantee).
 
-    2) The brief's own draft never reset `builtInSeen` back to `null`
-       when `email` changes from null to a real address, so a built-in
-       account signing in would briefly compute its route against the
-       STALE `false` left over from the signed-out state (set by the
-       `!email` branch below) instead of waiting for the real per-email
-       AsyncStorage read — risking one incorrect flash to /tutorial for
-       an account that's actually already seen it. Fixed by resetting to
-       `null` (a real "unknown, loading" state) whenever `email` changes,
-       before kicking off the new read.
+       IMPORTANT — the REAL reason this is safe (corrected from an
+       earlier, factually wrong version of this comment): it is NOT
+       because supabase-js broadcasts to every subscriber in one
+       synchronous loop. On a cold launch the event that actually fires
+       is `INITIAL_SESSION`, and `GoTrueClient.onAuthStateChange`
+       (node_modules/@supabase/auth-js/src/GoTrueClient.ts) emits that
+       PER SUBSCRIBER, asynchronously, via its own `_emitInitialSession`
+       call inside a fresh `(async () => { ... })()` kicked off right
+       when that subscriber registers — this does NOT go through the
+       synchronous `_notifyAllSubscribers` broadcast loop at all (that
+       path only ever handles `SIGNED_IN`/`SIGNED_OUT`/`TOKEN_REFRESHED`,
+       i.e. events after the initial one). Two independent subscribers
+       each get their own independent async chain for `INITIAL_SESSION`.
 
-    Known residual gap, not fixed here (see Task 11 report): `useProfile`
-    exposes no "has the initial fetch settled" signal either — `row`
-    stays `null` both before its Supabase fetch resolves and for a
-    genuinely brand-new user, and nothing about the version of that hook
-    handed to this task distinguishes the two from outside it. A real
-    signed-in, fully-onboarded user could briefly compute this file's
-    route against `quizCompletedAt: null`/`tutorialCompletedAt: null`
-    before their real profile row loads, bouncing through /quiz or
-    /tutorial for a moment before correcting itself once it does. Fixing
-    this needs a "loaded" flag added to useProfile.ts itself, which this
-    task's scope (app/index.tsx, app/tutorial.tsx, and the new routing
-    module only) doesn't cover — flagged in the report rather than
-    silently patched around, or silently left unmentioned. */
+       The actual safety guarantee is HOOK DECLARATION ORDER:
+       `useSession()` is called above, before the effect below that sets
+       `authReady`, so React registers useSession's `onAuthStateChange`
+       listener (and therefore kicks off ITS `_emitInitialSession` chain)
+       strictly before this file's own listener registers and kicks off
+       its chain. That ordering is what makes it safe to assume `session`
+       already reflects the real value by the time `authReady` flips —
+       NOT any synchronous-broadcast property of the client.
+
+       THIS IS AN ORDERING DEPENDENCY A FUTURE EDITOR MUST NOT BREAK: if
+       `useSession()` is ever called AFTER the `authReady`-setting effect
+       below (or moved into a different effect that runs later), this
+       safety guarantee breaks silently — `authReady` could flip true
+       before `session` has caught up, reintroducing the one-frame
+       misroute-to-/sign-in bug described above, with no type error or
+       test failure to catch it. Do not reorder these two hooks.
+
+       (A more robust fix would derive readiness from something intrinsic
+       to useSession()/the auth client itself, so this file didn't depend
+       on hook order at all — not done here, since restructuring
+       useSession.ts's public shape is bigger-surface-area change than
+       this bug-fix pass's scope justifies; flagged as a possible follow-
+       up rather than risked under time pressure.)
+
+    2) A built-in account's per-email "have they seen the built-in
+       tutorial" flag (`builtInSeen`) is now stored KEYED to the email it
+       was computed for — `{ email, value } | null` — rather than a bare
+       `boolean | null` with a separate reset-on-email-change effect. An
+       earlier version of this file used a bare boolean plus
+       `setBuiltInSeen(null)` whenever `email` changed, but that did NOT
+       actually close the race: the reset effect and the routing effect
+       below can run in the SAME commit with the SAME stale render's
+       closure value, so whenever `session`+`authReady` land together (the
+       normal cold-launch case for an already-signed-in built-in account),
+       the routing effect could still see the OLD `builtInSeen` value from
+       before the reset was even scheduled. Keying the stored value to its
+       own email closes this structurally: the derived `builtInSeen` below
+       compares the CURRENT render's `email` against the email the stored
+       value was actually computed for, so a stale `{email: oldEmail}`
+       for a NEW `email` is correctly treated as "not ready for this
+       email" the instant `email` changes, in the very same render — no
+       separate reset effect, and nothing for it to race against.
+
+    Also fixed here (Task 11 bug-fix pass): `useProfile` now exposes a
+    real `loaded` signal (see src/data/useProfile.ts's own doc comment).
+    Previously `row` stayed `null` both before the Supabase fetch resolved
+    and for a genuinely brand-new user, so a real signed-in, fully-
+    onboarded returning user could have their route computed against
+    `quizCompletedAt: null`/`tutorialCompletedAt: null` before their real
+    profile loaded — sending them to /quiz on every cold launch, with no
+    live component left to correct it once `router.replace()` unmounts
+    this screen (quiz.tsx's own completion/cancel paths both
+    `router.replace('/')`, which only makes a FRESH Index/useProfile, not
+    a corrected one). The routing effect below now waits on
+    `profile.loaded` for every account EXCEPT a built-in one — proven by
+    direct reading of computeRoute.ts's `isBuiltInProgram` branch to never
+    read any profile field at all, so gating a built-in account's route on
+    a Supabase round trip it doesn't need would just be needless latency. */
 import React, { useEffect, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -75,14 +119,18 @@ import { Colours } from '../src/design/colours';
 
 export default function Index() {
   const router = useRouter();
+  // Hook order matters here — see the top doc comment's adaptation (1):
+  // useSession() must be called before the authReady-setting effect below.
+  // Do not reorder.
   const { session } = useSession();
   const email = session?.user?.email ?? null;
   const userId = session?.user?.id ?? '';
   const profile = useProfile(userId);
 
-  // See doc comment above (adaptation 1): flips true the first time the
+  // See top doc comment (adaptation 1): flips true the first time the
   // real auth state is known, in sync with useSession's own `session`
-  // update rather than racing it.
+  // update rather than racing it. Safety depends on useSession() above
+  // being called before this effect — see that comment for why.
   const [authReady, setAuthReady] = useState(false);
   useEffect(() => {
     const { data: listener } = supabase.auth.onAuthStateChange(() => setAuthReady(true));
@@ -96,23 +144,36 @@ export default function Index() {
 
   const builtIn = isBuiltInProgram(email);
 
-  const [builtInSeen, setBuiltInSeen] = useState<boolean | null>(null);
+  // See top doc comment (adaptation 2 / Fix 2a): keyed to the email it
+  // was computed for, so a stale value left over from a previous email
+  // is structurally distinguishable from a current one — no separate
+  // reset effect, and nothing for one to race against.
+  const [builtInSeenState, setBuiltInSeenState] = useState<{ email: string; value: boolean } | null>(null);
   useEffect(() => {
-    if (!email) { setBuiltInSeen(false); return; }
-    // See doc comment above (adaptation 2): reset to "unknown" before the
-    // real per-email read, so the loading gate below correctly re-engages
-    // instead of computing against a stale value left over from before
-    // this email was known.
-    setBuiltInSeen(null);
-    hasSeenBuiltInTutorial(email).then(setBuiltInSeen).catch((e) => { console.error('index: hasSeenBuiltInTutorial failed:', e); setBuiltInSeen(false); });
+    if (!email) return; // no per-email flag to fetch — builtIn is always false with no email anyway
+    hasSeenBuiltInTutorial(email)
+      .then((value) => setBuiltInSeenState({ email, value }))
+      .catch((e) => { console.error('index: hasSeenBuiltInTutorial failed:', e); setBuiltInSeenState({ email, value: false }); });
   }, [email]);
+  const builtInSeen = builtInSeenState?.email === email ? builtInSeenState.value : null;
 
-  useEffect(() => {
-    // Still loading: auth state, the welcome flag, or (for a built-in
-    // account only — a non-built-in account has no per-email flag to
-    // wait on) the device-local built-in-tutorial-seen flag.
-    if (!authReady || hasSeenWelcome == null || (builtIn && builtInSeen == null)) return;
-    const route: Route = computeRoute({
+  // Fix 3: computed ONCE per render, from the same readiness gate and the
+  // same computeRoute() call — both the router.replace() effect below and
+  // isRehabComingSoon's inline render decision derive from this single
+  // value, so they can't independently drift out of sync with each other
+  // or with computeRoute()'s own branches as those evolve (e.g. Phase 7's
+  // real paywall gate).
+  let route: Route | null = null;
+  if (
+    authReady &&
+    hasSeenWelcome != null &&
+    (!builtIn || builtInSeen != null) &&
+    // Fix 1: a built-in account's route never depends on any profile
+    // field (confirmed directly against computeRoute.ts) — only a
+    // non-built-in account needs to wait for the real fetch to settle.
+    (builtIn || profile.loaded)
+  ) {
+    route = computeRoute({
       hasSeenWelcome,
       isSignedIn: session != null,
       email,
@@ -122,13 +183,14 @@ export default function Index() {
       tutorialCompletedAt: profile.row?.tutorialCompletedAt ?? null,
       trackType: profile.row?.trackType ?? null,
     });
-    if (route === '/rehab-coming-soon') return; // rendered inline below, not a real route file
-    router.replace(route);
-  }, [authReady, hasSeenWelcome, builtInSeen, builtIn, session, email, profile.row, router]);
+  }
 
-  const isRehabComingSoon = authReady && hasSeenWelcome === true && session != null && !builtIn
-    && profile.row?.quizCompletedAt != null && profile.row?.tutorialCompletedAt != null
-    && profile.row?.trackType === 'rehab';
+  useEffect(() => {
+    if (route == null || route === '/rehab-coming-soon') return; // rendered inline below, not a real route file
+    router.replace(route);
+  }, [route, router]);
+
+  const isRehabComingSoon = route === '/rehab-coming-soon';
 
   if (isRehabComingSoon) {
     return (

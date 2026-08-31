@@ -60,6 +60,27 @@ const PROFILE_COLUMNS =
 export function useProfile(userId: string) {
   const [row, setRow] = useState<ProfileRow | null>(null);
 
+  /** Settles once the hook's initial fetch for the CURRENT `userId` has
+      genuinely resolved — whether that means a real row came back, the
+      query genuinely found nothing (a real new user who hasn't done the
+      quiz — `loaded:true, row:null`), or the fetch itself errored (still
+      counts as settled: a network error must not leave `loaded` false
+      forever, or an offline user would be stuck exactly like the routing
+      bug this flag exists to fix). This is what lets a consumer like
+      app/index.tsx tell "haven't checked yet" (`loaded:false`) apart from
+      "checked, nothing there" (`loaded:true, row:null`) — `row` alone
+      can't do that, since both states leave it `null`.
+
+      `!userId` (not signed in) resolves to `loaded:true` synchronously,
+      not `false`: there is genuinely nothing pending to wait for in that
+      state (same reasoning as reload()'s own doc comment below, which
+      already treats "not signed in yet" and "genuinely no profile yet" as
+      the same `row: null` outcome) — and a caller that gates on `loaded`
+      before routing (app/index.tsx) must not be blocked forever for a
+      genuinely signed-out user, who has no profile row to wait for at
+      all. */
+  const [loaded, setLoaded] = useState(false);
+
   /** null `row` afterward means genuinely no profile yet (a real new user
       who hasn't done the quiz) — distinct from a network/decode failure,
       which throws instead of silently leaving `row` null, so the caller
@@ -71,10 +92,18 @@ export function useProfile(userId: string) {
     // and "not signed in yet" correctly collapses to the same `row: null`
     // state as "genuinely no profile yet" below; there's nothing to
     // distinguish it from until a session actually exists.
-    if (!userId) return;
-    const { data, error } = await supabase.from('profiles').select(PROFILE_COLUMNS).maybeSingle();
-    if (error) throw error;
-    setRow(data ? fromDbRow(data as ProfileDbRow) : null);
+    if (!userId) { setLoaded(true); return; }
+    try {
+      const { data, error } = await supabase.from('profiles').select(PROFILE_COLUMNS).maybeSingle();
+      if (error) throw error;
+      setRow(data ? fromDbRow(data as ProfileDbRow) : null);
+    } finally {
+      // Runs whether the query above succeeded, found nothing, or threw —
+      // "settled" covers all three, per `loaded`'s own doc comment above.
+      // The `throw` a few lines up still propagates to the caller
+      // (reload()'s existing contract, unchanged) after this runs.
+      setLoaded(true);
+    }
   }, [userId]);
 
   // A genuine failure (once signed in) can still throw here — reload() is
@@ -85,7 +114,17 @@ export function useProfile(userId: string) {
   // crashing/toasting as unhandled — `row` simply stays null, same as the
   // "genuinely no profile yet" case this
   // function's own doc comment already describes.
-  useEffect(() => { reload().catch((e) => console.error('useProfile.reload failed:', e)); }, [reload]);
+  useEffect(() => {
+    // Reset to "pending" before kicking off the fetch for this (possibly
+    // new) userId — covers both a fresh sign-in (a real fetch is about to
+    // run) and a sign-out (reload() below flips this straight back to
+    // `true` synchronously, since `!userId` has nothing to wait for).
+    // Batches with reload()'s own synchronous `setLoaded(true)` in the
+    // `!userId` case, so there's no visible flicker to `false` and back
+    // within the same commit.
+    setLoaded(false);
+    reload().catch((e) => console.error('useProfile.reload failed:', e));
+  }, [reload]);
 
   /** Called once, right after the quiz's standard branch — creates (or
       re-creates, for someone switching back into standard who's never had
@@ -170,5 +209,5 @@ export function useProfile(userId: string) {
     setRow(r => (r ? { ...r, tutorialCompletedAt: now } : r));
   }, [userId]);
 
-  return { row, reload, create, assignRehab, switchToStandard, advanceRehabPhase, markTutorialCompleted };
+  return { row, loaded, reload, create, assignRehab, switchToStandard, advanceRehabPhase, markTutorialCompleted };
 }
