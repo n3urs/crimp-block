@@ -1256,7 +1256,7 @@ Assembles Tasks 1-5 into the real calendar screen, wires it up as a modal route,
 - Modify: `deadpoint-rn/app/(main)/card.tsx` (wire the real `onTapCalendar`)
 
 **Interfaces:**
-- Consumes everything from Tasks 1-5, plus `useSession` (`src/data/useSession.ts`), `useStore` (`src/data/useStore.ts`), `createEngine`, `PROGRAMS` (matching `card.tsx`'s own existing pattern for resolving a program from the signed-in email), `resolveColour` (`src/design/colours.ts`), `useRouter`/`router` from `expo-router`.
+- Consumes everything from Tasks 1-5, plus `useSession` (`src/data/useSession.ts`), `useStore` (`src/data/useStore.ts`), `useProfile` (`src/data/useProfile.ts` — needed so `calendar.tsx`'s `programStartDate` resolution matches `card.tsx`'s exactly, see Step 4), `createEngine`, `PROGRAMS` (matching `card.tsx`'s own existing pattern for resolving a program from the signed-in email), `resolveColour` (`src/design/colours.ts`), `useRouter`/`router` from `expo-router`.
 
 - [ ] **Step 1: Confirm expo-router's modal-presentation syntax against the installed version**
 
@@ -1309,6 +1309,14 @@ import { Legend } from './Legend';
     structurally with no adapter. */
 export interface CalendarEngine extends TrendForecastEngine, AllTimeStatsEngine, PlanProgressEngine {
   phaseNameAt(date: string): string;
+  // Called directly by this screen's own body (projectedPhaseName, the
+  // future-day fill logic below) — neither is part of the three sub-
+  // computation *Engine interfaces above, so they have to be declared
+  // here explicitly. Both match src/engine/index.ts's real facade
+  // signatures exactly, so a real engine instance still satisfies this
+  // whole interface structurally with no adapter needed.
+  phaseIndexAt(block: number): number;
+  isDeload(date: string): boolean;
 }
 
 export interface CalendarScreenProps {
@@ -1470,6 +1478,7 @@ import React, { useMemo } from 'react';
 import { useRouter } from 'expo-router';
 import { useSession } from '../../src/data/useSession';
 import { useStore } from '../../src/data/useStore';
+import { useProfile } from '../../src/data/useProfile';
 import { createEngine } from '../../src/engine';
 import { CalendarScreen } from '../../src/screens/calendar/CalendarScreen';
 
@@ -1481,9 +1490,18 @@ export default function Calendar() {
   const email = session?.user?.email ?? null;
   const userId = session?.user?.id ?? '';
   const program = useMemo(() => PROGRAMS[(email ?? '').toLowerCase()] ?? PROGRAMS.default, [email]);
+  // Must match card.tsx's own resolution exactly (profile.row's real
+  // programStartDate overrides the program's own static default) — using
+  // program.startDate alone here would make Calendar's stats (consistency,
+  // streak, plan progress all read engine.programStartDate()) genuinely
+  // disagree with the daily card for any account with a backdated start
+  // date. Real gap caught during Task 6's own implementation, fixed here
+  // rather than shipped as a known inconsistency.
+  const profile = useProfile(userId);
 
   const [today] = React.useState(() => createEngine(program, { sessionLog: {}, loadLog: {} }).today());
-  const store = useStore(program.startDate ?? null, today, userId);
+  const startDate = profile.row?.programStartDate ?? program.startDate ?? null;
+  const store = useStore(startDate, today, userId);
   const engine = useMemo(() => createEngine(program, { sessionLog: store.days, loadLog: {} }), [program, store.days]);
 
   return <CalendarScreen engine={engine} history={store.days} today={today} onDismiss={() => router.back()} />;
