@@ -834,6 +834,7 @@ Direct port of `CalendarView.swift`'s `monthGrid`/`dayCell`/`PartialBorder`. Thi
     date: string;
     dayNum: number;
     isToday: boolean;
+    isPast: boolean; // date <= today — governs the unlogged fill (s2 vs s1), matching Swift's own isPast ? s2 : s1
     loggedColour: string | null; // resolved hex, or null for "no session"
     isDeloadWindow: boolean;
     phaseColour: string | null; // resolved hex for this day's phase, or null
@@ -854,13 +855,14 @@ import Svg, { Line } from 'react-native-svg';
 import { Colours } from '../../design/colours';
 import { Fonts } from '../../design/fonts';
 
-const CELL_HEIGHT = 38;
+export const CELL_HEIGHT = 38;
 const BORDER_BLEED = 2; // half the grid's 4px inter-cell gap
 
 export interface DayCellData {
   date: string;
   dayNum: number;
   isToday: boolean;
+  isPast: boolean;
   loggedColour: string | null;
   isDeloadWindow: boolean;
   phaseColour: string | null;
@@ -871,26 +873,38 @@ export interface DayCellData {
 }
 
 export function DayCell({ data }: { data: DayCellData }) {
-  const { dayNum, isToday, loggedColour, isDeloadWindow, phaseColour, borderTop, borderBottom, borderLeft, borderRight } = data;
-  const fill = loggedColour ?? Colours.s2;
+  const { dayNum, isToday, isPast, loggedColour, isDeloadWindow, phaseColour, borderTop, borderBottom, borderLeft, borderRight } = data;
+  // Swift: loggedColour?.opacity(0.85) ?? (isPast ? s2 : s1)
+  const fill = loggedColour != null ? withOpacity(loggedColour, 0.85) : (isPast ? Colours.s2 : Colours.s1);
   const numberColour = loggedColour != null ? Colours.bg : withOpacity(Colours.fg, isDeloadWindow ? 1 : 0.55);
 
   return (
     <View style={[styles.root, { backgroundColor: fill }, isToday && styles.todayOutline]}>
       {isDeloadWindow && <View style={styles.deloadRing} />}
-      <Text style={[styles.dayNum, { color: numberColour, fontWeight: isToday ? '700' : '500' }]}>{dayNum}</Text>
+      {/* Fonts.mono swaps the actual TTF family for 'bold' vs 'medium' (static
+          TTFs, no weight axis — see Fonts' own doc comment) — a numeric
+          fontWeight layered on top of a fixed family, like a raw
+          `fontWeight: isToday ? '700' : '500'`, would not reliably render
+          bold. Has to be computed per-instance, so it can't live in the
+          static StyleSheet.create block below (that font varies by isToday). */}
+      <Text style={[Fonts.mono(11, isToday ? 'bold' : 'medium'), { color: numberColour }]}>{dayNum}</Text>
       {phaseColour != null && (borderTop || borderBottom || borderLeft || borderRight) && (
-        <Svg
-          width={100 + BORDER_BLEED * 2}
-          height="100%"
-          style={StyleSheet.absoluteFillObject}
-          viewBox={`0 0 ${100 + BORDER_BLEED * 2} 100`}
-          preserveAspectRatio="none"
-        >
-          {borderTop && <Line x1={0} y1={0} x2={100 + BORDER_BLEED * 2} y2={0} stroke={phaseColour} strokeWidth={2.5} />}
-          {borderBottom && <Line x1={0} y1={100} x2={100 + BORDER_BLEED * 2} y2={100} stroke={phaseColour} strokeWidth={2.5} />}
-          {borderLeft && <Line x1={0} y1={0} x2={0} y2={100} stroke={phaseColour} strokeWidth={2.5} />}
-          {borderRight && <Line x1={100 + BORDER_BLEED * 2} y1={0} x2={100 + BORDER_BLEED * 2} y2={100} stroke={phaseColour} strokeWidth={2.5} />}
+        // No explicit width/height props, deliberately — react-native-svg's
+        // own Svg.tsx only defaults to width=height='100%' when BOTH are
+        // undefined AND position !== 'absolute' (confirmed by reading the
+        // installed package's source directly). With position: 'absolute'
+        // set here, that fallback never fires, so this Svg's actual
+        // rendered size comes purely from Yoga resolving the negative
+        // top/left/right/bottom insets below — exactly cell width+4 ×
+        // cell height+4, matching Swift's own
+        // `.frame(width: geo.size.width + 4, height: geo.size.height + 4)`.
+        // Percentage Line coordinates then resolve against THAT real
+        // size with no viewBox/preserveAspectRatio scale distortion.
+        <Svg style={styles.borderSvg}>
+          {borderTop && <Line x1="0%" y1="0%" x2="100%" y2="0%" stroke={phaseColour} strokeWidth={2.5} />}
+          {borderBottom && <Line x1="0%" y1="100%" x2="100%" y2="100%" stroke={phaseColour} strokeWidth={2.5} />}
+          {borderLeft && <Line x1="0%" y1="0%" x2="0%" y2="100%" stroke={phaseColour} strokeWidth={2.5} />}
+          {borderRight && <Line x1="100%" y1="0%" x2="100%" y2="100%" stroke={phaseColour} strokeWidth={2.5} />}
         </Svg>
       )}
     </View>
@@ -901,8 +915,10 @@ export function DayCell({ data }: { data: DayCellData }) {
     colours.ts), no built-in opacity compositing the way SwiftUI's
     `.opacity(_:)` on a Color has — this does the same "fg at 55% over
     the cell's own background" maths Swift's `.opacity(0.55)` does,
-    manually, since the fill is never guaranteed to be `bg` itself (an
-    actually-logged cell's fill is the session's own accent colour). */
+    manually (an 8-digit #RRGGBBAA hex, which RN/CSS colour parsing
+    supports natively), since the fill is never guaranteed to be `bg`
+    itself (an actually-logged cell's fill is the session's own accent
+    colour). Also used for the logged fill's own 0.85 opacity. */
 function withOpacity(hex: string, alpha: number): string {
   if (alpha >= 1) return hex;
   const a = Math.round(alpha * 255).toString(16).padStart(2, '0');
@@ -928,11 +944,14 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: Colours.restC,
   },
-  dayNum: {
-    ...Fonts.mono(11, 'medium'),
+  borderSvg: {
+    position: 'absolute',
+    top: -BORDER_BLEED, left: -BORDER_BLEED, right: -BORDER_BLEED, bottom: -BORDER_BLEED,
   },
 });
 ```
+
+Export `CELL_HEIGHT` from this file (add `export` to its declaration) — `MonthGrid.tsx`'s Step 2 below reuses it for the `null`-cell placeholder instead of duplicating the literal `38`.
 
 **Note on the SVG viewBox approach**: this cell's border needs to bleed 2px past its own rendered width/height on the bordered sides, matching Swift's `GeometryReader` + `.frame(width: geo.size.width + 4, height: geo.size.height + 4)`. A percentage-based `viewBox` (`"0 0 104 100"` scaled to the actual rendered box via `preserveAspectRatio="none"`) approximates this without needing `onLayout` measurement — verify this actually reads as a continuous-looking border across adjacent same-phase cells on a real device in Task 6's live pass; if the bleed doesn't look right at real cell sizes, switch to measuring the cell's actual pixel width via `onLayout` and sizing the `<Svg>` in fixed points instead of a relative viewBox (a legitimate fallback, not a sign anything upstream is wrong).
 
@@ -946,7 +965,7 @@ import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { Colours } from '../../design/colours';
 import { Fonts } from '../../design/fonts';
-import { DayCell, type DayCellData } from './DayCell';
+import { DayCell, CELL_HEIGHT, type DayCellData } from './DayCell';
 
 const WEEKDAY_LETTERS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 const CELL_GAP = 4;
@@ -969,7 +988,7 @@ export function MonthGrid({ cells }: { cells: (DayCellData | null)[] }) {
         <View key={rowIdx} style={styles.row}>
           {row.map((cell, colIdx) => (
             <View key={colIdx} style={styles.cellWrapper}>
-              {cell != null ? <DayCell data={cell} /> : <View style={{ height: 38 }} />}
+              {cell != null ? <DayCell data={cell} /> : <View style={{ height: CELL_HEIGHT }} />}
             </View>
           ))}
         </View>
@@ -1366,7 +1385,7 @@ export function CalendarScreen({ engine, history, today, onDismiss }: CalendarSc
       const phaseColour = myPhase != null ? (phaseColourByName[myPhase] ?? null) : null;
 
       return {
-        date, dayNum, isToday, loggedColour, isDeloadWindow, phaseColour,
+        date, dayNum, isToday, isPast, loggedColour, isDeloadWindow, phaseColour,
         borderTop: !sameUp, borderBottom: !sameDown, borderLeft: !sameLeft, borderRight: !sameRight,
       };
     });
