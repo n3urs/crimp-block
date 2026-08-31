@@ -65,6 +65,15 @@ const STEPS: TutorialStep[] = [
 // step" and needs the real index rather than an assumed one.
 const REST_TIMER_BUTTON_STEP_INDEX = STEPS.findIndex((s) => s.targetID === 'restTimerButton');
 
+// Keyed to "Open-hand hangs" (`def-hang-open`, in PROGRAMS.default's
+// maxFingers session) — the exercise withSpotlightableExerciseLast()
+// above moves to the end of the rendered list, so the weightBadge target
+// actually lands on an exercise carrying this seeded load. Module scope
+// (not per-render component state): it's a true constant, and keeping it
+// here means the effect below that reads it doesn't need to list it as a
+// dependency (react-hooks/exhaustive-deps is satisfied for free).
+const SEEDED_EXERCISE_ID = 'def-hang-open';
+
 type Stage = 'intro' | 'walkthrough' | 'outro';
 
 function isoToday(): string {
@@ -156,11 +165,6 @@ export default function Tutorial() {
   const [loadKg, setLoadKg] = useState<number | null>(20); // seeded — a real number on screen, not the dashed "SET kg" placeholder
   const [browsedKey, setBrowsedKey] = useState<string | null>(null);
 
-  // Keyed to "Open-hand hangs" (`def-hang-open`, in PROGRAMS.default's
-  // maxFingers session) — the exercise withSpotlightableExerciseLast()
-  // below moves to the end of the rendered list, so the weightBadge target
-  // actually lands on an exercise carrying this seeded load.
-  const SEEDED_EXERCISE_ID = 'def-hang-open';
   const loadLog = useMemo(
     () => (loadKg != null ? { [SEEDED_EXERCISE_ID]: [{ date: today, kg: loadKg }] } : {}),
     [loadKg, today]
@@ -215,7 +219,13 @@ export default function Tutorial() {
 
   const onToggleTick = (id: string) => {
     if (id === SEEDED_EXERCISE_ID && !seededTickGateOpen) {
-      setPendingTickForSeeded((v) => !v);
+      // Fix 2: idempotent set, not a toggle — there's no "untick" story for
+      // the seeded exercise's deferred tick (the demo never needs to
+      // support un-ticking it), so a toggle is unnecessary risk. A fast
+      // double-tap inside the overlay's ~150ms stale-hole re-measure window
+      // could otherwise flip this back to false and leave the checkbox
+      // never catching up once the gate opens.
+      setPendingTickForSeeded(true);
     } else {
       setTicks((prev) => {
         const next = new Set(prev);
@@ -265,6 +275,31 @@ export default function Tutorial() {
       controller.handleTap('restTimerStop');
     },
   };
+
+  // Fix 1: `useRestTimer`'s own interval sets `state` to `null` DIRECTLY on
+  // natural countdown-to-zero (see that hook's `start()` — it does not call
+  // its own `stop()`), so the wrapper above never sees a timer that simply
+  // runs out on its own. Without this, a tutorial user who lets the 120s
+  // timer expire naturally (rather than tapping STOP) gets stuck:
+  // RestTimerOverlay unmounts once `restTimer.state` goes null, taking the
+  // `restTimerStop` target out of the registry with it, and the spotlight
+  // is left pointing at nothing with no escape hatch but SKIP.
+  //
+  // Watch for that same null transition here and advance the tutorial
+  // ourselves — but ONLY while `restTimerStop` is genuinely the step in
+  // play, so this can't fire at any other point `restTimer.state`
+  // legitimately happens to be null (e.g. before the first timer ever
+  // starts, or on an unrelated later re-render). `computeHandleTap`
+  // (TutorialController.ts) already no-ops a call whose targetID doesn't
+  // match the CURRENT step, so even if this effect and a manual STOP tap's
+  // synchronous handleTap both end up racing, only one of them can ever
+  // actually advance the step — the other lands after `currentStep` has
+  // already moved on and is discarded.
+  useEffect(() => {
+    if (restTimer.state === null && controller.currentStep?.targetID === 'restTimerStop') {
+      controller.handleTap('restTimerStop');
+    }
+  }, [restTimer.state, controller.currentStep, controller.handleTap]);
 
   const weekDays = useMemo(() => demoWeekDays(program, today), [program, today]);
   const sessionColour = (key: string) => resolveColour(engine.sessionColourVarName(key));
