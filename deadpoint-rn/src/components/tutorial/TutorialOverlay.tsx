@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Dimensions, Pressable, StyleSheet, Text, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import { Colours } from '../../design/colours';
@@ -74,7 +74,7 @@ export function TutorialOverlay({
   }
 
   return (
-    <View style={StyleSheet.absoluteFill}>
+    <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
       <Svg style={StyleSheet.absoluteFill} pointerEvents="none">
         <Path
           d={`M0,0 H${screen.width} V${screen.height} H0 Z M${rect.x},${rect.y} H${rect.x + rect.width} V${rect.y + rect.height} H${rect.x} Z`}

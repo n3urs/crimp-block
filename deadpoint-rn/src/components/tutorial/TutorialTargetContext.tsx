@@ -17,8 +17,9 @@ import { View } from 'react-native';
 // overload resolves to `RefObject<T | null>` — the initial ref value really
 // is null until the native element mounts, so this reflects actual runtime
 // behavior rather than widening it artificially. Every consumer already
-// optional-chains through `.current` (see spotlightProof.tsx), so this
-// doesn't change how the registry is used.
+// optional-chains through `.current` (see TutorialOverlay.tsx's measure
+// effect, around lines 30-31), so this doesn't change how the registry is
+// used.
 export type TutorialTargetMap = Map<string, React.RefObject<View | null>>;
 
 interface TutorialTargetContextValue {
