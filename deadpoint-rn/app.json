@@ -2,6 +2,7 @@
   "expo": {
     "name": "deadpoint-rn",
     "slug": "deadpoint-rn",
+    "scheme": "deadpointrn",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",

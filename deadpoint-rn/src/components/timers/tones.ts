@@ -22,13 +22,28 @@ const SOURCES: Record<Cue, number> = {
 
 let players: Record<Cue, AudioPlayer> | null = null;
 
+/** `downloadFirst: true` is load-bearing, not a tuning knob — confirmed
+    live on a real device build: without it, createAudioPlayer()'s default
+    path (resolveSource(), synchronous, no download) hands the native
+    player a bundled asset's raw Metro dev-server URI before it has ever
+    been downloaded to a local file, and every cue then failed to play
+    with a native `[MediaToolbox] FigFilePlayer signalled err=-12864`
+    (unsupported/undecodable file), with no JS-visible error at all —
+    `play()`/`seekTo()` return normally, the app never crashes, the tone
+    just silently never sounds. Root cause, found by reading expo-audio's
+    own installed source (node_modules/expo-audio/src/ExpoAudio.ts and
+    utils/resolveSource.ts): `resolveSourceWithDownload()` — only used
+    when `downloadFirst: true` — has an explicit, self-documented fix for
+    exactly this ("iOS AVPlayer fails to load the asset if the type is
+    not set or can't be inferred"), which the default synchronous path
+    skips entirely. */
 function ensureLoaded(): Record<Cue, AudioPlayer> {
   if (!players) {
     players = {
-      ready: createAudioPlayer(SOURCES.ready),
-      go: createAudioPlayer(SOURCES.go),
-      stop: createAudioPlayer(SOURCES.stop),
-      done: createAudioPlayer(SOURCES.done),
+      ready: createAudioPlayer(SOURCES.ready, { downloadFirst: true }),
+      go: createAudioPlayer(SOURCES.go, { downloadFirst: true }),
+      stop: createAudioPlayer(SOURCES.stop, { downloadFirst: true }),
+      done: createAudioPlayer(SOURCES.done, { downloadFirst: true }),
     };
   }
   return players;
