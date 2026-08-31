@@ -9,7 +9,7 @@ function StatTile({ value, label }: { value: string; label: string }) {
   return (
     <View style={styles.tile}>
       <Text style={styles.tileValue}>{value}</Text>
-      <Text style={styles.tileLabel} numberOfLines={1}>{label}</Text>
+      <Text style={styles.tileLabel} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>{label}</Text>
     </View>
   );
 }
@@ -32,7 +32,7 @@ export function StatsPanel({ stats }: { stats: AllTimeStats | null }) {
           {stats.breakdown.map((row) => (
             <View key={row.key} style={styles.breakdownRow}>
               <View style={[styles.breakdownSwatch, { backgroundColor: row.colour }]} />
-              <Text style={styles.breakdownText} numberOfLines={1}>{row.name.toUpperCase()} · {row.count}</Text>
+              <Text style={styles.breakdownText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.85}>{row.name.toUpperCase()} · {row.count}</Text>
             </View>
           ))}
         </View>
@@ -48,7 +48,10 @@ const styles = StyleSheet.create({
   tile: { flex: 1, gap: 2 },
   tileValue: { ...Fonts.heading(22), color: '#FFFFFF' },
   tileLabel: { ...Fonts.mono(8.5, 'medium'), color: Colours.faint },
-  breakdownGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  // Swift's LazyVGrid uses spacing:12 for the horizontal gap between its 2
+  // columns and a separate spacing:6 for the vertical row gap — a single
+  // `gap: 6` here would halve the intended horizontal gap.
+  breakdownGrid: { flexDirection: 'row', flexWrap: 'wrap', rowGap: 6, columnGap: 12 },
   breakdownRow: { flexDirection: 'row', alignItems: 'center', gap: 6, width: '47%' },
   breakdownSwatch: { width: 8, height: 8, borderRadius: 2 },
   breakdownText: { ...Fonts.mono(10, 'medium'), color: Colours.dim, flexShrink: 1 },

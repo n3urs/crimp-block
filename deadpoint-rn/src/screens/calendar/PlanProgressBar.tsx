@@ -14,7 +14,14 @@ export function PlanProgressBar({ progress, accent }: { progress: PlanProgress |
         <Text style={styles.percent}>{progress.percent}%</Text>
       </View>
       <View style={styles.track}>
-        <View style={[styles.fill, { width: `${Math.max(2, progress.percent)}%`, backgroundColor: accent }]} />
+        {/* Swift: max(6, trackWidth * percent/100) — a fixed 6-POINT
+            minimum fill width, not a percentage of the track. RN's
+            minWidth clamps a percentage width to an absolute point value
+            exactly the same way, regardless of the track's own actual
+            rendered width (a percentage floor like `Math.max(2, percent)%`
+            would scale with container width and not match Swift's fixed
+            floor on a differently-sized track, e.g. iPad landscape). */}
+        <View style={[styles.fill, { width: `${progress.percent}%`, minWidth: 6, backgroundColor: accent }]} />
       </View>
       <Text style={styles.caption}>{progress.current}/{progress.total} training days to Performance</Text>
     </View>

@@ -49,7 +49,14 @@ export function Legend({ phases, deload, isDeloadOngoing, resolveColour }: Legen
               </View>
             ))}
           </View>
-          <Text style={[styles.caption, { paddingTop: 2 }]}>
+          {/* Swift gives this disclaimer its OWN smaller, more muted style
+              (mono(9.5) / faint) than the deload caption above
+              (mono(10.5) / dim) — deliberately: Swift's own comment calls
+              this a de-emphasized footnote, redundant with the box outline
+              itself. Reusing styles.caption here would make it render
+              LARGER and MORE prominent than the deload line, inverting
+              the intended hierarchy. */}
+          <Text style={[styles.disclaimer, { paddingTop: 2 }]}>
             Phases past today are projected from your current pace, not confirmed.
           </Text>
         </>
@@ -66,4 +73,5 @@ const styles = StyleSheet.create({
   phaseSwatch: { width: 10, height: 10, borderRadius: 2, borderWidth: 2 },
   legendText: { ...Fonts.mono(10, 'medium'), color: Colours.faint },
   caption: { ...Fonts.mono(10.5, 'medium'), color: Colours.dim },
+  disclaimer: { ...Fonts.mono(9.5, 'medium'), color: Colours.faint },
 });
