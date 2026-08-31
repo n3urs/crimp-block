@@ -39,7 +39,32 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
-        <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: Colours.bg } }} />
+        <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: Colours.bg } }}>
+          {/* Route name is group-qualified ("(main)/calendar", not
+              "calendar") because app/(main) has no _layout.tsx of its own —
+              the group is "transparent" and every screen inside it is a
+              direct child of THIS root Stack, keyed by its full path
+              relative to app/. Confirmed against the installed expo-router
+              build (Task 6 Step 1): app/index.tsx's own doc comment already
+              established that expo-router strips group segments only from
+              the URL used for navigation (router.push('/calendar')), not
+              from a screen's internal name in the navigator tree — and no
+              other _layout.tsx exists to make "(main)" its own navigator.
+              'modal' is a valid `presentation` value on native-stack (the
+              navigator expo-router's <Stack> wraps): confirmed directly
+              against node_modules/expo-router/build/react-navigation/
+              native-stack/types.d.ts (`presentation?: Exclude<ScreenProps
+              ['stackPresentation'], 'push'> | 'card'`) and node_modules/
+              react-native-screens' StackPresentationTypes, which includes
+              'modal'. There is no standalone @react-navigation/native-stack
+              package installed — expo-router vendors its own fork under
+              build/react-navigation/native-stack and build/fork/
+              native-stack, so the brief's literal grep path assumption
+              (a top-level @react-navigation/native-stack package) doesn't
+              match this install, though the underlying claim it was
+              checking for holds. */}
+          <Stack.Screen name="(main)/calendar" options={{ presentation: 'modal' }} />
+        </Stack>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );
