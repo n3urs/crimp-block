@@ -40,6 +40,10 @@ import { TutorialOverlay } from '../src/components/tutorial/TutorialOverlay';
 import { useTutorialController, type TutorialStep } from '../src/components/tutorial/TutorialController';
 import type { RenderedExercise } from '../src/engine/types';
 import type { WeekDay } from '../src/components/daily-card/WeekStrip';
+import { useSession } from '../src/data/useSession';
+import { useProfile } from '../src/data/useProfile';
+import { markBuiltInTutorialSeen } from '../src/data/deviceFlags';
+import { isBuiltInProgram } from '../src/routing/computeRoute';
 
 // programs.js is plain JS (no .d.ts) — same require-not-import pattern
 // app/(main)/card.tsx and the engine facade itself already use.
@@ -141,18 +145,32 @@ function withSpotlightableExerciseLast(exercises: RenderedExercise[]): RenderedE
 export default function Tutorial() {
   // expo-router screens take no props from their caller — there is no
   // parent component to pass `onDone` in, unlike the plan's draft
-  // signature (`{ onDone }: { onDone: () => void }`). Task 11 is what
-  // wires the real "mark tutorial completed" persistence
-  // (`useProfile().markTutorialCompleted()` for a quiz-built program, or
-  // `markBuiltInTutorialSeen(email)` for a built-in one — see that task's
-  // brief) in BEFORE this redirect; for now this is a thin local stub that
-  // only performs the redirect, matching every other post-flow screen in
-  // this app (quiz.tsx, sign-in.tsx, welcome.tsx all `router.replace('/')`
-  // the same way).
+  // signature (`{ onDone }: { onDone: () => void }`).
+  //
+  // Task 11: real completion persistence, before the redirect —
+  // `profile.markTutorialCompleted()` for a quiz-built (non-built-in)
+  // account, or `markBuiltInTutorialSeen(email)` for a built-in one
+  // (this screen is only ever reached signed-in, so `email` is real by
+  // the time `onDone` can fire; the `if (email)` guard below is just
+  // defensive). `isBuiltInProgram` is the same shared function
+  // app/index.tsx's own gating imports from `src/routing/computeRoute.ts`
+  // — this task's design cleanup, so it's defined exactly once rather
+  // than duplicated in both call sites, as the plan's own draft did.
   const router = useRouter();
+  const { session } = useSession();
+  const email = session?.user?.email ?? null;
+  const userId = session?.user?.id ?? '';
+  const profile = useProfile(userId);
   const onDone = async () => {
-    // TODO(Task 11): call markTutorialCompleted()/markBuiltInTutorialSeen()
-    // here, before the redirect, once that task exists.
+    try {
+      if (isBuiltInProgram(email)) {
+        if (email) await markBuiltInTutorialSeen(email);
+      } else {
+        await profile.markTutorialCompleted();
+      }
+    } catch (e) {
+      console.error('tutorial onDone failed:', e);
+    }
     router.replace('/');
   };
 
