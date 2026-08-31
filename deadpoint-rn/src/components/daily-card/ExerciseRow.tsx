@@ -19,6 +19,7 @@ import { Fonts } from '../../design/fonts';
 import { Motion } from '../../design/motion';
 import type { RenderedExercise } from '../../engine/types';
 import { clarifySets } from './clarifySets';
+import { useTutorialTarget } from '../tutorial/TutorialTargetContext';
 
 export interface ExerciseRowProps {
   ex: RenderedExercise;
@@ -99,6 +100,10 @@ export function ExerciseRow({
   onStartInterval,
 }: ExerciseRowProps) {
   const [showDetail, setShowDetail] = useState(false);
+  const infoRef = useTutorialTarget('exerciseInfo');
+  const tickRef = useTutorialTarget('exerciseTick');
+  const weightRef = useTutorialTarget('weightBadge');
+  const restTimerButtonRef = useTutorialTarget('restTimerButton');
 
   // Row padding: 16 unticked -> 11 ticked, animated easeInOut 200ms
   // (Motion.tickCollapseMs), matching Swift's
@@ -142,6 +147,7 @@ export function ExerciseRow({
     <Animated.View style={[styles.row, rowAnimatedStyle]}>
       {onToggleTick && (
         <Pressable
+          ref={tickRef}
           onPress={() => onToggleTick(ex.id)}
           hitSlop={8}
           style={styles.checkboxPressable}
@@ -166,6 +172,7 @@ export function ExerciseRow({
             </Text>
             {showRight && ex.description != null && (
               <Pressable
+                ref={infoRef}
                 onPress={() => setShowDetail((v) => !v)}
                 hitSlop={8}
                 accessibilityRole="button"
@@ -190,6 +197,7 @@ export function ExerciseRow({
               </Text>
               {ex.weightKg != null ? (
                 <WeightBadge
+                  ref={weightRef}
                   label={formatWeightKg(ex.weightKg)}
                   colour={ex.weightIsBump ? accent : Colours.dim}
                   onPress={onTapWeight ? () => onTapWeight(ex) : undefined}
@@ -197,6 +205,7 @@ export function ExerciseRow({
                 />
               ) : ex.hasWeightTracking ? (
                 <SetWeightBadge
+                  ref={weightRef}
                   onPress={onTapWeight ? () => onTapWeight(ex) : undefined}
                   accessibilityLabel={`Set weight for ${ex.title}`}
                 />
@@ -222,6 +231,7 @@ export function ExerciseRow({
           </Pressable>
         ) : showRight && ex.restSeconds != null ? (
           <Pressable
+            ref={restTimerButtonRef}
             onPress={() => onTapRest?.(ex)}
             style={styles.restButton}
             accessibilityRole="button"
@@ -236,11 +246,13 @@ export function ExerciseRow({
 }
 
 function WeightBadge({
+  ref,
   label,
   colour,
   onPress,
   accessibilityLabel,
 }: {
+  ref?: React.RefObject<View | null>;
   label: string;
   colour: string;
   onPress?: () => void;
@@ -252,20 +264,28 @@ function WeightBadge({
     </View>
   );
   return onPress ? (
-    <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={accessibilityLabel}>
+    <Pressable ref={ref} onPress={onPress} accessibilityRole="button" accessibilityLabel={accessibilityLabel}>
       {content}
     </Pressable>
   ) : content;
 }
 
-function SetWeightBadge({ onPress, accessibilityLabel }: { onPress?: () => void; accessibilityLabel?: string }) {
+function SetWeightBadge({
+  ref,
+  onPress,
+  accessibilityLabel,
+}: {
+  ref?: React.RefObject<View | null>;
+  onPress?: () => void;
+  accessibilityLabel?: string;
+}) {
   const content = (
     <View style={styles.setWeightBadge}>
       <Text style={[styles.weightBadgeText, { color: Colours.faint }]}>SET kg</Text>
     </View>
   );
   return onPress ? (
-    <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={accessibilityLabel}>
+    <Pressable ref={ref} onPress={onPress} accessibilityRole="button" accessibilityLabel={accessibilityLabel}>
       {content}
     </Pressable>
   ) : content;

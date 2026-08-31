@@ -19,6 +19,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Colours } from '../../design/colours';
 import { Fonts } from '../../design/fonts';
 import { SESSION_ORDER } from '../../engine';
+import { useTutorialTarget } from '../tutorial/TutorialTargetContext';
 
 export interface SessionDotsProps {
   /** Swift's `effectiveDisplayKey`. */
@@ -64,8 +65,9 @@ export function SessionDots({
   nextUp,
   onTapSession,
 }: SessionDotsProps) {
+  const sessionDotsRef = useTutorialTarget('sessionDots');
   return (
-    <View style={styles.row}>
+    <View ref={sessionDotsRef} style={styles.row}>
       <View style={styles.dotsGroup}>
         {SESSION_ORDER.map((key) => {
           const colour = sessionColour(key);

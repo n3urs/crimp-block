@@ -9,6 +9,7 @@ import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Colours, resolveColour } from '../../design/colours';
 import { Fonts } from '../../design/fonts';
+import { useTutorialTarget } from '../tutorial/TutorialTargetContext';
 
 export interface WeekDay {
   /** date, "yyyy-MM-dd" */
@@ -29,8 +30,9 @@ const BAR_RADIUS = 2;
 const BAR_BORDER_WIDTH = 1.5;
 
 export function WeekStrip({ days, onTapDay }: WeekStripProps) {
+  const weekStripRef = useTutorialTarget('weekStrip');
   return (
-    <View style={styles.row}>
+    <View ref={weekStripRef} style={styles.row}>
       {days.map((day) => (
         <Pressable
           key={day.id}

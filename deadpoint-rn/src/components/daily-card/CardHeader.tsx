@@ -8,6 +8,7 @@ import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Colours } from '../../design/colours';
 import { Fonts } from '../../design/fonts';
+import { useTutorialTarget } from '../tutorial/TutorialTargetContext';
 
 export interface CardHeaderProps {
   /** state.phaseName */
@@ -133,10 +134,13 @@ export function CardHeader({
 }: CardHeaderProps) {
   const isDeload = weekNumber === 4;
   const badgeLabel = `${phaseName.toUpperCase()} · WK ${weekNumber}${isDeload ? ' · DELOAD' : ''}`;
+  const phaseBadgeRef = useTutorialTarget('phaseBadge');
+  const settingsRef = useTutorialTarget('settingsGear');
 
   return (
     <View style={styles.header}>
       <Pressable
+        ref={phaseBadgeRef}
         onPress={onTapPhaseBadge}
         style={styles.badge}
         accessibilityRole="button"
@@ -159,6 +163,7 @@ export function CardHeader({
           </Pressable>
         )}
         <Pressable
+          ref={settingsRef}
           onPress={onTapSettings}
           style={styles.iconButton}
           accessibilityRole="button"

@@ -21,6 +21,7 @@ import { Fonts } from '../../design/fonts';
 import { Motion } from '../../design/motion';
 import { fraction, formatCountdown } from './restTimerLogic';
 import type { RestTimerState } from './useRestTimer';
+import { useTutorialTarget } from '../tutorial/TutorialTargetContext';
 
 export interface RestTimerOverlayProps {
   state: RestTimerState;
@@ -29,6 +30,7 @@ export interface RestTimerOverlayProps {
 
 export function RestTimerOverlay({ state, onStop }: RestTimerOverlayProps) {
   const frac = fraction(state.remainingSeconds, state.totalSeconds);
+  const stopRef = useTutorialTarget('restTimerStop');
 
   return (
     <Animated.View
@@ -44,7 +46,7 @@ export function RestTimerOverlay({ state, onStop }: RestTimerOverlayProps) {
         <View style={styles.spacer} />
         <Text style={[styles.countdown, { color: state.accent }]}>{formatCountdown(state.remainingSeconds)}</Text>
         <View style={styles.spacer} />
-        <Pressable onPress={onStop} style={styles.stopButton} accessibilityRole="button" accessibilityLabel="Stop rest timer">
+        <Pressable ref={stopRef} onPress={onStop} style={styles.stopButton} accessibilityRole="button" accessibilityLabel="Stop rest timer">
           <Text style={styles.stopButtonText}>STOP</Text>
         </Pressable>
       </View>

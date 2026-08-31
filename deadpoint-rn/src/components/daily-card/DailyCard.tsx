@@ -48,6 +48,7 @@ import { useRestTimer } from '../timers/useRestTimer';
 import { useIntervalTimer } from '../timers/useIntervalTimer';
 import { RestTimerOverlay } from '../timers/RestTimerOverlay';
 import { IntervalTimerView } from '../timers/IntervalTimerView';
+import { useTutorialTarget } from '../tutorial/TutorialTargetContext';
 
 export interface DailyCardPeek {
   session: { name: string; where: string };
@@ -332,6 +333,7 @@ export function DailyCard(props: DailyCardProps) {
   // content's top gets pushed down, and only by the ADDITIONAL device
   // inset on top of the existing 20pt padding, not instead of it.
   const insets = useSafeAreaInsets();
+  const doneButtonRef = useTutorialTarget('doneButton');
 
   return (
     <View style={styles.root}>
@@ -418,6 +420,7 @@ export function DailyCard(props: DailyCardProps) {
       </GestureDetector>
 
       <Pressable
+        ref={doneButtonRef}
         onPress={doneFlow.handleDoneTap}
         style={[styles.doneButton, { backgroundColor: isLogged ? Colours.s2 : accent }]}
         accessibilityRole="button"
