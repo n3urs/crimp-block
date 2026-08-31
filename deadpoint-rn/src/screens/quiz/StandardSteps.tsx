@@ -1,7 +1,7 @@
 // src/screens/quiz/StandardSteps.tsx
-import React from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
-import DateTimePicker from '@react-native-community/datetimepicker';
+import React, { useState } from 'react';
+import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import DateTimePicker, { type DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { Colours } from '../../design/colours';
 import { Fonts } from '../../design/fonts';
 import { StepScaffold, ChoiceCard } from './QuizChrome';
@@ -95,9 +95,31 @@ function isoDate(d: Date): string {
 
 export function TripDateStep({ answers, onChange, totalSteps }: StepProps) {
   const wantsTripDate = answers.tripDate != null;
+
+  // On Android, DateTimePicker isn't a persistent inline widget the way it is on
+  // iOS — it's an imperative one-shot dialog opener triggered from a `useEffect`
+  // that depends on `value` (see the library's README, "Android imperative api").
+  // Leaving it mounted unconditionally means picking a date changes `value`,
+  // which re-fires that effect and reopens the dialog immediately after every
+  // pick. Gating its mount behind `showPicker` — and clearing that flag as soon
+  // as `onChange` fires — lets it unmount (closing the dialog) after exactly one
+  // open, with a pressable date button to reopen it for later changes. iOS's
+  // picker genuinely is an inline widget, so it stays mounted unconditionally
+  // there, matching the original always-visible behaviour.
+  const [showPicker, setShowPicker] = useState(false);
+  const showInlinePicker = wantsTripDate && (Platform.OS !== 'android' || showPicker);
+
+  const handleDateChange = (event: DateTimePickerEvent, date?: Date) => {
+    if (Platform.OS === 'android') setShowPicker(false);
+    if (event.type === 'set' && date) onChange({ ...answers, tripDate: isoDate(date) });
+  };
+
   return (
     <StepScaffold eyebrow={`8 of ${totalSteps}`} title="Training toward a trip?" subtitle="Optional — if you have a real date, the plan can taper toward it automatically.">
-      <ChoiceCard label="No trip planned" isSelected={!wantsTripDate} onPress={() => onChange({ ...answers, tripDate: null })} />
+      <ChoiceCard
+        label="No trip planned" isSelected={!wantsTripDate}
+        onPress={() => { setShowPicker(false); onChange({ ...answers, tripDate: null }); }}
+      />
       <ChoiceCard
         label="Yes, I have a date" isSelected={wantsTripDate}
         onPress={() => {
@@ -105,15 +127,15 @@ export function TripDateStep({ answers, onChange, totalSteps }: StepProps) {
             const d = new Date(); d.setDate(d.getDate() + 56);
             onChange({ ...answers, tripDate: isoDate(d) });
           }
+          if (Platform.OS === 'android') setShowPicker(true);
         }}
       />
-      {wantsTripDate && (
-        <DateTimePicker
-          value={answers.tripDate ? new Date(answers.tripDate) : new Date()}
-          mode="date"
-          onChange={(_, date) => { if (date) onChange({ ...answers, tripDate: isoDate(date) }); }}
-        />
+      {wantsTripDate && Platform.OS === 'android' && !showPicker && (
+        <Pressable onPress={() => setShowPicker(true)} style={styles.dateButton} accessibilityRole="button" accessibilityLabel="Change trip date">
+          <Text style={styles.dateButtonText}>{answers.tripDate}</Text>
+        </Pressable>
       )}
+      {showInlinePicker && <DateTimePicker value={answers.tripDate ? new Date(answers.tripDate) : new Date()} mode="date" onChange={handleDateChange} />}
     </StepScaffold>
   );
 }
@@ -146,6 +168,8 @@ export function StandardSummaryStep({ answers }: StepProps) {
 
 const styles = StyleSheet.create({
   bigNumber: { ...Fonts.mono(64, 'bold'), fontWeight: '800', color: Colours.fg, textAlign: 'center' },
+  dateButton: { padding: 16, borderRadius: 12, backgroundColor: Colours.s1, alignItems: 'center' },
+  dateButtonText: { fontSize: 15, fontWeight: '600', color: Colours.fg },
   stepperRow: { flexDirection: 'row', justifyContent: 'center', gap: 20, marginTop: 24 },
   stepperButton: { width: 52, height: 52, borderRadius: 26, backgroundColor: Colours.s1, alignItems: 'center', justifyContent: 'center' },
   stepperGlyph: { fontSize: 24, fontWeight: '700', color: Colours.fg },
