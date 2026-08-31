@@ -108,14 +108,15 @@
     read any profile field at all, so gating a built-in account's route on
     a Supabase round trip it doesn't need would just be needless latency. */
 import React, { useEffect, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSession } from '../src/data/useSession';
 import { useProfile } from '../src/data/useProfile';
 import { getHasSeenWelcome, hasSeenBuiltInTutorial } from '../src/data/deviceFlags';
 import { supabase } from '../src/data/supabase';
 import { computeRoute, isBuiltInProgram, type Route } from '../src/routing/computeRoute';
-import { Colours } from '../src/design/colours';
+import { Colours, resolveColour } from '../src/design/colours';
+import { Fonts } from '../src/design/fonts';
 
 export default function Index() {
   const router = useRouter();
@@ -157,12 +158,26 @@ export default function Index() {
   }, [email]);
   const builtInSeen = builtInSeenState?.email === email ? builtInSeenState.value : null;
 
-  // Fix 3: computed ONCE per render, from the same readiness gate and the
-  // same computeRoute() call — both the router.replace() effect below and
-  // isRehabComingSoon's inline render decision derive from this single
-  // value, so they can't independently drift out of sync with each other
-  // or with computeRoute()'s own branches as those evolve (e.g. Phase 7's
-  // real paywall gate).
+  // Fix 3: a non-built-in account whose profile fetch genuinely THREW
+  // (network failure, RLS denial, etc. — this app is explicitly meant to
+  // be usable with poor/no signal at a crag, so this is not a narrow edge
+  // case) settles `profile.loaded:true` with `profile.row` still null —
+  // exactly the same shape as a genuinely brand-new user who has never
+  // done the quiz. Without this check, computeRoute() can't tell those
+  // apart and would silently send a returning user with a real profile
+  // into /quiz, risking a destructive profile.create() overwrite of their
+  // real program data if they interact with the quiz before realizing
+  // something is wrong. A built-in account never needs this guard — its
+  // route never reads any profile field at all (confirmed directly
+  // against computeRoute.ts's isBuiltInProgram branch).
+  const profileFetchFailed = !builtIn && profile.loaded && profile.error;
+
+  // Fix 3 (cont'd): computed ONCE per render, from the same readiness gate
+  // and the same computeRoute() call — both the router.replace() effect
+  // below and isRehabComingSoon's inline render decision derive from this
+  // single value, so they can't independently drift out of sync with each
+  // other or with computeRoute()'s own branches as those evolve (e.g.
+  // Phase 7's real paywall gate).
   let route: Route | null = null;
   if (
     authReady &&
@@ -171,7 +186,11 @@ export default function Index() {
     // Fix 1: a built-in account's route never depends on any profile
     // field (confirmed directly against computeRoute.ts) — only a
     // non-built-in account needs to wait for the real fetch to settle.
-    (builtIn || profile.loaded)
+    (builtIn || profile.loaded) &&
+    // Fix 3: don't compute (or navigate to) a route at all while the
+    // fetch is known to have failed — the inline retry screen below
+    // takes over instead, same pattern as /rehab-coming-soon.
+    !profileFetchFailed
   ) {
     route = computeRoute({
       hasSeenWelcome,
@@ -192,6 +211,23 @@ export default function Index() {
 
   const isRehabComingSoon = route === '/rehab-coming-soon';
 
+  if (profileFetchFailed) {
+    return (
+      <View style={styles.root}>
+        <Text style={styles.title}>Couldn't load your account</Text>
+        <Text style={styles.body}>Check your connection and try again.</Text>
+        <Pressable
+          onPress={() => { profile.reload().catch((e) => console.error('index: retry reload failed:', e)); }}
+          style={styles.button}
+          accessibilityRole="button"
+          accessibilityLabel="Try again"
+        >
+          <Text style={styles.buttonText}>TRY AGAIN</Text>
+        </Pressable>
+      </View>
+    );
+  }
+
   if (isRehabComingSoon) {
     return (
       <View style={styles.root}>
@@ -210,4 +246,7 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: Colours.bg, alignItems: 'center', justifyContent: 'center', padding: 24, gap: 12 },
   title: { fontSize: 20, fontWeight: '800', color: Colours.fg, textAlign: 'center' },
   body: { fontSize: 14, color: Colours.dim, textAlign: 'center' },
+  // Matches app/sign-in.tsx's own button styling for a consistent look.
+  button: { paddingVertical: 14, paddingHorizontal: 24, borderRadius: 8, alignItems: 'center', backgroundColor: resolveColour('--gorse'), marginTop: 8 },
+  buttonText: { ...Fonts.mono(13, 'bold'), color: Colours.bg },
 });

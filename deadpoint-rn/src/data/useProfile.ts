@@ -78,31 +78,75 @@ export function useProfile(userId: string) {
       the same `row: null` outcome) — and a caller that gates on `loaded`
       before routing (app/index.tsx) must not be blocked forever for a
       genuinely signed-out user, who has no profile row to wait for at
-      all. */
-  const [loaded, setLoaded] = useState(false);
+      all.
+
+      KEYED to the userId it was actually computed for — `loadedFor:
+      string | null`, with `loaded` derived at render time as `loadedFor
+      === userId` — for the exact same structural reason app/index.tsx's
+      own `builtInSeenState` is keyed to `email` rather than a bare
+      boolean (see that file's top doc comment, adaptation 2). A bare
+      `loaded` boolean reset by a `useEffect` keyed on `[userId]` does NOT
+      actually close the race: that reset effect and app/index.tsx's own
+      routing effect can both fire in the SAME commit off the SAME render
+      (the normal case when `userId` flips from `''` to a real value in
+      the same commit `authReady` flips true), and on that render the
+      routing effect still reads whatever `loaded` was left at by the
+      PREVIOUS render — `true`, from the earlier `!userId` settlement —
+      because the reset effect hasn't run yet. Keying the stored value to
+      its own userId closes this structurally: `loadedFor` starts as
+      `null` (or settles to `''` once the signed-out case resolves),
+      NEITHER of which can ever equal a real, non-empty `userId`, so
+      `loaded` is correctly `false` the instant `userId` changes, in the
+      very same render — no separate reset effect, and nothing for one to
+      race against. */
+  const [loadedFor, setLoadedFor] = useState<string | null>(null);
+  const loaded = loadedFor === userId;
+
+  /** Set to `true` when the most recent fetch attempt for the current
+      `userId` genuinely threw (network failure, RLS denial, etc.) — reset
+      to `false` at the start of every fresh reload() attempt, so a
+      subsequent successful retry clears it. Distinguishes "settled, no
+      error, no row" (a genuinely brand-new user with no profile yet) from
+      "settled, but the fetch actually failed" (this app is explicitly
+      meant to be usable with poor/no signal at a crag — a returning user
+      hitting a network hiccup on cold launch must not be silently routed
+      into the quiz, which risks a destructive profile.create() overwrite
+      of their real program data). */
+  const [error, setError] = useState(false);
 
   /** null `row` afterward means genuinely no profile yet (a real new user
       who hasn't done the quiz) — distinct from a network/decode failure,
       which throws instead of silently leaving `row` null, so the caller
       doesn't mistake "couldn't check" for "definitely new." */
   const reload = useCallback(async () => {
+    // Captured once per call, so every settlement path below reports the
+    // ACTUAL userId this particular fetch was for, regardless of whether
+    // `userId` itself has since changed again.
+    const forUserId = userId;
+    setError(false);
     // Same reasoning as useStore.ts/useLoads.ts: `profiles` is RLS-
     // protected with no explicit user_id filter, so an anon-key request
     // before any sign-in is expected and routine, not a real failure —
     // and "not signed in yet" correctly collapses to the same `row: null`
     // state as "genuinely no profile yet" below; there's nothing to
     // distinguish it from until a session actually exists.
-    if (!userId) { setLoaded(true); return; }
+    if (!forUserId) { setLoadedFor(''); return; }
     try {
-      const { data, error } = await supabase.from('profiles').select(PROFILE_COLUMNS).maybeSingle();
-      if (error) throw error;
+      const { data, error: fetchError } = await supabase.from('profiles').select(PROFILE_COLUMNS).maybeSingle();
+      if (fetchError) throw fetchError;
       setRow(data ? fromDbRow(data as ProfileDbRow) : null);
+    } catch (e) {
+      // loaded:true on error is still the right call for liveness — a
+      // network error must not hang `loaded` false forever — but `error`
+      // now lets app/index.tsx tell this apart from a genuinely new user.
+      setError(true);
+      throw e;
     } finally {
       // Runs whether the query above succeeded, found nothing, or threw —
       // "settled" covers all three, per `loaded`'s own doc comment above.
       // The `throw` a few lines up still propagates to the caller
       // (reload()'s existing contract, unchanged) after this runs.
-      setLoaded(true);
+      setLoadedFor(forUserId);
     }
   }, [userId]);
 
@@ -115,14 +159,14 @@ export function useProfile(userId: string) {
   // "genuinely no profile yet" case this
   // function's own doc comment already describes.
   useEffect(() => {
-    // Reset to "pending" before kicking off the fetch for this (possibly
-    // new) userId — covers both a fresh sign-in (a real fetch is about to
-    // run) and a sign-out (reload() below flips this straight back to
-    // `true` synchronously, since `!userId` has nothing to wait for).
-    // Batches with reload()'s own synchronous `setLoaded(true)` in the
-    // `!userId` case, so there's no visible flicker to `false` and back
-    // within the same commit.
-    setLoaded(false);
+    // No explicit "reset to pending" needed here any more: `loaded` is
+    // now DERIVED (`loadedFor === userId`), not a bare boolean this
+    // effect has to flip back to `false` itself. The moment `userId`
+    // changes, `loaded` is already `false` for that same render — purely
+    // from `loadedFor` (still holding whatever it settled to for the
+    // PREVIOUS userId) no longer matching the new `userId` — with zero
+    // dependency on this effect (or any effect) having run yet. This
+    // effect's only remaining job is to actually kick off the fetch.
     reload().catch((e) => console.error('useProfile.reload failed:', e));
   }, [reload]);
 
@@ -209,5 +253,5 @@ export function useProfile(userId: string) {
     setRow(r => (r ? { ...r, tutorialCompletedAt: now } : r));
   }, [userId]);
 
-  return { row, loaded, reload, create, assignRehab, switchToStandard, advanceRehabPhase, markTutorialCompleted };
+  return { row, loaded, error, reload, create, assignRehab, switchToStandard, advanceRehabPhase, markTutorialCompleted };
 }

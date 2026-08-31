@@ -15,7 +15,26 @@ function emailLooksValid(email: string): boolean {
 
 export default function SignIn() {
   const router = useRouter();
-  const { sendOTP, verifyOTP } = useSession();
+  const { session, sendOTP, verifyOTP } = useSession();
+
+  // Fix 2: a signed-in user can land here at all if app/index.tsx's
+  // `authReady` (set from its OWN onAuthStateChange listener) flips true
+  // in a commit BEFORE useSession()'s `session` here has actually
+  // resolved to a real value — computeRoute() sees `isSignedIn: false`
+  // (session is still null at that render) and routes to /sign-in. This
+  // screen has no way to prevent being shown in that state, so instead it
+  // self-corrects: the moment `session` here resolves truthy — on this
+  // screen's own next render, whether that's because it was already
+  // truthy or becomes truthy a moment later — immediately bounce back to
+  // the root gate so computeRoute() gets a real chance to route this
+  // person correctly instead of leaving them stuck looking at a sign-in
+  // screen despite genuinely being signed in. Deliberately NOT a fix to
+  // the underlying session/authReady exposure ordering in useSession.ts —
+  // that's a larger restructuring, out of scope here; this is bounded,
+  // cheap, client-side protection only.
+  useEffect(() => {
+    if (session) router.replace('/');
+  }, [session, router]);
 
   const [step, setStep] = useState<Step>('email');
   const [email, setEmail] = useState('');
