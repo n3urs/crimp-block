@@ -46,6 +46,13 @@ export interface ExerciseRowProps {
       and ex.prescription (to derive the set count), not just ex.interval
       alone. Same no-op contract as onTapRest above. */
   onStartInterval?: (ex: RenderedExercise) => void;
+  /** Called with the whole exercise whenever the info icon is tapped, IN
+      ADDITION TO this component's own internal show/hide-description
+      toggle below — purely additive, so an absent callback (the case for
+      every caller today except the tutorial host) leaves behavior 100%
+      unchanged. Exists so a parent can observe a genuine tap on the real
+      info icon without this component faking or skipping that tap. */
+  onTapInfo?: (ex: RenderedExercise) => void;
 }
 
 const easeInOut = Easing.inOut(Easing.ease);
@@ -98,6 +105,7 @@ export function ExerciseRow({
   onTapWeight,
   onTapRest,
   onStartInterval,
+  onTapInfo,
 }: ExerciseRowProps) {
   const [showDetail, setShowDetail] = useState(false);
   const infoRef = useTutorialTarget('exerciseInfo');
@@ -173,7 +181,10 @@ export function ExerciseRow({
             {showRight && ex.description != null && (
               <Pressable
                 ref={infoRef}
-                onPress={() => setShowDetail((v) => !v)}
+                onPress={() => {
+                  setShowDetail((v) => !v);
+                  onTapInfo?.(ex);
+                }}
                 hitSlop={8}
                 accessibilityRole="button"
                 accessibilityState={{ expanded: showDetail }}

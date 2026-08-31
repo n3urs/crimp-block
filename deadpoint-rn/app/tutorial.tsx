@@ -60,6 +60,11 @@ const STEPS: TutorialStep[] = [
   { targetID: 'settingsGear', title: 'Your settings', body: 'A sets counter that lets you tap through sets one at a time, an auto-start rest timer, and your account, all behind this gear icon.' },
 ];
 
+// Derived, not a hardcoded literal — Fix 3 (step 4's tick must not collapse
+// the controls steps 5-6 need) gates on "has the tutorial moved past this
+// step" and needs the real index rather than an assumed one.
+const REST_TIMER_BUTTON_STEP_INDEX = STEPS.findIndex((s) => s.targetID === 'restTimerButton');
+
 type Stage = 'intro' | 'walkthrough' | 'outro';
 
 function isoToday(): string {
@@ -194,14 +199,46 @@ export default function Tutorial() {
     scrollRef,
   });
 
+  // Fix 3: ticking the seeded exercise's checkbox during step 4 must still
+  // ALWAYS call handleTap('exerciseTick') below (that's what lets step 4
+  // advance), but actually adding its id to `ticks` collapses its own
+  // weight badge/rest button — the very controls steps 5 (weightBadge) and
+  // 6 (restTimerButton) need to spotlight. So for the seeded exercise
+  // specifically, defer joining `ticks` until the tutorial has moved past
+  // the restTimerButton step (the later of the two steps that need those
+  // controls visible); track the user's tap intent locally in the
+  // meantime and commit it once the gate opens (see the effect below).
+  // Any other, non-seeded exercise (this demo seeds only one) ticks
+  // normally, immediately, with no deferral.
+  const [pendingTickForSeeded, setPendingTickForSeeded] = useState(false);
+  const seededTickGateOpen = controller.stepIndex > REST_TIMER_BUTTON_STEP_INDEX;
+
   const onToggleTick = (id: string) => {
-    setTicks((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id); else next.add(id);
-      return next;
-    });
+    if (id === SEEDED_EXERCISE_ID && !seededTickGateOpen) {
+      setPendingTickForSeeded((v) => !v);
+    } else {
+      setTicks((prev) => {
+        const next = new Set(prev);
+        if (next.has(id)) next.delete(id); else next.add(id);
+        return next;
+      });
+    }
     controller.handleTap('exerciseTick');
   };
+
+  // Once the gate opens, commit any pending seeded-exercise tick into the
+  // real `ticks` Set so the checkbox visually "catches up" to the tap the
+  // user already made back in step 4.
+  useEffect(() => {
+    if (!seededTickGateOpen || !pendingTickForSeeded) return;
+    setTicks((prev) => {
+      if (prev.has(SEEDED_EXERCISE_ID)) return prev;
+      const next = new Set(prev);
+      next.add(SEEDED_EXERCISE_ID);
+      return next;
+    });
+    setPendingTickForSeeded(false);
+  }, [seededTickGateOpen, pendingTickForSeeded]);
 
   const onTapWeight = (ex: RenderedExercise) => {
     if (ex.id === SEEDED_EXERCISE_ID) setLoadKg((kg) => (kg ?? 0) + 2.5);
@@ -215,6 +252,19 @@ export default function Tutorial() {
   };
 
   const doneFlow = useDoneFlow({ isLogged, loggedSessionKey: loggedKey, displayKey, onLog });
+
+  // Fix 2: `restTimer` (from useRestTimer(), shape { state, start, stop })
+  // is called directly by DailyCard/RestTimerOverlay with no interception
+  // point of our own — wrap just `.stop` so a real tap on the overlay's
+  // STOP button both stops the real timer AND advances the restTimerStop
+  // step, while `.state`/`.start` pass through unchanged.
+  const wrappedRestTimer = {
+    ...restTimer,
+    stop: () => {
+      restTimer.stop();
+      controller.handleTap('restTimerStop');
+    },
+  };
 
   const weekDays = useMemo(() => demoWeekDays(program, today), [program, today]);
   const sessionColour = (key: string) => resolveColour(engine.sessionColourVarName(key));
@@ -256,7 +306,8 @@ export default function Tutorial() {
           onTapWeight={onTapWeight}
           onTapRest={(ex) => { if (ex.restSeconds != null) { restTimer.start(ex.restSeconds, ex.title, accent); controller.handleTap('restTimerButton'); } }}
           onStartInterval={(ex) => { if (ex.interval != null) intervalTimer.start(ex.interval, ex.restSeconds ?? 120, Math.max(1, leadingInt(ex.prescription) ?? 1), ex.title); }}
-          restTimer={restTimer}
+          onTapInfo={() => controller.handleTap('exerciseInfo')}
+          restTimer={wrappedRestTimer}
           intervalTimer={intervalTimer}
           isLogged={isLogged}
           cardMessage={info?.note ?? ''}

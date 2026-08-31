@@ -69,6 +69,11 @@ export interface DailyCardProps {
   onTapWeight?: (ex: RenderedExercise) => void;
   onTapRest?: (ex: RenderedExercise) => void;
   onStartInterval?: (ex: RenderedExercise) => void;
+  /** Called with the whole exercise whenever its info icon is tapped —
+      purely additive passthrough to ExerciseRow's own new optional prop
+      of the same name (see that file's doc comment); omitting it (as
+      `app/(main)/card.tsx` does) leaves behavior unchanged. */
+  onTapInfo?: (ex: RenderedExercise) => void;
   /** is TODAY's logged session the one currently on screen */
   isLogged: boolean;
   /** caller-computed (deload/easing-back guidance or the session's own
@@ -157,6 +162,7 @@ interface CardBodyProps {
   onTapWeight?: (ex: RenderedExercise) => void;
   onTapRest?: (ex: RenderedExercise) => void;
   onStartInterval?: (ex: RenderedExercise) => void;
+  onTapInfo?: (ex: RenderedExercise) => void;
   message: string;
   /** true -> 14px semibold+accent; false -> 14px regular+dim. Real
       content passes `isLogged`, the peek passes its own `peekLogged`. */
@@ -191,7 +197,7 @@ interface CardBodyProps {
     smoke test. */
 export function CardBody({
   session, guide, onTapGuide, accent, accentVarName, exercises, ticks,
-  onToggleTick, onTapWeight, onTapRest, onStartInterval,
+  onToggleTick, onTapWeight, onTapRest, onStartInterval, onTapInfo,
   message, messageEmphasis, footerNote, exercisesInteractive, exercisesOpacity,
   scrollEnabled, scrollRef,
 }: CardBodyProps) {
@@ -248,6 +254,7 @@ export function CardBody({
                 onTapWeight={onTapWeight}
                 onTapRest={onTapRest}
                 onStartInterval={onStartInterval}
+                onTapInfo={onTapInfo}
               />
               {i < exercises.length - 1 && <View style={styles.divider} />}
             </React.Fragment>
@@ -266,7 +273,7 @@ export function CardBody({
 export function DailyCard(props: DailyCardProps) {
   const {
     session, accent, accentVarName, exercises, ticks, onToggleTick,
-    onTapWeight, onTapRest, onStartInterval, isLogged, cardMessage,
+    onTapWeight, onTapRest, onStartInterval, onTapInfo, isLogged, cardMessage,
     weekDays, onTapDay, onTapCalendar, onTapSettings, onTapPhaseBadge,
     onTapGuide, phaseName, weekNumber, today, recommendedKey, nextUp,
     celebrationTrigger, footerNote, doneFlow, panGesture, translateX,
@@ -384,6 +391,7 @@ export function DailyCard(props: DailyCardProps) {
                   onTapWeight={onTapWeight}
                   onTapRest={onTapRest}
                   onStartInterval={onStartInterval}
+                  onTapInfo={onTapInfo}
                   message={peek.message}
                   messageEmphasis={peek.isLogged}
                   footerNote={footerNote ?? ''}
@@ -406,6 +414,7 @@ export function DailyCard(props: DailyCardProps) {
                 onTapWeight={onTapWeight}
                 onTapRest={onTapRest}
                 onStartInterval={onStartInterval}
+                onTapInfo={onTapInfo}
                 message={cardMessage}
                 messageEmphasis={isLogged}
                 footerNote={footerNote ?? ''}
