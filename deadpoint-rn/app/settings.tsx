@@ -90,10 +90,43 @@ export default function Settings() {
   const [error, setError] = useState<string | null>(null);
 
   const onSignOut = async () => {
+    // Final-review Fix 1 (Critical): this screen is reached via
+    // router.push('/settings') from card.tsx — the stack is
+    // [(main)/card, settings] by the time this runs, breaking every gate
+    // screen's own "never push, stack never grows past depth 1" invariant
+    // (see app/index.tsx's top doc comment). Without unwinding first,
+    // router.replace('/') below only replaces the TOP entry (settings),
+    // leaving stack [(main)/card, index]; index's own gate then replaces
+    // ITSELF with /sign-in for a signed-out session, leaving
+    // [(main)/card, sign-in] — a stale, still-fully-functional card screen
+    // one back-swipe away, and card.tsx has no signed-out guard of its own
+    // (it falls back to PROGRAMS[''] ?? PROGRAMS.default rather than
+    // redirecting). dismissAll() pops back to the single screen that
+    // pushed this modal (whatever it is — matches this screen's own "must
+    // not assume it shares state with its caller" doc comment above,
+    // rather than hardcoding '/card' as the pushed-from href) BEFORE
+    // sign-out runs, so nothing stale survives underneath.
+    router.dismissAll();
     // Same pattern as quiz.tsx's own onCancel: a failed sign-out still
     // sends the user back to '/' rather than stranding them here.
     try { await signOut(); } catch (e) { console.error('settings onSignOut failed:', e); }
     router.replace('/');
+  };
+
+  const onReplayTutorial = () => {
+    // Final-review Fix 2 (Critical, same root cause as Fix 1): tutorial.tsx's
+    // only other real caller (app/index.tsx) reaches it via
+    // router.replace(route) off its own single-entry stack, so tutorial's
+    // own completion-path router.replace('/') always lands back on a clean
+    // depth-1 stack. Pushing straight to /tutorial from here instead left
+    // [(main)/card, settings, tutorial]; tutorial's replace('/') then only
+    // replaced itself, orphaning the modal `settings` mid-stack. Match the
+    // real call site's shape: dismiss back to the single screen this modal
+    // was pushed from, then replace it with /tutorial, so tutorial starts
+    // from — and its own replace('/') lands back on — a genuine depth-1
+    // stack, same as every other real entry into it.
+    router.dismissAll();
+    router.replace('/tutorial');
   };
 
   const onRestoreStandard = async () => {
@@ -139,14 +172,31 @@ export default function Settings() {
           <Section title="TRAINING TRACK">
             <View style={styles.trackBody}>
               <Text style={styles.trackSummary}>{trackSummaryText(row)}</Text>
-              <Pressable
-                onPress={() => router.push('/quiz')}
-                disabled={busy}
-                accessibilityRole="button"
-                accessibilityLabel="Switch track"
-              >
-                <Text style={styles.trackAction}>SWITCH TRACK</Text>
-              </Pressable>
+              {/* Final-review Fix 3 (Critical root cause, addressed by
+                  removal): SWITCH TRACK used to push /quiz here. Two
+                  separate real bugs, found together, need fixing together
+                  before this comes back:
+                  1) quiz.tsx's onCancel is `await signOut(); router.replace
+                     ('/')` — correct for its ONLY other caller (first-time
+                     onboarding, no real account to sign out of yet), but
+                     wrong here: an already-signed-in user reached via
+                     Settings who taps the quiz's own visible CANCEL button
+                     (rendered on every step — see QuizChrome.tsx's
+                     QuizHeader) gets silently signed out.
+                  2) Even on success it did nothing visible: card.tsx picks
+                     its program via `PROGRAMS[email] ?? PROGRAMS.default`
+                     and never reads `row.trackType`/`row.assignedTemplateId`
+                     at all, so completing the quiz from here changed
+                     nothing the user could see.
+                  Same "never show a control that does nothing" principle
+                  this screen's own (unported) DELETE ACCOUNT section
+                  followed in Swift. Tracked as a real follow-up, not a
+                  silent deletion — bring this back only once both (1) and
+                  (2) are actually fixed. RESTORE INSTANTLY below is
+                  unaffected: it never touches /quiz, and its own visible
+                  effect (escaping the /rehab-coming-soon routing gate —
+                  see src/routing/computeRoute.ts) is real regardless of
+                  card.tsx's own indifference to trackType. */}
               {row.trackType === 'rehab' && restoreName != null && (
                 <Pressable
                   onPress={onRestoreStandard}
@@ -165,7 +215,7 @@ export default function Settings() {
         <Section title="HELP">
           <View style={styles.helpBody}>
             <Pressable
-              onPress={() => router.push('/tutorial')}
+              onPress={onReplayTutorial}
               accessibilityRole="button"
               accessibilityLabel="Replay tutorial"
             >
@@ -181,15 +231,29 @@ export default function Settings() {
               title="SETS COUNTER"
               subtitle="Tap through a tally of sets on each exercise, instead of ticking it off all at once. Only shows up where the set count is unambiguous in the prescription text."
               value={prefs.setsCounterEnabled}
-              onValueChange={setSetsCounterEnabled}
+              onValueChange={(v) => {
+                // Fix 4 (minor): setSetsCounterEnabled/setAutoStartRestOnTally
+                // return a Promise (the underlying AsyncStorage.setItem call)
+                // — passing the setter directly as onValueChange discarded
+                // it, so a rejected write was an unhandled rejection with the
+                // UI already diverged from storage. Matches the house
+                // .catch(console.error(...)) pattern (useSession.ts,
+                // useProfile.ts, app/index.tsx).
+                setSetsCounterEnabled(v).catch((e) => console.error('settings: setSetsCounterEnabled failed:', e));
+              }}
             />
             {prefs.setsCounterEnabled && (
-              <ToggleRow
-                title="AUTO-START REST TIMER"
-                subtitle="Every tally tap also starts that exercise's rest timer, so you don't have to tap Rest separately."
-                value={prefs.autoStartRestOnTally}
-                onValueChange={setAutoStartRestOnTally}
-              />
+              <>
+                <View style={styles.toggleDivider} />
+                <ToggleRow
+                  title="AUTO-START REST TIMER"
+                  subtitle="Every tally tap also starts that exercise's rest timer, so you don't have to tap Rest separately."
+                  value={prefs.autoStartRestOnTally}
+                  onValueChange={(v) => {
+                    setAutoStartRestOnTally(v).catch((e) => console.error('settings: setAutoStartRestOnTally failed:', e));
+                  }}
+                />
+              </>
             )}
           </View>
         </Section>
@@ -215,7 +279,6 @@ const styles = StyleSheet.create({
 
   trackBody: { gap: 14 },
   trackSummary: { fontSize: 14, fontWeight: '600', color: Colours.fg },
-  trackAction: { ...Fonts.mono(12, 'bold'), color: Colours.fg },
   restoreAction: { ...Fonts.mono(11, 'medium'), color: Colours.faint },
 
   helpBody: { gap: 6 },
@@ -223,6 +286,14 @@ const styles = StyleSheet.create({
   helpSubtitle: { fontSize: 11, color: Colours.faint },
 
   exerciseBody: { gap: 18 },
+  // Fix 5 (minor): matches SettingsView.swift's EXERCISE TRACKING section
+  // (`Rectangle().fill(SessionColours.s3).frame(height: 1)`, drawn between
+  // SETS COUNTER and AUTO-START REST TIMER when both are visible) — same
+  // `{ height: 1, backgroundColor: <colour> }` shape already used for every
+  // other divider in this codebase (DailyCard.tsx, StatsPanel.tsx,
+  // LoggedStamp.tsx), just with Colours.s3 as Swift's own choice for this
+  // specific section.
+  toggleDivider: { height: 1, backgroundColor: Colours.s3 },
   toggleRow: { gap: 6 },
   toggleRowHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   toggleTitle: { fontSize: 14, fontWeight: '600', color: Colours.fg },
