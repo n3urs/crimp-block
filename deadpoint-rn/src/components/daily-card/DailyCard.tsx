@@ -431,7 +431,7 @@ export function DailyCard(props: DailyCardProps) {
       <Pressable
         ref={doneButtonRef}
         onPress={doneFlow.handleDoneTap}
-        style={[styles.doneButton, { backgroundColor: isLogged ? Colours.s2 : accent }]}
+        style={[styles.doneButton, { backgroundColor: isLogged ? Colours.s2 : accent, bottom: 16 + insets.bottom }]}
         accessibilityRole="button"
         accessibilityLabel={isLogged ? 'Undo logged workout' : 'Mark workout as done'}
       >

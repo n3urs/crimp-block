@@ -16,6 +16,7 @@
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, { SlideInDown, SlideOutDown } from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colours } from '../../design/colours';
 import { Fonts } from '../../design/fonts';
 import { Motion } from '../../design/motion';
@@ -31,6 +32,7 @@ export interface RestTimerOverlayProps {
 export function RestTimerOverlay({ state, onStop }: RestTimerOverlayProps) {
   const frac = fraction(state.remainingSeconds, state.totalSeconds);
   const stopRef = useTutorialTarget('restTimerStop');
+  const insets = useSafeAreaInsets();
 
   return (
     <Animated.View
@@ -41,7 +43,7 @@ export function RestTimerOverlay({ state, onStop }: RestTimerOverlayProps) {
       <View style={styles.progressTrack}>
         <View style={[styles.progressFill, { width: `${frac * 100}%`, backgroundColor: state.accent }]} />
       </View>
-      <View style={styles.row}>
+      <View style={[styles.row, { paddingBottom: 16 + insets.bottom }]}>
         <Text style={styles.restLabel}>REST</Text>
         <View style={styles.spacer} />
         <Text style={[styles.countdown, { color: state.accent }]}>{formatCountdown(state.remainingSeconds)}</Text>

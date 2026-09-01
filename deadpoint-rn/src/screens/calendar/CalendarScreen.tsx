@@ -1,6 +1,7 @@
 // src/screens/calendar/CalendarScreen.tsx
 import React, { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colours } from '../../design/colours';
 import { Fonts } from '../../design/fonts';
 import { resolveColour } from '../../design/colours';
@@ -81,6 +82,7 @@ function daysBetweenLocal(aISO: string, bISO: string): number {
 }
 
 export function CalendarScreen({ engine, history, today, onDismiss }: CalendarScreenProps) {
+  const insets = useSafeAreaInsets();
   const [visibleMonth, setVisibleMonth] = useState(() => startOfMonth(today));
 
   const forecast = useMemo(() => computeTrendForecast(engine, history, today), [engine, history, today]);
@@ -144,7 +146,7 @@ export function CalendarScreen({ engine, history, today, onDismiss }: CalendarSc
 
   return (
     <View style={styles.root}>
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView contentContainerStyle={[styles.content, { paddingTop: 20 + insets.top, paddingBottom: 20 + insets.bottom }]}>
         <View style={styles.topBarRow}>
           <Text style={styles.title}>CALENDAR</Text>
           <Pressable onPress={onDismiss} accessibilityRole="button" accessibilityLabel="Close calendar">

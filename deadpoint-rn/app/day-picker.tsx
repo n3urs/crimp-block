@@ -12,6 +12,7 @@
 import React, { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colours, resolveColour } from '../src/design/colours';
 import { Fonts } from '../src/design/fonts';
 import { useSession } from '../src/data/useSession';
@@ -33,6 +34,7 @@ function dateLabel(date: string): string {
 
 export default function DayPicker() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { date } = useLocalSearchParams<{ date: string }>();
   const { session } = useSession();
   const email = session?.user?.email ?? null;
@@ -75,14 +77,14 @@ export default function DayPicker() {
 
   return (
     <View style={styles.root}>
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: 20 + insets.top }]}>
         <Text style={styles.headerTitle}>{dateLabel(date)}</Text>
         <Pressable onPress={() => router.back()} accessibilityRole="button" accessibilityLabel="Close">
           <Text style={styles.close}>CLOSE</Text>
         </Pressable>
       </View>
 
-      <ScrollView contentContainerStyle={styles.list}>
+      <ScrollView contentContainerStyle={[styles.list, { paddingBottom: 20 + insets.bottom }]}>
         {SESSION_ORDER.map((key) => {
           const info = engine.sessionInfo(key);
           if (!info) return null;

@@ -10,6 +10,7 @@
 import React, { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colours } from '../src/design/colours';
 import { Fonts } from '../src/design/fonts';
 import { resolveColour } from '../src/design/colours';
@@ -28,6 +29,7 @@ function formatValue(n: number): string {
 
 export default function WeightEdit() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<{ exerciseId: string; title: string; step: string; weightKg: string; date: string }>();
   const { session } = useSession();
   const userId = session?.user?.id ?? '';
@@ -56,7 +58,7 @@ export default function WeightEdit() {
   };
 
   return (
-    <View style={styles.root}>
+    <View style={[styles.root, { paddingTop: 24 + insets.top, paddingBottom: 24 + insets.bottom }]}>
       <View style={styles.header}>
         <Pressable onPress={() => router.back()} accessibilityRole="button" accessibilityLabel="Cancel">
           <Text style={styles.cancel}>CANCEL</Text>
