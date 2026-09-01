@@ -64,6 +64,12 @@ export default function RootLayout() {
               match this install, though the underlying claim it was
               checking for holds. */}
           <Stack.Screen name="(main)/calendar" options={{ presentation: 'modal' }} />
+          {/* Weight editing modal (Task 1, this plan) — direct port of
+              WeightEditView.swift. Not group-qualified like the calendar
+              screen above: app/weight-edit.tsx lives directly under app/,
+              not inside the (main) group, so its route name is just
+              "weight-edit", matching its file path relative to app/. */}
+          <Stack.Screen name="weight-edit" options={{ presentation: 'modal' }} />
         </Stack>
       </SafeAreaProvider>
     </GestureHandlerRootView>

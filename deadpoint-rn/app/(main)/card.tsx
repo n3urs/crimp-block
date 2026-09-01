@@ -227,6 +227,24 @@ export default function Card() {
     intervalTimer.start(ex.interval, ex.restSeconds ?? 120, sets, ex.title);
   }, [intervalTimer]);
 
+  // Real now (this plan's Task 1) — pushes the weight-editing modal route
+  // at app/weight-edit.tsx, same push-a-real-route pattern as
+  // onTapCalendar below. Unlike calendar.tsx, weight-edit.tsx has no
+  // engine/program dependency of its own: every value it needs is passed
+  // explicitly as a route param here rather than re-derived there.
+  const onTapWeight = useCallback((ex: RenderedExercise) => {
+    router.push({
+      pathname: '/weight-edit',
+      params: {
+        exerciseId: ex.id,
+        title: ex.title,
+        step: String(ex.step),
+        weightKg: ex.weightKg != null ? String(ex.weightKg) : '',
+        date: today,
+      },
+    });
+  }, [router, today]);
+
   const doneFlow = useDoneFlow({ isLogged, loggedSessionKey, displayKey, onLog });
 
   const footerNote = `React Native (live data) · ${email ?? ''} · ${today}`;
@@ -262,6 +280,7 @@ export default function Card() {
       // design spec) rather than sharing this screen's state.
       onTapDay={() => {}}
       onTapCalendar={() => router.push('/calendar')}
+      onTapWeight={onTapWeight}
       onTapRest={handleTapRest}
       onStartInterval={handleStartInterval}
       restTimer={restTimer}
