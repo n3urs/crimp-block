@@ -266,6 +266,11 @@ export default function Card() {
       // non-today day tapped in WeekStrip), which likewise resolves its
       // own independent session/store/program rather than sharing this
       // screen's state, same pattern as onTapCalendar above.
+      //
+      // onTapSettings is real now (this plan's Task 2) — pushes the modal
+      // route at app/settings.tsx, which resolves its own independent
+      // session/profile rather than sharing this screen's state, same
+      // pattern as onTapCalendar/onTapDay.
       onTapDay={(date: string) => router.push({ pathname: '/day-picker', params: { date } })}
       onTapCalendar={() => router.push('/calendar')}
       onTapWeight={onTapWeight}
@@ -273,7 +278,7 @@ export default function Card() {
       onStartInterval={handleStartInterval}
       restTimer={restTimer}
       intervalTimer={intervalTimer}
-      onTapSettings={() => {}}
+      onTapSettings={() => router.push('/settings')}
       onTapPhaseBadge={() => {}}
       onTapGuide={() => {}}
       phaseName={phaseName}
