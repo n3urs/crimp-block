@@ -110,6 +110,21 @@ export function useSwipeCarousel({ displayKey, containerWidth, onBrowse, scrollR
 
   const panGesture = Gesture.Pan()
     .minDistance(Motion.swipe.minimumDistance)
+    // activeOffsetX/failOffsetY are react-native-gesture-handler's own
+    // purpose-built mechanism for exactly this "horizontal swipe vs.
+    // vertical scroll" ambiguity — this gesture only ever ACTIVATES once
+    // horizontal movement exceeds the claim threshold, and explicitly
+    // FAILS (ceding the touch to the sibling ScrollView) the moment
+    // vertical movement exceeds the same threshold first. This replaces
+    // an earlier version's manual ratio-check inside onUpdate, which
+    // only runs AFTER this gesture has already been recognized as
+    // active by the native responder system — too late to cleanly hand
+    // off to a ScrollView on Android specifically. Confirmed live: on a
+    // real Android device, the manual-check version blocked vertical
+    // scrolling of the exercise list entirely; activeOffsetX/failOffsetY
+    // is the library's own documented fix for this exact class of bug.
+    .activeOffsetX([-Motion.swipe.horizontalClaimDx, Motion.swipe.horizontalClaimDx])
+    .failOffsetY([-Motion.swipe.horizontalClaimDx, Motion.swipe.horizontalClaimDx])
     // react-native-gesture-handler@2.32.0's own .d.ts types this method's
     // ref parameter as RefObject<React.ComponentType | undefined | null>
     // (a component CLASS/function), not RefObject<React.Component | null>
@@ -125,13 +140,11 @@ export function useSwipeCarousel({ displayKey, containerWidth, onBrowse, scrollR
     )
     .onUpdate((e) => {
       if (!horizontalClaimed.value) {
-        // Ambiguous small movements are left alone (no offset applied
-        // yet) so an ordinary vertical scroll attempt never gets grabbed
-        // as a swipe partway through it.
-        const claims =
-          Math.abs(e.translationX) > Motion.swipe.horizontalClaimDx &&
-          Math.abs(e.translationX) > Math.abs(e.translationY) * Motion.swipe.horizontalClaimRatio;
-        if (!claims) return;
+        // activeOffsetX above already guarantees this callback only ever
+        // starts firing once real horizontal intent is established, so
+        // this first-update branch no longer needs its own claim check —
+        // it only needs to run once, to compute which session is being
+        // peeked at.
         horizontalClaimed.value = true;
         // Swift's `effectiveDisplayKey` (DailyCardView.swift:171-173): peek
         // from whatever session is already committed to, if one is in
