@@ -10,7 +10,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "uk.co.sullivanltd.crimpblock",
-      "buildNumber": "3"
+      "buildNumber": "20"
     },
     "android": {
       "adaptiveIcon": {
