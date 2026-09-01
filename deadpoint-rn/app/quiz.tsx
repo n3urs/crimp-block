@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colours } from '../src/design/colours';
 import { useSession } from '../src/data/useSession';
 import { useProfile } from '../src/data/useProfile';
@@ -21,6 +22,7 @@ const DEFAULT_ANSWERS: QuizAnswers = {
 
 export default function Quiz() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { session, signOut } = useSession();
   const userId = session?.user?.id ?? '';
   const profile = useProfile(userId);
@@ -101,7 +103,7 @@ export default function Quiz() {
   }
 
   return (
-    <View style={styles.root}>
+    <View style={[styles.root, { paddingTop: 20 + insets.top, paddingBottom: 20 + insets.bottom }]}>
       <QuizHeader step={step} totalSteps={totalSteps} onCancel={onCancel} />
       <ScrollView contentContainerStyle={styles.scroll}>{body}</ScrollView>
       <QuizFooter step={step} totalSteps={totalSteps} canAdvance={canAdvance && !submitting} onBack={() => setStep((s) => Math.max(0, s - 1))} onAdvance={advance} />

@@ -1,6 +1,7 @@
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colours } from '../src/design/colours';
 import { Fonts } from '../src/design/fonts';
 import { resolveColour } from '../src/design/colours';
@@ -8,6 +9,7 @@ import { setHasSeenWelcome } from '../src/data/deviceFlags';
 
 export default function Welcome() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
 
   const onContinue = async () => {
     try {
@@ -21,7 +23,7 @@ export default function Welcome() {
   };
 
   return (
-    <View style={styles.root}>
+    <View style={[styles.root, { paddingTop: 24 + insets.top, paddingBottom: 24 + insets.bottom }]}>
       <View style={styles.content}>
         <Text style={styles.wordmark}>DEADPOINT</Text>
         <Text style={styles.tagline}>

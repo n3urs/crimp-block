@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colours } from '../src/design/colours';
 import { Fonts } from '../src/design/fonts';
 import { resolveColour } from '../src/design/colours';
@@ -15,6 +16,7 @@ function emailLooksValid(email: string): boolean {
 
 export default function SignIn() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { session, sendOTP, verifyOTP } = useSession();
 
   // Fix 2: a signed-in user can land here at all if app/index.tsx's
@@ -141,7 +143,7 @@ export default function SignIn() {
   const codeDigitCount = code.replace(/\D/g, '').length;
 
   return (
-    <View style={styles.root}>
+    <View style={[styles.root, { paddingTop: 20 + insets.top, paddingBottom: 20 + insets.bottom }]}>
       <Text style={styles.title}>{step === 'email' ? 'SIGN IN' : 'ENTER CODE'}</Text>
       <Text style={[styles.eyebrow, { color: resolveColour('--gorse') }]}>{step === 'email' ? 'Deadpoint' : 'Sign-in'}</Text>
       <Text style={[styles.message, { color: messageColour, fontWeight: step === 'code' && message == null ? '600' : '400' }]}>
