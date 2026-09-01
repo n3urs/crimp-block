@@ -17,7 +17,7 @@ import { createEngine } from '../../src/engine';
 import { resolveColour } from '../../src/design/colours';
 import { useSwipeCarousel } from '../../src/components/daily-card/useSwipeCarousel';
 import { useDoneFlow } from '../../src/components/daily-card/useDoneFlow';
-import { DailyCard, type DailyCardPeek } from '../../src/components/daily-card/DailyCard';
+import { DailyCard } from '../../src/components/daily-card/DailyCard';
 import type { WeekDay } from '../../src/components/daily-card/WeekStrip';
 import type { RenderedExercise } from '../../src/engine/types';
 import { useRestTimer } from '../../src/components/timers/useRestTimer';
@@ -172,23 +172,6 @@ export default function Card() {
     scrollRef,
   });
 
-  const resolvedPeek: DailyCardPeek | null = useMemo(() => {
-    if (swipe.peekKey == null) return null;
-    const key = swipe.peekKey;
-    const peekInfo = engine.sessionInfo(key);
-    if (!peekInfo) return null;
-    const peekAccent = resolveColour(engine.sessionColourVarName(key));
-    const peekExercises = engine.resolveExercises(key, today, phaseName);
-    const peekIsLogged = loggedSessionKey != null && loggedSessionKey === key;
-    return {
-      session: { name: peekInfo.n ?? '', where: peekInfo.w ?? '' },
-      accent: peekAccent,
-      exercises: peekExercises,
-      isLogged: peekIsLogged,
-      message: peekInfo.note ?? '',
-    };
-  }, [swipe.peekKey, engine, today, phaseName, loggedSessionKey]);
-
   // Port of NativeAppView.toggleDone(subType:) (NativeAppView.swift:588-604),
   // minus the explicit `await reload()` at the end — useStore.set/clear and
   // useLoads.set already update their own state optimistically (Task 6),
@@ -302,8 +285,7 @@ export default function Card() {
       footerNote={footerNote}
       doneFlow={doneFlow}
       panGesture={swipe.panGesture}
-      translateX={swipe.translateX}
-      peek={resolvedPeek}
+      contentOpacity={swipe.contentOpacity}
       onTapSession={swipe.animateTo}
       sessionColour={sessionColour}
       displayKey={displayKey}

@@ -31,7 +31,7 @@ import { Colours, resolveColour } from '../src/design/colours';
 import { Fonts } from '../src/design/fonts';
 import { useSwipeCarousel } from '../src/components/daily-card/useSwipeCarousel';
 import { useDoneFlow } from '../src/components/daily-card/useDoneFlow';
-import { DailyCard, type DailyCardPeek } from '../src/components/daily-card/DailyCard';
+import { DailyCard } from '../src/components/daily-card/DailyCard';
 import { useRestTimer } from '../src/components/timers/useRestTimer';
 import { useIntervalTimer } from '../src/components/timers/useIntervalTimer';
 import { leadingInt } from '../src/components/timers/intervalTimerLogic';
@@ -334,19 +334,6 @@ export default function Tutorial() {
 
   const weekDays = useMemo(() => demoWeekDays(program, today), [program, today]);
   const sessionColour = (key: string) => resolveColour(engine.sessionColourVarName(key));
-  const resolvedPeek: DailyCardPeek | null = useMemo(() => {
-    if (swipe.peekKey == null) return null;
-    const key = swipe.peekKey;
-    const peekInfo = engine.sessionInfo(key);
-    if (!peekInfo) return null;
-    return {
-      session: { name: peekInfo.n ?? '', where: peekInfo.w ?? '' },
-      accent: resolveColour(engine.sessionColourVarName(key)),
-      exercises: engine.resolveExercises(key, today, phaseName),
-      isLogged: loggedKey === key,
-      message: peekInfo.note ?? '',
-    };
-  }, [swipe.peekKey, engine, today, phaseName, loggedKey]);
 
   // Fires the outro card once the walkthrough's own step count runs out —
   // this must be a real effect, not a value computed inline in the JSX
@@ -392,8 +379,7 @@ export default function Tutorial() {
           footerNote={`Tutorial · ${today}`}
           doneFlow={doneFlow}
           panGesture={swipe.panGesture}
-          translateX={swipe.translateX}
-          peek={resolvedPeek}
+          contentOpacity={swipe.contentOpacity}
           onTapSession={swipe.animateTo}
           sessionColour={sessionColour}
           displayKey={displayKey}

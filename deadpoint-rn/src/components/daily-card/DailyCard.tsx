@@ -50,14 +50,6 @@ import { RestTimerOverlay } from '../timers/RestTimerOverlay';
 import { IntervalTimerView } from '../timers/IntervalTimerView';
 import { useTutorialTarget } from '../tutorial/TutorialTargetContext';
 
-export interface DailyCardPeek {
-  session: { name: string; where: string };
-  accent: string;
-  exercises: RenderedExercise[];
-  isLogged: boolean;
-  message: string;
-}
-
 export interface DailyCardProps {
   session: { name: string; where: string; guide: { title: string } | null };
   accent: string;
@@ -101,8 +93,11 @@ export interface DailyCardProps {
   footerNote?: string;
   doneFlow: ReturnType<typeof useDoneFlow>;
   panGesture: ReturnType<typeof useSwipeCarousel>['panGesture'];
-  translateX: ReturnType<typeof useSwipeCarousel>['translateX'];
-  peek: DailyCardPeek | null;
+  /** Reanimated `SharedValue<number>` — 1 at rest, faded to 0 and back by
+      the hook during a swipe/browse. Drives the single content view's
+      opacity (see this file's own render body); there is no more
+      translateX/peek to drive a slide or a dual-layer stack. */
+  contentOpacity: ReturnType<typeof useSwipeCarousel>['contentOpacity'];
   onTapSession: (key: string) => void;
   /** NOT in the brief's literal interface — see this file's top doc
       comment for why SessionDots needs it and the brief's listing didn't
@@ -276,8 +271,8 @@ export function DailyCard(props: DailyCardProps) {
     onTapWeight, onTapRest, onStartInterval, onTapInfo, isLogged, cardMessage,
     weekDays, onTapDay, onTapCalendar, onTapSettings, onTapPhaseBadge,
     onTapGuide, phaseName, weekNumber, today, recommendedKey, nextUp,
-    celebrationTrigger, footerNote, doneFlow, panGesture, translateX,
-    peek, onTapSession, sessionColour, displayKey, scrollRef,
+    celebrationTrigger, footerNote, doneFlow, panGesture, contentOpacity,
+    onTapSession, sessionColour, displayKey, scrollRef,
     restTimer, intervalTimer,
   } = props;
 
@@ -321,13 +316,17 @@ export function DailyCard(props: DailyCardProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- fire once per flip to true, not on every render while true
   }, [doneFlow.showClimbTypeConfirm]);
 
-  // Drives BOTH the current content's slide and the LOGGED stamp's own
-  // offset — Swift applies the exact same `dragOffset` to both
-  // (`.offset(x: dragOffset)` on the swiping VStack at :479, and again on
-  // `loggedStamp` itself at :562), so the celebratory card visibly rides
-  // along with a swipe instead of sitting still while the card slides
-  // out from under it.
-  const slideStyle = useAnimatedStyle(() => ({ transform: [{ translateX: translateX.value }] }));
+  // Drives BOTH the current content's fade and the LOGGED stamp's own
+  // opacity — the earlier drag-based version applied the same
+  // `dragOffset` to both (Swift's `.offset(x: dragOffset)` on the
+  // swiping VStack at :479, and again on `loggedStamp` itself at :562)
+  // so the celebratory card visibly rode along with a swipe instead of
+  // sitting still while the card slid out from under it. Task 1's fade
+  // redesign has nothing left that slides, so this is now a shared
+  // opacity instead of a shared offset — same "ride along" idea, just
+  // expressed as a fade (see useSwipeCarousel.ts's own doc comments for
+  // why nothing tracks the finger visually anymore).
+  const fadeStyle = useAnimatedStyle(() => ({ opacity: contentOpacity.value }));
 
   // Confirmed live on device, real bug Oscar caught: the week strip
   // rendered starting at y=0, sitting behind the Dynamic Island/status
@@ -370,38 +369,18 @@ export function DailyCard(props: DailyCardProps) {
             nextUp={nextUp}
             onTapSession={onTapSession}
           />
+          {/* Single content view — Task 1 replaced the drag-follow
+              slide with a plain fade, which removed any need for a
+              second, absolutely-positioned "peek" layer underneath (the
+              old peek existed purely to be revealed as the current layer
+              slid off it; nothing reveals anything now, the current
+              content just fades out and the real, caught-up
+              `displayKey` content fades back in — see
+              useSwipeCarousel.ts's own doc comments). `styles.stack`
+              still gives this its sizing (flex + relative positioning)
+              exactly as it did when it held two layers. */}
           <View style={styles.stack}>
-            {peek != null && (
-              // Sits behind, at rest, no offset of its own — the current
-              // layer sliding via translateX is what reveals it, like
-              // lifting a card off a stack.
-              <View style={styles.layer} pointerEvents="none">
-                <CardBody
-                  session={peek.session}
-                  guide={null}
-                  accent={peek.accent}
-                  // ExerciseRow doesn't consume accentVarName today (see
-                  // its own doc comment — reserved for a future timer
-                  // task); the peek shape has no variable-name field, so
-                  // this inert placeholder costs nothing.
-                  accentVarName={peek.accent}
-                  exercises={peek.exercises}
-                  ticks={ticks}
-                  onToggleTick={onToggleTick}
-                  onTapWeight={onTapWeight}
-                  onTapRest={onTapRest}
-                  onStartInterval={onStartInterval}
-                  onTapInfo={onTapInfo}
-                  message={peek.message}
-                  messageEmphasis={peek.isLogged}
-                  footerNote={footerNote ?? ''}
-                  exercisesInteractive={false}
-                  exercisesOpacity={peek.isLogged ? 0.35 : 1}
-                  scrollEnabled={false}
-                />
-              </View>
-            )}
-            <Animated.View style={[styles.layer, slideStyle]}>
+            <Animated.View style={[styles.layer, fadeStyle]}>
               <CardBody
                 session={session}
                 guide={session.guide}
@@ -440,7 +419,7 @@ export function DailyCard(props: DailyCardProps) {
         </Text>
       </Pressable>
 
-      <Animated.View style={[styles.loggedStampLayer, slideStyle]} pointerEvents="none">
+      <Animated.View style={[styles.loggedStampLayer, fadeStyle]} pointerEvents="none">
         <LoggedStamp trigger={celebrationTrigger} accent={accent} nextUp={nextUp} />
       </Animated.View>
 
