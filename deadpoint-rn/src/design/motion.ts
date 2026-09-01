@@ -5,11 +5,17 @@ export const Motion = {
   swipe: {
     minimumDistance: 10,
     horizontalClaimDx: 12,
-    horizontalClaimRatio: 1.5,
     commitFraction: 0.3,
-    completeDurationMs: 200,
-    animatedBrowseDurationMs: 300, // NOT the same as completeDurationMs (200) — animatedBrowse() uses a distinct duration+curve (easeInOut) from the live-swipe commit (easeOut)
-    springBack: { response: 0.32, dampingFraction: 0.82 },
+    // Added for the fade redesign (replacing the old drag-follow +
+    // slide-to-commit/spring-back animation): how long the OUTGOING
+    // session's content takes to fade to fully transparent once a swipe
+    // is confirmed, and how long the INCOMING session takes to fade back
+    // in once the caller's real state has caught up. Deliberately quick
+    // and asymmetric (out faster than in) — Oscar's own "just like
+    // quickly" description of the feel he wanted — but these are a
+    // starting guess, not tuned: confirm/adjust against a real device.
+    fadeOutMs: 120,
+    fadeInMs: 150,
   },
   tickCollapseMs: 200,
   infoToggleMs: 150,
