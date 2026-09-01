@@ -34,6 +34,21 @@ const loadedPromise = new Promise<void>((resolve) => {
   });
 });
 
+// prefs.ts caches its state in module-level `let`s that are populated once
+// from AsyncStorage at import time and never re-read per call — unlike
+// deviceFlags.ts's plain async get/set, AsyncStorage.clear() alone would NOT
+// reset this module's in-memory state back to its defaults. So this resets
+// BOTH: the real setters put the module-level store back to false/false
+// (its default), and AsyncStorage.clear() clears whatever those setters (or
+// anything else in a test) just persisted. Without this, whichever test ran
+// first would leave state behind for the next one — a silent, order-
+// dependent coupling between tests.
+beforeEach(async () => {
+  await setSetsCounterEnabled(false);
+  await setAutoStartRestOnTally(false);
+  await AsyncStorage.clear();
+});
+
 test('loaded starts false and becomes true once the initial AsyncStorage read resolves', async () => {
   expect(initialLoadedSnapshot).toBe(false);
   await loadedPromise;
@@ -41,6 +56,9 @@ test('loaded starts false and becomes true once the initial AsyncStorage read re
 });
 
 test('both prefs default to false on a fresh install (nothing in AsyncStorage yet), matching Swift\'s @AppStorage default', async () => {
+  // Safe regardless of execution order (which test ran before this one,
+  // or whether this test's declaration order changes): the beforeEach
+  // above resets both prefs back to false before every test runs.
   await loadedPromise;
   expect(getPrefsSnapshot().setsCounterEnabled).toBe(false);
   expect(getPrefsSnapshot().autoStartRestOnTally).toBe(false);
