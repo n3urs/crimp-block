@@ -20,6 +20,8 @@ import { Motion } from '../../design/motion';
 import type { RenderedExercise } from '../../engine/types';
 import { clarifySets } from './clarifySets';
 import { useTutorialTarget } from '../tutorial/TutorialTargetContext';
+import { usePrefs } from '../../data/prefs';
+import { SetsTally, totalSetsFor } from './SetsTally';
 
 export interface ExerciseRowProps {
   ex: RenderedExercise;
@@ -112,6 +114,60 @@ export function ExerciseRow({
   const tickRef = useTutorialTarget('exerciseTick');
   const weightRef = useTutorialTarget('weightBadge');
   const restTimerButtonRef = useTutorialTarget('restTimerButton');
+
+  const { setsCounterEnabled, autoStartRestOnTally } = usePrefs();
+  // totalSetsFor's own parameter type requires `interval` present (typed
+  // `unknown`, not `unknown | undefined`) — RenderedExercise.interval is
+  // optional (`interval?: IntervalConfig`), so passing `ex` directly fails
+  // tsc (a real mismatch between the brief's example call and the actual
+  // current RenderedExercise type, confirmed by running tsc, not assumed).
+  // A small object literal always has the key present, satisfying the
+  // required-property check without changing SetsTally.tsx (out of scope
+  // for this task) or widening its exported signature.
+  const totalSets = totalSetsFor({ prescription: ex.prescription, interval: ex.interval });
+  const [completedSets, setCompletedSets] = useState(0);
+
+  // Mirrors Swift's `.onChange(of: isTicked) { completedSets = newValue ? totalSets : 0 }`
+  // (DailyCardView.swift:1307-1310) — keeps the tally in sync with whichever
+  // side actually changed isTicked: filling every pip auto-ticks (see
+  // handleTallyTap below), but the checkbox itself is still tappable
+  // directly too, bypassing the tally entirely, and an external Undo can
+  // flip isTicked back to false. Either direction, the tally must reflect
+  // reality: full when done, reset to zero the moment it isn't.
+  useEffect(() => {
+    if (totalSets == null) return;
+    setCompletedSets(isTicked ? totalSets : 0);
+  }, [isTicked, totalSets]);
+
+  // Mirrors Swift's tapTally(totalSets:) (DailyCardView.swift:1373-1386).
+  // Reuses onTapRest — the SAME callback the row's own Rest button already
+  // calls — rather than duplicating rest-timer-start logic here; confirmed
+  // real at the real call site: app/(main)/card.tsx's handleTapRest does
+  // exactly `restTimer.start(ex.restSeconds, ex.title, accent)`, guarded on
+  // ex.restSeconds != null, matching Swift's own restTimer.start(...) call
+  // inside tapTally exactly.
+  const handleTallyTap = () => {
+    if (totalSets == null) return;
+    if (completedSets >= totalSets) return; // already full — row will have collapsed via the tick below anyway
+    const next = completedSets + 1;
+    setCompletedSets(next);
+    if (autoStartRestOnTally && ex.restSeconds != null) {
+      onTapRest?.(ex);
+    }
+    if (next >= totalSets && !isTicked) {
+      onToggleTick?.(ex.id);
+    }
+  };
+
+  // Mirrors Swift's undoLastSet() (DailyCardView.swift:1393-1398). No return
+  // value needed here (unlike Swift's `-> Bool`) — SetsTallyProps.onLongPressUndo
+  // is typed `() => void`, and SetsTally.tsx's OWN internal suppressNextTap
+  // handling already fully owns the "don't let the long-press's release also
+  // fire a tap" concern (see that file's own doc comment) — this callback's
+  // only job is the state change itself.
+  const handleTallyUndo = () => {
+    setCompletedSets((c) => Math.max(0, c - 1));
+  };
 
   // Row padding: 16 unticked -> 11 ticked, animated easeInOut 200ms
   // (Motion.tickCollapseMs), matching Swift's
@@ -229,6 +285,16 @@ export function ExerciseRow({
           <Animated.View style={descAnimatedStyle}>
             <Text style={styles.description}>{ex.description}</Text>
           </Animated.View>
+        )}
+
+        {showRight && setsCounterEnabled && totalSets != null && (
+          <SetsTally
+            totalSets={totalSets}
+            completedSets={completedSets}
+            accent={accent}
+            onTap={handleTallyTap}
+            onLongPressUndo={handleTallyUndo}
+          />
         )}
 
         {showRight && ex.interval != null ? (
