@@ -341,7 +341,28 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
+    // flexGrow deliberately omitted (default 0) - Swift's own layout
+    // (DailyCardView.swift) never stretches this group either; a Spacer()
+    // absorbs the gap to rightGroup instead of the title growing into it.
+    // Letting RN's Yoga stretch this group via flex:1 was what caused the
+    // info icon to float away from the title's actual last line: a
+    // wrapping multi-line RN Text reports its OWN measured width as
+    // "however much space I was allowed to fill," not the tighter
+    // bounding box of its rendered glyphs, so stretching the parent wider
+    // dragged that reported width - and the icon sitting right after it -
+    // along with it.
     flexShrink: 1,
+    // minWidth: 0 is still load-bearing on its own, separate from the
+    // flexGrow question above - without it, a flex child only shrinks to
+    // its content's natural width (a well-known Yoga/CSS gap), so the
+    // Text inside gets measured against a width wider than what it's
+    // actually laid out into once a long sibling (rightGroup, e.g. a
+    // phase-adjusted prescription like "4 × 8s / hand — lighter" during a
+    // deload week) claims more space. That mismatch is what made RN fall
+    // back to breaking words mid-character ("PICKU"/"PS —") instead of
+    // wrapping at spaces - confirmed live: only rows with an unusually
+    // long prescription hit this, never the ones with short prescriptions.
+    minWidth: 0,
   },
   title: {
     fontSize: 15.5,
@@ -349,6 +370,18 @@ const styles = StyleSheet.create({
     // No design-system token exists for pure white (Colours.fg is an
     // off-white, #EDEBE5) — Swift uses the literal `.white` here too.
     color: '#FFFFFF',
+    // flexShrink: 1 here (not just on the parent titleGroup) is the real
+    // fix for a separate, second bug: a wrapping multi-line RN Text
+    // inside a flex:1 parent reports its OWN measured width as "however
+    // much space I was allowed to wrap into," not the tighter bounding
+    // box of its actual rendered lines - so the info icon (its flex
+    // sibling) was landing well to the right of the visibly-shorter
+    // last line ("CRIMP"), floating in the middle of the row instead of
+    // sitting right after the title. Forcing the Text itself to shrink-
+    // wrap to its content (rather than stretch to fill titleGroup's
+    // allocation) fixes the icon's position without touching the
+    // wrapping/mid-word fix above it.
+    flexShrink: 1,
   },
   titleTicked: {
     color: Colours.faint,
@@ -358,11 +391,23 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    flexShrink: 0,
+    flexShrink: 1,
+    // A verbose phase-adjusted prescription (e.g. "3 sets — lighter,
+    // higher volume" during a deload week) has no bounded natural width
+    // of its own, so without this cap it would claim however much
+    // single-line space it wants and starve titleGroup down to less
+    // than a single word's width - the exact chain that produced the
+    // mid-character break above, on a row whose prescription is even
+    // longer than the one that first surfaced it live. Capping rightGroup
+    // forces its own prescription Text (flexShrink below) to wrap onto
+    // its permitted 2 lines instead, so titleGroup always keeps a
+    // reasonable floor of the row's width.
+    maxWidth: '52%',
   },
   prescription: {
     ...Fonts.mono(12, 'medium'),
     textAlign: 'right',
+    flexShrink: 1,
   },
   weightBadge: {
     paddingHorizontal: 6,
