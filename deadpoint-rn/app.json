@@ -9,7 +9,7 @@
     "userInterfaceStyle": "light",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "uk.co.sullivanltd.deadpoint"
+      "bundleIdentifier": "uk.co.sullivanltd.crimpblock"
     },
     "android": {
       "adaptiveIcon": {
