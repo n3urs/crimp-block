@@ -260,25 +260,30 @@ export default function Card() {
       isLogged={isLogged}
       cardMessage={cardMessage}
       weekDays={weekDays}
-      // Real day-picker/backdating, settings, and plan screens still
-      // aren't built by any task through Phase 4 — safe no-ops so the
-      // strip/icon/badge still render (matching Swift's real signed-in
-      // card always supplying all of these), same "no-op until a later
-      // phase" precedent already used for ExerciseRow's onTapRest/
-      // onStartInterval. NOT hypothetical: oscar@sullivanltd.co.uk's real
-      // climbHard session already has a `guide` field (programs.js), so
-      // the pill genuinely renders and no-ops on his real account today,
-      // not just someday. Task 12's brief explicitly scopes
-      // SessionGuideView's real modal as out of this task's scope (no
-      // task has ported it yet) — this is a real, live gap worth
-      // prioritising in whatever plan covers it next, not a someday
-      // nice-to-have.
+      // Settings and plan screens still aren't built by any task through
+      // Phase 4 — safe no-ops so the strip/icon/badge still render
+      // (matching Swift's real signed-in card always supplying all of
+      // these), same "no-op until a later phase" precedent already used
+      // for ExerciseRow's onTapRest/onStartInterval. NOT hypothetical:
+      // oscar@sullivanltd.co.uk's real climbHard session already has a
+      // `guide` field (programs.js), so the pill genuinely renders and
+      // no-ops on his real account today, not just someday. Task 12's
+      // brief explicitly scopes SessionGuideView's real modal as out of
+      // this task's scope (no task has ported it yet) — this is a real,
+      // live gap worth prioritising in whatever plan covers it next, not
+      // a someday nice-to-have.
       //
       // onTapCalendar is real now (Phase 4 Task 6) — pushes the modal
       // route at app/(main)/calendar.tsx, which owns its own independent
       // session/store/program resolution (Decision 2 in the Phase 4
       // design spec) rather than sharing this screen's state.
-      onTapDay={() => {}}
+      //
+      // onTapDay is real now (this plan's Task 2) — pushes the modal
+      // route at app/day-picker.tsx (backdating/editing a previous,
+      // non-today day tapped in WeekStrip), which likewise resolves its
+      // own independent session/store/program rather than sharing this
+      // screen's state, same pattern as onTapCalendar above.
+      onTapDay={(date: string) => router.push({ pathname: '/day-picker', params: { date } })}
       onTapCalendar={() => router.push('/calendar')}
       onTapWeight={onTapWeight}
       onTapRest={handleTapRest}
