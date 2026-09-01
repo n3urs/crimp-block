@@ -1,5 +1,5 @@
 // src/data/useProfile.ts
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from './supabase';
 
 /** Mirrors NativeProfile.Row field-for-field (see NativeProfile.swift's
@@ -50,103 +50,134 @@ function fromDbRow(r: ProfileDbRow): ProfileRow {
 const PROFILE_COLUMNS =
   'assigned_template_id,program_start_date,modifiers,tier,quiz_completed_at,tutorial_completed_at,track_type,rehab_injury_area,rehab_phase_index';
 
-/** `userId` comes from the caller's already-held session (`useSession()`),
-    not a fresh `supabase.auth.getUser()` call inside each write — a
-    network round-trip on the write path meant a genuine offline write
-    threw OUTSIDE the `if (error)` rollback block below (`getUser()`
-    itself failing, or resolving with `user: null` and crashing on
-    `user!.id`), leaving the optimistic state uncorrected. Same fix as
-    useStore.ts/useLoads.ts, for the identical reason. */
+/** Task 11 bug-fix round 4 — STRUCTURAL rewrite, not another patch.
+
+    Rounds 1-3's history (for whoever reads this next): round 1 added a
+    bare `loaded` boolean (stale across a userId change — a reset effect
+    and the routing effect can fire off the same stale render, so the
+    routing effect could still read the OLD value). Round 2 replaced it
+    with `loadedFor === userId` keying (this genuinely closed the
+    userId-transition race — proven, and the reasoning below still relies
+    on it) plus a separate `error` boolean — but `reload()` only set
+    `loadedFor` at the END, in `finally`, never invalidating it at the
+    START. That meant tapping the retry button synchronously cleared
+    `error` while `loadedFor` STILL equalled the current `userId` from the
+    failed attempt, so `loaded` was true and `error` was false on the very
+    next render, before the retry could possibly have resolved — reopening
+    app/index.tsx's routing gate with `row` still null and risking a
+    destructive profile.create() in /quiz.
+
+    Both bugs are the same root cause: `loadedFor`, `error`, and `row`
+    were three independently-`setState`'d values that had to agree with
+    each other and with `userId`, but nothing enforced that agreement.
+    Every fix patched one way they could disagree while leaving the
+    mechanism that allowed disagreement — separate state slots — in place.
+
+    The fix: ONE state slot, a discriminated union keyed to the userId
+    each variant was actually computed for. There is no longer a
+    "loaded"/"error"/"row" triple that can independently drift — there is
+    exactly one value, and it is impossible for it to be "ready" and
+    "error" at the same time, or to report success for one userId while
+    secretly holding data from another, because the type itself has no
+    representation for that. Every consumer field below (`loaded`,
+    `isLoading`, `hasError`, `row`) is DERIVED from this one slot, always
+    re-checked against the CURRENT `userId` at render time — so even a
+    stale write landing in the slot (see the ref-guard note in `reload`
+    below) can never be misread as current, because its own `forUserId`
+    tag won't match. */
+export type ProfileFetchState =
+  | { status: 'idle' } // userId is '' — signed out, nothing to load
+  | { status: 'loading'; forUserId: string } // a fetch is in flight for this userId
+  | { status: 'ready'; forUserId: string; row: ProfileRow | null } // settled — row may legitimately be null (genuine new user)
+  | { status: 'error'; forUserId: string }; // settled with a genuine failure (network/RLS/etc.)
+
 export function useProfile(userId: string) {
-  const [row, setRow] = useState<ProfileRow | null>(null);
+  const [state, setState] = useState<ProfileFetchState>({ status: 'idle' });
 
-  /** Settles once the hook's initial fetch for the CURRENT `userId` has
-      genuinely resolved — whether that means a real row came back, the
-      query genuinely found nothing (a real new user who hasn't done the
-      quiz — `loaded:true, row:null`), or the fetch itself errored (still
-      counts as settled: a network error must not leave `loaded` false
-      forever, or an offline user would be stuck exactly like the routing
-      bug this flag exists to fix). This is what lets a consumer like
-      app/index.tsx tell "haven't checked yet" (`loaded:false`) apart from
-      "checked, nothing there" (`loaded:true, row:null`) — `row` alone
-      can't do that, since both states leave it `null`.
+  // Derived, not stored — every one of these is computed fresh from
+  // `state` against the CURRENT `userId` on every render, so there is no
+  // separate value that could ever fall out of sync with `state` itself.
+  // `loaded`/`hasError` are mutually exclusive by construction (a single
+  // `status` field can't be both `'ready'` and `'error'`), which is
+  // exactly the disagreement round 2 could fall into and this design
+  // can't: there is no possible sequence of writes to `state` that
+  // produces `loaded === true && hasError === true`, because there is
+  // only one write target and only one of the four shapes can occupy it.
+  const loaded = state.status === 'ready' && state.forUserId === userId;
+  const isLoading = state.status === 'loading' && state.forUserId === userId;
+  const hasError = state.status === 'error' && state.forUserId === userId;
+  const row = loaded && state.status === 'ready' ? state.row : null;
 
-      `!userId` (not signed in) resolves to `loaded:true` synchronously,
-      not `false`: there is genuinely nothing pending to wait for in that
-      state (same reasoning as reload()'s own doc comment below, which
-      already treats "not signed in yet" and "genuinely no profile yet" as
-      the same `row: null` outcome) — and a caller that gates on `loaded`
-      before routing (app/index.tsx) must not be blocked forever for a
-      genuinely signed-out user, who has no profile row to wait for at
-      all.
+  // Belt-and-braces guard against a STALE write landing in `state` at
+  // all, for the case the routing-correctness argument above doesn't by
+  // itself need: userId transitions from A to B while A's fetch is still
+  // genuinely in flight, and A's response arrives late (after B's own
+  // `reload()` has already moved `state` to `{status:'loading', forUserId:
+  // B}`). Without this guard, A's late settlement would overwrite that
+  // `loading` entry with `{status:'ready'|'error', forUserId: A}` — the
+  // read-site checks above still correctly refuse to treat that as
+  // current (A !== B), so this can NOT cause a wrong route or a wrong
+  // row to be trusted. But it WOULD transiently erase the genuine
+  // `isLoading` signal for B (neither loaded, isLoading, nor hasError
+  // would be true for B until B's own fetch resolves and overwrites the
+  // slot again) — a cosmetic flicker, not a correctness bug, but cheap to
+  // close outright rather than merely tolerate. `currentUserIdRef` always
+  // holds the LATEST `userId` synchronously (assigned every render, not
+  // via an effect, so it's never a render behind), and `reload()` checks
+  // it immediately before every settling `setState` call, skipping the
+  // write entirely if a newer userId has since taken over.
+  const currentUserIdRef = useRef(userId);
+  currentUserIdRef.current = userId;
 
-      KEYED to the userId it was actually computed for — `loadedFor:
-      string | null`, with `loaded` derived at render time as `loadedFor
-      === userId` — for the exact same structural reason app/index.tsx's
-      own `builtInSeenState` is keyed to `email` rather than a bare
-      boolean (see that file's top doc comment, adaptation 2). A bare
-      `loaded` boolean reset by a `useEffect` keyed on `[userId]` does NOT
-      actually close the race: that reset effect and app/index.tsx's own
-      routing effect can both fire in the SAME commit off the SAME render
-      (the normal case when `userId` flips from `''` to a real value in
-      the same commit `authReady` flips true), and on that render the
-      routing effect still reads whatever `loaded` was left at by the
-      PREVIOUS render — `true`, from the earlier `!userId` settlement —
-      because the reset effect hasn't run yet. Keying the stored value to
-      its own userId closes this structurally: `loadedFor` starts as
-      `null` (or settles to `''` once the signed-out case resolves),
-      NEITHER of which can ever equal a real, non-empty `userId`, so
-      `loaded` is correctly `false` the instant `userId` changes, in the
-      very same render — no separate reset effect, and nothing for one to
-      race against. */
-  const [loadedFor, setLoadedFor] = useState<string | null>(null);
-  const loaded = loadedFor === userId;
-
-  /** Set to `true` when the most recent fetch attempt for the current
-      `userId` genuinely threw (network failure, RLS denial, etc.) — reset
-      to `false` at the start of every fresh reload() attempt, so a
-      subsequent successful retry clears it. Distinguishes "settled, no
-      error, no row" (a genuinely brand-new user with no profile yet) from
-      "settled, but the fetch actually failed" (this app is explicitly
-      meant to be usable with poor/no signal at a crag — a returning user
-      hitting a network hiccup on cold launch must not be silently routed
-      into the quiz, which risks a destructive profile.create() overwrite
-      of their real program data). */
-  const [error, setError] = useState(false);
-
-  /** null `row` afterward means genuinely no profile yet (a real new user
-      who hasn't done the quiz) — distinct from a network/decode failure,
-      which throws instead of silently leaving `row` null, so the caller
-      doesn't mistake "couldn't check" for "definitely new." */
+  /** `userId` comes from the caller's already-held session (`useSession()`),
+      not a fresh `supabase.auth.getUser()` call inside each write — a
+      network round-trip on the write path meant a genuine offline write
+      threw OUTSIDE the `if (error)` rollback block below (`getUser()`
+      itself failing, or resolving with `user: null` and crashing on
+      `user!.id`), leaving the optimistic state uncorrected. Same fix as
+      useStore.ts/useLoads.ts, for the identical reason. */
   const reload = useCallback(async () => {
     // Captured once per call, so every settlement path below reports the
     // ACTUAL userId this particular fetch was for, regardless of whether
     // `userId` itself has since changed again.
     const forUserId = userId;
-    setError(false);
-    // Same reasoning as useStore.ts/useLoads.ts: `profiles` is RLS-
-    // protected with no explicit user_id filter, so an anon-key request
-    // before any sign-in is expected and routine, not a real failure —
-    // and "not signed in yet" correctly collapses to the same `row: null`
-    // state as "genuinely no profile yet" below; there's nothing to
-    // distinguish it from until a session actually exists.
-    if (!forUserId) { setLoadedFor(''); return; }
+    // "Not signed in yet" collapses to `idle` synchronously — there is
+    // genuinely nothing pending to wait for, same reasoning as before:
+    // `profiles` is RLS-protected with no explicit user_id filter, so an
+    // anon-key request before any sign-in is expected and routine, not a
+    // real failure, and a caller gating on `loaded` before routing
+    // (app/index.tsx) must not be blocked forever for a genuinely
+    // signed-out user, who has no profile row to wait for at all.
+    if (!forUserId) { setState({ status: 'idle' }); return; }
+    // THE step that was missing in every prior round: the state moves to
+    // `loading` for THIS userId immediately, before any network call is
+    // even started — not at the end, in a `finally`. This is what makes a
+    // manual retry safe: the very next render after a `reload()` call
+    // (whether it's the initial fetch, a userId-change-triggered one, or
+    // a button-tap retry) already reflects "loading, for this specific
+    // id" — there is no render at which a stale `ready`/`error` from a
+    // previous attempt for the same id can be read, because the single
+    // state slot has already left that shape before this function does
+    // anything else.
+    setState({ status: 'loading', forUserId });
     try {
       const { data, error: fetchError } = await supabase.from('profiles').select(PROFILE_COLUMNS).maybeSingle();
       if (fetchError) throw fetchError;
-      setRow(data ? fromDbRow(data as ProfileDbRow) : null);
+      // See the ref-guard note above `reload` — skip the write if a newer
+      // userId has taken over while this fetch was in flight, rather than
+      // clobbering that newer attempt's own state.
+      if (currentUserIdRef.current === forUserId) {
+        setState({ status: 'ready', forUserId, row: data ? fromDbRow(data as ProfileDbRow) : null });
+      }
     } catch (e) {
-      // loaded:true on error is still the right call for liveness — a
-      // network error must not hang `loaded` false forever — but `error`
-      // now lets app/index.tsx tell this apart from a genuinely new user.
-      setError(true);
+      if (currentUserIdRef.current === forUserId) {
+        setState({ status: 'error', forUserId });
+      }
+      // Always propagates, independent of the guard above — a caller
+      // awaiting reload() (the manual retry button) must see the failure
+      // even in the vanishingly unlikely case its own userId was already
+      // superseded by the time this rejects.
       throw e;
-    } finally {
-      // Runs whether the query above succeeded, found nothing, or threw —
-      // "settled" covers all three, per `loaded`'s own doc comment above.
-      // The `throw` a few lines up still propagates to the caller
-      // (reload()'s existing contract, unchanged) after this runs.
-      setLoadedFor(forUserId);
     }
   }, [userId]);
 
@@ -154,19 +185,10 @@ export function useProfile(userId: string) {
   // fired fire-and-forget from a synchronous effect body, so without this
   // .catch that throw would be a true uncaught promise rejection
   // (confirmed live on a real device before the `!userId` guard above
-  // existed). `.catch` doesn't hide a real failure, it just stops it from
-  // crashing/toasting as unhandled — `row` simply stays null, same as the
-  // "genuinely no profile yet" case this
-  // function's own doc comment already describes.
+  // existed). `.catch` doesn't hide a real failure — `hasError` above
+  // already captures it — it just stops it from crashing/toasting as
+  // unhandled.
   useEffect(() => {
-    // No explicit "reset to pending" needed here any more: `loaded` is
-    // now DERIVED (`loadedFor === userId`), not a bare boolean this
-    // effect has to flip back to `false` itself. The moment `userId`
-    // changes, `loaded` is already `false` for that same render — purely
-    // from `loadedFor` (still holding whatever it settled to for the
-    // PREVIOUS userId) no longer matching the new `userId` — with zero
-    // dependency on this effect (or any effect) having run yet. This
-    // effect's only remaining job is to actually kick off the fetch.
     reload().catch((e) => console.error('useProfile.reload failed:', e));
   }, [reload]);
 
@@ -186,11 +208,24 @@ export function useProfile(userId: string) {
       quiz_completed_at: quizCompletedAt,
     }, { onConflict: 'user_id' });
     if (error) throw error;
-    setRow(r => ({
-      assignedTemplateId: templateId, programStartDate: startDate, modifiers,
-      tier: 'standard', quizCompletedAt, tutorialCompletedAt: r?.tutorialCompletedAt ?? null,
-      trackType: 'standard', rehabInjuryArea: null, rehabPhaseIndex: null,
-    }));
+    // Optimistic write lands directly as a `ready` state for the current
+    // userId — reachable only once the quiz screen itself is reachable,
+    // which (per computeRoute.ts's non-built-in branch) already requires
+    // a settled `ready` fetch for this same userId, so this is not
+    // widening what "ready" can mean, just recording the new row under
+    // the same shape the read path already produced.
+    setState((s) => {
+      const prevRow = s.status === 'ready' && s.forUserId === userId ? s.row : null;
+      return {
+        status: 'ready',
+        forUserId: userId,
+        row: {
+          assignedTemplateId: templateId, programStartDate: startDate, modifiers,
+          tier: 'standard', quizCompletedAt, tutorialCompletedAt: prevRow?.tutorialCompletedAt ?? null,
+          trackType: 'standard', rehabInjuryArea: null, rehabPhaseIndex: null,
+        },
+      };
+    });
   }, [userId]);
 
   /** Assigns (or first-assigns) the rehab track. Deliberately omits
@@ -216,13 +251,17 @@ export function useProfile(userId: string) {
     if (!existing) payload.program_start_date = new Date().toISOString().slice(0, 10);
     const { error } = await supabase.from('profiles').upsert(payload, { onConflict: 'user_id' });
     if (error) throw error;
-    setRow(existing
-      ? { ...existing, trackType: 'rehab', rehabInjuryArea: injuryArea, rehabPhaseIndex: startingPhaseIndex }
-      : {
-          assignedTemplateId: null, programStartDate: payload.program_start_date as string,
-          modifiers: {}, tier: 'standard', quizCompletedAt, tutorialCompletedAt: null,
-          trackType: 'rehab', rehabInjuryArea: injuryArea, rehabPhaseIndex: startingPhaseIndex,
-        });
+    setState({
+      status: 'ready',
+      forUserId: userId,
+      row: existing
+        ? { ...existing, trackType: 'rehab', rehabInjuryArea: injuryArea, rehabPhaseIndex: startingPhaseIndex }
+        : {
+            assignedTemplateId: null, programStartDate: payload.program_start_date as string,
+            modifiers: {}, tier: 'standard', quizCompletedAt, tutorialCompletedAt: null,
+            trackType: 'rehab', rehabInjuryArea: injuryArea, rehabPhaseIndex: startingPhaseIndex,
+          },
+    });
   }, [row, userId]);
 
   /** Restores the Standard track using whatever assignment already exists
@@ -234,7 +273,9 @@ export function useProfile(userId: string) {
   const switchToStandard = useCallback(async () => {
     const { error } = await supabase.from('profiles').update({ track_type: 'standard' }).eq('user_id', userId);
     if (error) throw error;
-    setRow(r => (r ? { ...r, trackType: 'standard' } : r));
+    setState((s) => (s.status === 'ready' && s.forUserId === userId && s.row
+      ? { ...s, row: { ...s.row, trackType: 'standard' } }
+      : s));
   }, [userId]);
 
   /** Persists a new rehab phase index once every self-report criterion for
@@ -243,15 +284,19 @@ export function useProfile(userId: string) {
   const advanceRehabPhase = useCallback(async (phaseIndex: number) => {
     const { error } = await supabase.from('profiles').update({ rehab_phase_index: phaseIndex }).eq('user_id', userId);
     if (error) throw error;
-    setRow(r => (r ? { ...r, rehabPhaseIndex: phaseIndex } : r));
+    setState((s) => (s.status === 'ready' && s.forUserId === userId && s.row
+      ? { ...s, row: { ...s.row, rehabPhaseIndex: phaseIndex } }
+      : s));
   }, [userId]);
 
   const markTutorialCompleted = useCallback(async () => {
     const now = new Date().toISOString();
     const { error } = await supabase.from('profiles').update({ tutorial_completed_at: now }).eq('user_id', userId);
     if (error) throw error;
-    setRow(r => (r ? { ...r, tutorialCompletedAt: now } : r));
+    setState((s) => (s.status === 'ready' && s.forUserId === userId && s.row
+      ? { ...s, row: { ...s.row, tutorialCompletedAt: now } }
+      : s));
   }, [userId]);
 
-  return { row, loaded, error, reload, create, assignRehab, switchToStandard, advanceRehabPhase, markTutorialCompleted };
+  return { row, loaded, isLoading, hasError, reload, create, assignRehab, switchToStandard, advanceRehabPhase, markTutorialCompleted };
 }

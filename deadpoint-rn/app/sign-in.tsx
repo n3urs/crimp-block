@@ -32,6 +32,22 @@ export default function SignIn() {
   // the underlying session/authReady exposure ordering in useSession.ts —
   // that's a larger restructuring, out of scope here; this is bounded,
   // cheap, client-side protection only.
+  //
+  // This is also now the SOLE owner of the post-verification navigation:
+  // `verifyCode` below used to fire its own `router.replace('/')`
+  // immediately after a successful `verifyOTP`, which duplicated this
+  // effect's own bounce-back (harmless — same href, `replace` not `push`
+  // — but redundant, and two owners of one navigation is exactly the kind
+  // of structural sloppiness this pass is about removing, not adding).
+  // `verifyOtp`'s underlying supabase-js call saves the new session and
+  // notifies `onAuthStateChange` subscribers — which is what feeds
+  // `useSession()`'s own `session` state — BEFORE its returned promise
+  // resolves, so by the time `verifyCode`'s `await verifyOTP(...)` call
+  // continues, `session` has already been set and this effect has
+  // already fired (or is scheduled to fire on the very next commit) —
+  // there is no window where a successful verification shows no visible
+  // feedback/transition before this effect navigates; it is effectively
+  // the same tick.
   useEffect(() => {
     if (session) router.replace('/');
   }, [session, router]);
@@ -111,7 +127,9 @@ export default function SignIn() {
     setMessage(null);
     try {
       await verifyOTP(email, code.replace(/\D/g, ''));
-      router.replace('/');
+      // No explicit router.replace('/') here — see the top doc comment's
+      // note on the bounce-back effect above being the sole owner of
+      // this navigation now.
     } catch (e) {
       setIsError(true);
       setMessage(verifyFailureMessage(e));

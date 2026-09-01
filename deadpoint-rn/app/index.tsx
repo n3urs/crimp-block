@@ -108,7 +108,7 @@
     read any profile field at all, so gating a built-in account's route on
     a Supabase round trip it doesn't need would just be needless latency. */
 import React, { useEffect, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSession } from '../src/data/useSession';
 import { useProfile } from '../src/data/useProfile';
@@ -158,19 +158,27 @@ export default function Index() {
   }, [email]);
   const builtInSeen = builtInSeenState?.email === email ? builtInSeenState.value : null;
 
-  // Fix 3: a non-built-in account whose profile fetch genuinely THREW
-  // (network failure, RLS denial, etc. — this app is explicitly meant to
-  // be usable with poor/no signal at a crag, so this is not a narrow edge
-  // case) settles `profile.loaded:true` with `profile.row` still null —
-  // exactly the same shape as a genuinely brand-new user who has never
-  // done the quiz. Without this check, computeRoute() can't tell those
-  // apart and would silently send a returning user with a real profile
-  // into /quiz, risking a destructive profile.create() overwrite of their
-  // real program data if they interact with the quiz before realizing
+  // Task 11 round 4: `useProfile` now tracks its fetch-settlement state as
+  // one atomic discriminated union (src/data/useProfile.ts) instead of
+  // separate `loadedFor`/`error`/`row` slots that had to agree with each
+  // other by convention. `profile.loaded` and `profile.hasError` are
+  // derived from that single slot and are mutually exclusive by
+  // construction — there is no possible state where both are true, unlike
+  // round 2's `loadedFor === userId` + independent `error` boolean, which
+  // is exactly what let a retry's `setError(false)` outrun `loadedFor`
+  // still pointing at the failed attempt. A non-built-in account whose
+  // profile fetch genuinely THREW (network failure, RLS denial, etc. —
+  // this app is explicitly meant to be usable with poor/no signal at a
+  // crag, so this is not a narrow edge case) settles `hasError: true`,
+  // distinct from a genuinely brand-new user (`loaded: true, row: null`).
+  // Without this check, computeRoute() can't tell those apart and would
+  // silently send a returning user with a real profile into /quiz,
+  // risking a destructive profile.create() overwrite of their real
+  // program data if they interact with the quiz before realizing
   // something is wrong. A built-in account never needs this guard — its
   // route never reads any profile field at all (confirmed directly
   // against computeRoute.ts's isBuiltInProgram branch).
-  const profileFetchFailed = !builtIn && profile.loaded && profile.error;
+  const profileFetchFailed = !builtIn && profile.hasError;
 
   // Fix 3 (cont'd): computed ONCE per render, from the same readiness gate
   // and the same computeRoute() call — both the router.replace() effect
@@ -239,7 +247,24 @@ export default function Index() {
     );
   }
 
-  return <View style={styles.root} />;
+  // Reached while genuinely still waiting: the very first cold-launch
+  // fetch, OR — the review's "blank screen during retry" gap — the moment
+  // right after tapping TRY AGAIN, when `profile.hasError` has already
+  // flipped false (state moved atomically to `loading` in that same
+  // update) but the retried fetch hasn't resolved yet, so `profileFetchFailed`
+  // is false here too and the block above no longer matches. Previously
+  // this fell through to a bare empty `<View>` — a jarring blank flash
+  // between the retry screen disappearing and the app either routing
+  // somewhere or the retry screen reappearing on a second failure. Now
+  // that `profile.isLoading` is a real, readable signal (not derivable at
+  // all under the old `loadedFor`/`error` split), show a spinner instead
+  // so there is always something on screen, not just during retries but
+  // on every cold launch too.
+  return (
+    <View style={styles.root}>
+      <ActivityIndicator color={resolveColour('--gorse')} />
+    </View>
+  );
 }
 
 const styles = StyleSheet.create({
