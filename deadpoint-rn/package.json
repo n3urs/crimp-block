@@ -31,6 +31,7 @@
     "@types/react": "~19.2.2",
     "babel-jest": "^29.7.0",
     "babel-preset-expo": "^57.0.9",
+    "eas-cli": "^23.2.0",
     "jest": "^30.5.0",
     "typescript": "~6.0.3"
   },
