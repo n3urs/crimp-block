@@ -144,9 +144,7 @@ function BookIcon({ color, size = 8 }: { color: string; size?: number }) {
 
 interface CardBodyProps {
   session: { name: string; where: string };
-  /** null/undefined = no pill at all — the peek never shows one (Swift's
-      `peekContent` doesn't reference `guide` at all, only `real content`
-      does). */
+  /** null/undefined = no pill at all. */
   guide?: { title: string } | null;
   onTapGuide?: () => void;
   accent: string;
@@ -159,8 +157,7 @@ interface CardBodyProps {
   onStartInterval?: (ex: RenderedExercise) => void;
   onTapInfo?: (ex: RenderedExercise) => void;
   message: string;
-  /** true -> 14px semibold+accent; false -> 14px regular+dim. Real
-      content passes `isLogged`, the peek passes its own `peekLogged`. */
+  /** true -> 14px semibold+accent; false -> 14px regular+dim. */
   messageEmphasis: boolean;
   footerNote: string;
   /** false disables (pointerEvents 'none') just the exercise list, NOT
@@ -168,28 +165,22 @@ interface CardBodyProps {
       scope exactly: title/message/footer/Done stay reachable even once
       today is logged, only the rows themselves lock. */
   exercisesInteractive: boolean;
-  /** 1 normally; 0.35 for a peek onto an already-logged session (Swift's
-      `.opacity(peekLogged ? 0.35 : 1)`, applied to the exercise list only,
-      not the whole card). */
+  /** Opacity applied to the exercise list only, not the whole card
+      (1 = fully visible). */
   exercisesOpacity: number;
   scrollEnabled: boolean;
   scrollRef?: RefObject<React.Component | null>;
 }
 
-/** The shared title-block-plus-scrolling-list render path used for BOTH
-    the real content and the swipe peek — Swift's own comment at
-    `peekContent` is explicit about why this must be one shared path, not
-    two independently written blocks: "same spacings, same message slot,
-    same ScrollView wrapper, same footer... anything present there but
-    missing here shifts everything below it, and that shift is visible as
-    a jump."
+/** The title-block-plus-scrolling-list render path for the card's single
+    content layer.
 
     Deliberately has NO hooks of its own (no useState/useEffect) — every
     bit of variability comes in via props. That keeps it safely callable
     directly as a plain function outside of a real React render pass
     (no hook dispatcher required), which is what
-    `__tests__/dailyCard.test.ts` relies on for its shared-render-path
-    smoke test. */
+    `__tests__/dailyCard.test.ts` relies on for its render-path smoke
+    test. */
 export function CardBody({
   session, guide, onTapGuide, accent, accentVarName, exercises, ticks,
   onToggleTick, onTapWeight, onTapRest, onStartInterval, onTapInfo,
@@ -316,16 +307,18 @@ export function DailyCard(props: DailyCardProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- fire once per flip to true, not on every render while true
   }, [doneFlow.showClimbTypeConfirm]);
 
-  // Drives BOTH the current content's fade and the LOGGED stamp's own
-  // opacity — the earlier drag-based version applied the same
-  // `dragOffset` to both (Swift's `.offset(x: dragOffset)` on the
-  // swiping VStack at :479, and again on `loggedStamp` itself at :562)
-  // so the celebratory card visibly rode along with a swipe instead of
-  // sitting still while the card slid out from under it. Task 1's fade
-  // redesign has nothing left that slides, so this is now a shared
-  // opacity instead of a shared offset — same "ride along" idea, just
-  // expressed as a fade (see useSwipeCarousel.ts's own doc comments for
-  // why nothing tracks the finger visually anymore).
+  // Drives the main content layer's fade only. The earlier drag-based
+  // version applied the same `dragOffset` to loggedStampLayer too
+  // (Swift's `.offset(x: dragOffset)` on the swiping VStack at :479, and
+  // again on `loggedStamp` itself at :562), so the celebratory stamp
+  // visibly rode along with a swipe instead of sitting still while the
+  // card slid out from under it. That "ride along" doesn't carry over to
+  // opacity: LoggedStamp already runs its own independent,
+  // celebrationTrigger-driven opacity animation for its reveal/hold/
+  // dismiss timing, and RN composes nested opacities multiplicatively —
+  // wrapping it in this fade too would dim/flicker the celebration if a
+  // swipe happened mid-animation. loggedStampLayer is a plain View below
+  // for exactly that reason.
   const fadeStyle = useAnimatedStyle(() => ({ opacity: contentOpacity.value }));
 
   // Confirmed live on device, real bug Oscar caught: the week strip
@@ -419,9 +412,9 @@ export function DailyCard(props: DailyCardProps) {
         </Text>
       </Pressable>
 
-      <Animated.View style={[styles.loggedStampLayer, fadeStyle]} pointerEvents="none">
+      <View style={styles.loggedStampLayer} pointerEvents="none">
         <LoggedStamp trigger={celebrationTrigger} accent={accent} nextUp={nextUp} />
-      </Animated.View>
+      </View>
 
       {restTimer.state != null && (
         <RestTimerOverlay state={restTimer.state} onStop={restTimer.stop} />
