@@ -1,4 +1,4 @@
-import { computeRoute, isBuiltInProgram, type RouteInputs } from '../src/routing/computeRoute';
+import { computeRoute, isBuiltInProgram, isRouteReady, type RouteInputs, type RouteReadinessInputs } from '../src/routing/computeRoute';
 
 const base: RouteInputs = {
   hasSeenWelcome: true, isSignedIn: true, email: 'new@example.com', isBuiltInProgram: false,
@@ -104,4 +104,73 @@ test('isBuiltInProgram is false for an email with no matching program', () => {
 
 test('isBuiltInProgram is false for null (not yet signed in)', () => {
   expect(isBuiltInProgram(null)).toBe(false);
+});
+
+// isRouteReady: Task 11 round 5's extraction of the root routing gate from
+// app/index.tsx (the boolean expression deciding whether it's safe to call
+// computeRoute()/router.replace() at all, versus render a spinner/retry
+// screen) into a pure, directly-testable function — see its own doc
+// comment in computeRoute.ts for why this extraction exists: four
+// consecutive review rounds on this file each found a real bug only by
+// hand-tracing a scenario nobody had written down as a test, and this was
+// previously an inline expression with no test coverage of its own at all.
+const readyBase: RouteReadinessInputs = {
+  authReady: true, hasSeenWelcome: true, isSignedIn: true, isBuiltInProgram: false,
+  builtInSeen: null, profileLoaded: true, profileFetchFailed: false,
+};
+
+test('not ready: authReady still false', () => {
+  expect(isRouteReady({ ...readyBase, authReady: false })).toBe(false);
+});
+
+test('not ready: hasSeenWelcome not yet loaded from AsyncStorage', () => {
+  expect(isRouteReady({ ...readyBase, hasSeenWelcome: null })).toBe(false);
+});
+
+test('not ready: non-built-in account, profile not yet loaded', () => {
+  expect(isRouteReady({ ...readyBase, profileLoaded: false })).toBe(false);
+});
+
+test('not ready: non-built-in account, profile fetch errored', () => {
+  expect(isRouteReady({ ...readyBase, profileLoaded: false, profileFetchFailed: true })).toBe(false);
+});
+
+test('not ready: built-in account, builtInSeen not yet resolved for this email', () => {
+  expect(isRouteReady({ ...readyBase, isBuiltInProgram: true, builtInSeen: null, profileLoaded: false })).toBe(false);
+});
+
+// Task 11 round 4's actual regression, pinned directly: a signed-out
+// user's profile is irrelevant to routing at all — computeRoute() returns
+// '/sign-in' immediately, before ever looking at a profile or built-in
+// field (see computeRoute()'s own priority order above) — so readiness
+// must not wait on profile.loaded (or builtInSeen) for this case. Proven
+// here by leaving BOTH profileLoaded false and builtInSeen null and still
+// expecting `true`: before this fix, useProfile's signed-out branch never
+// settled `loaded` to true at all, so this exact combination is what
+// permanently stranded every signed-out user on a spinner.
+test('ready: signed-out user, without waiting on profile data at all', () => {
+  expect(isRouteReady({ ...readyBase, isSignedIn: false, profileLoaded: false, builtInSeen: null })).toBe(true);
+});
+
+test('ready: non-built-in account, profile genuinely loaded', () => {
+  expect(isRouteReady(readyBase)).toBe(true);
+});
+
+test('ready: built-in account, builtInSeen resolved true', () => {
+  expect(isRouteReady({ ...readyBase, isBuiltInProgram: true, builtInSeen: true, profileLoaded: false })).toBe(true);
+});
+
+// "Resolved" means non-null, not "resolved truthy" — a built-in account
+// that has genuinely never seen its tutorial (builtInSeen: false) is just
+// as ready to route (to /tutorial, per computeRoute()) as one that has.
+test('ready: built-in account, builtInSeen resolved false', () => {
+  expect(isRouteReady({ ...readyBase, isBuiltInProgram: true, builtInSeen: false, profileLoaded: false })).toBe(true);
+});
+
+// Defensive/structural: pins that a genuine fetch error always blocks
+// readiness for a non-built-in account, even given a (structurally
+// unreachable via the real useProfile union, but worth pinning at the
+// boundary of this pure function itself) contradictory profileLoaded:true.
+test('not ready: profile fetch errored takes precedence even if profileLoaded is also true', () => {
+  expect(isRouteReady({ ...readyBase, profileLoaded: true, profileFetchFailed: true })).toBe(false);
 });

@@ -86,9 +86,17 @@ const PROFILE_COLUMNS =
     below) can never be misread as current, because its own `forUserId`
     tag won't match. */
 export type ProfileFetchState =
-  | { status: 'idle' } // userId is '' — signed out, nothing to load
+  // TRUE initial value only — set once by useState's initializer, before
+  // `reload()` has ever run for real. Deliberately distinct from "checked,
+  // and there's genuinely no user signed in" (that's `ready`/forUserId:''
+  // below) — see the userId-transition race note on `reload` for why this
+  // distinction is load-bearing: the render where `userId` first becomes
+  // real must still correctly NOT route, which only works if `idle` means
+  // "nothing has settled yet", not "settled, signed out". `reload()` itself
+  // must never write this shape back into `state` again after the first run.
+  | { status: 'idle' }
   | { status: 'loading'; forUserId: string } // a fetch is in flight for this userId
-  | { status: 'ready'; forUserId: string; row: ProfileRow | null } // settled — row may legitimately be null (genuine new user)
+  | { status: 'ready'; forUserId: string; row: ProfileRow | null } // settled — row may legitimately be null (genuine new user, OR a genuinely signed-out user, forUserId: '')
   | { status: 'error'; forUserId: string }; // settled with a genuine failure (network/RLS/etc.)
 
 export function useProfile(userId: string) {
@@ -141,14 +149,35 @@ export function useProfile(userId: string) {
     // ACTUAL userId this particular fetch was for, regardless of whether
     // `userId` itself has since changed again.
     const forUserId = userId;
-    // "Not signed in yet" collapses to `idle` synchronously — there is
-    // genuinely nothing pending to wait for, same reasoning as before:
-    // `profiles` is RLS-protected with no explicit user_id filter, so an
-    // anon-key request before any sign-in is expected and routine, not a
-    // real failure, and a caller gating on `loaded` before routing
-    // (app/index.tsx) must not be blocked forever for a genuinely
-    // signed-out user, who has no profile row to wait for at all.
-    if (!forUserId) { setState({ status: 'idle' }); return; }
+    // "Not signed in yet" settles to `ready`/forUserId:''/row:null
+    // synchronously — there is genuinely nothing pending to wait for, same
+    // reasoning as before: `profiles` is RLS-protected with no explicit
+    // user_id filter, so an anon-key request before any sign-in is
+    // expected and routine, not a real failure, and a caller gating on
+    // `loaded` before routing (app/index.tsx) must not be blocked forever
+    // for a genuinely signed-out user, who has no profile row to wait for
+    // at all.
+    //
+    // Round-4-of-the-union-rewrite regression (the bug THIS comment exists
+    // to prevent a round 5): an earlier version of this branch set
+    // `{status:'idle'}` here, reusing the hook's own pre-first-run initial
+    // shape to also mean "checked, and there's nobody signed in". Those
+    // are NOT the same fact, and collapsing them broke routing outright:
+    // `loaded` (in the derived-values block above) is only true for
+    // `status === 'ready'`, so `idle` left `loaded` false forever for a
+    // signed-out user — and nothing ever re-runs `reload()` to correct it,
+    // since its `useCallback` identity only changes when `userId` itself
+    // changes, and a signed-out `userId` ('') never changes on its own.
+    // app/index.tsx's routing gate requires `loaded` (for a non-built-in
+    // account) before it will compute/apply a route at all, so every
+    // signed-out user — fresh installs and anyone after signing out —
+    // was left on a permanent spinner with no recovery, even across app
+    // restarts. Settling explicitly to `ready` here (not `idle`) is what
+    // lets `loaded` become true immediately for this genuinely-checked
+    // "nobody's signed in" case, matching the pre-union-rewrite behaviour,
+    // while `idle` itself remains reserved for the hook's true pre-first-
+    // reload initial value (see the type's own doc comment above).
+    if (!forUserId) { setState({ status: 'ready', forUserId: '', row: null }); return; }
     // THE step that was missing in every prior round: the state moves to
     // `loading` for THIS userId immediately, before any network call is
     // even started — not at the end, in a `finally`. This is what makes a

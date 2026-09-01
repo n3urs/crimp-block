@@ -65,3 +65,68 @@ export function isBuiltInProgram(email: string | null): boolean {
   const key = email.toLowerCase();
   return key !== 'default' && Object.prototype.hasOwnProperty.call(PROGRAMS, key);
 }
+
+/** Task 11 bug-fix round 5: the root routing gate in app/index.tsx (the
+    condition deciding whether it's safe to call computeRoute()/
+    router.replace() at all, versus render a spinner/retry screen) was
+    previously an inline boolean expression with no test of its own — the
+    exact kind of gap that let round 4's regression (useProfile's
+    `!forUserId` branch settling to `idle` instead of `ready`, permanently
+    stranding every signed-out user on a spinner) ship undetected. Four
+    consecutive review rounds on this file have each found a real bug only
+    by hand-tracing a scenario nobody had written down as a test. Extracted
+    here, alongside computeRoute() itself, so the actual gating logic used
+    at runtime (app/index.tsx just calls this) IS the tested function, not
+    a parallel copy of the same expression that could silently drift from
+    it.
+
+    Inputs are plain values, same discipline as RouteInputs above — no
+    React hooks or live state, so this is callable from a plain Jest test
+    with no rendering/mocking machinery at all.
+
+    Priority order deliberately mirrors computeRoute()'s own: `hasSeenWelcome`
+    and `isSignedIn` are checked first, before anything built-in- or
+    profile-related, because computeRoute() itself returns '/welcome' or
+    '/sign-in' immediately for those cases without ever looking at a
+    profile or built-in-tutorial field. A signed-out user's profile fetch
+    (src/data/useProfile.ts's own `!forUserId` branch) settles to `ready`
+    with `row: null` precisely so this case doesn't have to wait on
+    anything — but this function is written to not depend on that even
+    being true: it reports ready for a signed-out user unconditionally,
+    matching computeRoute()'s own structural independence from profile
+    data in that case, rather than merely happening to agree with it. */
+export interface RouteReadinessInputs {
+  /** True once the real auth state (signed in vs genuinely signed out) is
+      known — see app/index.tsx's top doc comment, adaptation (1). */
+  authReady: boolean;
+  /** `null` until the AsyncStorage read resolves. */
+  hasSeenWelcome: boolean | null;
+  isSignedIn: boolean;
+  isBuiltInProgram: boolean;
+  /** `null` until the per-email built-in-tutorial flag has resolved FOR
+      THE CURRENT email — see app/index.tsx's top doc comment, adaptation
+      (2), for why this is pre-keyed to email rather than a bare boolean. */
+  builtInSeen: boolean | null;
+  /** `useProfile(userId).loaded` — irrelevant (and NOT checked here) for a
+      signed-out user or a built-in account, matching computeRoute()'s own
+      branches never reading a profile field in either of those cases. */
+  profileLoaded: boolean;
+  /** True only for a non-built-in, signed-in account whose profile fetch
+      genuinely threw — see app/index.tsx's own `profileFetchFailed`
+      derivation. Irrelevant for a built-in account (its route never reads
+      a profile field) or a signed-out one (no fetch to fail). */
+  profileFetchFailed: boolean;
+}
+
+export function isRouteReady(inputs: RouteReadinessInputs): boolean {
+  if (!inputs.authReady) return false;
+  if (inputs.hasSeenWelcome == null) return false;
+  // computeRoute() returns '/sign-in' here without ever consulting a
+  // profile or built-in field — so neither should this gate. This is the
+  // exact branch that was missing before round 4's regression: nothing
+  // else in this function may block readiness for a signed-out user.
+  if (!inputs.isSignedIn) return true;
+  if (inputs.isBuiltInProgram) return inputs.builtInSeen != null;
+  if (inputs.profileFetchFailed) return false;
+  return inputs.profileLoaded;
+}

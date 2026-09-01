@@ -114,7 +114,7 @@ import { useSession } from '../src/data/useSession';
 import { useProfile } from '../src/data/useProfile';
 import { getHasSeenWelcome, hasSeenBuiltInTutorial } from '../src/data/deviceFlags';
 import { supabase } from '../src/data/supabase';
-import { computeRoute, isBuiltInProgram, type Route } from '../src/routing/computeRoute';
+import { computeRoute, isBuiltInProgram, isRouteReady, type Route } from '../src/routing/computeRoute';
 import { Colours, resolveColour } from '../src/design/colours';
 import { Fonts } from '../src/design/fonts';
 
@@ -186,22 +186,33 @@ export default function Index() {
   // single value, so they can't independently drift out of sync with each
   // other or with computeRoute()'s own branches as those evolve (e.g.
   // Phase 7's real paywall gate).
+  //
+  // Task 11 round 5 (Fix 2): this used to be an inline boolean expression
+  // with no test of its own — extracted to src/routing/computeRoute.ts's
+  // isRouteReady() (see its own doc comment) so the actual gating logic
+  // used at runtime here IS the tested function, not a parallel copy that
+  // could silently drift from it. __tests__/computeRoute.test.ts covers
+  // this directly, including the signed-out case round 4's regression
+  // missed.
   let route: Route | null = null;
   if (
-    authReady &&
-    hasSeenWelcome != null &&
-    (!builtIn || builtInSeen != null) &&
-    // Fix 1: a built-in account's route never depends on any profile
-    // field (confirmed directly against computeRoute.ts) — only a
-    // non-built-in account needs to wait for the real fetch to settle.
-    (builtIn || profile.loaded) &&
-    // Fix 3: don't compute (or navigate to) a route at all while the
-    // fetch is known to have failed — the inline retry screen below
-    // takes over instead, same pattern as /rehab-coming-soon.
-    !profileFetchFailed
+    isRouteReady({
+      authReady,
+      hasSeenWelcome,
+      isSignedIn: session != null,
+      isBuiltInProgram: builtIn,
+      builtInSeen,
+      profileLoaded: profile.loaded,
+      profileFetchFailed,
+    })
   ) {
     route = computeRoute({
-      hasSeenWelcome,
+      // Non-null assertion is safe here, not a suppressed bug: isRouteReady()
+      // above already required `hasSeenWelcome != null` to reach this block
+      // (see its own doc comment) — TS just can't narrow the type across
+      // that function-call boundary the way it could when the same check
+      // was inlined directly in this `if`'s condition.
+      hasSeenWelcome: hasSeenWelcome!,
       isSignedIn: session != null,
       email,
       isBuiltInProgram: builtIn,
