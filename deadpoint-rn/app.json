@@ -9,7 +9,8 @@
     "userInterfaceStyle": "light",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "uk.co.sullivanltd.crimpblock"
+      "bundleIdentifier": "uk.co.sullivanltd.crimpblock",
+      "buildNumber": "2"
     },
     "android": {
       "adaptiveIcon": {
