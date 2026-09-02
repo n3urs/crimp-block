@@ -97,7 +97,7 @@ export default function Plan() {
             const colour = isCurrent ? resolveColour(phase.c) : Colours.dim;
             return (
               <Pressable
-                key={phase.n}
+                key={phase.from}
                 onPress={() => router.push({ pathname: '/plan-phase', params: { phaseIndex: String(index) } })}
                 style={[styles.phaseRow, { opacity: isCurrent ? 1 : 0.75 }]}
                 accessibilityRole="button"
