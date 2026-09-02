@@ -1,0 +1,1 @@
+../../../targets/widget/_shared/TimerActivity.swift
