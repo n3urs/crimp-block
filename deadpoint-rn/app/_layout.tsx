@@ -89,6 +89,13 @@ export default function RootLayout() {
               day-picker/settings above: app/plan.tsx lives directly under
               app/, so its route name is just "plan". */}
           <Stack.Screen name="plan" options={{ presentation: 'modal' }} />
+          {/* Phase-detail drill-down modal (Task 3, this plan) — direct
+              port of PlanSheetView.swift's PhaseDetailView. Pushed from a
+              phase row on app/plan.tsx with just the array index into
+              engine.phases. Same not-group-qualified reasoning as the
+              other screens above: app/plan-phase.tsx lives directly
+              under app/, so its route name is just "plan-phase". */}
+          <Stack.Screen name="plan-phase" options={{ presentation: 'modal' }} />
         </Stack>
       </SafeAreaProvider>
     </GestureHandlerRootView>
