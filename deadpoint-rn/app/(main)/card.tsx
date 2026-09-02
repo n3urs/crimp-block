@@ -23,6 +23,7 @@ import type { RenderedExercise } from '../../src/engine/types';
 import { useRestTimer } from '../../src/components/timers/useRestTimer';
 import { useIntervalTimer } from '../../src/components/timers/useIntervalTimer';
 import { leadingInt } from '../../src/components/timers/intervalTimerLogic';
+import { getStoredTicks, setStoredTicks } from '../../src/data/tickStorage';
 import { syncForecast } from '../../src/widget/syncForecast';
 
 // programs.js is plain JS (no .d.ts), same require-not-import pattern the
@@ -127,20 +128,36 @@ export default function Card() {
   const isLogged = loggedSessionKey === displayKey;
 
   const [ticks, setTicks] = useState<Set<string>>(new Set());
-  // Mirrors NativeAppView.swift's own condition exactly (ticks reset on a
-  // day OR session change, not on every unrelated re-render) by scoping
-  // the effect's dependency array to just those two values.
+  // Mirrors NativeAppView.swift's own condition (ticks reset on a day OR
+  // session change, not on every unrelated re-render) by scoping this
+  // effect to just those two values — but unlike the plain in-memory
+  // `useState` this used to be, the reset is now a HYDRATE from device
+  // storage keyed by (today, displayKey), not always-empty: real bug
+  // reported live — ticking exercises off, then swiping the card to
+  // browse a different session (or backgrounding/closing the app
+  // entirely) and coming back showed everything unticked again, since
+  // there was nowhere for a tick to live once this effect's dependencies
+  // changed. Clearing synchronously first avoids a one-frame flash of the
+  // PREVIOUS session's ticks while the real ones for this (today,
+  // displayKey) load; a genuinely fresh combination resolves to an empty
+  // Set anyway, so there's no flash the other way either.
   useEffect(() => {
     setTicks(new Set());
+    let cancelled = false;
+    getStoredTicks(today, displayKey)
+      .then((stored) => { if (!cancelled) setTicks(stored); })
+      .catch((e) => console.error('card.tsx tick hydrate failed:', e));
+    return () => { cancelled = true; };
   }, [today, displayKey]);
 
   const onToggleTick = useCallback((id: string) => {
     setTicks((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id); else next.add(id);
+      setStoredTicks(today, displayKey, next).catch((e) => console.error('card.tsx tick persist failed:', e));
       return next;
     });
-  }, []);
+  }, [today, displayKey]);
 
   const [celebrationTrigger, setCelebrationTrigger] = useState(0);
 

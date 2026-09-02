@@ -1,9 +1,12 @@
 // src/screens/calendar/CalendarScreen.tsx
-import React, { useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import React, { useCallback, useMemo, useState } from 'react';
+import { Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import { runOnJS } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colours } from '../../design/colours';
 import { Fonts } from '../../design/fonts';
+import { Motion } from '../../design/motion';
 import { resolveColour } from '../../design/colours';
 import type { Phase } from '../../engine/types';
 import { SESSION_ORDER } from '../../engine';
@@ -83,7 +86,36 @@ function daysBetweenLocal(aISO: string, bISO: string): number {
 
 export function CalendarScreen({ engine, history, today, onDismiss }: CalendarScreenProps) {
   const insets = useSafeAreaInsets();
+  const { width: containerWidth } = useWindowDimensions();
   const [visibleMonth, setVisibleMonth] = useState(() => startOfMonth(today));
+
+  const goToMonth = useCallback((direction: -1 | 1) => {
+    setVisibleMonth((m) => shiftMonth(m, direction));
+  }, []);
+
+  // Swipe left/right over the grid to change months — the exact same
+  // action as the ‹ › buttons, just gesture-driven too. No fade here
+  // unlike the daily card's own swipe carousel (useSwipeCarousel.ts) —
+  // that redesign's fade exists because browsing a session there is an
+  // async round-trip with a caller-state-catch-up step; changing
+  // `visibleMonth` is a single synchronous local setState, so there's
+  // nothing to choreograph a fade around. Same distance constants as
+  // that gesture (commit fraction of screen width, directional lock so
+  // the outer ScrollView's vertical scroll still wins a mostly-vertical
+  // drag), reused for a consistent feel — swipe left reveals what's
+  // ahead (next month), swipe right goes back, matching every other
+  // calendar app's own convention.
+  const monthSwipe = Gesture.Pan()
+    .minDistance(Motion.swipe.minimumDistance)
+    .activeOffsetX([-Motion.swipe.horizontalClaimDx, Motion.swipe.horizontalClaimDx])
+    .failOffsetY([-Motion.swipe.horizontalClaimDx, Motion.swipe.horizontalClaimDx])
+    .onEnd((e, success) => {
+      if (!success) return;
+      const pastThreshold = Math.abs(e.translationX) > Motion.swipe.commitFraction * containerWidth;
+      if (!pastThreshold) return;
+      const direction = e.translationX < 0 ? 1 : -1;
+      runOnJS(goToMonth)(direction);
+    });
 
   const forecast = useMemo(() => computeTrendForecast(engine, history, today), [engine, history, today]);
   const allTimeStats = useMemo(
@@ -158,19 +190,23 @@ export function CalendarScreen({ engine, history, today, onDismiss }: CalendarSc
         <PlanProgressBar progress={planProgress} accent={currentPhaseColour ?? resolveColour('--gorse')} />
 
         <View style={styles.monthNavRow}>
-          <Pressable onPress={() => setVisibleMonth(shiftMonth(visibleMonth, -1))} style={styles.navButton} accessibilityRole="button" accessibilityLabel="Previous month">
+          <Pressable onPress={() => goToMonth(-1)} style={styles.navButton} accessibilityRole="button" accessibilityLabel="Previous month">
             <Text style={styles.navArrow}>‹</Text>
           </Pressable>
           <View style={{ alignItems: 'center', gap: 2 }}>
             <Text style={styles.monthTitle}>{monthTitle(visibleMonth)}</Text>
             <Text style={styles.rateCaption}>~{forecast.weeklyRate.toFixed(1)} sessions / wk · last {forecast.windowDays}d</Text>
           </View>
-          <Pressable onPress={() => setVisibleMonth(shiftMonth(visibleMonth, 1))} style={styles.navButton} accessibilityRole="button" accessibilityLabel="Next month">
+          <Pressable onPress={() => goToMonth(1)} style={styles.navButton} accessibilityRole="button" accessibilityLabel="Next month">
             <Text style={styles.navArrow}>›</Text>
           </Pressable>
         </View>
 
-        <MonthGrid cells={cells} />
+        <GestureDetector gesture={monthSwipe}>
+          <View>
+            <MonthGrid cells={cells} />
+          </View>
+        </GestureDetector>
 
         <Legend phases={engine.phases} deload={forecast.deload} isDeloadOngoing={isDeloadOngoing} resolveColour={resolveColour} />
 
