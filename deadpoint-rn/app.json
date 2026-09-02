@@ -15,7 +15,8 @@
         "com.apple.security.application-groups": ["group.uk.co.sullivanltd.crimpblock"]
       },
       "infoPlist": {
-        "NSSupportsLiveActivities": true
+        "NSSupportsLiveActivities": true,
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
