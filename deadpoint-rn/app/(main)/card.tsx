@@ -23,6 +23,7 @@ import type { RenderedExercise } from '../../src/engine/types';
 import { useRestTimer } from '../../src/components/timers/useRestTimer';
 import { useIntervalTimer } from '../../src/components/timers/useIntervalTimer';
 import { leadingInt } from '../../src/components/timers/intervalTimerLogic';
+import { syncForecast } from '../../src/widget/syncForecast';
 
 // programs.js is plain JS (no .d.ts), same require-not-import pattern the
 // engine facade itself uses internally (src/engine/index.ts:8) and that
@@ -107,6 +108,15 @@ export default function Card() {
     // render for an unstable-but-equal function reference.
     [program, store.days, loads.byExercise]
   );
+
+  // Pushes the freshly-recomputed forecast into the home-screen widget's
+  // shared storage — fires on mount and again whenever `engine` changes,
+  // i.e. every time store/loads actually finish a reload with new data
+  // (see the useFocusEffect above), not just on focus regain itself.
+  // syncForecast no-ops on Android internally — no Platform.OS guard here.
+  useEffect(() => {
+    syncForecast(engine);
+  }, [engine]);
 
   const [browsedKey, setBrowsedKey] = useState<string | null>(null);
   const decision = engine.decide(today);

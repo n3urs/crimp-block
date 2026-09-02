@@ -24,6 +24,9 @@ module.exports = {
       react-native-safe-area-context (added when DailyCard.tsx started
       using useSafeAreaInsets() to fix a real safe-area bug) pulls in
       react-native's own codegenNativeComponent.js and throws the same way.
+      @bacons/apple-targets (added for Task 3's syncForecast) references the
+      ambient `expo` global expo-modules-core injects at native app
+      startup and throws "expo is not defined" the same way.
       See the mock files in __mocks__/ for what each stands in for and why
       a no-op/stub is sufficient for the tests that need them. */
   moduleNameMapper: {
@@ -34,5 +37,6 @@ module.exports = {
     '^react-native-reanimated$': '<rootDir>/__mocks__/react-native-reanimated.js',
     '^react-native-safe-area-context$': '<rootDir>/__mocks__/react-native-safe-area-context.js',
     '^@react-native-async-storage/async-storage$': '<rootDir>/__mocks__/@react-native-async-storage/async-storage.js',
+    '^@bacons/apple-targets$': '<rootDir>/__mocks__/@bacons/apple-targets.js',
   },
 };

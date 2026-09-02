@@ -47,5 +47,9 @@ const StyleSheet = {
   create: (styles) => styles,
   absoluteFill: { position: 'absolute', left: 0, right: 0, top: 0, bottom: 0 },
 };
+// Added for Task 3 (syncForecast.ts imports Platform at module top level).
+// 'ios' is an arbitrary default — no test in this repo currently asserts
+// against Platform.OS's mocked value, only that the import doesn't throw.
+const Platform = { OS: 'ios' };
 
-module.exports = { View, Text, Pressable, ScrollView, Alert, StyleSheet };
+module.exports = { View, Text, Pressable, ScrollView, Alert, StyleSheet, Platform };
