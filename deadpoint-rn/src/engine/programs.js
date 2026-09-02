@@ -262,7 +262,7 @@ return {
         ]},
       hangboard:{n:'Hangboard', w:'Gym · 25 min', c:'--slate', finger:2, pull:1, note:'Board work before climbing, in the order below.',
         x:[
-          {t:'Repeaters',id:'def-rep',m:'4–5 sets',d:'7s on / 3s off × 6 = one set, around 55–60% of max. Two minutes between sets.',r:120},
+          {t:'Repeaters',id:'def-rep',m:'4–5 sets',interval:{on:7,off:3,reps:6},d:'7s on / 3s off × 6 = one set, around 55–60% of max. Two minutes between sets. Press Start below and just hang.',r:120},
           {t:'Volume climbing',m:'40 min',d:'Easy mileage, not limit attempts.'}
         ]},
       climbHard:{n:'Limit Session', w:'Gym · 90 min', c:'--heather', finger:2, pull:2, climb:1,
