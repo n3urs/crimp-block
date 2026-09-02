@@ -4,7 +4,7 @@ module.exports = config => ({
   name: "widget",
   displayName: "Deadpoint",
   bundleIdentifier: ".widget",
-  deploymentTarget: "16.4",
+  deploymentTarget: "17.0",
   entitlements: {
     "com.apple.security.application-groups": ["group.uk.co.sullivanltd.crimpblock"],
   },
