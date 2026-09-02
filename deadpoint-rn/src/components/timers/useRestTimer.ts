@@ -1,17 +1,14 @@
 /** Thin wrapper around a countdown + the .go completion tone + a local
-    "Rest over" notification — direct port of RestTimerController.swift.
-    Not unit tested directly (see this plan's Global Constraints on
-    hooks) — verified live on device in Task 6.
-
-    Unlike RestTimerController.swift, there's no Live Activity here (out
-    of scope — see the Phase 3 design spec and the Phase 0-2 plan's Risk
-    Register item 1); this only owns the countdown, the tone, and the
-    notification. */
+    "Rest over" notification + the rest-timer Live Activity — direct port
+    of RestTimerController.swift. Not unit tested directly (see this
+    plan's Global Constraints on hooks) — verified live on device in
+    Task 5/6. */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Platform } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import { Motion } from '../../design/motion';
 import { play } from './tones';
+import { startRestActivity, endRestActivity } from '../../../modules/rest-timer-activity';
 
 export interface RestTimerState {
   remainingSeconds: number;
@@ -72,6 +69,7 @@ export function useRestTimer() {
     clearTick();
     endMsRef.current = null;
     setState(null);
+    endRestActivity(true);
     cancelCompletionNotification().catch((e) => console.error('useRestTimer.stop cancel failed:', e));
   }, [clearTick]);
 
@@ -84,6 +82,8 @@ export function useRestTimer() {
       .then(() => scheduleCompletionNotification(seconds, label))
       .catch((e) => console.error('useRestTimer.start notification failed:', e));
 
+    startRestActivity(seconds, label, accent);
+
     tickRef.current = setInterval(() => {
       const end = endMsRef.current;
       if (end == null) return;
@@ -94,7 +94,9 @@ export function useRestTimer() {
         endMsRef.current = null;
         setState(null);
         // Natural completion — the notification already fired on its own
-        // schedule, so unlike stop() above this does NOT cancel it.
+        // schedule, so unlike stop() above this does NOT cancel it. Same
+        // reasoning applies to the Live Activity: don't cancel-notification twice.
+        endRestActivity(false);
       } else {
         setState((s) => (s ? { ...s, remainingSeconds: remaining } : s));
       }
