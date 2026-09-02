@@ -165,6 +165,16 @@ interface CardBodyProps {
       scope exactly: title/message/footer/Done stay reachable even once
       today is logged, only the rows themselves lock. */
   exercisesInteractive: boolean;
+  /** Once today's session is logged, every row shows ticked regardless of
+      which ones were individually checked during the session — logging
+      is the real "done" signal, and a still-empty checkbox next to an
+      already-locked, already-counted session read as broken, not just
+      incomplete. Purely a display override: the underlying `ticks` Set
+      itself is untouched (still used for the auto-weight-recording pass
+      in card.tsx's onLog, and for the per-set tally's own fill state),
+      so un-doing the log reverts every row to its real individual state
+      exactly as it was, not a wiped/reset one. */
+  isLogged: boolean;
   /** Opacity applied to the exercise list only, not the whole card
       (1 = fully visible). */
   exercisesOpacity: number;
@@ -185,7 +195,7 @@ export function CardBody({
   session, guide, onTapGuide, accent, accentVarName, exercises, ticks,
   onToggleTick, onTapWeight, onTapRest, onStartInterval, onTapInfo,
   message, messageEmphasis, footerNote, exercisesInteractive, exercisesOpacity,
-  scrollEnabled, scrollRef,
+  isLogged, scrollEnabled, scrollRef,
 }: CardBodyProps) {
   return (
     <View style={styles.contentColumn}>
@@ -235,7 +245,7 @@ export function CardBody({
                 ex={ex}
                 accent={accent}
                 accentVarName={accentVarName}
-                isTicked={ticks.has(ex.id)}
+                isTicked={isLogged || ticks.has(ex.id)}
                 onToggleTick={onToggleTick}
                 onTapWeight={onTapWeight}
                 onTapRest={onTapRest}
@@ -392,6 +402,7 @@ export function DailyCard(props: DailyCardProps) {
                 footerNote={footerNote ?? ''}
                 exercisesInteractive={!isLogged}
                 exercisesOpacity={1}
+                isLogged={isLogged}
                 scrollEnabled
                 scrollRef={scrollRef}
               />

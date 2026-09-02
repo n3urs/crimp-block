@@ -56,6 +56,7 @@ const baseProps = {
   footerNote: 'test footer',
   exercisesInteractive: true,
   exercisesOpacity: 1,
+  isLogged: false,
   scrollEnabled: true,
 };
 
@@ -87,4 +88,23 @@ test('cardMessage only renders a Text node when non-empty, matching Swift\'s !ca
   const withoutMessage = CardBody({ ...baseProps, exercises: [], message: '' });
 
   expect(collect(withMessage, Text).length).toBeGreaterThan(collect(withoutMessage, Text).length);
+});
+
+test('isLogged forces every row ticked even when none were individually checked, and un-logging reverts them', () => {
+  const three = [makeExercise('a'), makeExercise('b'), makeExercise('c')];
+
+  const loggedNoneTicked = CardBody({ ...baseProps, exercises: three, ticks: new Set(), isLogged: true });
+  const rows = collect(loggedNoneTicked, ExerciseRow);
+  expect(rows).toHaveLength(3);
+  expect(rows.every((r) => r.props.isTicked === true)).toBe(true);
+
+  const notLoggedNoneTicked = CardBody({ ...baseProps, exercises: three, ticks: new Set(), isLogged: false });
+  expect(collect(notLoggedNoneTicked, ExerciseRow).every((r) => r.props.isTicked === false)).toBe(true);
+
+  // A real individual tick still shows through when NOT logged — this
+  // override only ever adds ticks on top of isLogged, never hides one.
+  const notLoggedOneTicked = CardBody({ ...baseProps, exercises: three, ticks: new Set(['b']), isLogged: false });
+  const partialRows = collect(notLoggedOneTicked, ExerciseRow);
+  expect(partialRows.find((r) => r.props.ex.id === 'b')?.props.isTicked).toBe(true);
+  expect(partialRows.find((r) => r.props.ex.id === 'a')?.props.isTicked).toBe(false);
 });

@@ -142,6 +142,20 @@ export default function SignIn() {
 
   const codeDigitCount = code.replace(/\D/g, '').length;
 
+  // Auto-submit the moment a real 6-digit code (Supabase's OTP length) is
+  // typed, so there's no separate button press once you've entered it —
+  // fires once per completed code, not on every keystroke while already at
+  // 6: keying on codeDigitCount transitioning to 6 means correcting a wrong
+  // digit (which dips back below 6 as you backspace, then returns to 6)
+  // re-triggers correctly, but a re-render at a steady 6 does not resubmit.
+  // The manual SIGN IN button stays as a fallback (e.g. a pasted code with
+  // stray whitespace this effect's own digit-count still resolves to 6 for,
+  // but worth keeping a manual path regardless).
+  useEffect(() => {
+    if (codeDigitCount === 6 && !sending) verifyCode();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- keyed on the digit count reaching 6, not on verifyCode's identity (a fresh closure every render)
+  }, [codeDigitCount]);
+
   return (
     <View style={[styles.root, { paddingTop: 20 + insets.top, paddingBottom: 20 + insets.bottom }]}>
       <Text style={styles.title}>{step === 'email' ? 'SIGN IN' : 'ENTER CODE'}</Text>
