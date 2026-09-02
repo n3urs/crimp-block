@@ -16,7 +16,7 @@
     the device-verification gap Step 4 marks deferred. This test walks
     the plain React-element tree `CardBody` returns (elements are just
     `{type, props}` objects — no renderer needed to inspect that shape). */
-import { Text } from 'react-native';
+import { Text, View } from 'react-native';
 import { CardBody } from '../src/components/daily-card/DailyCard';
 import { ExerciseRow } from '../src/components/daily-card/ExerciseRow';
 import type { RenderedExercise } from '../src/engine/types';
@@ -57,6 +57,7 @@ const baseProps = {
   exercisesInteractive: true,
   exercisesOpacity: 1,
   isLogged: false,
+  doneClearance: 64,
   scrollEnabled: true,
 };
 
@@ -107,4 +108,31 @@ test('isLogged forces every row ticked even when none were individually checked,
   const partialRows = collect(notLoggedOneTicked, ExerciseRow);
   expect(partialRows.find((r) => r.props.ex.id === 'b')?.props.isTicked).toBe(true);
   expect(partialRows.find((r) => r.props.ex.id === 'a')?.props.isTicked).toBe(false);
+});
+
+/** Real bug reported live, twice: the last exercise row(s) peeked out
+    from behind the floating Done button, because the spacer reserving
+    scroll space for it was a flat guessed constant that undershot the
+    button's real footprint. `doneClearance` is now the caller's real,
+    onLayout-measured number (see CardBodyProps' own doc comment) — this
+    just asserts CardBody actually renders whatever it's handed, not a
+    hardcoded value of its own re-introducing the same bug. */
+function findSpacerHeight(tree: unknown): number | undefined {
+  const views = collect(tree, View);
+  for (const v of views) {
+    const style = v.props?.style;
+    const height = !Array.isArray(style) && style && typeof style === 'object' && 'height' in style
+      ? (style as { height?: number }).height
+      : undefined;
+    if (height !== undefined) return height;
+  }
+  return undefined;
+}
+
+test('the Done-button spacer height is exactly whatever doneClearance the caller passes', () => {
+  const small = CardBody({ ...baseProps, exercises: [makeExercise('a')], doneClearance: 64 });
+  const large = CardBody({ ...baseProps, exercises: [makeExercise('a')], doneClearance: 140 });
+
+  expect(findSpacerHeight(small)).toBe(64);
+  expect(findSpacerHeight(large)).toBe(140);
 });

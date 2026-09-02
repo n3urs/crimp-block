@@ -27,7 +27,7 @@
         view to pass in"). The caller constructs the ref (it also owns
         `useSwipeCarousel`) and this component attaches it to the actual
         ScrollView living in the shared render body below. */
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import type { RefObject } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Animated, { useAnimatedStyle } from 'react-native-reanimated';
@@ -178,6 +178,21 @@ interface CardBodyProps {
   /** Opacity applied to the exercise list only, not the whole card
       (1 = fully visible). */
   exercisesOpacity: number;
+  /** Real bug reported live: the last exercise row(s) visibly peeked out
+      from behind the floating Done button — on a 7-exercise session, on
+      a real device with a real bottom safe-area inset. The trailing
+      spacer at the bottom of the scroll content reserves space for the
+      button, but a flat guessed constant undershot the button's real
+      footprint (its actual rendered height, its own `16 + insets.bottom`
+      offset from the screen edge, and the inset itself all add up — a
+      first attempt at a smarter guess still fell short on this exact
+      session). This is the real, measured number instead: `bottom` offset
+      (`16 + insets.bottom`) plus the Done button's own actual
+      `onLayout`-measured height (see `DailyCard` below), plus a little
+      breathing room — computed once, in one place, rather than guessed
+      twice (here and at the button's own position) and left to drift
+      apart again. */
+  doneClearance: number;
   scrollEnabled: boolean;
   scrollRef?: RefObject<React.Component | null>;
 }
@@ -195,7 +210,7 @@ export function CardBody({
   session, guide, onTapGuide, accent, accentVarName, exercises, ticks,
   onToggleTick, onTapWeight, onTapRest, onStartInterval, onTapInfo,
   message, messageEmphasis, footerNote, exercisesInteractive, exercisesOpacity,
-  isLogged, scrollEnabled, scrollRef,
+  isLogged, doneClearance, scrollEnabled, scrollRef,
 }: CardBodyProps) {
   return (
     <View style={styles.contentColumn}>
@@ -259,8 +274,11 @@ export function CardBody({
         <Text style={styles.footer}>{footerNote}</Text>
         {/* Room for the floating Done button — doneFlow is a required
             prop on DailyCard (never absent here), so unlike Swift's
-            `if onTapDone != nil` this spacer is unconditional. */}
-        <View style={styles.doneSpacer} />
+            `if onTapDone != nil` this spacer is unconditional. Height is
+            the real, measured clearance from the caller (see
+            CardBodyProps' own doc comment on doneClearance) — a flat
+            guess undershot it on a real 7-exercise session. */}
+        <View style={{ height: doneClearance }} />
       </ScrollView>
     </View>
   );
@@ -344,6 +362,15 @@ export function DailyCard(props: DailyCardProps) {
   const insets = useSafeAreaInsets();
   const doneButtonRef = useTutorialTarget('doneButton');
 
+  // Real, onLayout-measured Done button height, not a guessed constant —
+  // see CardBodyProps' own doc comment on doneClearance for why a guess
+  // (twice) already undershot this live. 54 is a reasonable first-paint
+  // fallback (this component's real historical footprint: 16+16
+  // paddingVertical + a ~14px line), used only for the one frame before
+  // the real Pressable has actually laid out and reported its height.
+  const [doneButtonHeight, setDoneButtonHeight] = useState(54);
+  const doneClearance = doneButtonHeight + 16 + insets.bottom + 16;
+
   return (
     <View style={styles.root}>
       <GestureDetector gesture={panGesture}>
@@ -403,6 +430,7 @@ export function DailyCard(props: DailyCardProps) {
                 exercisesInteractive={!isLogged}
                 exercisesOpacity={1}
                 isLogged={isLogged}
+                doneClearance={doneClearance}
                 scrollEnabled
                 scrollRef={scrollRef}
               />
@@ -414,6 +442,7 @@ export function DailyCard(props: DailyCardProps) {
       <Pressable
         ref={doneButtonRef}
         onPress={doneFlow.handleDoneTap}
+        onLayout={(e) => setDoneButtonHeight(e.nativeEvent.layout.height)}
         style={[styles.doneButton, { backgroundColor: isLogged ? Colours.s2 : accent, bottom: 16 + insets.bottom }]}
         accessibilityRole="button"
         accessibilityLabel={isLogged ? 'Undo logged workout' : 'Mark workout as done'}
@@ -477,7 +506,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 12,
   },
-  doneSpacer: { height: 64 },
   doneButton: {
     position: 'absolute',
     left: 16,
