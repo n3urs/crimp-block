@@ -13,6 +13,9 @@
       "buildNumber": "20",
       "entitlements": {
         "com.apple.security.application-groups": ["group.uk.co.sullivanltd.crimpblock"]
+      },
+      "infoPlist": {
+        "NSSupportsLiveActivities": true
       }
     },
     "android": {
