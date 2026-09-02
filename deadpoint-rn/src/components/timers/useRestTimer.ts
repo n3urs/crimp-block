@@ -106,8 +106,13 @@ export function useRestTimer() {
   // Belt-and-braces cleanup if the owning screen ever unmounts mid-rest —
   // card.tsx is a persistent top-level screen today so this shouldn't
   // fire in practice, but a leaked interval is a real bug class to guard
-  // against regardless.
-  useEffect(() => () => clearTick(), [clearTick]);
+  // against regardless, and the same goes for a Live Activity left showing
+  // on the Lock Screen with nothing to clear it. An unmount is an abnormal
+  // exit like stop(), not a natural completion, so cancel the notification too.
+  useEffect(() => () => {
+    clearTick();
+    endRestActivity(true);
+  }, [clearTick]);
 
   return { state, start, stop };
 }
