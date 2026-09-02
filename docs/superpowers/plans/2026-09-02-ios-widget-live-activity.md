@@ -114,6 +114,10 @@ cd deadpoint-rn && npx expo run:ios --device "iPhone 17"
 
 Using the iOS Simulator MCP tools: add the "Deadpoint" widget to the simulator's home screen (long-press home screen → + → search "Deadpoint"), screenshot it. At this point it will show whatever placeholder/default content the scaffolder generated (e.g. "Hello, World!") — that is the correct and expected result for this task. Do NOT attempt to make it show real app data yet; that is Tasks 2–3.
 
+**[POST-TASK-1 UPDATE — read before starting any later task]** This step was not achievable: this simulator runs a redesigned Home Screen UI (confirmed independently by both the Task 1 implementer and the controller) where long-press → jiggle mode shows text pills "Edit"/"Done" instead of the classic "+" widget-gallery button, and neither synthetic `tap` nor `touch_path` on "Edit" (nor the bottom "Search" pill) produces any visible menu or navigation — it silently exits jiggle mode instead, reproducibly, across many attempts and two independent operators (the implementer subagent and the controller). Existing default OS widgets (Maps, Calendar) DO render correctly on this same simulator, confirming WidgetKit itself works fine in this environment — the gap is purely in reaching the "Add Widget" gallery via this session's touch-injection tooling. **Accept Step 7's build-success (0 errors, `widget.appex` compiled/signed/packaged) plus the pbxproj wiring check as sufficient verification for Task 1 and every later task that would otherwise repeat this step** — do not re-attempt the home-screen "add widget" flow unless you have a genuinely new approach not already listed in the Task 1 report's ~20 attempts (tap/touch_path at varying durations on Edit and Search, drag-off, re-entering jiggle mode, different home screen pages). If a later task's spec says to screenshot the widget live on the home screen, treat "the widget was already present on the home screen from an earlier task" as the only realistic path to that screenshot going forward — do not burn implementer time re-discovering this same blocker.
+
+**Also correcting the brief's file-layout assumption for every later task:** the real scaffolded layout has **no `Sources/` subfolder** — every Swift file sits directly in `targets/widget/*.swift`. The `@main` entry point is `targets/widget/index.swift` (currently `struct exportWidgets: WidgetBundle`), not a new file you create. `targets/widget/widgets.swift` currently holds a placeholder `StaticConfiguration` widget ("Hello, World!") — replace its content, don't create a second file. `targets/widget/WidgetLiveActivity.swift` already exists (scaffolded, currently unused/not wired into `index.swift`) — Task 4 replaces its content rather than creating a new file. Every later task's file paths below have been corrected to match; treat any lingering `Sources/`-prefixed path elsewhere in this document as stale and use the corrected paths instead.
+
 - [ ] **Step 9: Commit**
 
 ```bash
@@ -124,10 +128,11 @@ cd deadpoint-rn && git add -A && git commit -m "feat: scaffold widget extension 
 
 ### Task 2: Port the home-screen "Today's Session" widget (Swift, no data yet)
 
-**Files:**
-- Create: `deadpoint-rn/targets/widget/Sources/Forecast.swift` (ported from `ios/Shared/Forecast.swift` on `main`, **unchanged** — includes the `Forecast`/`Forecast.Day`/`Forecast.Exercise` Codable structs, `Date.appDay`, `SharedStore` enum, `parseHexColour`)
-- Create: `deadpoint-rn/targets/widget/Sources/CrimpBlockWidget.swift` (ported from `ios/CrimpBlockWidget/CrimpBlockWidget.swift` on `main`, with one deliberate deviation — see Step 2 below)
-- Modify: whatever placeholder Swift file `npx create-target` generated in Task 1 (delete it, or replace its content — check what Task 1's report says exists)
+**Files:** (paths corrected per Task 1's real output — no `Sources/` subfolder exists; see the POST-TASK-1 UPDATE note under Task 1 Step 8)
+- Create: `deadpoint-rn/targets/widget/Forecast.swift` (ported from `ios/Shared/Forecast.swift` on `main`, **unchanged** — includes the `Forecast`/`Forecast.Day`/`Forecast.Exercise` Codable structs, `Date.appDay`, `SharedStore` enum, `parseHexColour`)
+- Create: `deadpoint-rn/targets/widget/CrimpBlockWidget.swift` (ported from `ios/CrimpBlockWidget/CrimpBlockWidget.swift` on `main`, with one deliberate deviation — see Step 2 below; this file holds the `Provider`/`Entry`/`WidgetView`/`CrimpBlockWidget` struct — everything from the real source EXCEPT the `@main` bundle, which belongs in `index.swift` per Step 3)
+- Delete: `deadpoint-rn/targets/widget/widgets.swift` (Task 1's placeholder "Hello, World!" widget — no longer needed once `CrimpBlockWidget.swift` exists)
+- Modify: `deadpoint-rn/targets/widget/index.swift` (replace its placeholder `@main` bundle content — see Step 3)
 
 **Interfaces:**
 - Consumes: nothing from earlier tasks besides the scaffolded target directory (Task 1).
@@ -145,32 +150,34 @@ git show main:ios/CrimpBlockWidget/CrimpBlockWidget.swift
 
 No deviation. Copy it exactly, including every comment (they document hard-won correctness fixes — the day-start-hour boundary logic, the App Group id, the stale-cache handling — keep them verbatim).
 
-- [ ] **Step 3: Write `CrimpBlockWidget.swift` — identical to `main`'s copy, with exactly one change**
+- [ ] **Step 3: Write `CrimpBlockWidget.swift`, and move the `@main` bundle into `index.swift`**
 
-Copy `ios/CrimpBlockWidget/CrimpBlockWidget.swift` verbatim EXCEPT the `@main` bundle at the bottom. The real source's bundle is:
+`CrimpBlockWidget.swift` gets everything from `ios/CrimpBlockWidget/CrimpBlockWidget.swift` verbatim EXCEPT the trailing `@main` bundle struct — that belongs in `targets/widget/index.swift` instead (the target's real entry point, per Task 1; only one `@main` is allowed per target). Delete `targets/widget/widgets.swift` (Task 1's placeholder) once this file replaces it.
+
+Replace `targets/widget/index.swift`'s current placeholder content entirely with:
 
 ```swift
+import WidgetKit
+import SwiftUI
+
+// TODO(Task 4): add RestTimerLiveActivity() here — the real source's bundle
+// (ios/CrimpBlockWidget/CrimpBlockWidget.swift on main) is:
+//   @main
+//   struct CrimpBlockWidgetBundle: WidgetBundle {
+//       var body: some Widget {
+//           CrimpBlockWidget()
+//           RestTimerLiveActivity()
+//       }
+//   }
+// RestTimerLiveActivity doesn't exist yet — Task 4 adds it and restores the
+// second line above.
 @main
 struct CrimpBlockWidgetBundle: WidgetBundle {
     var body: some Widget {
         CrimpBlockWidget()
-        RestTimerLiveActivity()
     }
 }
 ```
-
-`RestTimerLiveActivity` does not exist yet (Task 4 adds it) — for this task only, write:
-
-```swift
-@main
-struct CrimpBlockWidgetBundle: WidgetBundle {
-    var body: some Widget {
-        CrimpBlockWidget()
-    }
-}
-```
-
-Leave a `// TODO(Task 4): add RestTimerLiveActivity() here` comment on that line so Task 4 finds it without re-deriving this.
 
 - [ ] **Step 4: Prebuild and rebuild**
 
@@ -307,10 +314,10 @@ cd deadpoint-rn && git add -A && git commit -m "feat: sync real forecast data in
 
 ### Task 4: Port the Live Activity (Swift) + native bridge module (Swift↔JS)
 
-**Files:**
-- Create: `deadpoint-rn/targets/widget/_shared/TimerActivity.swift` (ported from `ios/Shared/TimerActivity.swift` on `main`, unchanged — the `_shared/` folder is compiled into BOTH the widget extension and the main app target, which is required here since the main app constructs `Activity<RestTimerAttributes>` while the extension renders it)
-- Create: `deadpoint-rn/targets/widget/Sources/RestTimerLiveActivity.swift` (ported from `ios/CrimpBlockWidget/RestTimerLiveActivity.swift` on `main`, unchanged)
-- Modify: `deadpoint-rn/targets/widget/Sources/CrimpBlockWidget.swift` (the `// TODO(Task 4)` line from Task 2 — add `RestTimerLiveActivity()` to the `WidgetBundle` body)
+**Files:** (paths corrected per Task 1's real output — see the POST-TASK-1 UPDATE note under Task 1 Step 8)
+- Create: `deadpoint-rn/targets/widget/_shared/TimerActivity.swift` (ported from `ios/Shared/TimerActivity.swift` on `main`, unchanged — the `_shared/` folder does not exist yet, you are creating it; it is compiled into BOTH the widget extension and the main app target, which is required here since the main app constructs `Activity<RestTimerAttributes>` while the extension renders it)
+- Modify: `deadpoint-rn/targets/widget/WidgetLiveActivity.swift` (this file already exists from Task 1's scaffold — a working but unrelated/unwired `ActivityConfiguration` widget the scaffolder generated. Replace its entire content with the real ported `ios/CrimpBlockWidget/RestTimerLiveActivity.swift`, unchanged — do not create a differently-named file)
+- Modify: `deadpoint-rn/targets/widget/index.swift` (the `// TODO(Task 4)` comment block from Task 2 — restore the second line of the real bundle so it reads `CrimpBlockWidget()` then `RestTimerLiveActivity()`)
 - Create: `deadpoint-rn/modules/rest-timer-activity/expo-module.config.json`
 - Create: `deadpoint-rn/modules/rest-timer-activity/index.ts`
 - Create: `deadpoint-rn/modules/rest-timer-activity/ios/RestTimerActivityModule.swift`
@@ -333,11 +340,11 @@ The last command is the Coordinator's `restActivity`/`startRestActivity`/`endRes
 
 - [ ] **Step 2: Port `TimerActivity.swift` and `RestTimerLiveActivity.swift` verbatim**
 
-No deviation from `main`'s copies.
+Write `targets/widget/_shared/TimerActivity.swift` (new file/directory) from `ios/Shared/TimerActivity.swift`, unchanged. Overwrite `targets/widget/WidgetLiveActivity.swift`'s entire content with `ios/CrimpBlockWidget/RestTimerLiveActivity.swift`, unchanged (its struct is named `RestTimerLiveActivity`, not `WidgetLiveActivity` — the file name staying as `WidgetLiveActivity.swift` is fine and matches Task 1's existing scaffolded name; Swift doesn't require the file name to match the type name).
 
 - [ ] **Step 3: Wire the bundle**
 
-In `CrimpBlockWidget.swift`, replace the `// TODO(Task 4)` line so the bundle reads exactly like the real source:
+In `targets/widget/index.swift`, replace the `// TODO(Task 4)` comment block so the bundle reads exactly like the real source:
 
 ```swift
 @main
