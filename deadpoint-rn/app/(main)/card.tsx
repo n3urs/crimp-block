@@ -8,7 +8,7 @@
     NativeAppView.swift:52,406,528,546 and DailyCardView.swift:150-153). */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useWindowDimensions } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { useSession } from '../../src/data/useSession';
 import { useStore } from '../../src/data/useStore';
 import { useLoads } from '../../src/data/useLoads';
@@ -75,6 +75,30 @@ export default function Card() {
   // initial null-startDate stall while the profile row is still in flight.
   const startDate = profile.row?.programStartDate ?? program.startDate ?? null;
   const store = useStore(startDate, today, userId);
+
+  // Refetch every time this screen regains focus, not just on first mount.
+  // day-picker.tsx, weight-edit.tsx, and settings.tsx (RESTORE INSTANTLY)
+  // each own an independent instance of useStore/useLoads/useProfile — see
+  // day-picker.tsx's own doc comment on why: a second screen reached via
+  // router.push must not assume it shares React state with the screen that
+  // pushed it. Those screens write through Supabase directly and then call
+  // router.back(), which pops them WITHOUT unmounting this screen — so
+  // without this, this screen's own copies of store/loads/profile never
+  // learn a write happened until something else forces a real remount
+  // (e.g. index's own gate replacing this screen entirely). Confirmed live:
+  // backdating a day via day-picker looked like "nothing happened" on the
+  // WeekStrip until an unrelated full remount (via the tutorial flow)
+  // incidentally fixed it. useFocusEffect (not a plain useEffect) is the
+  // right primitive — it fires on every focus regain, including a plain
+  // router.back() from a pushed modal, which a mount-only effect never
+  // would.
+  useFocusEffect(
+    useCallback(() => {
+      store.reload().catch((e) => console.error('card.tsx focus refresh (store) failed:', e));
+      loads.reload().catch((e) => console.error('card.tsx focus refresh (loads) failed:', e));
+      profile.reload().catch((e) => console.error('card.tsx focus refresh (profile) failed:', e));
+    }, [store.reload, loads.reload, profile.reload])
+  );
 
   const engine = useMemo(
     () => createEngine(program, { sessionLog: store.days, loadLog: loads.all() }),
