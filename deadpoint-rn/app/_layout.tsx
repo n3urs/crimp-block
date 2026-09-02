@@ -83,6 +83,12 @@ export default function RootLayout() {
               above: app/settings.tsx lives directly under app/, so its
               route name is just "settings". */}
           <Stack.Screen name="settings" options={{ presentation: 'modal' }} />
+          {/* Plan overview modal (Task 2, this plan) — direct port of
+              PlanSheetView.swift. Reached from the daily card's phase
+              badge. Same not-group-qualified reasoning as weight-edit/
+              day-picker/settings above: app/plan.tsx lives directly under
+              app/, so its route name is just "plan". */}
+          <Stack.Screen name="plan" options={{ presentation: 'modal' }} />
         </Stack>
       </SafeAreaProvider>
     </GestureHandlerRootView>

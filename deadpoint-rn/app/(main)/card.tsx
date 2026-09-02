@@ -303,7 +303,11 @@ export default function Card() {
       restTimer={restTimer}
       intervalTimer={intervalTimer}
       onTapSettings={() => router.push('/settings')}
-      onTapPhaseBadge={() => {}}
+      // onTapPhaseBadge is real now (this plan's Task 2) — pushes the
+      // modal route at app/plan.tsx (PlanSheetView.swift port), which
+      // resolves its own independent session/store/program rather than
+      // sharing this screen's state, same pattern as onTapDay/onTapSettings.
+      onTapPhaseBadge={() => router.push('/plan')}
       onTapGuide={() => {}}
       phaseName={phaseName}
       weekNumber={block.w}
