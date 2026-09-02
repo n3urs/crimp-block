@@ -45,3 +45,15 @@ export interface RenderedExercise {
   step: number;
   interval?: IntervalConfig;
 }
+
+export interface ReturnInfo {
+  gap: number;
+  resumed: string;
+  session: number;
+}
+
+export interface PhaseChange {
+  sessionName: string;
+  title: string;
+  prescription: string;
+}

@@ -3,13 +3,13 @@
     native, so this is a thin typed wrapper over the same calls rather than
     a bridge. Method names deliberately match EngineBridge's so the Swift
     source stays a readable reference during the port. */
-import type { BlockInfo, Decision, Phase, IntervalConfig, RenderedExercise } from './types';
+import type { BlockInfo, Decision, Phase, IntervalConfig, RenderedExercise, ReturnInfo, PhaseChange } from './types';
 
 const core = require('./engine-core.js');
 
 export const SESSION_ORDER = Object.freeze([...core.ORDER]) as readonly string[];
 
-export type { BlockInfo, Decision, Phase, IntervalConfig, RenderedExercise };
+export type { BlockInfo, Decision, Phase, IntervalConfig, RenderedExercise, ReturnInfo, PhaseChange };
 
 export function createEngine(program: any, data: { sessionLog: any; loadLog: any }) {
   const e = core.createEngine(program, data);
@@ -25,6 +25,9 @@ export function createEngine(program: any, data: { sessionLog: any; loadLog: any
     upNext: () => e.upNext(),
     forecast: (days: number) => e.forecast(days),
     phaseIndexAt: (b: number): number => e.phaseIndexAt(b),
+    returnInfo: (date: string): ReturnInfo | null => e.returnInfo(date),
+    phaseRange: (index: number): string => e.phaseRange(index),
+    phaseChanges: (phaseName: string): PhaseChange[] => phaseChanges(program, phaseName),
     get phases(): Phase[] { return program.phases ?? []; },
     programStartDate: (): string | undefined => program.startDate,
     sessionColourVarName: (key: string): string => program.sessions?.[key]?.c ?? '--gorse',
@@ -83,6 +86,28 @@ function resolveExercises(e: any, program: any, key: string, date: string, phase
       restSeconds: ex?.r ?? undefined,
       weightKg, weightIsBump, hasWeightTracking, step, interval,
     });
+  }
+  return out;
+}
+
+/** Faithful port of EngineBridge.phaseChanges(_:) — every exercise, across
+    every session, that carries a `ph` override for this specific phase
+    name, derived from the data rather than written out by hand so it can
+    never drift from what resolveEx()/resolveExercises() actually applies. */
+function phaseChanges(program: any, phaseName: string): PhaseChange[] {
+  const out: PhaseChange[] = [];
+  const sessions = program.sessions;
+  if (!sessions) return out;
+  for (const key of SESSION_ORDER) {
+    const session = sessions[key];
+    const list = session?.x;
+    if (!session || !Array.isArray(list)) continue;
+    const sessionName: string = session.n ?? '?';
+    for (const ex of list) {
+      const override = ex?.ph?.[phaseName];
+      if (override == null) continue;
+      out.push({ sessionName, title: ex.t ?? '?', prescription: String(override) });
+    }
   }
   return out;
 }
