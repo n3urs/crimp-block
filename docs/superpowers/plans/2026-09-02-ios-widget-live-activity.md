@@ -430,10 +430,12 @@ Add to `deadpoint-rn/package.json`'s `dependencies`: `"rest-timer-activity": "fi
 
 ```bash
 cd deadpoint-rn && npm install
-LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8 npx expo prebuild --platform ios --clean
+LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8 npx expo prebuild --platform ios
 sed -i '' 's/ENABLE_USER_SCRIPT_SANDBOXING = YES;/ENABLE_USER_SCRIPT_SANDBOXING = NO;/g' ios/Deadpoint.xcodeproj/project.pbxproj
 npx expo run:ios --device "iPhone 17"
 ```
+
+**No `--clean` here, deliberately — this is a change from earlier tasks.** Task 3 discovered live that a `--clean` prebuild's full `ios/` regeneration causes the next simulator install to wipe the app's signed-in session (Keychain-backed Supabase session lost, landing back on the sign-in gate) — likely because entitlements/provisioning are being treated as changed, triggering a fresh container. This task adds a new local native module but does not change any entitlement, App Group, or bundle identifier — a non-`--clean` `expo prebuild` regenerates the config-plugin-managed files (registering the new module) without the full wipe, and should preserve whatever signed-in session is already on the simulator. If the build fails specifically because the new native module isn't being picked up (not a compile error in your own ported code), THEN fall back to `--clean` as a last resort and accept the session will need to be signed back in again — but try without it first.
 
 Confirm the build succeeds — this is a build-only verification for this task (Task 5 wires the actual JS call site that exercises this module live; there is no UI trigger for it yet).
 
@@ -463,10 +465,12 @@ No `Platform.OS` guard needed at this call site — the module's own `index.ts` 
 
 ```bash
 cd deadpoint-rn
-LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8 npx expo prebuild --platform ios --clean
+LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8 npx expo prebuild --platform ios
 sed -i '' 's/ENABLE_USER_SCRIPT_SANDBOXING = YES;/ENABLE_USER_SCRIPT_SANDBOXING = NO;/g' ios/Deadpoint.xcodeproj/project.pbxproj
 npx expo run:ios --device "iPhone 17"
 ```
+
+No `--clean` here either, same reasoning as Task 4 Step 5 — this task only touches `useRestTimer.ts` (pure JS), nothing native-config-shaped changes, and this task's own live verification (Steps 3–5 below) absolutely requires a signed-in session to reach the daily card and start a real rest timer. If a signed-in session isn't already present on the simulator from earlier work, this is the point to stop and ask a human to sign in once — do not attempt to sign in yourself, and do not skip Steps 3–5 silently if you can't reach a signed-in state.
 
 - [ ] **Step 3: Live-verify — start**
 
