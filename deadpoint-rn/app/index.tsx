@@ -227,6 +227,7 @@ export default function Index() {
       profileFetchFailed,
       paywallEnabled: PAYWALL_ENABLED,
       entitlementLoaded: entitlement.loaded,
+      entitlementFetchFailed: entitlement.failed,
     })
   ) {
     route = computeRoute({
@@ -261,6 +262,30 @@ export default function Index() {
         <Text style={styles.body}>Check your connection and try again.</Text>
         <Pressable
           onPress={() => { profile.reload().catch((e) => console.error('index: retry reload failed:', e)); }}
+          style={styles.button}
+          accessibilityRole="button"
+          accessibilityLabel="Try again"
+        >
+          <Text style={styles.buttonText}>TRY AGAIN</Text>
+        </Pressable>
+      </View>
+    );
+  }
+
+  // Gated on PAYWALL_ENABLED for the same reason hasActiveSubscription and
+  // isRouteReady's own check are: with the flag off (its current, shipped
+  // value) this must stay unreachable, not merely unlikely — entitlement
+  // .failed genuinely IS true today (the placeholder RevenueCat key can't
+  // reach real servers), and showing this screen unconditionally would be
+  // a real regression Task 4's whole "byte for byte identical while
+  // PAYWALL_ENABLED is false" proof was built to rule out.
+  if (PAYWALL_ENABLED && entitlement.failed) {
+    return (
+      <View style={styles.root}>
+        <Text style={styles.title}>Couldn't check your subscription</Text>
+        <Text style={styles.body}>Check your connection and try again.</Text>
+        <Pressable
+          onPress={() => { entitlement.refresh().catch((e) => console.error('index: retry entitlement refresh failed:', e)); }}
           style={styles.button}
           accessibilityRole="button"
           accessibilityLabel="Try again"

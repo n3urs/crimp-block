@@ -47,27 +47,59 @@ export function hasEntitlement(customerInfo: CustomerInfo | null | undefined, en
   return Boolean(customerInfo?.entitlements?.active?.[entitlementId]);
 }
 
-/** Called once at app root (app/_layout.tsx). Android is out of scope —
-    the app only ships on iOS today (matches the Platform.OS guard style
-    already established in useRestTimer.ts's ensurePermission()). */
+/** Android is out of scope — the app only ships on iOS today (matches the
+    Platform.OS guard style already established in useRestTimer.ts's
+    ensurePermission()). */
 export function configureRevenueCat(): void {
   if (Platform.OS !== 'ios') return;
   Purchases.configure({ apiKey: REVENUECAT_API_KEY_IOS });
 }
 
+// Called once, at module load — not from a useEffect in app/_layout.tsx
+// (where Task 2/4 originally put it). Task 4's review traced a LogBox
+// toast seen on a genuine cold launch ("There...") and found it matches
+// UninitializedPurchasesError's message at least as plausibly as a
+// credentials rejection — meaning RootLayout's own configure-on-mount
+// effect may not have run yet by the time a child screen's
+// useEntitlement() effect fires. React runs effects child-before-parent
+// within one commit, so if expo-font's useFonts ever resolves
+// synchronously (e.g. fonts already registered), RootLayout and its first
+// child could mount in the same commit — Index's effect would then win
+// the race. Module evaluation order removes the race outright: every
+// importer of this file (app/_layout.tsx, app/index.tsx, app/paywall.tsx)
+// triggers this exactly once, and it runs before any of their component
+// code, let alone an effect, ever executes. Kept in its own try/catch
+// (not the caller's) so a bad key can't crash bundle evaluation itself.
+try {
+  configureRevenueCat();
+} catch (e) {
+  console.error('configureRevenueCat failed:', e);
+}
+
 export function useEntitlement() {
   const [hasActiveSubscription, setHasActiveSubscription] = useState(false);
   const [loaded, setLoaded] = useState(false);
+  // Distinct from hasActiveSubscription=false: that value alone can't
+  // tell "checked and genuinely not subscribed" apart from "the check
+  // itself failed" (network hiccup, SDK not yet configured, etc). Task 4's
+  // review flagged this conflation as a latent payment-UX bug — once the
+  // paywall gate is live, a real subscriber hitting a transient failure
+  // would otherwise be routed to the paywall with no way back short of
+  // manually tapping RESTORE PURCHASES. app/index.tsx wires this into a
+  // retry screen, the same shape as the existing profileFetchFailed one.
+  const [failed, setFailed] = useState(false);
 
   const refresh = useCallback(async () => {
     try {
       const customerInfo = await Purchases.getCustomerInfo();
       setHasActiveSubscription(hasEntitlement(customerInfo, ENTITLEMENT_ID));
+      setFailed(false);
     } catch (e) {
       // Never trust a stale cache as a fallback here: a failed check
       // must deny access, not silently keep whatever was there before.
       console.error('useEntitlement.refresh failed:', e);
       setHasActiveSubscription(false);
+      setFailed(true);
     } finally {
       setLoaded(true);
     }
@@ -77,7 +109,7 @@ export function useEntitlement() {
     refresh();
   }, [refresh]);
 
-  return { hasActiveSubscription, loaded, refresh };
+  return { hasActiveSubscription, loaded, failed, refresh };
 }
 
 /** Task 3.5: the two configured packages (£0.99/month with a 7-day trial,

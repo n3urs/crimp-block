@@ -140,6 +140,14 @@ export interface RouteReadinessInputs {
       built-in account (its route never reads hasActiveSubscription either)
       or a signed-out one, same as profileLoaded above. */
   entitlementLoaded: boolean;
+  /** useEntitlement().failed — true only when the RevenueCat check itself
+      threw (network, misconfiguration), never for a genuine "checked and
+      not subscribed" answer (subscription.ts's own doc comment on the
+      `failed` field explains why that distinction has to exist at all).
+      Same irrelevant-while-paywallEnabled-is-false treatment as
+      entitlementLoaded above, and for the same reason: this must not add
+      a stall — or a wrongful retry screen — to a shipped, flag-off build. */
+  entitlementFetchFailed: boolean;
 }
 
 export function isRouteReady(inputs: RouteReadinessInputs): boolean {
@@ -156,7 +164,13 @@ export function isRouteReady(inputs: RouteReadinessInputs): boolean {
   // Only ever waits on this when the paywall is actually on — with
   // paywallEnabled false this line can't fire, so this is a strict
   // no-op today, preserving the exact prior return value (profileLoaded)
-  // byte for byte.
+  // byte for byte. Checked ahead of entitlementLoaded below even though
+  // useEntitlement() sets `loaded: true` in its own finally block either
+  // way (so entitlementLoaded would already be true on a failure too) —
+  // ordering it first mirrors profileFetchFailed vs. profileLoaded above
+  // and keeps the two checks meaning what their names say, rather than
+  // relying on one subsuming the other by accident of implementation.
+  if (inputs.paywallEnabled && inputs.entitlementFetchFailed) return false;
   if (inputs.paywallEnabled && !inputs.entitlementLoaded) return false;
   return true;
 }

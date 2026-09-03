@@ -166,8 +166,9 @@ const readyBase: RouteReadinessInputs = {
   builtInSeen: null, profileLoaded: true, profileFetchFailed: false,
   // Defaults to the real PAYWALL_ENABLED value (false) so every
   // pre-existing test below keeps its original meaning untouched —
-  // entitlementLoaded is irrelevant whenever paywallEnabled is false.
-  paywallEnabled: false, entitlementLoaded: false,
+  // entitlementLoaded/entitlementFetchFailed are irrelevant whenever
+  // paywallEnabled is false.
+  paywallEnabled: false, entitlementLoaded: false, entitlementFetchFailed: false,
 };
 
 test('not ready: authReady still false', () => {
@@ -253,5 +254,28 @@ test('ready: built-in account ignores entitlement.loaded entirely, even with the
   expect(isRouteReady({
     ...readyBase, isBuiltInProgram: true, builtInSeen: true, profileLoaded: false,
     paywallEnabled: true, entitlementLoaded: false,
+  })).toBe(true);
+});
+
+// Task 4 review fix: useEntitlement().failed distinguishes "the check
+// itself errored" from "checked and genuinely not subscribed" — see
+// subscription.ts's own doc comment on that field. isRouteReady must fail
+// closed on the former (hold on a retry screen) rather than either sailing
+// through as ready or spinning forever, since `loaded` turns true in
+// useEntitlement's finally block on this path too.
+test('ready: paywall disabled — never blocks on entitlement.failed either', () => {
+  expect(isRouteReady({ ...readyBase, paywallEnabled: false, entitlementFetchFailed: true })).toBe(true);
+});
+
+test('not ready: paywall enabled, the entitlement check itself failed', () => {
+  expect(isRouteReady({
+    ...readyBase, paywallEnabled: true, entitlementLoaded: true, entitlementFetchFailed: true,
+  })).toBe(false);
+});
+
+test('ready: built-in account ignores entitlement.failed entirely, even with the paywall enabled', () => {
+  expect(isRouteReady({
+    ...readyBase, isBuiltInProgram: true, builtInSeen: true, profileLoaded: false,
+    paywallEnabled: true, entitlementLoaded: true, entitlementFetchFailed: true,
   })).toBe(true);
 });

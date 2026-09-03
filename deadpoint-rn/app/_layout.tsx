@@ -1,11 +1,19 @@
-import { useEffect } from 'react';
 import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
 import { View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Colours } from '../src/design/colours';
-import { configureRevenueCat } from '../src/data/subscription';
+// Side-effect-only import: RevenueCat's SDK is now configured as a
+// module-scope statement inside subscription.ts itself (Task 4's review
+// found the previous useEffect-based call here raced a child screen's own
+// entitlement check on cold launch; see that file's own doc comment on
+// configureRevenueCat's call site for the full reasoning). app/index.tsx
+// also imports from subscription.ts, and ES module evaluation happens
+// once per process no matter which importer triggers it first — but this
+// import stays here anyway, at the true app root, so the guarantee
+// doesn't quietly depend on Metro never lazy-loading a screen bundle.
+import '../src/data/subscription';
 
 export default function RootLayout() {
   const [loaded] = useFonts({
@@ -14,20 +22,6 @@ export default function RootLayout() {
     'RobotoMono-Medium': require('../assets/fonts/RobotoMono-Medium.ttf'),
     'SpaceMono-Bold': require('../assets/fonts/SpaceMono-Bold.ttf'),
   });
-
-  // Once, at true app root. PAYWALL_ENABLED is still false (Task 2 of
-  // this plan) so nothing reads the resulting entitlement state yet —
-  // this just gets RevenueCat's SDK primed for when Task 4 turns the
-  // gate on. The placeholder API key in subscription.ts can't reach
-  // RevenueCat's servers; catch+log rather than letting a bad key (or
-  // any future real misconfiguration) crash launch.
-  useEffect(() => {
-    try {
-      configureRevenueCat();
-    } catch (e) {
-      console.error('configureRevenueCat failed:', e);
-    }
-  }, []);
 
   // Holding on the app's own background colour rather than white avoids
   // a light flash on launch against this dark UI.
