@@ -41,6 +41,14 @@ export interface RenderedExercise {
   restSeconds?: number;
   weightKg?: number;
   weightIsBump: boolean;
+  /** True when weightKg is a suggestion carried forward from the most
+      recent weight logged under a DIFFERENT (earlier) phase, not one
+      confirmed within the current phase — see engine-core.js's target()
+      for why that distinction exists. Deliberately kept separate from
+      weightIsBump (a real, same-phase progression) rather than folded
+      into it — the two mean different things even though the UI
+      highlights both the same way. */
+  weightIsCarriedOver: boolean;
   hasWeightTracking: boolean;
   step: number;
   interval?: IntervalConfig;

@@ -266,7 +266,13 @@ export function ExerciseRow({
                 <WeightBadge
                   ref={weightRef}
                   label={formatWeightKg(ex.weightKg)}
-                  colour={ex.weightIsBump ? accent : Colours.dim}
+                  // Both a real progression bump and a weight carried over
+                  // from an earlier phase (see RenderedExercise.weightIsCarriedOver's
+                  // own doc comment) get the same accent highlight — the
+                  // point of the colour is "look at this number," which is
+                  // true either way, even though the two mean different
+                  // things underneath.
+                  colour={ex.weightIsBump || ex.weightIsCarriedOver ? accent : Colours.dim}
                   onPress={onTapWeight ? () => onTapWeight(ex) : undefined}
                   accessibilityLabel={`Edit recorded weight for ${ex.title}, currently ${formatWeightKg(ex.weightKg)}`}
                 />

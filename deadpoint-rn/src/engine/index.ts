@@ -64,11 +64,12 @@ function resolveExercises(e: any, program: any, key: string, date: string, phase
 
     let weightKg: number | undefined;
     let weightIsBump = false;
+    let weightIsCarriedOver = false;
     let step = 2.5;
     if (hasWeightTracking) {
       if (ex.step != null) step = ex.step;
       const tg = e.target(ex, date);
-      if (tg != null) { weightKg = tg.kg; weightIsBump = tg.bump ?? false; }
+      if (tg != null) { weightKg = tg.kg; weightIsBump = tg.bump ?? false; weightIsCarriedOver = tg.carriedOver ?? false; }
     }
 
     const iv = ex?.interval;
@@ -84,7 +85,7 @@ function resolveExercises(e: any, program: any, key: string, date: string, phase
       phaseAdjusted: base.m != null && base.m !== m,
       description: ex?.d ?? undefined,
       restSeconds: ex?.r ?? undefined,
-      weightKg, weightIsBump, hasWeightTracking, step, interval,
+      weightKg, weightIsBump, weightIsCarriedOver, hasWeightTracking, step, interval,
     });
   }
   return out;

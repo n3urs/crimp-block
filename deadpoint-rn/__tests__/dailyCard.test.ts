@@ -41,6 +41,7 @@ function makeExercise(id: string): RenderedExercise {
     prescription: '3 x 10',
     phaseAdjusted: false,
     weightIsBump: false,
+    weightIsCarriedOver: false,
     hasWeightTracking: false,
     step: 2.5,
   };

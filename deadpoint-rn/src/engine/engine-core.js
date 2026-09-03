@@ -299,7 +299,26 @@ function createEngine(program, data){
     if(set) return {kg:set.kg, bump:false, set:true};
 
     var past = loadHistory(e.id, date);
-    if(!past.length) return null;
+    if(!past.length){
+      /* Nothing logged in THIS phase yet — loadHistory() scopes to the
+         current phase name on purpose (its own doc comment: a phase that
+         recurs later shares history with itself, a different phase
+         doesn't). But "nothing in this phase" used to mean "nothing at
+         all" here, so crossing into a brand new phase blanked every
+         weight-tracked exercise back to the from-scratch "SET kg"
+         placeholder, even for an exercise (same id, same movement) the
+         lifter has been loading for months under a different phase name.
+         Oscar's report: carry the most recent weight forward as a
+         starting point instead — never invent a scaled-up or -down
+         number (that is exactly the kind of hand-administered call this
+         function otherwise defers to a human for), just stop discarding
+         a real number in favour of a blank one. Never bumped, and never
+         mistaken for `set` — this is a suggestion carried across a
+         boundary, not a confirmed same-phase repeat. */
+      var anyPast = LoadsFacade.history(e.id).filter(function(r){ return r.date<date; });
+      if(!anyPast.length) return null;
+      return {kg:anyPast[0].kg, bump:false, carriedOver:true};
+    }
 
     var last = past[0];
     if(isDeload(date)) return {kg:last.kg, bump:false};
