@@ -24,6 +24,7 @@ import { useRestTimer } from '../../src/components/timers/useRestTimer';
 import { useIntervalTimer } from '../../src/components/timers/useIntervalTimer';
 import { leadingInt } from '../../src/components/timers/intervalTimerLogic';
 import { getStoredTicks, setStoredTicks } from '../../src/data/tickStorage';
+import { cardMessage } from '../../src/components/daily-card/cardMessage';
 import { syncForecast } from '../../src/widget/syncForecast';
 
 // programs.js is plain JS (no .d.ts), same require-not-import pattern the
@@ -197,14 +198,18 @@ export default function Card() {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- store.get is a fresh closure every render; store.days is what it actually reads
   }, [engine, today, store.days]);
 
-  // cardMessage's real computation (Swift's cardMessage(for:isLogged:):
-  // deload/easing-back guidance, else the session's own note, in that
-  // priority) is explicitly out of scope for this task per the brief — no
-  // task through 12 has ported it. This is a placeholder, not the real
-  // thing: just the session's own note, with no deload/isReturning
-  // branching. A future task must port DailyCardView.swift:315-354
-  // faithfully to replace this.
-  const cardMessage: string = info?.note ?? '';
+  // Real now — see src/components/daily-card/cardMessage.ts. Was a
+  // placeholder (`info?.note ?? ''`) through the whole RN port; the deload
+  // and easing-back guidance it should have been showing was missing
+  // entirely, which matters most in exactly the week it applies to.
+  const message = cardMessage({
+    sessionKey: displayKey,
+    isDeload: block.w === 4,
+    isReturning: engine.isReturning(today),
+    isClimb: info?.climb != null,
+    isLogged,
+    note: info?.note ?? null,
+  });
 
   const scrollRef = useRef<React.Component | null>(null);
   const { width: containerWidth } = useWindowDimensions();
@@ -292,7 +297,7 @@ export default function Card() {
       ticks={ticks}
       onToggleTick={onToggleTick}
       isLogged={isLogged}
-      cardMessage={cardMessage}
+      cardMessage={message}
       weekDays={weekDays}
       // Settings and plan screens still aren't built by any task through
       // Phase 4 — safe no-ops so the strip/icon/badge still render
