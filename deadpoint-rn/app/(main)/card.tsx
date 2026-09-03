@@ -303,14 +303,7 @@ export default function Card() {
       // Phase 4 — safe no-ops so the strip/icon/badge still render
       // (matching Swift's real signed-in card always supplying all of
       // these), same "no-op until a later phase" precedent already used
-      // for ExerciseRow's onTapRest/onStartInterval. NOT hypothetical:
-      // oscar@sullivanltd.co.uk's real climbHard session already has a
-      // `guide` field (programs.js), so the pill genuinely renders and
-      // no-ops on his real account today, not just someday. Task 12's
-      // brief explicitly scopes SessionGuideView's real modal as out of
-      // this task's scope (no task has ported it yet) — this is a real,
-      // live gap worth prioritising in whatever plan covers it next, not
-      // a someday nice-to-have.
+      // for ExerciseRow's onTapRest/onStartInterval.
       //
       // onTapCalendar is real now (Phase 4 Task 6) — pushes the modal
       // route at app/(main)/calendar.tsx, which owns its own independent
@@ -340,7 +333,11 @@ export default function Card() {
       // resolves its own independent session/store/program rather than
       // sharing this screen's state, same pattern as onTapDay/onTapSettings.
       onTapPhaseBadge={() => router.push('/plan')}
-      onTapGuide={() => {}}
+      // Now real (this plan's follow-up fix) — pushes the modal route at
+      // app/session-guide.tsx, which resolves the guide content itself
+      // from just the session key, same "own independent resolution"
+      // pattern as onTapDay/onTapSettings/onTapPhaseBadge above.
+      onTapGuide={() => router.push({ pathname: '/session-guide', params: { key: displayKey } })}
       phaseName={phaseName}
       weekNumber={block.w}
       today={today}

@@ -106,6 +106,15 @@ export default function RootLayout() {
               other screens above: app/plan-phase.tsx lives directly
               under app/, so its route name is just "plan-phase". */}
           <Stack.Screen name="plan-phase" options={{ presentation: 'modal' }} />
+          {/* Session guide modal — direct port of SessionGuideView.swift.
+              Reached from the "GUIDE" pill under a session's title on the
+              daily card and in the tutorial (both wired their onTapGuide
+              to this as a real navigation, replacing the `() => {}`
+              no-op every task through Phase 4 left in place). Same
+              not-group-qualified reasoning as the other screens above:
+              app/session-guide.tsx lives directly under app/, so its
+              route name is just "session-guide". */}
+          <Stack.Screen name="session-guide" options={{ presentation: 'modal' }} />
           {/* Subscription paywall (Task 3, this plan) — direct port
               structurally similar to the modals above (app/paywall.tsx
               lives directly under app/, so its route name is just
