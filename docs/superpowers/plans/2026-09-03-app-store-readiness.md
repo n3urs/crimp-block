@@ -21,12 +21,16 @@
 - Verification is local-build-only, never Xcode GUI. `expo prebuild --platform ios` needs `LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8`.
 - Work only in `deadpoint-rn/` (and `supabase/`) inside the worktree `/Users/oscarsullivan/crimp-block/.worktrees/react-native-rebuild`, on branch `react-native-rebuild`.
 
+## Pricing (added after Task 2 shipped — Task 3.5 below, not a rewrite of Tasks 1-2)
+
+Two tiers, not one: **£0.99/month** (7-day free trial) or **£9.99/year**, user's choice on the paywall. Both grant the exact same `standard` entitlement — RevenueCat doesn't care which one someone bought, `hasEntitlement()` from Task 2 needs no change at all. Only the *purchase* side needs to know which package the user picked, not the *check* side.
+
 ## What Oscar must do himself (blocking for Task 4's live verification only)
 
 Not agent-doable — flag these to him early so they happen in parallel with Tasks 1–3:
 1. **App Store Connect → Agreements, Tax, and Banking** — sign the Paid Applications Agreement, add banking + tax details. Without this, subscription products cannot go live at all.
-2. **App Store Connect → create the subscription product** — a monthly auto-renewable subscription with a 7-day free trial, matching the paywall's existing copy (£0.99/month). Note its product ID.
-3. **RevenueCat** — create an account + project, connect it to App Store Connect, add the product to an Offering, create an Entitlement (suggested identifier: `standard`), and copy the **public** Apple SDK key.
+2. **App Store Connect → create TWO subscription products, in the SAME subscription group** (same group is what makes them mutually-exclusive tiers of one thing, not two separate purchases someone could hold at once): a monthly auto-renewable at £0.99 with a 7-day free trial, and an annual auto-renewable at £9.99. Note both product IDs.
+3. **RevenueCat** — create an account + project, connect it to App Store Connect, add BOTH products to the same Offering (RevenueCat's own `monthly`/`annual` package-type shortcuts are the natural fit — use those, not arbitrary custom identifiers, so `offerings.current.monthly`/`.annual` resolve directly instead of a manual find-by-id), create ONE Entitlement (suggested identifier: `standard`) attached to both products, and copy the **public** Apple SDK key.
 4. Give the agent the entitlement identifier and public SDK key.
 
 ---
@@ -246,6 +250,51 @@ cd deadpoint-rn && git add -A && git commit -m "feat: wire real purchase/restore
 
 ---
 
+### Task 3.5: Two pricing tiers — monthly and annual (added after Task 3 landed)
+
+Oscar decided on two options rather than one: **£0.99/month** with the existing 7-day trial, or **£9.99/year**. This task changes `purchaseStandard()`'s signature and the paywall's layout — do this as its own reviewed step rather than folding it into Task 3, since Task 3 already shipped against the single-package assumption.
+
+**Files:**
+- Modify: `deadpoint-rn/src/data/subscription.ts` (`purchaseStandard` takes which package to buy, rather than always grabbing the first one)
+- Modify: `deadpoint-rn/src/data/__tests__/subscription.test.ts` if `purchaseStandard`'s new shape has anything pure/testable about it (the SDK call itself still isn't unit-testable — same reasoning as Task 2)
+- Modify: `deadpoint-rn/app/paywall.tsx` (two selectable price rows instead of one price line)
+
+**Interfaces:**
+- `purchaseStandard(pkg: PurchasesPackage): Promise<void>` — was `purchaseStandard(): Promise<void>`. The caller (paywall) now owns picking which package; `purchaseStandard` no longer reaches into `getOfferings()` to guess.
+- New: a way for the paywall to list both packages to choose from — read them directly off `useEntitlement`'s own `Purchases.getOfferings()` call, or add a small `useOfferings()` alongside `useEntitlement` in `subscription.ts` if that's cleaner; use your judgement, but don't duplicate the offerings-fetch logic in two places.
+
+- [ ] **Step 1: Read Task 3's actual landed code first**
+
+Task 3 already wired `onSubscribe` against the old single-package `purchaseStandard()` — read `app/paywall.tsx` and `src/data/subscription.ts` as they now exist (not as the original brief described them) before changing either.
+
+- [ ] **Step 2: Update `purchaseStandard`**
+
+Change its signature to take the chosen `PurchasesPackage` and pass it straight to `Purchases.purchasePackage(pkg)` — remove the internal `getOfferings()` call entirely, that responsibility moves to the paywall screen. Keep the existing cancelled-purchase handling (`e.userCancelled` swallowed, everything else re-thrown) exactly as Task 2 wrote it.
+
+- [ ] **Step 3: Fetch offerings in the paywall**
+
+In `paywall.tsx`, fetch `Purchases.getOfferings()` on mount (a plain `useEffect` + `useState`, matching the existing codebase convention for a one-shot async fetch on a screen — e.g. how `weight-edit.tsx`/`day-picker.tsx` resolve their own data). Prefer `offerings.current?.monthly` and `offerings.current?.annual` (RevenueCat's own typed shortcuts, matching how Oscar was asked to set up the Offering in RevenueCat) over manually searching `availablePackages` by identifier. If either is missing (Offering not fully configured yet), disable that specific option rather than crashing the whole screen — this must render sensibly against the current placeholder RevenueCat setup, not just the eventual real one.
+
+- [ ] **Step 4: Update the UI**
+
+Replace the single `<Text style={styles.price}>` line with two selectable rows — a monthly option and an annual one, each showing its real price (`pkg.product.priceString`, RevenueCat's own localized, currency-correct price string — do not hand-write "£0.99"/"£9.99" as static copy, since the real product's actual price is the source of truth and could differ by region or if Oscar changes it later). Track which one is selected in local state, defaulting to monthly (matches the existing trial-focused copy). `onSubscribe` passes the selected package to `purchaseStandard`.
+
+- [ ] **Step 5: Verify**
+
+```bash
+cd deadpoint-rn && npx jest && npx tsc --noEmit && npx expo run:ios --device "iPhone 17"
+```
+
+Same deep-link approach as Task 3 (`xcrun simctl openurl <udid> "deadpointrn:///paywall"`) to confirm both options render, are individually selectable, and show real price strings (or a sensible disabled state, given the RevenueCat Offering isn't fully configured until Task 5).
+
+- [ ] **Step 6: Commit**
+
+```bash
+cd deadpoint-rn && git add -A && git commit -m "feat: two subscription tiers on the paywall (monthly / annual)"
+```
+
+---
+
 ### Task 4: The routing gate (ships off) + live verification
 
 **Files:**
@@ -299,7 +348,7 @@ cd deadpoint-rn && git add -A && git commit -m "feat: subscription routing gate 
 
 - [ ] **Step 1:** Replace the placeholder API key and, if different, `ENTITLEMENT_ID`.
 - [ ] **Step 2:** Flip `PAYWALL_ENABLED` to `true` and delete the test asserting it is false.
-- [ ] **Step 3:** Verify against a real StoreKit sandbox account: a fresh sandbox user sees the paywall, can complete a purchase, and lands on the daily card; force-quitting and relaunching keeps them in; RESTORE PURCHASES works on a reinstall.
+- [ ] **Step 3:** Verify against a real StoreKit sandbox account: a fresh sandbox user sees the paywall with BOTH real prices showing, can complete a purchase on EITHER tier (test at least one, ideally both across two sandbox accounts since they're separate purchases), and lands on the daily card; force-quitting and relaunching keeps them in; RESTORE PURCHASES works on a reinstall regardless of which tier was purchased.
 - [ ] **Step 4:** Verify Oscar's own account (a built-in program) still bypasses the paywall entirely.
 - [ ] **Step 5:** Bump `ios.buildNumber`, archive, and hand to Oscar for upload.
 
