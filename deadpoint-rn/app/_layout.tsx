@@ -118,14 +118,22 @@ export default function RootLayout() {
               "paywall"), but deliberately NOT given `presentation:
               'modal'` like every screen above: a modal is
               swipe-dismissable on iOS, which would let anyone swipe past
-              a screen meant to be a hard gate. Omitting `options`
-              entirely uses native-stack's default 'card' presentation
-              instead. Nobody can reach this route yet — PAYWALL_ENABLED
-              is still false and no caller navigates here (Task 4 wires
-              the actual gate); this registration only makes the route
-              addressable for manual/deep-link verification now and for
-              Task 4 to route into later. */}
-          <Stack.Screen name="paywall" />
+              a screen meant to be a hard gate. `gestureEnabled: false`
+              closes the other half of that same gap: 'card' presentation
+              (the default, used here) still supports the interactive
+              edge-swipe-back gesture on iOS by default when there IS a
+              screen underneath to reveal — a defeated hard gate is a real
+              payment bypass, not a cosmetic issue, so this doesn't rely
+              on every future caller remembering to navigate here with
+              `router.replace` rather than `router.push` (Task 3's own
+              report flagged exactly this as worth hardening rather than
+              trusting caller discipline alone). Nobody can reach this
+              route yet — PAYWALL_ENABLED is still false and no caller
+              navigates here (Task 4 wires the actual gate); this
+              registration only makes the route addressable for manual/
+              deep-link verification now and for Task 4 to route into
+              later. */}
+          <Stack.Screen name="paywall" options={{ gestureEnabled: false }} />
         </Stack>
       </SafeAreaProvider>
     </GestureHandlerRootView>
