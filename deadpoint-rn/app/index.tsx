@@ -115,6 +115,7 @@ import { useProfile } from '../src/data/useProfile';
 import { getHasSeenWelcome, hasSeenBuiltInTutorial } from '../src/data/deviceFlags';
 import { supabase } from '../src/data/supabase';
 import { computeRoute, isBuiltInProgram, isRouteReady, type Route } from '../src/routing/computeRoute';
+import { PAYWALL_ENABLED, useEntitlement } from '../src/data/subscription';
 import { Colours, resolveColour } from '../src/design/colours';
 import { Fonts } from '../src/design/fonts';
 
@@ -127,6 +128,15 @@ export default function Index() {
   const email = session?.user?.email ?? null;
   const userId = session?.user?.id ?? '';
   const profile = useProfile(userId);
+
+  // Task 4: always called (rules of hooks — its result must not be
+  // conditional on PAYWALL_ENABLED), but its answer only ever reaches
+  // computeRoute() when PAYWALL_ENABLED is true — see hasActiveSubscription
+  // below. With the flag false (its current, shipped value) this hook's
+  // fetch still runs in the background but nothing waits on or branches
+  // on its result: isRouteReady's own paywallEnabled/entitlementLoaded
+  // handling guarantees cold launch never blocks on it either.
+  const entitlement = useEntitlement();
 
   // See top doc comment (adaptation 1): flips true the first time the
   // real auth state is known, in sync with useSession's own `session`
@@ -180,6 +190,17 @@ export default function Index() {
   // against computeRoute.ts's isBuiltInProgram branch).
   const profileFetchFailed = !builtIn && profile.hasError;
 
+  // Task 4: the whole "provably inert until the flag flips" guarantee
+  // lives in this one line. With PAYWALL_ENABLED false (its current,
+  // shipped value) this is unconditionally `true` — full stop, short-
+  // circuiting before entitlement.hasActiveSubscription is ever read — so
+  // computeRoute() structurally cannot return '/paywall' no matter what
+  // RevenueCat reports. There is no other code path that computes this
+  // value; both the readiness check below and the computeRoute() call
+  // further down consume this same single derivation, so they can't
+  // disagree with each other.
+  const hasActiveSubscription = !PAYWALL_ENABLED || entitlement.hasActiveSubscription;
+
   // Fix 3 (cont'd): computed ONCE per render, from the same readiness gate
   // and the same computeRoute() call — both the router.replace() effect
   // below and isRehabComingSoon's inline render decision derive from this
@@ -204,6 +225,8 @@ export default function Index() {
       builtInSeen,
       profileLoaded: profile.loaded,
       profileFetchFailed,
+      paywallEnabled: PAYWALL_ENABLED,
+      entitlementLoaded: entitlement.loaded,
     })
   ) {
     route = computeRoute({
@@ -220,6 +243,7 @@ export default function Index() {
       quizCompletedAt: profile.row?.quizCompletedAt ?? null,
       tutorialCompletedAt: profile.row?.tutorialCompletedAt ?? null,
       trackType: profile.row?.trackType ?? null,
+      hasActiveSubscription,
     });
   }
 

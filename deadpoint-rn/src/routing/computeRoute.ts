@@ -6,7 +6,7 @@
     renders in place, this returns which single route the caller should
     router.replace() to. */
 
-export type Route = '/welcome' | '/sign-in' | '/quiz' | '/tutorial' | '/rehab-coming-soon' | '/card';
+export type Route = '/welcome' | '/sign-in' | '/quiz' | '/tutorial' | '/rehab-coming-soon' | '/paywall' | '/card';
 
 export interface RouteInputs {
   hasSeenWelcome: boolean;
@@ -17,6 +17,11 @@ export interface RouteInputs {
   quizCompletedAt: string | null;
   tutorialCompletedAt: string | null;
   trackType: string | null;
+  /** Whether this account currently holds the paid entitlement. Read only
+      for non-built-in accounts, after quiz+tutorial — see the gate below.
+      Irrelevant (and never read) for a built-in account, whose branch
+      above returns before this field is ever consulted. */
+  hasActiveSubscription: boolean;
 }
 
 export function computeRoute(inputs: RouteInputs): Route {
@@ -37,10 +42,14 @@ export function computeRoute(inputs: RouteInputs): Route {
   if (inputs.quizCompletedAt == null) return '/quiz';
   if (inputs.tutorialCompletedAt == null) return '/tutorial';
 
-  // TODO(Phase 7): real subscription gate goes here, between the
-  // tutorial check above and the track-routing below — see the Phase 5
-  // design spec's Decision 4 for why it's deliberately absent for now
-  // (needsPaywall is hardcoded false; real IAP is Phase 7).
+  // Phase 7 gate: only a non-built-in account reaches this line (the
+  // isBuiltInProgram branch above already returned), and only after quiz
+  // and tutorial are both done — so this can never preempt onboarding, and
+  // never applies to a built-in account regardless of hasActiveSubscription.
+  // Sits above the trackType check below on purpose: an unsubscribed
+  // rehab-track user must hit the paywall too, not slip through to
+  // /rehab-coming-soon unchecked.
+  if (!inputs.hasActiveSubscription) return '/paywall';
 
   if (inputs.trackType === 'rehab') return '/rehab-coming-soon';
   return '/card';
@@ -116,6 +125,21 @@ export interface RouteReadinessInputs {
       derivation. Irrelevant for a built-in account (its route never reads
       a profile field) or a signed-out one (no fetch to fail). */
   profileFetchFailed: boolean;
+  /** Task 4: subscription.ts's PAYWALL_ENABLED, passed in as a plain value
+      (not imported here) so this function stays pure and testable with no
+      module-level state at all. False today, which makes the next field
+      unconditionally irrelevant — see that field's own doc comment. */
+  paywallEnabled: boolean;
+  /** useEntitlement().loaded. Only consulted when paywallEnabled is true —
+      when it's false (the current, shipped value) cold launch must not
+      pick up a single frame of delay from a network call whose answer is
+      being ignored anyway (computeRoute() only reads hasActiveSubscription
+      for a non-built-in account, and app/index.tsx's caller-side
+      derivation makes that field unconditionally true whenever
+      PAYWALL_ENABLED is false, regardless of this value). Irrelevant for a
+      built-in account (its route never reads hasActiveSubscription either)
+      or a signed-out one, same as profileLoaded above. */
+  entitlementLoaded: boolean;
 }
 
 export function isRouteReady(inputs: RouteReadinessInputs): boolean {
@@ -128,5 +152,11 @@ export function isRouteReady(inputs: RouteReadinessInputs): boolean {
   if (!inputs.isSignedIn) return true;
   if (inputs.isBuiltInProgram) return inputs.builtInSeen != null;
   if (inputs.profileFetchFailed) return false;
-  return inputs.profileLoaded;
+  if (!inputs.profileLoaded) return false;
+  // Only ever waits on this when the paywall is actually on — with
+  // paywallEnabled false this line can't fire, so this is a strict
+  // no-op today, preserving the exact prior return value (profileLoaded)
+  // byte for byte.
+  if (inputs.paywallEnabled && !inputs.entitlementLoaded) return false;
+  return true;
 }

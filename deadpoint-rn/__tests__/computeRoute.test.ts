@@ -3,6 +3,10 @@ import { computeRoute, isBuiltInProgram, isRouteReady, type RouteInputs, type Ro
 const base: RouteInputs = {
   hasSeenWelcome: true, isSignedIn: true, email: 'new@example.com', isBuiltInProgram: false,
   hasSeenBuiltInTutorial: false, quizCompletedAt: null, tutorialCompletedAt: null, trackType: null,
+  // Defaults to subscribed so every pre-existing test below (none of which
+  // is about the paywall) keeps exercising exactly the path it did before
+  // this field existed — only the new tests further down override it.
+  hasActiveSubscription: true,
 };
 
 test('welcome comes first, before anything else', () => {
@@ -62,6 +66,10 @@ test('a quizzed account with no tutorialCompletedAt needs the tutorial', () => {
   expect(computeRoute({ ...base, quizCompletedAt: '2026-08-01T00:00:00Z' })).toBe('/tutorial');
 });
 
+// Uses base's default hasActiveSubscription: true, so this also pins that
+// the Phase 7 gate below leaves this existing rehab routing unaffected for
+// a subscribed user — see the unsubscribed counterpart further down for the
+// gate's actual ordering relative to trackType.
 test('a rehab-track account past quiz+tutorial has nowhere real to go yet', () => {
   expect(computeRoute({ ...base, quizCompletedAt: '2026-08-01T00:00:00Z', tutorialCompletedAt: '2026-08-01T00:00:00Z', trackType: 'rehab' })).toBe('/rehab-coming-soon');
 });
@@ -70,14 +78,53 @@ test('a fully onboarded standard-track account reaches the real card', () => {
   expect(computeRoute({ ...base, quizCompletedAt: '2026-08-01T00:00:00Z', tutorialCompletedAt: '2026-08-01T00:00:00Z', trackType: 'standard' })).toBe('/card');
 });
 
-test('paywall is never routed to in this phase, even conceptually - not a reachable branch at all', () => {
-  // No RouteInputs combination should ever produce '/paywall' - confirmed
-  // by there being no such literal anywhere in computeRoute's return
-  // type or implementation. This test exists as a marker, not a real
-  // behavioral check: see Decision 4 in the design spec (needsPaywall
-  // hardcoded off, real gate is Phase 7).
-  const result = computeRoute({ ...base, quizCompletedAt: '2026-08-01T00:00:00Z', tutorialCompletedAt: '2026-08-01T00:00:00Z', trackType: 'standard' });
-  expect(result).not.toBe('/paywall');
+// Phase 7 (Task 4): the real subscription gate. It sits between the
+// tutorialCompletedAt check and the trackType routing below it — same slot
+// the old // TODO(Phase 7) comment used to mark. This is the ONLY place
+// the '/paywall' literal can be produced; every other branch above it
+// returns before ever reading hasActiveSubscription.
+test('an unsubscribed, non-built-in, fully onboarded user is routed to the paywall', () => {
+  expect(computeRoute({
+    ...base, quizCompletedAt: '2026-08-01T00:00:00Z', tutorialCompletedAt: '2026-08-01T00:00:00Z',
+    trackType: 'standard', hasActiveSubscription: false,
+  })).toBe('/paywall');
+});
+
+test('the same user, subscribed, reaches the real card exactly as before', () => {
+  expect(computeRoute({
+    ...base, quizCompletedAt: '2026-08-01T00:00:00Z', tutorialCompletedAt: '2026-08-01T00:00:00Z',
+    trackType: 'standard', hasActiveSubscription: true,
+  })).toBe('/card');
+});
+
+// The carve-out Oscar explicitly confirmed: built-in accounts (Oscar/Joe/
+// Max) are not customers and must never see the paywall, regardless of
+// subscription status. Structurally guaranteed here too — the
+// isBuiltInProgram branch returns above, before quizCompletedAt is even
+// read — but pinned directly since this is exactly the kind of built-in-
+// account carve-out this file's own history shows gets silently broken.
+test('a built-in account bypasses the paywall regardless of subscription status', () => {
+  expect(computeRoute({
+    ...base, isBuiltInProgram: true, hasSeenBuiltInTutorial: true, hasActiveSubscription: false,
+    quizCompletedAt: '2026-08-01T00:00:00Z', tutorialCompletedAt: '2026-08-01T00:00:00Z',
+  })).toBe('/card');
+});
+
+// The gate sits AFTER onboarding, not before it: an unsubscribed user who
+// hasn't finished the quiz yet still goes to /quiz, never /paywall.
+test('a user who has not finished the quiz still routes to the quiz, not the paywall, even when unsubscribed', () => {
+  expect(computeRoute({ ...base, hasActiveSubscription: false })).toBe('/quiz');
+});
+
+// The gate sits BEFORE trackType routing (per the brief's placement: right
+// after tutorialCompletedAt, above the `trackType === 'rehab'` check) — so
+// an unsubscribed rehab-track user hits the paywall first, same as a
+// standard-track one, rather than reaching /rehab-coming-soon unchecked.
+test('the gate sits before track-routing: an unsubscribed rehab-track user hits the paywall first', () => {
+  expect(computeRoute({
+    ...base, quizCompletedAt: '2026-08-01T00:00:00Z', tutorialCompletedAt: '2026-08-01T00:00:00Z',
+    trackType: 'rehab', hasActiveSubscription: false,
+  })).toBe('/paywall');
 });
 
 // isBuiltInProgram: previously duplicated inline in the plan's draft for
@@ -117,6 +164,10 @@ test('isBuiltInProgram is false for null (not yet signed in)', () => {
 const readyBase: RouteReadinessInputs = {
   authReady: true, hasSeenWelcome: true, isSignedIn: true, isBuiltInProgram: false,
   builtInSeen: null, profileLoaded: true, profileFetchFailed: false,
+  // Defaults to the real PAYWALL_ENABLED value (false) so every
+  // pre-existing test below keeps its original meaning untouched —
+  // entitlementLoaded is irrelevant whenever paywallEnabled is false.
+  paywallEnabled: false, entitlementLoaded: false,
 };
 
 test('not ready: authReady still false', () => {
@@ -173,4 +224,34 @@ test('ready: built-in account, builtInSeen resolved false', () => {
 // boundary of this pure function itself) contradictory profileLoaded:true.
 test('not ready: profile fetch errored takes precedence even if profileLoaded is also true', () => {
   expect(isRouteReady({ ...readyBase, profileLoaded: true, profileFetchFailed: true })).toBe(false);
+});
+
+// Phase 7 (Task 4): the whole safety case for shipping the gate inert rests
+// on this one — with the real, current PAYWALL_ENABLED value (false),
+// readiness must NEVER wait on entitlement.loaded, so cold launch cannot
+// pick up so much as one added frame of delay from a network call whose
+// answer is being ignored anyway. readyBase already defaults to
+// paywallEnabled: false/entitlementLoaded: false, so this is really just
+// readyBase restated — pinned explicitly here so a future edit that starts
+// gating on entitlementLoaded unconditionally fails loudly.
+test('ready: paywall disabled — never blocks on entitlement.loaded, even when it is false', () => {
+  expect(isRouteReady({ ...readyBase, paywallEnabled: false, entitlementLoaded: false })).toBe(true);
+});
+
+test('not ready: paywall enabled, entitlement not yet loaded for a non-built-in account', () => {
+  expect(isRouteReady({ ...readyBase, paywallEnabled: true, entitlementLoaded: false })).toBe(false);
+});
+
+test('ready: paywall enabled, entitlement genuinely loaded', () => {
+  expect(isRouteReady({ ...readyBase, paywallEnabled: true, entitlementLoaded: true })).toBe(true);
+});
+
+// A built-in account's route never reads hasActiveSubscription at all (see
+// computeRoute's isBuiltInProgram branch) — so its readiness must not wait
+// on entitlement.loaded either, even with the paywall enabled.
+test('ready: built-in account ignores entitlement.loaded entirely, even with the paywall enabled', () => {
+  expect(isRouteReady({
+    ...readyBase, isBuiltInProgram: true, builtInSeen: true, profileLoaded: false,
+    paywallEnabled: true, entitlementLoaded: false,
+  })).toBe(true);
 });
