@@ -27,6 +27,9 @@ module.exports = {
       @bacons/apple-targets (added for Task 3's syncForecast) references the
       ambient `expo` global expo-modules-core injects at native app
       startup and throws "expo is not defined" the same way.
+      react-native-purchases (added for Task 2's subscription.ts) pulls in
+      @revenuecat/purchases-js-hybrid-mappings, an ESM-only entry that
+      throws the same "Must use import" error.
       See the mock files in __mocks__/ for what each stands in for and why
       a no-op/stub is sufficient for the tests that need them. */
   moduleNameMapper: {
@@ -36,6 +39,7 @@ module.exports = {
     '^react-native-gesture-handler$': '<rootDir>/__mocks__/react-native-gesture-handler.js',
     '^react-native-reanimated$': '<rootDir>/__mocks__/react-native-reanimated.js',
     '^react-native-safe-area-context$': '<rootDir>/__mocks__/react-native-safe-area-context.js',
+    '^react-native-purchases$': '<rootDir>/__mocks__/react-native-purchases.js',
     '^@react-native-async-storage/async-storage$': '<rootDir>/__mocks__/@react-native-async-storage/async-storage.js',
     '^@bacons/apple-targets$': '<rootDir>/__mocks__/@bacons/apple-targets.js',
   },

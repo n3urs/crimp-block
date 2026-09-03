@@ -1,9 +1,11 @@
+import { useEffect } from 'react';
 import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
 import { View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Colours } from '../src/design/colours';
+import { configureRevenueCat } from '../src/data/subscription';
 
 export default function RootLayout() {
   const [loaded] = useFonts({
@@ -12,6 +14,20 @@ export default function RootLayout() {
     'RobotoMono-Medium': require('../assets/fonts/RobotoMono-Medium.ttf'),
     'SpaceMono-Bold': require('../assets/fonts/SpaceMono-Bold.ttf'),
   });
+
+  // Once, at true app root. PAYWALL_ENABLED is still false (Task 2 of
+  // this plan) so nothing reads the resulting entitlement state yet —
+  // this just gets RevenueCat's SDK primed for when Task 4 turns the
+  // gate on. The placeholder API key in subscription.ts can't reach
+  // RevenueCat's servers; catch+log rather than letting a bad key (or
+  // any future real misconfiguration) crash launch.
+  useEffect(() => {
+    try {
+      configureRevenueCat();
+    } catch (e) {
+      console.error('configureRevenueCat failed:', e);
+    }
+  }, []);
 
   // Holding on the app's own background colour rather than white avoids
   // a light flash on launch against this dark UI.
