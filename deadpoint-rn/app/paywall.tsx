@@ -1,10 +1,12 @@
 // app/paywall.tsx
-import React from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import React, { useState } from 'react';
+import { Alert, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
+import Purchases from 'react-native-purchases';
 import { Colours } from '../src/design/colours';
 import { Fonts } from '../src/design/fonts';
 import { useSession } from '../src/data/useSession';
+import { purchaseStandard, restorePurchases } from '../src/data/subscription';
 
 const FEATURES = [
   'Your quiz-assigned training plan',
@@ -16,20 +18,64 @@ const FEATURES = [
 export default function Paywall() {
   const router = useRouter();
   const { signOut } = useSession();
+  const [subscribing, setSubscribing] = useState(false);
+  const [restoring, setRestoring] = useState(false);
 
   const onSignOut = async () => {
     try { await signOut(); } catch (e) { console.error('paywall onSignOut failed:', e); }
     router.replace('/');
   };
 
-  // TODO(Phase 7): real subscription purchase — this button is
-  // intentionally inert for now, since the root router never actually
-  // routes anyone here yet (needsPaywall is hardcoded false — see
-  // app/index.tsx). Built now so the screen is ready to wire up once
-  // real IAP products exist.
-  const onSubscribe = () => {};
-  const onRestore = () => {};
-  const onRedeemCode = () => {};
+  // purchaseStandard() already swallows a user cancelling the purchase
+  // sheet (resolves normally rather than throwing — see its own doc
+  // comment in subscription.ts), so this doesn't need to special-case
+  // that outcome: router.replace('/') just hands control back to the
+  // root, which re-checks entitlement itself once Task 4 wires that
+  // check up — a cancelled purchase means the root finds no entitlement
+  // and lands the user right back here. Only a real error needs surfacing.
+  const onSubscribe = async () => {
+    if (subscribing) return;
+    setSubscribing(true);
+    try {
+      await purchaseStandard();
+      router.replace('/');
+    } catch (e: any) {
+      Alert.alert('Purchase failed', e?.message ?? 'Something went wrong. Please try again.');
+    } finally {
+      setSubscribing(false);
+    }
+  };
+
+  const onRestore = async () => {
+    if (restoring) return;
+    setRestoring(true);
+    try {
+      const restored = await restorePurchases();
+      if (restored) {
+        router.replace('/');
+      } else {
+        Alert.alert('Nothing to restore', 'No previous purchase was found for this Apple ID.');
+      }
+    } catch (e: any) {
+      Alert.alert('Restore failed', e?.message ?? 'Something went wrong. Please try again.');
+    } finally {
+      setRestoring(false);
+    }
+  };
+
+  // iOS only (confirmed against node_modules/react-native-purchases/dist/
+  // purchases.d.ts:690's own doc comment) and the app only ships on iOS
+  // today anyway (same scope call as configureRevenueCat in
+  // subscription.ts) — gated below at render time so a non-iOS build
+  // never shows a control that couldn't do anything, rather than showing
+  // one that silently no-ops.
+  const onRedeemCode = async () => {
+    try {
+      await Purchases.presentCodeRedemptionSheet();
+    } catch (e: any) {
+      Alert.alert('Could not open code redemption', e?.message ?? 'Something went wrong. Please try again.');
+    }
+  };
 
   return (
     <ScrollView style={styles.root} contentContainerStyle={styles.content}>
@@ -50,13 +96,23 @@ export default function Paywall() {
         ))}
       </View>
 
-      <Pressable onPress={onSubscribe} style={styles.subscribeButton}>
-        <Text style={styles.subscribeText}>START FREE TRIAL</Text>
+      <Pressable
+        onPress={onSubscribe}
+        disabled={subscribing}
+        style={[styles.subscribeButton, subscribing && styles.subscribeButtonDisabled]}
+        accessibilityRole="button"
+        accessibilityLabel="Start free trial"
+      >
+        <Text style={styles.subscribeText}>{subscribing ? 'STARTING…' : 'START FREE TRIAL'}</Text>
       </Pressable>
 
       <View style={styles.footerRow}>
-        <Pressable onPress={onRestore}><Text style={styles.footerLink}>RESTORE PURCHASES</Text></Pressable>
-        <Pressable onPress={onRedeemCode}><Text style={styles.footerLink}>HAVE A CODE?</Text></Pressable>
+        <Pressable onPress={onRestore} disabled={restoring}>
+          <Text style={styles.footerLink}>{restoring ? 'RESTORING…' : 'RESTORE PURCHASES'}</Text>
+        </Pressable>
+        {Platform.OS === 'ios' && (
+          <Pressable onPress={onRedeemCode}><Text style={styles.footerLink}>HAVE A CODE?</Text></Pressable>
+        )}
       </View>
 
       <Text style={styles.legal}>
@@ -80,6 +136,7 @@ const styles = StyleSheet.create({
   checkmark: { color: Colours.go, fontWeight: '700', fontSize: 12 },
   featureText: { fontSize: 14, color: Colours.dim },
   subscribeButton: { paddingVertical: 16, borderRadius: 10, alignItems: 'center', backgroundColor: Colours.fg },
+  subscribeButtonDisabled: { opacity: 0.6 },
   subscribeText: { ...Fonts.mono(14, 'bold'), color: Colours.bg },
   footerRow: { flexDirection: 'row', justifyContent: 'center', gap: 16 },
   footerLink: { ...Fonts.mono(11, 'semibold'), color: Colours.dim },

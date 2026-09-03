@@ -112,6 +112,20 @@ export default function RootLayout() {
               other screens above: app/plan-phase.tsx lives directly
               under app/, so its route name is just "plan-phase". */}
           <Stack.Screen name="plan-phase" options={{ presentation: 'modal' }} />
+          {/* Subscription paywall (Task 3, this plan) — direct port
+              structurally similar to the modals above (app/paywall.tsx
+              lives directly under app/, so its route name is just
+              "paywall"), but deliberately NOT given `presentation:
+              'modal'` like every screen above: a modal is
+              swipe-dismissable on iOS, which would let anyone swipe past
+              a screen meant to be a hard gate. Omitting `options`
+              entirely uses native-stack's default 'card' presentation
+              instead. Nobody can reach this route yet — PAYWALL_ENABLED
+              is still false and no caller navigates here (Task 4 wires
+              the actual gate); this registration only makes the route
+              addressable for manual/deep-link verification now and for
+              Task 4 to route into later. */}
+          <Stack.Screen name="paywall" />
         </Stack>
       </SafeAreaProvider>
     </GestureHandlerRootView>
