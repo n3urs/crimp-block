@@ -9,14 +9,15 @@
     with the screen that pushed it. Unlike day-picker.tsx it needs no
     store/engine/PROGRAMS at all: nothing here touches session-log data.
 
-    Account deletion is explicitly out of scope for this port (see the
-    task brief, and the existing `// TODO(Phase 7)` precedent on the
-    Paywall screen) — no Supabase Edge Function for account deletion
-    exists anywhere in this project. Only email + SIGN OUT survive from
-    Swift's ACCOUNT section; DELETE ACCOUNT and its confirmation dialog
-    are deliberately not ported. */
+    Account deletion (SettingsView.swift's DELETE ACCOUNT row) is ported:
+    the ACCOUNT section below has a destructive DELETE ACCOUNT control
+    backed by the `delete-account` Supabase Edge Function
+    (supabase/functions/delete-account/index.ts), confirmed via
+    Alert.alert the same way DailyCard.tsx confirms its own two dialogs —
+    required for App Store review, Guideline 5.1.1(v) (account creation
+    without in-app account deletion is a guaranteed rejection). */
 import React, { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colours, resolveColour } from '../src/design/colours';
@@ -78,7 +79,7 @@ function ToggleRow({
 export default function Settings() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { session, signOut } = useSession();
+  const { session, signOut, deleteAccount } = useSession();
   const email = session?.user?.email ?? null;
   const userId = session?.user?.id ?? '';
   const profile = useProfile(userId);
@@ -88,6 +89,12 @@ export default function Settings() {
   // the one async action this screen performs (RESTORE INSTANTLY).
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Separate from `error` above: that one renders inside TRAINING TRACK's
+  // own body, gated on `row != null`. Sharing it would mean a delete
+  // failure could render twice (once where it belongs, once under a
+  // section it has nothing to do with) or not at all when `row` is null —
+  // this renders only in ACCOUNT, right below the control it belongs to.
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const onSignOut = async () => {
     // Final-review Fix 1 (Critical): this screen is reached via
@@ -111,6 +118,47 @@ export default function Settings() {
     // sends the user back to '/' rather than stranding them here.
     try { await signOut(); } catch (e) { console.error('settings onSignOut failed:', e); }
     router.replace('/');
+  };
+
+  // Matches the existing Alert.alert confirmation shape from
+  // DailyCard.tsx (cancel + one named action button, no new dialog style)
+  // rather than a custom modal — this is destructive and irreversible, so
+  // the copy says so plainly and there is no "default" button a mis-tap
+  // could land on: Cancel and Delete Account are the only two options,
+  // and only the destructive one calls deleteAccount().
+  const onDeleteAccount = () => {
+    Alert.alert(
+      'Delete Account?',
+      'This permanently deletes your account and all training history. This cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete Account',
+          style: 'destructive',
+          onPress: async () => {
+            setBusy(true);
+            setDeleteError(null);
+            try {
+              await deleteAccount();
+              // Same stack-unwind requirement as onSignOut above:
+              // deleteAccount() ends in a signed-out session too, so this
+              // must dismiss back to the single screen this modal was
+              // pushed from BEFORE navigating, or a stale card screen
+              // survives underneath — see onSignOut's own doc comment for
+              // the full mechanics.
+              router.dismissAll();
+              router.replace('/');
+            } catch (e: any) {
+              // The exact failure mode an App Store reviewer will hit if
+              // this silently did nothing — a real message, not just a
+              // console.error, and the screen stays put so it's visible.
+              setDeleteError(`Couldn't delete account: ${e?.message ?? 'something went wrong'}`);
+              setBusy(false);
+            }
+          },
+        },
+      ],
+    );
   };
 
   const onReplayTutorial = () => {
@@ -164,6 +212,15 @@ export default function Settings() {
               <Pressable onPress={onSignOut} accessibilityRole="button" accessibilityLabel="Sign out">
                 <Text style={styles.signOutText}>SIGN OUT</Text>
               </Pressable>
+              <Pressable
+                onPress={onDeleteAccount}
+                disabled={busy}
+                accessibilityRole="button"
+                accessibilityLabel="Delete account"
+              >
+                <Text style={styles.deleteAccountText}>DELETE ACCOUNT</Text>
+              </Pressable>
+              {deleteError != null && <Text style={styles.error}>{deleteError}</Text>}
             </View>
           </Section>
         )}
@@ -276,6 +333,7 @@ const styles = StyleSheet.create({
   accountBody: { gap: 14 },
   accountEmail: { ...Fonts.mono(13, 'medium'), color: Colours.dim },
   signOutText: { ...Fonts.mono(12, 'bold'), color: Colours.restC },
+  deleteAccountText: { ...Fonts.mono(12, 'bold'), color: Colours.restC },
 
   trackBody: { gap: 14 },
   trackSummary: { fontSize: 14, fontWeight: '600', color: Colours.fg },

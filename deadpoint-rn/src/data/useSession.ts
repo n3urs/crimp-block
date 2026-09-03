@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { Session } from '@supabase/supabase-js';
-import { supabase } from './supabase';
+import { supabase, SUPABASE_URL, SUPABASE_ANON } from './supabase';
+import { callDeleteAccount } from './deleteAccount';
 
 /** Thin wrapper over the real supabase-js auth API — there is no hand-rolled
     REST client here the way there is in SupabaseClient.swift, because unlike
@@ -53,6 +54,29 @@ export function useSession() {
     signOut: async () => {
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
+    },
+    /** Required for App Store review, Guideline 5.1.1(v): an app offering
+        account creation must also offer in-app deletion. Reads the
+        already-held session's access_token rather than making a fresh
+        supabase.auth.getUser() network call — same discipline as
+        useStore.ts/useLoads.ts's own `set`, which deliberately reads the
+        userId already in hand instead of re-fetching it. Throws on
+        failure (callDeleteAccount's own contract) so the caller — the
+        confirmation dialog in app/settings.tsx — can surface a real error
+        instead of the account silently appearing to still be there. */
+    deleteAccount: async () => {
+      if (!session?.access_token) throw new Error('Not signed in — cannot delete account.');
+      await callDeleteAccount(SUPABASE_URL, SUPABASE_ANON, session.access_token, fetch);
+      // Best-effort local cleanup only, deliberately not thrown on failure:
+      // the account is ALREADY deleted server-side by the time we get here
+      // (the line above either succeeded or threw), so a hiccup clearing
+      // the now-stale local session — plausible here specifically, since
+      // this JWT now names a user that no longer exists — must not
+      // masquerade as "deletion failed" to the caller. Matches the
+      // catch-and-log pattern this same file already uses for
+      // getSession() above, and useStore.ts's reload().
+      const { error } = await supabase.auth.signOut();
+      if (error) console.error('deleteAccount: local signOut failed:', error);
     },
   };
 }

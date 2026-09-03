@@ -16,8 +16,12 @@ const SecureStorageAdapter = {
     for the live confirmation that an unauthenticated GET returns [], not
     other people's rows. Hardcoded rather than an env var for the same
     reason app.js hardcodes it: there is nothing to keep out of the bundle. */
-const SUPABASE_URL = 'https://lbhsgkadlhcqqnlbfswr.supabase.co';
-const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxiaHNna2FkbGhjcXFubGJmc3dyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYzNTg2NzMsImV4cCI6MjEwMTkzNDY3M30.3Df2BW9YVfJYZVSalLWGsx54iY_RvnZdln71Kehljug';
+// Exported so callDeleteAccount (src/data/deleteAccount.ts) can reuse the
+// same values via useSession, instead of a second file duplicating the
+// literals and silently drifting the day this project points at a
+// different Supabase instance.
+export const SUPABASE_URL = 'https://lbhsgkadlhcqqnlbfswr.supabase.co';
+export const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxiaHNna2FkbGhjcXFubGJmc3dyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYzNTg2NzMsImV4cCI6MjEwMTkzNDY3M30.3Df2BW9YVfJYZVSalLWGsx54iY_RvnZdln71Kehljug';
 
 /** 90s, not the default — confirmed live against the real endpoint:
     auth/v1/otp takes 60-65s to respond even with custom SMTP (Resend)
