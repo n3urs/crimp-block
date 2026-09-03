@@ -2,11 +2,11 @@
 import React, { useState } from 'react';
 import { Alert, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import Purchases from 'react-native-purchases';
+import Purchases, { type PurchasesPackage } from 'react-native-purchases';
 import { Colours } from '../src/design/colours';
 import { Fonts } from '../src/design/fonts';
 import { useSession } from '../src/data/useSession';
-import { purchaseStandard, restorePurchases } from '../src/data/subscription';
+import { purchaseStandard, restorePurchases, useOfferings } from '../src/data/subscription';
 
 const FEATURES = [
   'Your quiz-assigned training plan',
@@ -15,11 +15,26 @@ const FEATURES = [
   'Home screen widget',
 ];
 
+type Tier = 'monthly' | 'annual';
+
 export default function Paywall() {
   const router = useRouter();
   const { signOut } = useSession();
+  const { monthly, annual } = useOfferings();
+  // Defaults to monthly — matches the trial-focused heading copy below.
+  const [selectedTier, setSelectedTier] = useState<Tier>('monthly');
   const [subscribing, setSubscribing] = useState(false);
   const [restoring, setRestoring] = useState(false);
+
+  // Array-driven, same convention as FEATURES.map below. Each row is
+  // disabled on its own if RevenueCat hasn't returned that package yet
+  // (Offering not fully configured — true of Oscar's current placeholder
+  // setup — or still loading) rather than blocking the whole screen.
+  const tiers: { tier: Tier; label: string; badge: string | null; pkg: PurchasesPackage | null }[] = [
+    { tier: 'monthly', label: 'Monthly', badge: '7-DAY FREE TRIAL', pkg: monthly },
+    { tier: 'annual', label: 'Annual', badge: null, pkg: annual },
+  ];
+  const selectedPackage = selectedTier === 'monthly' ? monthly : annual;
 
   const onSignOut = async () => {
     try { await signOut(); } catch (e) { console.error('paywall onSignOut failed:', e); }
@@ -34,10 +49,10 @@ export default function Paywall() {
   // check up — a cancelled purchase means the root finds no entitlement
   // and lands the user right back here. Only a real error needs surfacing.
   const onSubscribe = async () => {
-    if (subscribing) return;
+    if (subscribing || !selectedPackage) return;
     setSubscribing(true);
     try {
-      await purchaseStandard();
+      await purchaseStandard(selectedPackage);
       router.replace('/');
     } catch (e: any) {
       Alert.alert('Purchase failed', e?.message ?? 'Something went wrong. Please try again.');
@@ -84,7 +99,7 @@ export default function Paywall() {
       <View style={styles.heading}>
         <Text style={styles.eyebrow}>DEADPOINT STANDARD</Text>
         <Text style={styles.title}>Your plan, every day</Text>
-        <Text style={styles.price}>7 days free, then £0.99 a month. Cancel any time.</Text>
+        <Text style={styles.price}>Choose your plan below. Cancel any time.</Text>
       </View>
 
       <View style={styles.features}>
@@ -96,14 +111,40 @@ export default function Paywall() {
         ))}
       </View>
 
+      <View style={styles.tiers}>
+        {tiers.map(({ tier, label, badge, pkg }) => {
+          const isSelected = selectedTier === tier;
+          const isDisabled = !pkg;
+          return (
+            <Pressable
+              key={tier}
+              onPress={() => pkg && setSelectedTier(tier)}
+              disabled={isDisabled}
+              style={[styles.tierRow, isSelected && styles.tierRowSelected, isDisabled && styles.tierRowDisabled]}
+              accessibilityRole="radio"
+              accessibilityState={{ selected: isSelected, disabled: isDisabled }}
+              accessibilityLabel={`${label} plan${pkg ? `, ${pkg.product.priceString}` : ', currently unavailable'}`}
+            >
+              <View>
+                <Text style={styles.tierLabel}>{label}</Text>
+                {badge != null && <Text style={styles.tierBadge}>{badge}</Text>}
+              </View>
+              <Text style={styles.tierPrice}>{pkg ? pkg.product.priceString : '—'}</Text>
+            </Pressable>
+          );
+        })}
+      </View>
+
       <Pressable
         onPress={onSubscribe}
-        disabled={subscribing}
-        style={[styles.subscribeButton, subscribing && styles.subscribeButtonDisabled]}
+        disabled={subscribing || !selectedPackage}
+        style={[styles.subscribeButton, (subscribing || !selectedPackage) && styles.subscribeButtonDisabled]}
         accessibilityRole="button"
-        accessibilityLabel="Start free trial"
+        accessibilityLabel={selectedTier === 'monthly' ? 'Start free trial' : 'Subscribe annually'}
       >
-        <Text style={styles.subscribeText}>{subscribing ? 'STARTING…' : 'START FREE TRIAL'}</Text>
+        <Text style={styles.subscribeText}>
+          {subscribing ? 'STARTING…' : selectedTier === 'monthly' ? 'START FREE TRIAL' : 'SUBSCRIBE'}
+        </Text>
       </Pressable>
 
       <View style={styles.footerRow}>
@@ -116,7 +157,9 @@ export default function Paywall() {
       </View>
 
       <Text style={styles.legal}>
-        Payment is charged to your Apple ID after the trial ends unless cancelled at least 24 hours before it's up. Manage or cancel any time in Settings.
+        {selectedTier === 'monthly'
+          ? "Payment is charged to your Apple ID after the trial ends unless cancelled at least 24 hours before it's up. Manage or cancel any time in Settings."
+          : 'Payment is charged to your Apple ID immediately. Manage or cancel any time in Settings.'}
       </Text>
     </ScrollView>
   );
@@ -135,6 +178,17 @@ const styles = StyleSheet.create({
   featureRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   checkmark: { color: Colours.go, fontWeight: '700', fontSize: 12 },
   featureText: { fontSize: 14, color: Colours.dim },
+  tiers: { gap: 10 },
+  tierRow: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    padding: 16, borderRadius: 12, backgroundColor: Colours.s1,
+    borderWidth: 1.5, borderColor: 'transparent',
+  },
+  tierRowSelected: { backgroundColor: Colours.s2, borderColor: 'rgba(237,235,229,0.4)' },
+  tierRowDisabled: { opacity: 0.4 },
+  tierLabel: { fontSize: 15, fontWeight: '700', color: Colours.fg },
+  tierBadge: { ...Fonts.mono(10, 'bold'), color: Colours.go, marginTop: 3, letterSpacing: 0.5 },
+  tierPrice: { ...Fonts.mono(15, 'bold'), color: Colours.fg },
   subscribeButton: { paddingVertical: 16, borderRadius: 10, alignItems: 'center', backgroundColor: Colours.fg },
   subscribeButtonDisabled: { opacity: 0.6 },
   subscribeText: { ...Fonts.mono(14, 'bold'), color: Colours.bg },

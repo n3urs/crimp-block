@@ -13,7 +13,7 @@
     Verified live on device instead (Task 2's Step 7). */
 import { useCallback, useEffect, useState } from 'react';
 import { Platform } from 'react-native';
-import Purchases, { type CustomerInfo } from 'react-native-purchases';
+import Purchases, { type CustomerInfo, type PurchasesPackage } from 'react-native-purchases';
 
 /** The single switch that turns the paywall gate on. False in this task
     on purpose — Task 2 only builds the entitlement-checking plumbing.
@@ -80,15 +80,50 @@ export function useEntitlement() {
   return { hasActiveSubscription, loaded, refresh };
 }
 
-/** Buys the app's one subscription package (Task 3's paywall is the only
-    caller). A user backing out of the purchase sheet is not a failure —
-    RevenueCat surfaces that as e.userCancelled on the thrown error,
-    which this deliberately swallows; every other error re-throws so the
-    paywall can show it. */
-export async function purchaseStandard(): Promise<void> {
-  const offerings = await Purchases.getOfferings();
-  const pkg = offerings.current?.availablePackages[0];
-  if (!pkg) throw new Error('No subscription package is available right now.');
+/** Task 3.5: the two configured packages (£0.99/month with a 7-day trial,
+    £9.99/year, both granting ENTITLEMENT_ID) — fetched once so the
+    paywall can offer a choice instead of assuming a single package.
+    `.monthly`/`.annual` are RevenueCat's own typed shortcuts on the
+    current Offering (confirmed against
+    @revenuecat/purchases-typescript-internal/dist/offerings.d.ts), not a
+    manual search of availablePackages by identifier. Either can come
+    back null — Offering not fully configured yet (true of Oscar's
+    current placeholder RevenueCat setup) or getOfferings() itself
+    failing — and the paywall is responsible for disabling whichever
+    option that leaves out; this hook's job is only to report what's
+    there, same one-shot useEffect+useState shape as useEntitlement above. */
+export function useOfferings() {
+  const [monthly, setMonthly] = useState<PurchasesPackage | null>(null);
+  const [annual, setAnnual] = useState<PurchasesPackage | null>(null);
+
+  const refresh = useCallback(async () => {
+    try {
+      const offerings = await Purchases.getOfferings();
+      setMonthly(offerings.current?.monthly ?? null);
+      setAnnual(offerings.current?.annual ?? null);
+    } catch (e) {
+      console.error('useOfferings.refresh failed:', e);
+      setMonthly(null);
+      setAnnual(null);
+    }
+  }, []);
+
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
+
+  return { monthly, annual };
+}
+
+/** Buys whichever package the paywall's caller picked (Task 3.5: monthly
+    or annual — see useOfferings above). The caller owns fetching
+    offerings and choosing a package; this no longer reaches into
+    getOfferings() itself to guess one (that's the change from Task 3).
+    A user backing out of the purchase sheet is not a failure — RevenueCat
+    surfaces that as e.userCancelled on the thrown error, which this
+    deliberately swallows; every other error re-throws so the paywall can
+    show it. */
+export async function purchaseStandard(pkg: PurchasesPackage): Promise<void> {
   try {
     await Purchases.purchasePackage(pkg);
   } catch (e: any) {
