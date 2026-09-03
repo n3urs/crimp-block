@@ -85,34 +85,23 @@ export interface LoggedStampProps {
   nextUp: { name: string; colour: string } | null;
 }
 
-/** { visible, instant } rather than a bare boolean: `instant` tells
-    LoggedStamp whether the CURRENT false is the chain's step-1 reset
-    (Swift's plain `showLoggedStamp = false`, not wrapped in
-    `withAnimation` — DailyCardView.swift:686) or the natural hold-expiry
-    dismiss (Swift's `withAnimation(.easeInOut(duration: 0.4)) {
-    showLoggedStamp = false }` — DailyCardView.swift:716). Both call the
-    exact same `onVisibilityChange(false)` inside createLoggedStampTimer,
-    so the two are told apart here, not there: `isRetriggering` is true only
-    while this hook's own effect is synchronously inside its `.trigger()`
-    call (the reset always fires synchronously, right there), and false for
-    the dismissTimer's callback, which always fires later from its own
-    setTimeout, well outside that effect. Getting this right matters
-    because the brief's "hide immediately (no animation)" for step 1 is
-    exactly the undo-then-relog case Test 3 (loggedStamp.test.ts) exists
-    for — an animated fade there would leave the outgoing card visibly
-    lingering under the new one's own 1000ms pre-reveal delay. */
-function useLoggedStampTiming(trigger: number): { visible: boolean; instant: boolean } {
-  const [state, setState] = useState<{ visible: boolean; instant: boolean }>({
-    visible: false,
-    instant: true,
-  });
-  const isRetriggering = useRef(false);
+/** Every dismissal fades — no instant/no-animation case, per Oscar's
+    explicit request (this deliberately DIVERGES from the original Swift
+    source: DailyCardView.swift:686 resets `showLoggedStamp = false` with
+    no `withAnimation` wrapper for the undo-then-relog reset, only
+    animating the natural hold-expiry dismiss at :716 — an earlier version
+    of this file faithfully ported that same two-speed behaviour via a
+    second `instant` flag alongside `visible`. Oscar found the resulting
+    hard snap (reachable by undoing, or swapping sessions, while the card
+    is still showing) looked broken, so this hook now reports a single
+    `visible` boolean and LoggedStamp's own effect always animates the
+    `true -> false` transition, whatever caused it. */
+function useLoggedStampVisible(trigger: number): boolean {
+  const [visible, setVisible] = useState(false);
   const isFirstRender = useRef(true);
   const timerRef = useRef<ReturnType<typeof createLoggedStampTimer> | null>(null);
   if (timerRef.current == null) {
-    timerRef.current = createLoggedStampTimer((visible) => {
-      setState({ visible, instant: !visible && isRetriggering.current });
-    });
+    timerRef.current = createLoggedStampTimer(setVisible);
   }
 
   useEffect(() => {
@@ -124,9 +113,7 @@ function useLoggedStampTiming(trigger: number): { visible: boolean; instant: boo
       isFirstRender.current = false;
       return;
     }
-    isRetriggering.current = true;
     timerRef.current!.trigger();
-    isRetriggering.current = false;
     // eslint-disable-next-line react-hooks/exhaustive-deps -- timerRef is a stable ref, not a reactive dep
   }, [trigger]);
 
@@ -135,12 +122,12 @@ function useLoggedStampTiming(trigger: number): { visible: boolean; instant: boo
     return () => timer.dispose();
   }, []);
 
-  return state;
+  return visible;
 }
 
 export function LoggedStamp({ trigger, accent, nextUp }: LoggedStampProps) {
-  const { visible, instant } = useLoggedStampTiming(trigger);
-  // Kept mounted for the duration of the 400ms fade-out so it can actually
+  const visible = useLoggedStampVisible(trigger);
+  // Kept mounted for the duration of the fade-out so it can actually
   // animate away instead of vanishing instantly — Swift's conditional `if
   // showLoggedStamp { loggedStamp(...) }` (DailyCardView.swift:557) gets
   // its fade purely from SwiftUI's default-opacity insertion/removal
@@ -154,10 +141,11 @@ export function LoggedStamp({ trigger, accent, nextUp }: LoggedStampProps) {
     if (visible) {
       setMounted(true);
       opacity.value = withTiming(1, { duration: Motion.loggedStamp.fadeInMs, easing: easeInOut });
-    } else if (instant) {
-      opacity.value = 0;
-      setMounted(false);
     } else {
+      // Every dismissal fades, including a reset fired mid-hold (undo, or
+      // swapping to a different session) — see useLoggedStampVisible's own
+      // doc comment for why this used to short-circuit to an instant snap
+      // and no longer does.
       opacity.value = withTiming(
         0,
         { duration: Motion.loggedStamp.fadeOutMs, easing: easeInOut },
@@ -167,7 +155,7 @@ export function LoggedStamp({ trigger, accent, nextUp }: LoggedStampProps) {
       );
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- opacity is a stable shared-value ref, not a reactive dep
-  }, [visible, instant]);
+  }, [visible]);
 
   const animatedStyle = useAnimatedStyle(() => ({ opacity: opacity.value }));
 
