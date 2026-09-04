@@ -1,4 +1,4 @@
-import { hasEntitlement, PAYWALL_ENABLED } from '../subscription';
+import { hasEntitlement } from '../subscription';
 
 test('reads the named entitlement from a RevenueCat CustomerInfo shape', () => {
   expect(hasEntitlement({ entitlements: { active: { standard: {} } } } as any, 'standard')).toBe(true);
@@ -16,8 +16,4 @@ test('a malformed or absent CustomerInfo denies access rather than granting it',
   expect(hasEntitlement(null as any, 'standard')).toBe(false);
   expect(hasEntitlement({} as any, 'standard')).toBe(false);
   expect(hasEntitlement({ entitlements: {} } as any, 'standard')).toBe(false);
-});
-
-test('the paywall gate ships OFF — flipping this is a deliberate, reviewed change', () => {
-  expect(PAYWALL_ENABLED).toBe(false);
 });

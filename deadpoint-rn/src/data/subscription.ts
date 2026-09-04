@@ -1,8 +1,11 @@
 /** RevenueCat SDK wrapper + the paywall's single on/off switch.
-    Task 2 of docs/superpowers/plans/2026-09-03-app-store-readiness.md:
-    this file wires up entitlement checking end to end but PAYWALL_ENABLED
-    stays false — nobody's experience changes until a later, separately
-    reviewed task flips it (see the test asserting it below).
+    Task 5 of docs/superpowers/plans/2026-09-03-app-store-readiness.md:
+    PAYWALL_ENABLED is now true — Oscar's App Store Connect (Paid
+    Applications Agreement, both subscriptions) and RevenueCat (real
+    products replacing the seeded Test Store ones, both attached to the
+    deadpoint_pro entitlement, default Offering pointing at them) setup
+    is done. The test that used to pin this to false is deleted (this
+    exact file's own doc comment above required that before flipping it).
 
     hasEntitlement is the one piece of real decision logic here and is
     fully unit tested (subscription.test.ts) — everything else is a thin
@@ -10,16 +13,13 @@
     unit-testable under this project's Jest setup (same reasoning as
     useRestTimer.ts's own doc comment: no test renderer, and mocking the
     native module would only prove the mock does what the mock does).
-    Verified live on device instead (Task 2's Step 7). */
+    Verified live on device instead. */
 import { useCallback, useEffect, useState } from 'react';
 import { Platform } from 'react-native';
 import Purchases, { type CustomerInfo, type PurchasesPackage } from 'react-native-purchases';
 
-/** The single switch that turns the paywall gate on. False in this task
-    on purpose — Task 2 only builds the entitlement-checking plumbing.
-    Flipping this to true is a deliberate, reviewed change (Task 4), and
-    doing so requires deleting the test below that pins it to false. */
-export const PAYWALL_ENABLED = false;
+/** The single switch that turns the paywall gate on. */
+export const PAYWALL_ENABLED = true;
 
 /** RevenueCat entitlement identifier backing the app's one paid tier.
     Named `deadpoint_pro` in the RevenueCat dashboard (not `standard`, the

@@ -164,10 +164,12 @@ test('isBuiltInProgram is false for null (not yet signed in)', () => {
 const readyBase: RouteReadinessInputs = {
   authReady: true, hasSeenWelcome: true, isSignedIn: true, isBuiltInProgram: false,
   builtInSeen: null, profileLoaded: true, profileFetchFailed: false,
-  // Defaults to the real PAYWALL_ENABLED value (false) so every
-  // pre-existing test below keeps its original meaning untouched —
-  // entitlementLoaded/entitlementFetchFailed are irrelevant whenever
-  // paywallEnabled is false.
+  // Task 5 shipped PAYWALL_ENABLED true, but this fixture stays false —
+  // it's the baseline every pre-existing test below builds on, and their
+  // whole point is pinning behaviour for the paywall-disabled case, which
+  // is still real, tested code (the isRouteReady()/computeRoute() calls
+  // just aren't reached this way in production anymore). Tests further
+  // down cover paywallEnabled: true explicitly.
   paywallEnabled: false, entitlementLoaded: false, entitlementFetchFailed: false,
 };
 
