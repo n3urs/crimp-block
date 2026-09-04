@@ -21,8 +21,14 @@ import Purchases, { type CustomerInfo, type PurchasesPackage } from 'react-nativ
     doing so requires deleting the test below that pins it to false. */
 export const PAYWALL_ENABLED = false;
 
-/** RevenueCat entitlement identifier backing the app's one paid tier. */
-export const ENTITLEMENT_ID = 'standard';
+/** RevenueCat entitlement identifier backing the app's one paid tier.
+    Named `deadpoint_pro` in the RevenueCat dashboard (not `standard`, the
+    plan's original suggested name) — Oscar's project already had this
+    identifier from RevenueCat's own seeded sample data, and both real
+    products (Monthly Subscription, Annual Membership) are attached to it,
+    so the code matches what actually exists rather than the other way
+    round. */
+export const ENTITLEMENT_ID = 'deadpoint_pro';
 
 /** Not a secret: RevenueCat's iOS SDK key is a public identifier meant to
     ship inside the app bundle — same class of value as SUPABASE_ANON in
