@@ -10,7 +10,7 @@
     spec for why: a second screen reached via router.push must not assume
     it shares React state with the screen that pushed it. */
 import React, { useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colours, resolveColour } from '../src/design/colours';
@@ -51,16 +51,45 @@ export default function DayPicker() {
   const [error, setError] = useState<string | null>(null);
   const existingEntry = store.get(date);
 
-  const onPick = async (key: string) => {
+  // Board vs. plain hard climb is otherwise indistinguishable in the
+  // engine (same session key, same prescription — see NativeStore.Entry.sub's
+  // own doc comment) and only matters for the calendar's board-specific
+  // count (src/screens/calendar/allTimeStats.ts). The live daily card asks
+  // this via useDoneFlow's showClimbTypeConfirm before EVERY fresh climbHard
+  // log; this screen is a second, independent place a climbHard day gets
+  // logged (backdating a past day) and was missing the same prompt — every
+  // day picked here silently saved with sub:null (useStore.set's own
+  // default), so a real board session logged through this screen could
+  // never count toward the board stat. Same Alert copy as DailyCard.tsx's
+  // own dialog, deliberately — one prompt, wherever a climbHard day gets
+  // logged, not a second, differently-worded one.
+  const commitPick = async (key: string, sub: 'board' | 'climb' | null) => {
     setBusy(true);
     setError(null);
     try {
-      await store.set(date, key);
+      await store.set(date, key, sub);
       router.back();
     } catch (e: any) {
       setError(`Couldn't save: ${e?.message ?? 'something went wrong'}`);
       setBusy(false);
     }
+  };
+
+  const onPick = (key: string) => {
+    if (key === 'climbHard') {
+      Alert.alert(
+        'Board session, or just a hard climb?',
+        undefined,
+        [
+          { text: 'BOARD SESSION', onPress: () => commitPick(key, 'board') },
+          { text: 'JUST A HARD CLIMB', onPress: () => commitPick(key, 'climb') },
+          { text: 'Cancel', style: 'cancel' },
+        ],
+        { cancelable: true }
+      );
+      return;
+    }
+    commitPick(key, null);
   };
 
   const onClear = async () => {
