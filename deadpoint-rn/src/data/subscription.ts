@@ -28,11 +28,14 @@ export const ENTITLEMENT_ID = 'standard';
     ship inside the app bundle — same class of value as SUPABASE_ANON in
     supabase.ts, not the "secret key" RevenueCat's own dashboard warns
     against exposing (that one's server-side only and never belongs in a
-    client). Placeholder until Oscar supplies the real key from the
-    RevenueCat dashboard; configureRevenueCat() below is safe to call
-    with this value (it can't reach RevenueCat's servers, it just
-    shouldn't crash launch — see _layout.tsx's try/catch around the call). */
-export const REVENUECAT_API_KEY_IOS = 'REPLACE_WITH_REVENUECAT_PUBLIC_IOS_SDK_KEY';
+    client). Real key, from the Deadpoint (App Store) app RevenueCat
+    project — but this alone does NOT make purchases live: PAYWALL_ENABLED
+    is still false below, and the Product catalog/Offering/Entitlement on
+    RevenueCat's side aren't set up yet either (blocked on Oscar's App
+    Store Connect subscription products existing first). Safe to ship
+    with the real key while still inert: configureRevenueCat() below just
+    connects the SDK; nothing reads what it returns until the flag flips. */
+export const REVENUECAT_API_KEY_IOS = 'appl_KjyvfSZFCWyTrBZlyypQLJOljFY';
 
 /** Pure — the only part of this file with real decision logic, so it's
     the only part unit tested. Defends against every malformed shape a
