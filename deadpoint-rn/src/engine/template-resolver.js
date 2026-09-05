@@ -190,6 +190,31 @@ function filterEquipment(sessionsObj, haveEquipment){
   });
 }
 
+/* Same opt-in/untagged-always-kept shape as filterEquipment above, but
+   for the hangboard-vs-weighted-pickup preference (quiz's
+   maxFingersMethod question — only asked when pickupRig equipment is
+   selected, since it's meaningless otherwise). `method` is a SEPARATE
+   dimension from `equip`: a hangboard exercise is never equip-gated
+   today (someone can max-hang on any edge, not just a purpose-built
+   board), so this only ever removes the LOSING side of an explicit
+   either/or choice, never something the equipment filter above would
+   have removed anyway.
+
+   A no-op when no preference is set (undefined/null) — someone who was
+   never asked, or who answered nothing, keeps seeing exactly what they
+   always would have (both sides, subject only to equipment filtering) —
+   this must never newly hide an exercise nobody actually chose to hide. */
+function applyMaxFingersMethod(sessionsObj, method){
+  if(!method) return;
+  Object.keys(sessionsObj).forEach(function(key){
+    var s = sessionsObj[key];
+    if(!s.x) return;
+    s.x = s.x.filter(function(ex){
+      return !ex.method || ex.method === method;
+    });
+  });
+}
+
 /* Appends a mandatory-insert exercise once (never duplicated even if
    resolveTemplate is somehow called twice on the same modifier set —
    matched by exercise title within the target session). */
@@ -282,6 +307,7 @@ function resolveTemplate(template, opts){
   }
 
   filterEquipment(program.sessions, modifiers.equipment);
+  applyMaxFingersMethod(program.sessions, modifiers.maxFingersMethod);
   applyInjuryFlags(program, modifiers.injuryFlags);
   applyWeaknesses(program, modifiers.weaknesses);
   applyTripTaper(program, startDate, modifiers.tripDate);
@@ -293,7 +319,8 @@ return {
   resolveTemplate: resolveTemplate,
   INJURY_MODULES: INJURY_MODULES,
   WEAKNESS_MODULES: WEAKNESS_MODULES,
-  EQUIPMENT_TAGS: EQUIPMENT_TAGS
+  EQUIPMENT_TAGS: EQUIPMENT_TAGS,
+  applyMaxFingersMethod: applyMaxFingersMethod
 };
 
 });

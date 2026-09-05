@@ -13,6 +13,11 @@ export type Equipment = 'hangboard' | 'pullBar' | 'gym' | 'pickupRig';
 export type InjuryFlag = 'fingerPulley' | 'bicepTendon' | 'shoulder' | 'elbow';
 export type RehabInjuryArea = 'fingerPulley' | 'elbowMedial' | 'elbowLateral' | 'shoulder' | 'bicepsTendon' | 'wristTFCC';
 export type RehabStartingPoint = 0 | 1 | 2 | 3;
+// Only meaningful once pickupRig is in `equipment` — see EquipmentStep's
+// own inline follow-up. null covers both "not asked" (no pickupRig) and
+// "asked but no preference recorded yet" identically: template-resolver.js's
+// applyMaxFingersMethod treats a falsy method as a no-op either way.
+export type MaxFingersMethod = 'hangboard' | 'pickup';
 
 export interface QuizAnswers {
   discipline: Discipline;
@@ -22,6 +27,7 @@ export interface QuizAnswers {
   injuryFlags: InjuryFlag[];
   daysPerWeek: number;
   tripDate: string | null;
+  maxFingersMethod: MaxFingersMethod | null;
 }
 
 export type QuizResult =
@@ -40,6 +46,7 @@ export function modifiersPayload(answers: QuizAnswers): Record<string, unknown> 
     daysPerWeek: answers.daysPerWeek,
   };
   if (answers.tripDate) payload.tripDate = answers.tripDate;
+  if (answers.maxFingersMethod) payload.maxFingersMethod = answers.maxFingersMethod;
   return payload;
 }
 

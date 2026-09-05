@@ -82,7 +82,18 @@ return {
       maxFingers:{n:'Max Hangs', w:'Home/Gym · 35 min', c:'--gorse', finger:2, pull:0, note:'Margin-before-failure, not a true 1-rep max — pick a load or edge where your absolute limit would be a few seconds past the prescribed time, not exactly at it.',
         x:[
           {t:'Warm up',m:'15 min',d:'Pulse raise, then progressively heavier hangs on a jug before touching a smaller edge — never load a cold tendon.'},
-          {t:'Weighted or edge max hang',id:'tpl-int-maxhang',m:'4 × 8s',ph:{'Power':'5 × 5s — shorter, sharper, contact-focused rather than time-under-tension','Performance':'skip — hold what you built, repeaters only'},d:'Half-crimp or open-hand, whichever you climb more on. Add weight if the edge alone isn\'t enough to hit the target time near your limit; take it off an edge size instead if it is. Full 3–5 minutes between efforts — this is near-max work and stops being near-max without real rest.',r:210},
+          {t:'Weighted or edge max hang',id:'tpl-int-maxhang',method:'hangboard',m:'4 × 8s',ph:{'Power':'5 × 5s — shorter, sharper, contact-focused rather than time-under-tension','Performance':'skip — hold what you built, repeaters only'},d:'Half-crimp or open-hand, whichever you climb more on. Add weight if the edge alone isn\'t enough to hit the target time near your limit; take it off an edge size instead if it is. Full 3–5 minutes between efforts — this is near-max work and stops being near-max without real rest.',r:210},
+          // Alternate-hands pickup format (5s hold per hand, not a
+          // continuous rep) rather than boulderingAdvanced's own
+          // multi-rep-per-set pickup style — mirrors Oscar's own real,
+          // lived-with program (programs.js, 'Pickups — half crimp':
+          // 5 × 5s / hand), which already uses exactly this pattern as
+          // its actual primary finger lift, not a desk-researched
+          // substitute. Numbers here still follow the established
+          // hang-to-pickup conversion this file already uses in
+          // boulderingAdvanced (same set count, reframed as discrete
+          // reps rather than a timed hold) — see tpl-adv-pickup below.
+          {t:'Weighted pickup — half crimp',id:'tpl-int-pickup',equip:'pickupRig',method:'pickup',m:'4 × 5s / hand',ph:{'Power':'4 × 3s / hand — shorter, sharper, contact-focused rather than time-under-tension','Performance':'skip — hold what you built, repeaters only'},d:'A loading pin and plates, lifted off the ground one-armed on a half-crimp — Lattice Training’s lifting-edge protocol, a dynamic alternative to the static hang above for the same near-max stimulus. Short, controlled lift and lower (2–3s), form-perfect, not a held position. Alternate hands — each hand then gets a real 3-plus minutes between efforts even at a 90-second between-set rest, which is what near-max work needs to stay near-max.',r:90},
           {t:'Secondary position hang',m:'3 × 6s',ph:{'Power':'skip — one hang variation is enough intensity work this phase'},d:'Whichever grip position you didn\'t just train above (open-hand if you did half-crimp, or vice versa) — submaximal, this is coverage, not the main event.',r:120}
         ]},
       hangboard:{n:'Repeaters', w:'Home/Gym · 25 min', c:'--slate', finger:2, pull:0, note:'Lower load than the Max Hangs session by design — prime with an easy warm-up set at 30–40% before your first working set.',
@@ -170,9 +181,18 @@ return {
       maxFingers:{n:'Max Hangs', w:'Home/Gym · 40 min', c:'--gorse', finger:3, pull:0, note:'48 hours between sessions is enough recovery for this protocol — more isn’t automatically better here.',
         x:[
           {t:'Warm up',m:'15 min',d:'Pulse raise, then progressively heavier hangs on a jug before touching a smaller edge.'},
-          {t:'Max hang — added weight (MAW)',id:'tpl-adv-maw',m:'skip — see Max Strength — MAW / MED phases above for this cycle',ph:{'Base':'4 × 8s — lighter, this phase is a reset','Max Strength — MAW':'5 × 7s — half-crimp, comfortable edge, weight added to reach near-max effort'},d:'Half-crimp, a comfortable edge with weight added to hit near-max at 7s. Full 3–5 minutes between efforts. Active only during Max Strength — MAW (Maximum Additional Weight) — once the MED phase starts, this one stops and the exercise below takes over.',r:210},
-          {t:'Max hang — minimum edge (MED)',id:'tpl-adv-med',m:'skip — Max Strength — MED phase only, see MAW hang above',ph:{'Max Strength — MED':'4 × 7s — smallest edge you can hold bodyweight for the full time, no added weight'},d:'Active only during Max Strength — MED (Minimum Edge Depth): drop the added weight, drop the edge size instead — same time-under-tension target as the MAW phase, different lever.',r:210},
-          {t:'Weighted pickup — 20mm edge',id:'tpl-adv-pickup',equip:'pickupRig',m:'skip — Base / Max Strength phases only, same as the hangs above',ph:{'Base':'3 × 4 — lighter, building the movement pattern','Max Strength — MAW':'4 × 4 — half-crimp, heavy but 1–2 reps in reserve','Max Strength — MED':'4 × 4 — half-crimp, heavy but 1–2 reps in reserve'},d:'A loading pin and plates, lifted off the ground one-armed on a half-crimp — a dynamic alternative to the static hangs above, popularised by Lattice Training’s lifting-edge protocol. Short, controlled lift and lower per rep (2–3s), not a held position. Leave 1–2 reps in reserve on every set — this is heavy, technical loading, never a set taken to failure. Optional alongside the hangs above, or a genuine substitute for them on days you’d rather load this way — needs a loading pin plus a fixed edge, block, or roller to lift from.',r:240},
+          {t:'Max hang — added weight (MAW)',id:'tpl-adv-maw',method:'hangboard',m:'skip — see Max Strength — MAW / MED phases above for this cycle',ph:{'Base':'4 × 8s — lighter, this phase is a reset','Max Strength — MAW':'5 × 7s — half-crimp, comfortable edge, weight added to reach near-max effort'},d:'Half-crimp, a comfortable edge with weight added to hit near-max at 7s. Full 3–5 minutes between efforts. Active only during Max Strength — MAW (Maximum Additional Weight) — once the MED phase starts, this one stops and the exercise below takes over.',r:210},
+          {t:'Max hang — minimum edge (MED)',id:'tpl-adv-med',method:'hangboard',m:'skip — Max Strength — MED phase only, see MAW hang above',ph:{'Max Strength — MED':'4 × 7s — smallest edge you can hold bodyweight for the full time, no added weight'},d:'Active only during Max Strength — MED (Minimum Edge Depth): drop the added weight, drop the edge size instead — same time-under-tension target as the MAW phase, different lever.',r:210},
+          // Kept in this template's own MAW/MED multi-rep-per-set format
+          // (not converted to the alternate-hands single-rep style used
+          // elsewhere in this file) — this template's whole MAW/MED
+          // structure is Eva López's specific 8-week cycle (see this
+          // template's own top comment), and that periodization, not the
+          // rep style, is what the peer-reviewed support (Mundry et al.)
+          // is actually for. method:'pickup' now makes this a genuine
+          // either/or against the hangs above via the quiz's hangboard-
+          // vs-edge preference, not just an "optional alongside" add-on.
+          {t:'Weighted pickup — 20mm edge',id:'tpl-adv-pickup',equip:'pickupRig',method:'pickup',m:'skip — Base / Max Strength phases only, same as the hangs above',ph:{'Base':'3 × 4 — lighter, building the movement pattern','Max Strength — MAW':'4 × 4 — half-crimp, heavy but 1–2 reps in reserve','Max Strength — MED':'4 × 4 — half-crimp, heavy but 1–2 reps in reserve'},d:'A loading pin and plates, lifted off the ground one-armed on a half-crimp — a dynamic alternative to the static hangs above, popularised by Lattice Training’s lifting-edge protocol. Short, controlled lift and lower per rep (2–3s), not a held position. Leave 1–2 reps in reserve on every set — this is heavy, technical loading, never a set taken to failure.',r:240},
           {t:'Recruitment pulls',m:'skip — Power phase only',ph:{'Power':'6 × 3s — fast, hard pull onto the edge, held briefly then released','Performance':'skip — Power phase only, standard repeaters below cover maintenance'},d:'Speed and intensity of contraction rather than sustained load — teaching the nervous system to fire everything quickly, not just hold on longer. Full recovery between reps.',r:150}
         ]},
       hangboard:{n:'Repeaters', w:'Home/Gym · 25 min', c:'--slate', finger:2, pull:0, note:'Capacity work — kept in the program year-round even while Max Hangs is the main event, because repeaters and max hangs train different qualities.',
@@ -238,7 +258,12 @@ return {
       maxFingers:{n:'Max Hangs', w:'Home/Gym · 35 min', c:'--gorse', finger:2, pull:0, note:'Margin-before-failure, not a true 1-rep max — finger strength still underlies everything here, sport climbing doesn’t change that.',
         x:[
           {t:'Warm up',m:'15 min',d:'Pulse raise, then progressively heavier hangs on a jug before touching a smaller edge.'},
-          {t:'Weighted or edge max hang',m:'4 × 8s',ph:{'Power Endurance':'4 × 6s — slightly shorter, this phase’s priority is the sessions below','Performance':'skip — hold what you built, repeaters only'},d:'Half-crimp or open-hand, whichever you climb more on. Full 3–5 minutes between efforts.',r:210}
+          {t:'Weighted or edge max hang',method:'hangboard',m:'4 × 8s',ph:{'Power Endurance':'4 × 6s — slightly shorter, this phase’s priority is the sessions below','Performance':'skip — hold what you built, repeaters only'},d:'Half-crimp or open-hand, whichever you climb more on. Full 3–5 minutes between efforts.',r:210},
+          // Same alternate-hands pickup format as boulderingIntermediate's
+          // own pickup exercise, matching Oscar's real program (programs.js,
+          // 'Pickups — half crimp') — sport climbing doesn't change finger-
+          // strength requirements, so this deliberately isn't reinvented.
+          {t:'Weighted pickup — half crimp',equip:'pickupRig',method:'pickup',m:'4 × 5s / hand',ph:{'Power Endurance':'4 × 3s / hand — slightly shorter, this phase’s priority is the sessions below','Performance':'skip — hold what you built, repeaters only'},d:'A loading pin and plates, lifted off the ground one-armed on a half-crimp — Lattice Training’s lifting-edge protocol, a dynamic alternative to the static hang above for the same near-max stimulus. Short, controlled lift and lower (2–3s), form-perfect. Alternate hands — each hand gets a real 3-plus minutes between efforts even at a 90-second between-set rest.',r:90}
         ]},
       hangboard:{n:'Repeaters', w:'Home/Gym · 25 min', c:'--slate', finger:2, pull:0, note:'Prime with an easy warm-up set at 30–40% before your first working set.',
         x:[
@@ -325,7 +350,14 @@ return {
       maxFingers:{n:'Max Hangs', w:'Home/Gym · 40 min', c:'--gorse', finger:3, pull:0, note:'Same protocol as the advanced bouldering template — finger strength requirements don’t fundamentally change between disciplines at this level, so this deliberately isn’t reinvented here.',
         x:[
           {t:'Warm up',m:'15 min',d:'Pulse raise, then progressively heavier hangs on a jug before touching a smaller edge.'},
-          {t:'Weighted or edge max hang',m:'5 × 7s',ph:{'Power Endurance':'skip — this block is fully committed to power-endurance work, see the caution in this phase’s description','Redpoint — Taper':'3 × 7s — maintain, volume down','Performance':'skip — hold what you built, repeaters only'},d:'Half-crimp or open-hand, whichever you climb more on. Full 3–5 minutes between efforts.',r:210}
+          {t:'Weighted or edge max hang',method:'hangboard',m:'5 × 7s',ph:{'Power Endurance':'skip — this block is fully committed to power-endurance work, see the caution in this phase’s description','Redpoint — Taper':'3 × 7s — maintain, volume down','Performance':'skip — hold what you built, repeaters only'},d:'Half-crimp or open-hand, whichever you climb more on. Full 3–5 minutes between efforts.',r:210},
+          // Same protocol as the advanced bouldering template's own
+          // pickup alternative (tpl-adv-pickup), adapted to this
+          // template's simpler phase names — see that exercise's own
+          // comment for why the MAW/MED multi-rep style is kept here
+          // rather than converted to the alternate-hands format used in
+          // the two Intermediate templates.
+          {t:'Weighted pickup — 20mm edge',equip:'pickupRig',method:'pickup',m:'4 × 4 — half-crimp, heavy but 1–2 reps in reserve',ph:{'Power Endurance':'skip — this block is fully committed to power-endurance work, see the caution in this phase’s description','Redpoint — Taper':'3 × 4 — maintain, volume down','Performance':'skip — hold what you built, repeaters only'},d:'A loading pin and plates, lifted off the ground one-armed on a half-crimp — Lattice Training’s lifting-edge protocol, a dynamic alternative to the static hang above. Short, controlled lift and lower per rep (2–3s), not a held position. Leave 1–2 reps in reserve on every set — heavy, technical loading, never a set taken to failure.',r:240}
         ]},
       hangboard:{n:'Repeaters', w:'Home/Gym · 25 min', c:'--slate', finger:2, pull:0, note:'Capacity work — kept year-round because repeaters and max hangs train different qualities.',
         x:[

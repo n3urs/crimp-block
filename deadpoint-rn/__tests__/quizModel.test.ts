@@ -32,6 +32,7 @@ test('gradeRange gives sport French-grade bands', () => {
 const baseAnswers: QuizAnswers = {
   discipline: 'bouldering', experienceLevel: 'intermediate',
   weaknesses: [], equipment: [], injuryFlags: [], daysPerWeek: 3, tripDate: null,
+  maxFingersMethod: null,
 };
 
 test('modifiersPayload always includes equipment/injuryFlags/weaknesses/daysPerWeek', () => {

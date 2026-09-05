@@ -29,6 +29,7 @@ const track: Track = 'standard';
 const DEFAULT_ANSWERS: QuizAnswers = {
   discipline: 'bouldering', experienceLevel: 'intermediate',
   weaknesses: [], equipment: [], injuryFlags: [], daysPerWeek: 3, tripDate: null,
+  maxFingersMethod: null,
 };
 
 export default function Quiz() {

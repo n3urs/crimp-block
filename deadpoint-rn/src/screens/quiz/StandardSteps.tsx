@@ -54,11 +54,39 @@ export function WeaknessStep({ answers, onChange, totalSteps }: StepProps) {
 }
 
 export function EquipmentStep({ answers, onChange, totalSteps }: StepProps) {
+  const hasPickupRig = answers.equipment.includes('pickupRig');
+
+  // Toggling pickupRig off clears the preference too — it's only ever
+  // shown/meaningful while the equipment is actually selected, and a
+  // stale answer left behind after unchecking it would otherwise sit
+  // in modifiersPayload doing nothing visible, which is worse than not
+  // recording it at all.
+  const onToggleEquipment = (e: Equipment) => {
+    const equipment = toggleIn(answers.equipment, e);
+    const maxFingersMethod = e === 'pickupRig' && !equipment.includes('pickupRig') ? null : answers.maxFingersMethod;
+    onChange({ ...answers, equipment, maxFingersMethod });
+  };
+
   return (
     <StepScaffold eyebrow={`4 of ${totalSteps}`} title="What do you have access to?" subtitle="Select everything that applies — this only changes which exercises show up, not the plan itself.">
       {(['hangboard', 'pullBar', 'gym', 'pickupRig'] as Equipment[]).map((e) => (
-        <ChoiceCard key={e} label={EQUIPMENT_LABELS[e]} isSelected={answers.equipment.includes(e)} onPress={() => onChange({ ...answers, equipment: toggleIn(answers.equipment, e) })} />
+        <ChoiceCard key={e} label={EQUIPMENT_LABELS[e]} isSelected={answers.equipment.includes(e)} onPress={() => onToggleEquipment(e)} />
       ))}
+      {hasPickupRig && (
+        <View style={styles.followUp}>
+          <Text style={styles.followUpLabel}>MAX FINGERS: HANGBOARD OR YOUR EDGE?</Text>
+          <ChoiceCard
+            label="Hangboard" subtitle="Static hangs — the usual way"
+            isSelected={answers.maxFingersMethod === 'hangboard'}
+            onPress={() => onChange({ ...answers, maxFingersMethod: 'hangboard' })}
+          />
+          <ChoiceCard
+            label="Weighted pickups on my edge" subtitle="Dynamic lift-and-lower reps instead of a held hang"
+            isSelected={answers.maxFingersMethod === 'pickup'}
+            onPress={() => onChange({ ...answers, maxFingersMethod: 'pickup' })}
+          />
+        </View>
+      )}
     </StepScaffold>
   );
 }
@@ -162,6 +190,7 @@ export function StandardSummaryStep({ answers }: StepProps) {
         {summaryRow('Days / week', String(answers.daysPerWeek))}
         {answers.weaknesses.length > 0 && summaryRow('Extra focus', answers.weaknesses.map((w) => WEAKNESS_LABELS[w]).join(', '))}
         {answers.equipment.length > 0 && summaryRow('Equipment', answers.equipment.map((e) => EQUIPMENT_LABELS[e]).join(', '))}
+        {answers.maxFingersMethod != null && summaryRow('Max Fingers', answers.maxFingersMethod === 'pickup' ? 'Weighted pickups on your edge' : 'Hangboard')}
         {answers.injuryFlags.length > 0 && summaryRow('Flagged', answers.injuryFlags.map((f) => INJURY_FLAG_LABELS[f]).join(', '))}
         {answers.tripDate != null && summaryRow('Trip date', answers.tripDate)}
       </View>
@@ -170,6 +199,8 @@ export function StandardSummaryStep({ answers }: StepProps) {
 }
 
 const styles = StyleSheet.create({
+  followUp: { marginTop: 20, gap: 10, paddingTop: 16, borderTopWidth: 1, borderTopColor: Colours.s3 },
+  followUpLabel: { ...Fonts.mono(11, 'bold'), color: Colours.faint, letterSpacing: 0.6 },
   bigNumber: { ...Fonts.mono(64, 'bold'), fontWeight: '800', color: Colours.fg, textAlign: 'center' },
   dateButton: { padding: 16, borderRadius: 12, backgroundColor: Colours.s1, alignItems: 'center' },
   dateButtonText: { fontSize: 15, fontWeight: '600', color: Colours.fg },
