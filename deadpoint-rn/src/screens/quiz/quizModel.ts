@@ -4,7 +4,10 @@
     separate lookup table to keep in sync as the matrix grows. */
 
 export type Discipline = 'bouldering' | 'sport';
-export type ExperienceLevel = 'beginner' | 'intermediate' | 'advanced';
+// 'beginner' removed on purpose (Oscar's call): a true beginner
+// shouldn't be following a structured strength program at all — they
+// should be climbing a lot first. Intermediate is now the floor.
+export type ExperienceLevel = 'intermediate' | 'advanced';
 export type Weakness = 'slopers' | 'compression';
 export type Equipment = 'hangboard' | 'pullBar' | 'gym' | 'pickupRig';
 export type InjuryFlag = 'fingerPulley' | 'bicepTendon' | 'shoulder' | 'elbow';
@@ -46,8 +49,8 @@ export function modifiersPayload(answers: QuizAnswers): Record<string, unknown> 
     templates.js's own meta descriptions. */
 export function gradeRange(discipline: Discipline, level: ExperienceLevel): string {
   const table: Record<Discipline, Record<ExperienceLevel, string>> = {
-    bouldering: { beginner: 'Roughly V0–V2', intermediate: 'Roughly V3–V6', advanced: 'V7 and above' },
-    sport: { beginner: 'Roughly up to French 6a', intermediate: 'Roughly French 6a–6c', advanced: 'French 7a and above' },
+    bouldering: { intermediate: 'Roughly V3–V6', advanced: 'V7 and above' },
+    sport: { intermediate: 'Roughly French 6a–6c', advanced: 'French 7a and above' },
   };
   return table[discipline][level];
 }
@@ -57,7 +60,7 @@ export const DISCIPLINE_LABELS: Record<Discipline, string> = {
 };
 
 export const EXPERIENCE_LABELS: Record<ExperienceLevel, string> = {
-  beginner: 'Beginner', intermediate: 'Intermediate', advanced: 'Advanced',
+  intermediate: 'Intermediate', advanced: 'Advanced',
 };
 
 export const WEAKNESS_LABELS: Record<Weakness, string> = {
@@ -108,10 +111,8 @@ export interface TemplateMeta { name: string; description: string; }
     pattern as SESSION_ORDER already mirrors engine-core.js's ORDER. KEEP
     IN SYNC with templates.js if either changes. */
 export const TEMPLATE_META: Record<string, TemplateMeta> = {
-  boulderingBeginner: { name: 'Bouldering — Beginner', description: 'For someone newer to bouldering who wants real structure without heavy fingerboard loading on day one.' },
   boulderingIntermediate: { name: 'Bouldering — Intermediate', description: 'For someone a couple of years into bouldering who has hit the classic V3–V4 plateau.' },
   boulderingAdvanced: { name: 'Bouldering — Advanced', description: 'For someone climbing V8 and above who has already built real finger and pull strength.' },
-  sportBeginner: { name: 'Sport — Beginner', description: 'For someone newer to sport climbing — endurance, not power, is the central quality here.' },
   sportIntermediate: { name: 'Sport — Intermediate', description: 'For someone a couple of years into sport climbing ready for structured power-endurance work.' },
   sportAdvanced: { name: 'Sport — Advanced', description: 'For an established sport climber training power-endurance deliberately rather than constantly.' },
 };

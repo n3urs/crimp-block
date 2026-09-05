@@ -19,7 +19,7 @@ function toggleIn<T>(arr: T[], value: T): T[] {
 
 export function DisciplineStep({ answers, onChange, totalSteps }: StepProps) {
   return (
-    <StepScaffold eyebrow={`2 of ${totalSteps}`} title="What do you climb?">
+    <StepScaffold eyebrow={`1 of ${totalSteps}`} title="What do you climb?">
       {(['bouldering', 'sport'] as Discipline[]).map((d) => (
         <ChoiceCard key={d} label={DISCIPLINE_LABELS[d]} isSelected={answers.discipline === d} onPress={() => onChange({ ...answers, discipline: d })} />
       ))}
@@ -29,8 +29,8 @@ export function DisciplineStep({ answers, onChange, totalSteps }: StepProps) {
 
 export function ExperienceStep({ answers, onChange, totalSteps }: StepProps) {
   return (
-    <StepScaffold eyebrow={`3 of ${totalSteps}`} title="How experienced are you?">
-      {(['beginner', 'intermediate', 'advanced'] as ExperienceLevel[]).map((level) => (
+    <StepScaffold eyebrow={`2 of ${totalSteps}`} title="How experienced are you?">
+      {(['intermediate', 'advanced'] as ExperienceLevel[]).map((level) => (
         <ChoiceCard
           key={level} label={EXPERIENCE_LABELS[level]} subtitle={gradeRange(answers.discipline, level)}
           isSelected={answers.experienceLevel === level} onPress={() => onChange({ ...answers, experienceLevel: level })}
@@ -42,7 +42,7 @@ export function ExperienceStep({ answers, onChange, totalSteps }: StepProps) {
 
 export function WeaknessStep({ answers, onChange, totalSteps }: StepProps) {
   return (
-    <StepScaffold eyebrow={`4 of ${totalSteps}`} title="Anything you want extra focus on?" subtitle="Optional — skip if nothing stands out.">
+    <StepScaffold eyebrow={`3 of ${totalSteps}`} title="Anything you want extra focus on?" subtitle="Optional — skip if nothing stands out.">
       {(['slopers', 'compression'] as Weakness[]).map((w) => (
         <ChoiceCard key={w} label={WEAKNESS_LABELS[w]} isSelected={answers.weaknesses.includes(w)} onPress={() => onChange({ ...answers, weaknesses: toggleIn(answers.weaknesses, w) })} />
       ))}
@@ -52,7 +52,7 @@ export function WeaknessStep({ answers, onChange, totalSteps }: StepProps) {
 
 export function EquipmentStep({ answers, onChange, totalSteps }: StepProps) {
   return (
-    <StepScaffold eyebrow={`5 of ${totalSteps}`} title="What do you have access to?" subtitle="Select everything that applies — this only changes which exercises show up, not the plan itself.">
+    <StepScaffold eyebrow={`4 of ${totalSteps}`} title="What do you have access to?" subtitle="Select everything that applies — this only changes which exercises show up, not the plan itself.">
       {(['hangboard', 'pullBar', 'gym', 'pickupRig'] as Equipment[]).map((e) => (
         <ChoiceCard key={e} label={EQUIPMENT_LABELS[e]} isSelected={answers.equipment.includes(e)} onPress={() => onChange({ ...answers, equipment: toggleIn(answers.equipment, e) })} />
       ))}
@@ -62,7 +62,7 @@ export function EquipmentStep({ answers, onChange, totalSteps }: StepProps) {
 
 export function InjuryStep({ answers, onChange, totalSteps }: StepProps) {
   return (
-    <StepScaffold eyebrow={`6 of ${totalSteps}`} title="Any injury history worth flagging?" subtitle="Optional — this adds caution notes and safety exercises, not a diagnosis. Not a substitute for real medical advice.">
+    <StepScaffold eyebrow={`5 of ${totalSteps}`} title="Any injury history worth flagging?" subtitle="Optional — this adds caution notes and safety exercises, not a diagnosis. Not a substitute for real medical advice.">
       {(['fingerPulley', 'bicepTendon', 'shoulder', 'elbow'] as InjuryFlag[]).map((flag) => (
         <ChoiceCard
           key={flag} label={INJURY_FLAG_LABELS[flag]} subtitle={INJURY_FLAG_SUBTITLES[flag]}
@@ -75,7 +75,7 @@ export function InjuryStep({ answers, onChange, totalSteps }: StepProps) {
 
 export function DaysPerWeekStep({ answers, onChange, totalSteps }: StepProps) {
   return (
-    <StepScaffold eyebrow={`7 of ${totalSteps}`} title="How many days a week can you train?">
+    <StepScaffold eyebrow={`6 of ${totalSteps}`} title="How many days a week can you train?">
       <Text style={styles.bigNumber}>{answers.daysPerWeek}</Text>
       <View style={styles.stepperRow}>
         <Pressable onPress={() => onChange({ ...answers, daysPerWeek: Math.max(2, answers.daysPerWeek - 1) })} style={styles.stepperButton} accessibilityRole="button" accessibilityLabel="Fewer days">
@@ -115,7 +115,7 @@ export function TripDateStep({ answers, onChange, totalSteps }: StepProps) {
   };
 
   return (
-    <StepScaffold eyebrow={`8 of ${totalSteps}`} title="Training toward a trip?" subtitle="Optional — if you have a real date, the plan can taper toward it automatically.">
+    <StepScaffold eyebrow={`7 of ${totalSteps}`} title="Training toward a trip?" subtitle="Optional — if you have a real date, the plan can taper toward it automatically.">
       <ChoiceCard
         label="No trip planned" isSelected={!wantsTripDate}
         onPress={() => { setShowPicker(false); onChange({ ...answers, tripDate: null }); }}

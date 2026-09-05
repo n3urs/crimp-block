@@ -6,17 +6,28 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colours } from '../src/design/colours';
 import { useSession } from '../src/data/useSession';
 import { useProfile } from '../src/data/useProfile';
-import { QuizHeader, QuizFooter, StepScaffold, ChoiceCard } from '../src/screens/quiz/QuizChrome';
+import { QuizHeader, QuizFooter } from '../src/screens/quiz/QuizChrome';
 import {
   DisciplineStep, ExperienceStep, WeaknessStep, EquipmentStep, InjuryStep, DaysPerWeekStep, TripDateStep, StandardSummaryStep,
 } from '../src/screens/quiz/StandardSteps';
 import { RehabAreaStep, RehabStartingPointStep, RehabSummaryStep } from '../src/screens/quiz/RehabSteps';
 import { templateId, modifiersPayload, type QuizAnswers, type QuizResult, type RehabInjuryArea, type RehabStartingPoint } from '../src/screens/quiz/quizModel';
 
-type Track = 'standard' | 'rehab' | null;
+// Rehab intentionally left out for now (Oscar's call, not deleted —
+// the quiz step that let someone choose it is gone, but everything
+// downstream (RehabAreaStep/RehabStartingPointStep/RehabSummaryStep,
+// profile.assignRehab, the rehab-coming-soon route) is untouched and
+// still works if `track` is ever set back to 'rehab'; nothing in the
+// UI does that anymore, so it's dormant rather than reachable.
+// `track` is a plain constant rather than state for the same reason —
+// there's no longer a user action that changes it.
+type Track = 'standard' | 'rehab';
+const track: Track = 'standard';
 
+// 'beginner' removed from ExperienceLevel entirely (see quizModel.ts) —
+// intermediate is the new floor, so that's the only sane default here.
 const DEFAULT_ANSWERS: QuizAnswers = {
-  discipline: 'bouldering', experienceLevel: 'beginner',
+  discipline: 'bouldering', experienceLevel: 'intermediate',
   weaknesses: [], equipment: [], injuryFlags: [], daysPerWeek: 3, tripDate: null,
 };
 
@@ -27,19 +38,24 @@ export default function Quiz() {
   const userId = session?.user?.id ?? '';
   const profile = useProfile(userId);
 
-  const [track, setTrack] = useState<Track>(null);
   const [answers, setAnswers] = useState<QuizAnswers>(DEFAULT_ANSWERS);
   const [rehabArea, setRehabArea] = useState<RehabInjuryArea | null>(null);
   const [rehabStartingPoint, setRehabStartingPoint] = useState<RehabStartingPoint | null>(null);
   const [step, setStep] = useState(0);
   const [submitting, setSubmitting] = useState(false);
 
-  const totalSteps = track === 'rehab' ? 3 : 8;
+  // Was `track === 'rehab' ? 3 : 8` — the track-choice step (formerly
+  // step 0) is gone, so standard drops from 8 answerable steps to 7;
+  // rehab's own 3 is untouched dead code, kept in case it comes back.
+  const totalSteps = track === 'rehab' ? 3 : 7;
 
+  // Was step===0 ? track!=null : ... — with no track-choice step left,
+  // every standard step already has a valid default answer, so this
+  // collapses to the rehab-only checks plus the same `true` fallback
+  // the standard branch always resolved to.
   const canAdvance =
-    step === 0 ? track != null
-    : track === 'rehab' && step === 1 ? rehabArea != null
-    : track === 'rehab' && step === 2 ? rehabStartingPoint != null
+    track === 'rehab' && step === 0 ? rehabArea != null
+    : track === 'rehab' && step === 1 ? rehabStartingPoint != null
     : true;
 
   const onCancel = async () => {
@@ -76,29 +92,28 @@ export default function Quiz() {
     }
   };
 
+  // Track-choice step (the old step 0, "Training normally, or working
+  // through an injury?") is gone — rehab is left out for now, see the
+  // Track/track doc comment above. Discipline is the real first step.
   let body: React.ReactNode;
-  if (step === 0) {
-    body = (
-      <StepScaffold eyebrow="1 of 8" title="Training normally, or working through an injury?">
-        <ChoiceCard label="Normal training" subtitle="A full program matched to your climbing and goals" isSelected={track === 'standard'} onPress={() => setTrack('standard')} />
-        <ChoiceCard label="Rehab" subtitle="For a current injury — a shorter, phase-based track focused on getting back to climbing safely" isSelected={track === 'rehab'} onPress={() => setTrack('rehab')} />
-      </StepScaffold>
-    );
-  } else if (track === 'rehab') {
-    body = step === 1
+  if (track === 'rehab') {
+    // Dead code today (track can't actually be 'rehab' — see above),
+    // kept working and renumbered to match the removed step-0 shift so
+    // it's ready to wire back up rather than needing to be re-derived.
+    body = step === 0
       ? <RehabAreaStep area={rehabArea} onChange={setRehabArea} totalSteps={totalSteps} />
-      : step === 2
+      : step === 1
       ? <RehabStartingPointStep startingPoint={rehabStartingPoint} onChange={setRehabStartingPoint} totalSteps={totalSteps} />
       : <RehabSummaryStep area={rehabArea} startingPoint={rehabStartingPoint} />;
   } else {
     const stepProps = { answers, onChange: setAnswers, totalSteps };
-    body = step === 1 ? <DisciplineStep {...stepProps} />
-      : step === 2 ? <ExperienceStep {...stepProps} />
-      : step === 3 ? <WeaknessStep {...stepProps} />
-      : step === 4 ? <EquipmentStep {...stepProps} />
-      : step === 5 ? <InjuryStep {...stepProps} />
-      : step === 6 ? <DaysPerWeekStep {...stepProps} />
-      : step === 7 ? <TripDateStep {...stepProps} />
+    body = step === 0 ? <DisciplineStep {...stepProps} />
+      : step === 1 ? <ExperienceStep {...stepProps} />
+      : step === 2 ? <WeaknessStep {...stepProps} />
+      : step === 3 ? <EquipmentStep {...stepProps} />
+      : step === 4 ? <InjuryStep {...stepProps} />
+      : step === 5 ? <DaysPerWeekStep {...stepProps} />
+      : step === 6 ? <TripDateStep {...stepProps} />
       : <StandardSummaryStep {...stepProps} />;
   }
 
