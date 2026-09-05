@@ -29,7 +29,10 @@ export function DisciplineStep({ answers, onChange, totalSteps }: StepProps) {
 
 export function ExperienceStep({ answers, onChange, totalSteps }: StepProps) {
   return (
-    <StepScaffold eyebrow={`2 of ${totalSteps}`} title="How experienced are you?">
+    <StepScaffold
+      eyebrow={`2 of ${totalSteps}`} title="How experienced are you?"
+      subtitle="New to climbing? Structured strength training isn't the right starting point yet — go climb a lot first, and come back to this once you've got a couple of years on the wall."
+    >
       {(['intermediate', 'advanced'] as ExperienceLevel[]).map((level) => (
         <ChoiceCard
           key={level} label={EXPERIENCE_LABELS[level]} subtitle={gradeRange(answers.discipline, level)}

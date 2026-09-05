@@ -29,6 +29,12 @@ export default function Welcome() {
         <Text style={styles.tagline}>
           Adaptive daily training for climbers — one recommended session a day, built around your own recovery.
         </Text>
+        <View style={styles.disclaimerBox}>
+          <Text style={styles.disclaimerLabel}>BEFORE YOU START</Text>
+          <Text style={styles.disclaimer}>
+            This app tells you what to do, not how to do it safely — it doesn't teach exercise technique. Learn proper form for hangboarding, weighted pull-ups, and any movement here from a qualified source before you load it, especially anything finger-specific.
+          </Text>
+        </View>
       </View>
       <Pressable onPress={onContinue} style={styles.button} accessibilityRole="button" accessibilityLabel="Get started">
         <Text style={styles.buttonText}>GET STARTED</Text>
@@ -39,9 +45,18 @@ export default function Welcome() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: Colours.bg, padding: 24, justifyContent: 'space-between' },
-  content: { flex: 1, justifyContent: 'center', gap: 14 },
+  content: { flex: 1, justifyContent: 'center', gap: 20 },
   wordmark: { fontSize: 44, fontWeight: '800', color: Colours.fg },
   tagline: { fontSize: 16, color: Colours.dim },
+  // A real safety notice, not fine print — bordered and given its own
+  // labelled box so it reads as a distinct, important thing to notice
+  // on the very first screen, not a trailing caption under the tagline.
+  disclaimerBox: {
+    borderWidth: 1, borderColor: Colours.s3, borderRadius: 8,
+    backgroundColor: Colours.s1, padding: 14, gap: 6,
+  },
+  disclaimerLabel: { ...Fonts.mono(11, 'bold'), color: resolveColour('--gorse'), letterSpacing: 0.6 },
+  disclaimer: { fontSize: 13.5, color: Colours.dim, lineHeight: 19 },
   button: {
     paddingVertical: 14, borderRadius: 8, alignItems: 'center',
     backgroundColor: resolveColour('--gorse'),
