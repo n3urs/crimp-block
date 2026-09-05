@@ -28,6 +28,15 @@ export function DisciplineStep({ answers, onChange, totalSteps }: StepProps) {
 }
 
 export function ExperienceStep({ answers, onChange, totalSteps }: StepProps) {
+  // Switching away from intermediate clears priorTraining — the follow-up
+  // below is only ever shown there (nobody reaches the advanced grade
+  // bands without having trained already), so a stale answer left behind
+  // after switching would just sit unused in modifiersPayload. Same
+  // reasoning as EquipmentStep's pickupRig/maxFingersMethod reset.
+  const onSelectLevel = (level: ExperienceLevel) => {
+    onChange({ ...answers, experienceLevel: level, priorTraining: level === 'intermediate' ? answers.priorTraining : null });
+  };
+
   return (
     <StepScaffold
       eyebrow={`2 of ${totalSteps}`} title="How experienced are you?"
@@ -36,9 +45,24 @@ export function ExperienceStep({ answers, onChange, totalSteps }: StepProps) {
       {(['intermediate', 'advanced'] as ExperienceLevel[]).map((level) => (
         <ChoiceCard
           key={level} label={EXPERIENCE_LABELS[level]} subtitle={gradeRange(answers.discipline, level)}
-          isSelected={answers.experienceLevel === level} onPress={() => onChange({ ...answers, experienceLevel: level })}
+          isSelected={answers.experienceLevel === level} onPress={() => onSelectLevel(level)}
         />
       ))}
+      {answers.experienceLevel === 'intermediate' && (
+        <View style={styles.followUp}>
+          <Text style={styles.followUpLabel}>DONE STRUCTURED HANGBOARD OR STRENGTH TRAINING BEFORE?</Text>
+          <ChoiceCard
+            label="Yes, I've trained before" subtitle="Already know what a near-max hang feels like"
+            isSelected={answers.priorTraining === true}
+            onPress={() => onChange({ ...answers, priorTraining: true })}
+          />
+          <ChoiceCard
+            label="No, this is my first structured block" subtitle="The first phase eases in a bit gentler"
+            isSelected={answers.priorTraining === false}
+            onPress={() => onChange({ ...answers, priorTraining: false })}
+          />
+        </View>
+      )}
     </StepScaffold>
   );
 }
@@ -191,6 +215,7 @@ export function StandardSummaryStep({ answers }: StepProps) {
         {answers.weaknesses.length > 0 && summaryRow('Extra focus', answers.weaknesses.map((w) => WEAKNESS_LABELS[w]).join(', '))}
         {answers.equipment.length > 0 && summaryRow('Equipment', answers.equipment.map((e) => EQUIPMENT_LABELS[e]).join(', '))}
         {answers.maxFingersMethod != null && summaryRow('Max Fingers', answers.maxFingersMethod === 'pickup' ? 'Weighted pickups on your edge' : 'Hangboard')}
+        {answers.priorTraining != null && summaryRow('Trained before', answers.priorTraining ? 'Yes' : 'No — easing in')}
         {answers.injuryFlags.length > 0 && summaryRow('Flagged', answers.injuryFlags.map((f) => INJURY_FLAG_LABELS[f]).join(', '))}
         {answers.tripDate != null && summaryRow('Trip date', answers.tripDate)}
       </View>

@@ -88,3 +88,65 @@ describe('resolveTemplate + maxFingersMethod, against the real templates', () =>
     expect(titles).not.toContain('Weighted pickup — 20mm edge');
   });
 });
+
+describe('applyOnramp', () => {
+  function program(): any {
+    return {
+      phases: [{ n: 'Strength Base' }, { n: 'Power' }],
+      sessions: {
+        maxFingers: {
+          x: [
+            { t: 'Warm up' }, // no `onramp` field — must survive untouched
+            { t: 'Max hang', m: '4 x 8s', onramp: '3 x 8s — easier edge' },
+          ],
+        },
+      },
+    };
+  }
+
+  test('priorTraining: false merges onramp text into the first phase\'s ph override', () => {
+    const p = program();
+    TemplateResolver.applyOnramp(p, false);
+    expect(p.sessions.maxFingers.x[1].ph).toEqual({ 'Strength Base': '3 x 8s — easier edge' });
+    expect(p.sessions.maxFingers.x[0].ph).toBeUndefined(); // untagged exercise untouched
+  });
+
+  test('priorTraining: true is a no-op, same as before this feature existed', () => {
+    const p = program();
+    TemplateResolver.applyOnramp(p, true);
+    expect(p.sessions.maxFingers.x[1].ph).toBeUndefined();
+  });
+
+  test('priorTraining: null (never asked) is a no-op', () => {
+    const p = program();
+    TemplateResolver.applyOnramp(p, null);
+    expect(p.sessions.maxFingers.x[1].ph).toBeUndefined();
+  });
+
+  test('merges into an existing ph object rather than clobbering other phase overrides', () => {
+    const p = program();
+    p.sessions.maxFingers.x[1].ph = { Power: '5 x 5s' };
+    TemplateResolver.applyOnramp(p, false);
+    expect(p.sessions.maxFingers.x[1].ph).toEqual({ Power: '5 x 5s', 'Strength Base': '3 x 8s — easier edge' });
+  });
+
+  test('a real intermediate template resolved with priorTraining false eases the first phase only', () => {
+    const resolved = TemplateResolver.resolveTemplate(TEMPLATES.boulderingIntermediate, {
+      startDate: '2026-01-01',
+      modifiers: { priorTraining: false },
+    });
+    const hang = resolved.sessions.maxFingers.x.find((e: any) => e.id === 'tpl-int-maxhang');
+    expect(hang.ph['Strength Base']).toMatch(/^3 × 8s/);
+    expect(hang.ph['Power']).toMatch(/^5 × 5s/); // pre-existing override untouched
+    expect(hang.m).toBe('4 × 8s'); // base prescription itself is unchanged — engine-core reads ph, not m, once resolved
+  });
+
+  test('the advanced template has no onramp text — priorTraining false is a no-op there', () => {
+    const resolved = TemplateResolver.resolveTemplate(TEMPLATES.boulderingAdvanced, {
+      startDate: '2026-01-01',
+      modifiers: { priorTraining: false },
+    });
+    const hang = resolved.sessions.maxFingers.x.find((e: any) => e.id === 'tpl-adv-maw');
+    expect(hang.ph.Base).not.toMatch(/easier edge|noticeably bigger/);
+  });
+});

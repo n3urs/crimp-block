@@ -28,6 +28,13 @@ export interface QuizAnswers {
   daysPerWeek: number;
   tripDate: string | null;
   maxFingersMethod: MaxFingersMethod | null;
+  // Only asked at the intermediate tier — see ExperienceStep's own
+  // inline follow-up. Nobody reaches the advanced grade bands without
+  // having trained already, so it's not worth asking there. null covers
+  // both "not asked" and "asked but skipped" identically:
+  // template-resolver.js's applyOnramp only eases things off on an
+  // explicit `false`, same no-op-unless-set shape as maxFingersMethod.
+  priorTraining: boolean | null;
 }
 
 export type QuizResult =
@@ -47,6 +54,7 @@ export function modifiersPayload(answers: QuizAnswers): Record<string, unknown> 
   };
   if (answers.tripDate) payload.tripDate = answers.tripDate;
   if (answers.maxFingersMethod) payload.maxFingersMethod = answers.maxFingersMethod;
+  if (answers.priorTraining != null) payload.priorTraining = answers.priorTraining;
   return payload;
 }
 

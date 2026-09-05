@@ -215,6 +215,35 @@ function applyMaxFingersMethod(sessionsObj, method){
   });
 }
 
+/* Eases the Max Fingers session's first phase for someone who has never
+   done structured hangboard/strength training before (quiz's
+   priorTraining flag — only asked at the intermediate tier, see
+   ExperienceStep). Reuses the SAME per-phase-name `ph` override
+   engine-core.js already resolves dynamically (presc() in engine-core.js)
+   rather than inventing a new "week one" concept in the shared engine —
+   the tradeoff is this eases the whole first phase (both intermediate
+   templates run that ~8 weeks), not literally just week one, but that's
+   the granularity the engine already understands, and the first phase is
+   already the gentlest one in every template.
+
+   A no-op whenever priorTraining isn't explicitly false (nobody asked, or
+   they said they HAVE trained) or an exercise carries no hand-authored
+   `onramp` text (every advanced-tier exercise today) — someone never
+   asked, or who answered "yes", sees exactly what they always would
+   have. */
+function applyOnramp(program, priorTraining){
+  if(priorTraining !== false) return;
+  var firstPhase = program.phases[0] && program.phases[0].n;
+  if(!firstPhase) return;
+  var s = program.sessions.maxFingers;
+  if(!s || !s.x) return;
+  s.x.forEach(function(ex){
+    if(!ex.onramp) return;
+    ex.ph = ex.ph || {};
+    ex.ph[firstPhase] = ex.onramp;
+  });
+}
+
 /* Appends a mandatory-insert exercise once (never duplicated even if
    resolveTemplate is somehow called twice on the same modifier set —
    matched by exercise title within the target session). */
@@ -279,7 +308,8 @@ function applyTripTaper(program, startDate, tripDate){
    `template` = {perWeek, phases, sessions} (no startDate — that's
    assigned per-user, not baked into the template). `modifiers` =
    {equipment:[...], injuryFlags:[...], weaknesses:[...], tripDate:
-   'YYYY-MM-DD'|null}. Returns a program object shaped exactly like
+   'YYYY-MM-DD'|null, maxFingersMethod:'hangboard'|'pickup'|null,
+   priorTraining:boolean|null}. Returns a program object shaped exactly like
    programs.js entries, ready for createEngine(). */
 function resolveTemplate(template, opts){
   opts = opts || {};
@@ -308,6 +338,7 @@ function resolveTemplate(template, opts){
 
   filterEquipment(program.sessions, modifiers.equipment);
   applyMaxFingersMethod(program.sessions, modifiers.maxFingersMethod);
+  applyOnramp(program, modifiers.priorTraining);
   applyInjuryFlags(program, modifiers.injuryFlags);
   applyWeaknesses(program, modifiers.weaknesses);
   applyTripTaper(program, startDate, modifiers.tripDate);
@@ -320,7 +351,8 @@ return {
   INJURY_MODULES: INJURY_MODULES,
   WEAKNESS_MODULES: WEAKNESS_MODULES,
   EQUIPMENT_TAGS: EQUIPMENT_TAGS,
-  applyMaxFingersMethod: applyMaxFingersMethod
+  applyMaxFingersMethod: applyMaxFingersMethod,
+  applyOnramp: applyOnramp
 };
 
 });

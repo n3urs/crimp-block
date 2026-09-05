@@ -32,7 +32,7 @@ test('gradeRange gives sport French-grade bands', () => {
 const baseAnswers: QuizAnswers = {
   discipline: 'bouldering', experienceLevel: 'intermediate',
   weaknesses: [], equipment: [], injuryFlags: [], daysPerWeek: 3, tripDate: null,
-  maxFingersMethod: null,
+  maxFingersMethod: null, priorTraining: null,
 };
 
 test('modifiersPayload always includes equipment/injuryFlags/weaknesses/daysPerWeek', () => {
@@ -43,6 +43,12 @@ test('modifiersPayload always includes equipment/injuryFlags/weaknesses/daysPerW
 test('modifiersPayload includes tripDate only when set', () => {
   const payload = modifiersPayload({ ...baseAnswers, tripDate: '2026-10-15' });
   expect(payload.tripDate).toBe('2026-10-15');
+});
+
+test('modifiersPayload includes priorTraining only when answered, omits it when null', () => {
+  expect(modifiersPayload(baseAnswers).priorTraining).toBeUndefined();
+  expect(modifiersPayload({ ...baseAnswers, priorTraining: false }).priorTraining).toBe(false);
+  expect(modifiersPayload({ ...baseAnswers, priorTraining: true }).priorTraining).toBe(true);
 });
 
 test('modifiersPayload carries real selections through unchanged', () => {
