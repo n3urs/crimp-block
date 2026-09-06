@@ -182,3 +182,19 @@ export async function restorePurchases(): Promise<boolean> {
   const customerInfo = await Purchases.restorePurchases();
   return hasEntitlement(customerInfo, ENTITLEMENT_ID);
 }
+
+/** Was hardcoded to "7-DAY FREE TRIAL" on the paywall for the monthly
+    tier regardless of whether RevenueCat actually had a trial configured
+    — meaning a user could be told "start free trial" and then get
+    charged immediately, since the claim never read real data at all.
+    introPrice is null whenever no introductory offer exists on the App
+    Store Connect side; price is 0 specifically for a FREE trial — a paid
+    intro price (e.g. "$0.99 for the first month") is a real discount but
+    not a free trial, and must not be labelled as one. */
+export function trialLabel(pkg: PurchasesPackage | null): string | null {
+  const intro = pkg?.product.introPrice;
+  if (!intro || intro.price !== 0) return null;
+  // Adjectival compound stays singular regardless of n ("7-DAY", not
+  // "7-DAYS", same as "a two-week vacation").
+  return `${intro.periodNumberOfUnits}-${intro.periodUnit.toUpperCase()} FREE TRIAL`;
+}

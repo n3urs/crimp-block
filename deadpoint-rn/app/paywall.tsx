@@ -6,7 +6,7 @@ import Purchases, { type PurchasesPackage } from 'react-native-purchases';
 import { Colours } from '../src/design/colours';
 import { Fonts } from '../src/design/fonts';
 import { useSession } from '../src/data/useSession';
-import { purchaseStandard, restorePurchases, useOfferings } from '../src/data/subscription';
+import { purchaseStandard, restorePurchases, trialLabel, useOfferings } from '../src/data/subscription';
 
 const FEATURES = [
   'Your quiz-assigned training plan',
@@ -30,11 +30,16 @@ export default function Paywall() {
   // disabled on its own if RevenueCat hasn't returned that package yet
   // (Offering not fully configured — true of Oscar's current placeholder
   // setup — or still loading) rather than blocking the whole screen.
+  // badge is derived from each package's own real introPrice (see
+  // trialLabel above) rather than hardcoded per tier — whichever tier
+  // actually has a trial configured shows one, and neither does if
+  // neither has one.
   const tiers: { tier: Tier; label: string; badge: string | null; pkg: PurchasesPackage | null }[] = [
-    { tier: 'monthly', label: 'Monthly', badge: '7-DAY FREE TRIAL', pkg: monthly },
-    { tier: 'annual', label: 'Annual', badge: null, pkg: annual },
+    { tier: 'monthly', label: 'Monthly', badge: trialLabel(monthly), pkg: monthly },
+    { tier: 'annual', label: 'Annual', badge: trialLabel(annual), pkg: annual },
   ];
   const selectedPackage = selectedTier === 'monthly' ? monthly : annual;
+  const selectedTrial = trialLabel(selectedPackage);
 
   const onSignOut = async () => {
     try { await signOut(); } catch (e) { console.error('paywall onSignOut failed:', e); }
@@ -140,10 +145,10 @@ export default function Paywall() {
         disabled={subscribing || !selectedPackage}
         style={[styles.subscribeButton, (subscribing || !selectedPackage) && styles.subscribeButtonDisabled]}
         accessibilityRole="button"
-        accessibilityLabel={selectedTier === 'monthly' ? 'Start free trial' : 'Subscribe annually'}
+        accessibilityLabel={selectedTrial ? 'Start free trial' : `Subscribe ${selectedTier}`}
       >
         <Text style={styles.subscribeText}>
-          {subscribing ? 'STARTING…' : selectedTier === 'monthly' ? 'START FREE TRIAL' : 'SUBSCRIBE'}
+          {subscribing ? 'STARTING…' : selectedTrial ? 'START FREE TRIAL' : 'SUBSCRIBE'}
         </Text>
       </Pressable>
 
@@ -157,7 +162,7 @@ export default function Paywall() {
       </View>
 
       <Text style={styles.legal}>
-        {selectedTier === 'monthly'
+        {selectedTrial
           ? "Payment is charged to your Apple ID after the trial ends unless cancelled at least 24 hours before it's up. Manage or cancel any time in Settings."
           : 'Payment is charged to your Apple ID immediately. Manage or cancel any time in Settings.'}
       </Text>
