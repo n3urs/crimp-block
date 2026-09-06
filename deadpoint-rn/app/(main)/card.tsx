@@ -286,7 +286,13 @@ export default function Card() {
 
   const doneFlow = useDoneFlow({ isLogged, loggedSessionKey, displayKey, onLog });
 
-  const footerNote = `React Native (live data) · ${email ?? ''} · ${today}`;
+  // __DEV__-gated: this is diagnostic text (see DailyCard's own doc
+  // comment — "same role as NativeEngineDemoView.swift's own footerNote"),
+  // not user-facing copy. It shipped ungated, showing internal
+  // implementation details and the signed-in user's own email on the main
+  // screen of every real build, App Store included. Kept for local dev
+  // (still genuinely useful there), gone from anything a real user sees.
+  const footerNote = __DEV__ ? `React Native (live data) · ${email ?? ''} · ${today}` : undefined;
 
   return (
     <DailyCard

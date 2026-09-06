@@ -8,9 +8,9 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "ios": {
-      "supportsTablet": true,
+      "supportsTablet": false,
       "bundleIdentifier": "uk.co.sullivanltd.crimpblock",
-      "buildNumber": "23",
+      "buildNumber": "24",
       "entitlements": {
         "com.apple.security.application-groups": ["group.uk.co.sullivanltd.crimpblock"]
       },
