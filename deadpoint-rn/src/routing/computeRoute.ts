@@ -5,6 +5,7 @@
     used. Adapted for expo-router: instead of swapping which view
     renders in place, this returns which single route the caller should
     router.replace() to. */
+import { isIsaac } from '../engine/isaac/isaacEngine';
 
 export type Route = '/welcome' | '/sign-in' | '/quiz' | '/tutorial' | '/rehab-coming-soon' | '/paywall' | '/card';
 
@@ -68,9 +69,18 @@ const PROGRAMS = require('../engine/programs.js');
     Defined once here (rather than duplicated in app/index.tsx and
     app/tutorial.tsx's onDone, as the plan's own draft did) since it's a
     tiny pure function with no dependencies beyond the same programs.js
-    every other screen already requires this same way. */
+    every other screen already requires this same way.
+
+    Broadened 2026-09-07 to also cover Isaac (phillipsisaac14@gmail.com) —
+    a hand-authored, quiz-free, non-climbing account in exactly the same
+    sense Oscar/Joe/Max are, just resolved through src/engine/isaac/ rather
+    than programs.js. Isaac isn't IN programs.js (his content has nothing
+    to do with climbing — see isaacEngine.ts's own doc comment for why it's
+    a fully separate engine), so this needed a second check, not a second
+    programs.js entry. */
 export function isBuiltInProgram(email: string | null): boolean {
   if (!email) return false;
+  if (isIsaac(email)) return true;
   const key = email.toLowerCase();
   return key !== 'default' && Object.prototype.hasOwnProperty.call(PROGRAMS, key);
 }

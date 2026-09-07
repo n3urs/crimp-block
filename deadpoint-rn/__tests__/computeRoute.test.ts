@@ -141,6 +141,11 @@ test('isBuiltInProgram is case-insensitive, matching how programs.js itself keys
   expect(isBuiltInProgram('Oscar@SullivanLtd.co.uk')).toBe(true);
 });
 
+test('isBuiltInProgram is true for Isaac — hand-authored, but resolved through src/engine/isaac/, not programs.js', () => {
+  expect(isBuiltInProgram('phillipsisaac14@gmail.com')).toBe(true);
+  expect(isBuiltInProgram('PhillipsIsaac14@Gmail.com')).toBe(true);
+});
+
 test('isBuiltInProgram is false for the "default" fallback key itself', () => {
   expect(isBuiltInProgram('default')).toBe(false);
 });
