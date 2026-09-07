@@ -5,7 +5,13 @@ export const Motion = {
   swipe: {
     minimumDistance: 10,
     horizontalClaimDx: 12,
-    commitFraction: 0.3,
+    // Was 0.3 (verbatim from Swift) — 30% of the card's width is ~120pt
+    // on a typical iPhone, and Oscar reported needing "quite a large
+    // swipe" to browse sessions on the RN build specifically, asking to
+    // "bring it down a little bit". Lowered here only (not touching the
+    // Swift app) per that direct feedback; re-tune again if it now
+    // over-fires on an incidental drag.
+    commitFraction: 0.2,
     // Added for the fade redesign (replacing the old drag-follow +
     // slide-to-commit/spring-back animation): how long the OUTGOING
     // session's content takes to fade to fully transparent once a swipe
