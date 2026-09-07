@@ -1,0 +1,15 @@
+# Static site config for getdeadpoint.co.uk — Cloudflare Workers' asset-serving
+# mode, no Worker script needed. Deployed via `npx wrangler deploy` from
+# Cloudflare's own Git integration (Workers & Pages -> Create -> Connect to Git).
+#
+# Scoped to ./website deliberately: this branch is forked from main, which
+# still carries the OLD crimp-block PWA at the repo root (index.html, app.js,
+# etc.) — without this, a zero-config deploy could easily pick up the wrong
+# site. This file must live at the repo root because `wrangler deploy` reads
+# wrangler.toml from its working directory, which Cloudflare's build runs at
+# the repo root regardless of what's inside it.
+name = "getdeadpoint-co-uk"
+compatibility_date = "2026-09-07"
+
+[assets]
+directory = "./website"
