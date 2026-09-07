@@ -7,7 +7,7 @@
     `browsedKey`, one level above DailyCardView, not inside it (see
     NativeAppView.swift:52,406,528,546 and DailyCardView.swift:150-153). */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useWindowDimensions } from 'react-native';
+import { Alert, useWindowDimensions } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useSession } from '../../src/data/useSession';
 import { useStore } from '../../src/data/useStore';
@@ -32,6 +32,10 @@ import { syncForecast } from '../../src/widget/syncForecast';
 
 /** Port of NativeAppView.dayLetter(_:) — a single-letter weekday
     abbreviation ("M", "T", "W"...) for WeekStrip's tiles. */
+function showNotBuiltForIsaac(): void {
+  Alert.alert('Coming soon', "The plan and calendar views aren't built for your program yet — everything on the main card is real and up to date.");
+}
+
 function dayLetter(date: string): string {
   const [y, m, d] = date.split('-').map(Number);
   const dt = new Date(y, m - 1, d);
@@ -369,7 +373,17 @@ export default function Card() {
       // session/profile rather than sharing this screen's state, same
       // pattern as onTapCalendar/onTapDay.
       onTapDay={(date: string) => router.push({ pathname: '/day-picker', params: { date } })}
-      onTapCalendar={() => router.push('/calendar')}
+      // Real bug, fixed here: calendar.tsx (like plan.tsx below) has no
+      // Isaac branch of its own yet — its whole month view (deload
+      // forecasting, "6 blocks of 4 weeks" progress) is a climbing-
+      // specific shape that doesn't describe his linear 10-week arc at
+      // all, so this isn't a quick plumbing fix the way day-picker.tsx's
+      // was. Rather than route him into a screen that (even after the
+      // engine-core.js decide() crash guard) would show made-up climbing
+      // phase/session content that isn't his, tell him plainly instead —
+      // a real Isaac-native calendar is separate follow-up work, not
+      // something to rush into this fix.
+      onTapCalendar={() => (isaac ? showNotBuiltForIsaac() : router.push('/calendar'))}
       onTapWeight={onTapWeight}
       onTapRest={handleTapRest}
       onStartInterval={handleStartInterval}
@@ -380,7 +394,9 @@ export default function Card() {
       // modal route at app/plan.tsx (PlanSheetView.swift port), which
       // resolves its own independent session/store/program rather than
       // sharing this screen's state, same pattern as onTapDay/onTapSettings.
-      onTapPhaseBadge={() => router.push('/plan')}
+      // Same Isaac carve-out as onTapCalendar above — plan.tsx's whole
+      // "block/phase" model is climbing-specific.
+      onTapPhaseBadge={() => (isaac ? showNotBuiltForIsaac() : router.push('/plan'))}
       // Now real (this plan's follow-up fix) — pushes the modal route at
       // app/session-guide.tsx, which resolves the guide content itself
       // from just the session key, same "own independent resolution"

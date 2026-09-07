@@ -374,7 +374,15 @@ export function ExerciseRow({
           </Animated.View>
         )}
 
-        {showRight && setsCounterEnabled && totalSets != null && (
+        {/* Real bug: for an RPE-tracked exercise (Isaac's program only —
+            rpeTarget is always undefined for climbing) the tally isn't a
+            convenience UI, it's the ONLY thing that calls promptRpe() below
+            (once per completed set, matching the doc's per-set RPE check) —
+            gating it behind the general, device-local, off-by-default
+            setsCounterEnabled preference meant his whole autoregulation
+            feature was invisible until he happened to dig into Settings
+            and enable a toggle with no indication it mattered to him. */}
+        {showRight && (setsCounterEnabled || ex.rpeTarget != null) && totalSets != null && (
           <SetsTally
             totalSets={totalSets}
             completedSets={completedSets}

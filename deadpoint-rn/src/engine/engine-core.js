@@ -451,7 +451,18 @@ function createEngine(program, data){
   function decide(date, hOverride){
     var h=hOverride || history(date);
     var yf=load(h[0].type,'finger');
-    var yName=h[0].type?T[h[0].type].n:null;
+    // Guarded against an unrecognized type, not just a falsy one: real bug
+    // hit live when a Isaac's (a non-climbing built-in account resolved
+    // through a wholly different session-key vocabulary — see
+    // isaacProgram.ts's own doc comment) logged session type reached this
+    // climbing engine on a screen that hadn't yet learned to route him
+    // through his own engine (e.g. the calendar's all-time-stats streak
+    // walk, which calls decide() for every un-logged day and can land
+    // within 7 days of a real logged entry). `T[h[0].type]` was assumed to
+    // always exist once `h[0].type` was truthy — true for every real
+    // climbing session key, false for a foreign one — and indexing
+    // `.n` off `undefined` crashed the whole screen.
+    var yName=(h[0].type && T[h[0].type])?T[h[0].type].n:null;
     var run=streak(h);
 
     /* The caps below mean "no more than N in any SEVEN CONSECUTIVE DAYS", and
