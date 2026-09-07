@@ -156,6 +156,7 @@ export function CardHeader({
           <Pressable
             onPress={onTapCalendar}
             style={styles.iconButton}
+            hitSlop={8}
             accessibilityRole="button"
             accessibilityLabel="Open calendar"
           >
@@ -166,6 +167,7 @@ export function CardHeader({
           ref={settingsRef}
           onPress={onTapSettings}
           style={styles.iconButton}
+          hitSlop={8}
           accessibilityRole="button"
           accessibilityLabel="Open settings"
         >
@@ -209,7 +211,14 @@ const styles = StyleSheet.create({
     color: Colours.faint,
     textTransform: 'uppercase',
   },
+  // Was `paddingLeft: 8` only — a ~17x17 real tap target (icon size, no
+  // vertical/right padding at all), well under Apple's 44x44pt minimum.
+  // Oscar reported these two specifically ("settings and calendar...
+  // sometimes needing what feels like a double-tap"). `padding: 10` grows
+  // the real touchable box on every edge (not just hitSlop, which two
+  // adjacent icon buttons would otherwise steal from each other); the
+  // hitSlop={8} on each Pressable above tops it up further.
   iconButton: {
-    paddingLeft: 8,
+    padding: 10,
   },
 });
