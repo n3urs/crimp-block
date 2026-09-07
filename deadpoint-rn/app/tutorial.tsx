@@ -106,42 +106,6 @@ function demoWeekDays(program: any, today: string): WeekDay[] {
   return out;
 }
 
-/** Task 8's shared tutorial-target registry (`TutorialTargetContext.tsx`)
-    keys `exerciseTick`/`exerciseInfo`/`weightBadge`/`restTimerButton` by a
-    FIXED string id, not one id per exercise — every mounted `ExerciseRow`
-    calls `useTutorialTarget` with that same literal id (see
-    `ExerciseRow.tsx`), so whichever row mounts LAST silently wins that
-    id's registration, even when that particular row never renders the
-    control at all (its own ref then just stays unattached forever, and
-    `TutorialOverlay`'s later `measureInWindow` call fails, falling back to
-    its generic "tap anywhere to continue" overlay instead of a real
-    spotlight — see that file's `measureFailed` branch).
-
-    `PROGRAMS.default`'s `maxFingers` session naturally ends on
-    "Antagonists" (no `id`, no rest timer), which would silently break the
-    weightBadge and restTimerButton steps' spotlighting — confirmed
-    directly against `programs.js`, not assumed. This reorders only the
-    RENDERED array (never the underlying program data), moving the last
-    exercise that genuinely has both a tracked weight and a rest timer to
-    the true end, so those two steps spotlight something real — matching
-    this task's own explicit brief: "a weight badge is genuinely on screen
-    to spotlight". */
-function withSpotlightableExerciseLast(exercises: RenderedExercise[]): RenderedExercise[] {
-  let idx = -1;
-  for (let i = exercises.length - 1; i >= 0; i--) {
-    const ex = exercises[i];
-    if (ex.hasWeightTracking && ex.restSeconds != null && ex.interval == null) {
-      idx = i;
-      break;
-    }
-  }
-  if (idx === -1 || idx === exercises.length - 1) return exercises;
-  const reordered = exercises.slice();
-  const [spotlight] = reordered.splice(idx, 1);
-  reordered.push(spotlight);
-  return reordered;
-}
-
 export default function Tutorial() {
   // expo-router screens take no props from their caller — there is no
   // parent component to pass `onDone` in, unlike the plan's draft
@@ -207,7 +171,7 @@ export default function Tutorial() {
 
   const phaseName = engine.phaseNameAt(today);
   const exercises = useMemo(
-    () => withSpotlightableExerciseLast(engine.resolveExercises(displayKey, today, phaseName)),
+    () => engine.resolveExercises(displayKey, today, phaseName),
     [engine, displayKey, today, phaseName]
   );
   const accentVarName = engine.sessionColourVarName(displayKey);
@@ -356,6 +320,7 @@ export default function Tutorial() {
           exercises={exercises}
           ticks={ticks}
           onToggleTick={onToggleTick}
+          tutorialSpotlightExerciseId={SEEDED_EXERCISE_ID}
           onTapWeight={onTapWeight}
           onTapRest={(ex) => { if (ex.restSeconds != null) { restTimer.start(ex.restSeconds, ex.title, accent); controller.handleTap('restTimerButton'); } }}
           onStartInterval={(ex) => { if (ex.interval != null) intervalTimer.start(ex.interval, ex.restSeconds ?? 120, Math.max(1, leadingInt(ex.prescription) ?? 1), ex.title); }}

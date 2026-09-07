@@ -66,6 +66,19 @@ export interface DailyCardProps {
       of the same name (see that file's doc comment); omitting it (as
       `app/(main)/card.tsx` does) leaves behavior unchanged. */
   onTapInfo?: (ex: RenderedExercise) => void;
+  /** Purely additive passthrough to ExerciseRow's own optional prop of the
+      same name (see that file's doc comment) — omitting it (as
+      `app/(main)/card.tsx` does) leaves behavior unchanged. Only
+      `app/tutorial.tsx` sets this: TutorialTargetContext's registry is a
+      shared Map keyed by a FIXED string id ('weightBadge'/
+      'restTimerButton'), so with every ExerciseRow registering
+      unconditionally, whichever row mounts last silently wins — and the
+      tutorial's own demo session has more than one exercise with a
+      trackable weight and a rest timer. This tells ExerciseRow which
+      exercise's controls are the real spotlight targets, so the tutorial
+      no longer has to reorder the rendered list to win that race (see
+      `git log` on this line for the reorder hack this replaced). */
+  tutorialSpotlightExerciseId?: string | null;
   /** is TODAY's logged session the one currently on screen */
   isLogged: boolean;
   /** caller-computed (deload/easing-back guidance or the session's own
@@ -156,6 +169,7 @@ interface CardBodyProps {
   onTapRest?: (ex: RenderedExercise) => void;
   onStartInterval?: (ex: RenderedExercise) => void;
   onTapInfo?: (ex: RenderedExercise) => void;
+  tutorialSpotlightExerciseId?: string | null;
   message: string;
   /** true -> 14px semibold+accent; false -> 14px regular+dim. */
   messageEmphasis: boolean;
@@ -209,6 +223,7 @@ interface CardBodyProps {
 export function CardBody({
   session, guide, onTapGuide, accent, accentVarName, exercises, ticks,
   onToggleTick, onTapWeight, onTapRest, onStartInterval, onTapInfo,
+  tutorialSpotlightExerciseId,
   message, messageEmphasis, footerNote, exercisesInteractive, exercisesOpacity,
   isLogged, doneClearance, scrollEnabled, scrollRef,
 }: CardBodyProps) {
@@ -266,6 +281,7 @@ export function CardBody({
                 onTapRest={onTapRest}
                 onStartInterval={onStartInterval}
                 onTapInfo={onTapInfo}
+                tutorialSpotlightExerciseId={tutorialSpotlightExerciseId}
               />
               {i < exercises.length - 1 && <View style={styles.divider} />}
             </React.Fragment>
@@ -287,7 +303,8 @@ export function CardBody({
 export function DailyCard(props: DailyCardProps) {
   const {
     session, accent, accentVarName, exercises, ticks, onToggleTick,
-    onTapWeight, onTapRest, onStartInterval, onTapInfo, isLogged, cardMessage,
+    onTapWeight, onTapRest, onStartInterval, onTapInfo, tutorialSpotlightExerciseId,
+    isLogged, cardMessage,
     weekDays, onTapDay, onTapCalendar, onTapSettings, onTapPhaseBadge,
     onTapGuide, phaseName, weekNumber, today, recommendedKey, nextUp,
     celebrationTrigger, footerNote, doneFlow, panGesture, contentOpacity,
@@ -424,6 +441,7 @@ export function DailyCard(props: DailyCardProps) {
                 onTapRest={onTapRest}
                 onStartInterval={onStartInterval}
                 onTapInfo={onTapInfo}
+                tutorialSpotlightExerciseId={tutorialSpotlightExerciseId}
                 message={cardMessage}
                 messageEmphasis={isLogged}
                 footerNote={footerNote ?? ''}

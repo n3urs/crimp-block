@@ -55,6 +55,17 @@ export interface ExerciseRowProps {
       unchanged. Exists so a parent can observe a genuine tap on the real
       info icon without this component faking or skipping that tap. */
   onTapInfo?: (ex: RenderedExercise) => void;
+  /** Only `app/tutorial.tsx` sets this — see DailyCardProps' own doc
+      comment on the same-named prop for the full reasoning. When set,
+      ONLY the row whose `ex.id` matches registers 'weightBadge'/
+      'restTimerButton' with the tutorial's shared target registry; every
+      other row passes `null` (a genuine no-op — TutorialTargetContext's
+      own hook already treats a null id that way) instead of the fixed
+      literal id it used to always pass. Left undefined (every real
+      caller) this changes nothing: registration outside a
+      TutorialTargetProvider is already a no-op regardless of which id is
+      passed. */
+  tutorialSpotlightExerciseId?: string | null;
 }
 
 const easeInOut = Easing.inOut(Easing.ease);
@@ -108,12 +119,21 @@ export function ExerciseRow({
   onTapRest,
   onStartInterval,
   onTapInfo,
+  tutorialSpotlightExerciseId,
 }: ExerciseRowProps) {
   const [showDetail, setShowDetail] = useState(false);
   const infoRef = useTutorialTarget('exerciseInfo');
   const tickRef = useTutorialTarget('exerciseTick');
-  const weightRef = useTutorialTarget('weightBadge');
-  const restTimerButtonRef = useTutorialTarget('restTimerButton');
+  // weightBadge/restTimerButton are gated on tutorialSpotlightExerciseId
+  // (see ExerciseRowProps' own doc comment) — exerciseInfo/exerciseTick
+  // above are NOT, because every real exercise in the tutorial's demo
+  // session has a description and a checkbox, so "whichever row mounts
+  // last wins" was never actually wrong for those two: the tutorial's own
+  // copy for those steps ("every exercise...", "check exercises off...")
+  // never claimed a SPECIFIC exercise the way steps 5/6's "it"/"here" do.
+  const isTutorialSpotlight = tutorialSpotlightExerciseId != null && ex.id === tutorialSpotlightExerciseId;
+  const weightRef = useTutorialTarget(isTutorialSpotlight ? 'weightBadge' : null);
+  const restTimerButtonRef = useTutorialTarget(isTutorialSpotlight ? 'restTimerButton' : null);
 
   const { setsCounterEnabled, autoStartRestOnTally } = usePrefs();
   // totalSetsFor's own parameter type requires `interval` present (typed
