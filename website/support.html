@@ -35,7 +35,21 @@ strong{color:var(--fg)}
 main{padding:44px 0 90px}
 .box{background:var(--s1);border:1px solid var(--s3);border-radius:12px;padding:20px;margin:18px 0}
 .box p{margin:0}
-.contact{font-family:var(--mono);font-size:17px;color:var(--gorse);word-break:break-all}
+.contact{font-family:var(--mono);font-size:16px;color:var(--gorse);word-break:break-all}
+.flabel{display:block;font-family:var(--mono);font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--faint);margin:14px 0 7px}
+#contactform select,#contactform textarea{
+  width:100%;background:var(--bg);color:var(--fg);border:1px solid var(--s3);border-radius:9px;
+  padding:11px 13px;font-family:inherit;font-size:14.5px;line-height:1.5;
+}
+#contactform textarea{resize:vertical;min-height:110px}
+#contactform select:focus,#contactform textarea:focus{outline:2px solid var(--gorse);outline-offset:1px;border-color:transparent}
+.sendbtn{
+  margin-top:16px;background:var(--gorse);color:#181B22;border:0;border-radius:9px;cursor:pointer;
+  font-family:var(--mono);font-weight:700;font-size:13px;letter-spacing:.04em;padding:13px 20px;
+}
+.sendbtn:hover{filter:brightness(1.08)}
+.fnote{font-family:var(--mono);font-size:11px;color:var(--faint);margin-top:10px}
 ol{padding-left:20px}
 footer{border-top:1px solid var(--s3);padding:30px 0;font-size:12.5px;color:var(--faint)}
 footer a{color:var(--dim);text-decoration:none;margin-right:16px}
@@ -53,9 +67,33 @@ footer a{color:var(--dim);text-decoration:none;margin-right:16px}
   <p class="updated">Deadpoint for iOS</p>
 
   <div class="box">
-    <p>Deadpoint is made by one person. Email me directly and you'll get a real reply, usually within a
+    <p>Deadpoint is made by one person. Send a message and you'll get a real reply, usually within a
     couple of days.</p>
-    <p style="margin-top:12px"><a class="contact" href="mailto:oscar@sullivanltd.co.uk">oscar@sullivanltd.co.uk</a></p>
+
+    <!-- Composes a mailto: rather than posting anywhere. The site is fully
+         static by design, so nothing you type here touches a server, a form
+         service, or any third party — it opens your own mail app, pre-filled,
+         and you send it yourself. -->
+    <form id="contactform" style="margin-top:18px">
+      <label class="flabel" for="c-subject">Subject</label>
+      <select id="c-subject">
+        <option>Sign-in code problem</option>
+        <option>Subscription or billing</option>
+        <option>Bug report</option>
+        <option>Feature request</option>
+        <option>Something else</option>
+      </select>
+
+      <label class="flabel" for="c-body">Message</label>
+      <textarea id="c-body" rows="5" placeholder="What's going on? For bugs, your iPhone model and iOS version help a lot."></textarea>
+
+      <button class="sendbtn" type="submit">Open in my mail app →</button>
+      <p class="fnote">Opens your mail app with this pre-filled. Nothing is sent from this page.</p>
+    </form>
+
+    <p style="margin-top:18px;font-size:13.5px">Or just email
+      <a class="contact" href="mailto:support@getdeadpoint.co.uk">support@getdeadpoint.co.uk</a>
+    </p>
   </div>
 
   <h2>My sign-in code hasn't arrived</h2>
@@ -110,5 +148,15 @@ footer a{color:var(--dim);text-decoration:none;margin-right:16px}
   <div style="margin-top:12px;font-family:var(--mono)">© 2026 Deadpoint</div>
 </div></footer>
 
+<script>
+document.getElementById('contactform').addEventListener('submit', function(e){
+  e.preventDefault();
+  var subject = document.getElementById('c-subject').value;
+  var body = document.getElementById('c-body').value;
+  window.location.href = 'mailto:support@getdeadpoint.co.uk'
+    + '?subject=' + encodeURIComponent('Deadpoint — ' + subject)
+    + '&body=' + encodeURIComponent(body);
+});
+</script>
 </body>
 </html>
