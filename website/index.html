@@ -1,0 +1,766 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Deadpoint — Finger strength training that reads what you actually did</title>
+<meta name="description" content="A climbing training app that builds your plan from your grade, equipment and weaknesses — then adapts each day to what you actually logged. See the real algorithm run, right here.">
+<meta property="og:title" content="Deadpoint — training that adapts to what you actually did">
+<meta property="og:description" content="Your plan, every day. Built from your quiz answers, adapted from your logged sessions. Try the real algorithm on this page.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://getdeadpoint.co.uk">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;700&display=swap">
+<style>
+/* Palette is the app's own SessionColours.swift tokens, verbatim — the
+   session colours on this page mean the same thing they mean in the app. */
+:root{
+  --bg:#181B22; --s1:#1E222B; --s2:#272C37; --s3:#333947; --s4:#454C5C;
+  --fg:#EDEBE5; --dim:#9AA0AE; --faint:#666C7A;
+  --gorse:#F2B134; --tidepool:#4FB3A5; --slate:#7B93E0; --heather:#C9739B; --grey:#5A6069;
+  --go:#1FA24A; --restC:#D6383D;
+  --measure:68ch;
+  --display:'Archivo',system-ui,-apple-system,sans-serif;
+  --mono:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  margin:0; background:var(--bg); color:var(--fg);
+  font-family:var(--display); font-size:16px; line-height:1.6;
+  -webkit-font-smoothing:antialiased;
+}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+img{max-width:100%;display:block}
+a{color:var(--gorse)}
+h1,h2,h3{text-wrap:balance;line-height:1.08;margin:0}
+h1{font-weight:900;font-size:clamp(38px,7.5vw,74px);letter-spacing:-.02em}
+h2{font-weight:800;font-size:clamp(27px,4.2vw,42px);letter-spacing:-.015em}
+h3{font-weight:700;font-size:19px}
+p{margin:0}
+
+.wrap{max-width:1120px;margin-inline:auto;padding-inline:22px}
+.measure{max-width:var(--measure)}
+section{padding-block:clamp(64px,9vw,120px);border-top:1px solid var(--s3)}
+.eyebrow{
+  font-family:var(--mono);font-size:11px;font-weight:700;letter-spacing:.18em;
+  text-transform:uppercase;color:var(--faint);margin-bottom:16px;display:block;
+}
+.lede{color:var(--dim);font-size:clamp(16px,1.9vw,19px);margin-top:20px}
+
+/* --- nav --- */
+nav{
+  position:sticky;top:0;z-index:50;background:rgba(24,27,34,.82);
+  backdrop-filter:blur(12px);border-bottom:1px solid var(--s3);
+}
+nav .wrap{display:flex;align-items:center;justify-content:space-between;gap:16px;height:62px}
+.mark{font-weight:900;letter-spacing:-.03em;font-size:20px;text-decoration:none;color:var(--fg)}
+.mark span{color:var(--gorse)}
+.navlinks{display:flex;gap:26px;font-size:14px}
+.navlinks a{color:var(--dim);text-decoration:none}
+.navlinks a:hover{color:var(--fg)}
+@media(max-width:800px){.navlinks{display:none}}
+
+.btn{
+  display:inline-flex;align-items:center;gap:9px;background:var(--gorse);color:#181B22;
+  font-family:var(--mono);font-weight:700;font-size:13px;letter-spacing:.04em;
+  padding:12px 20px;border-radius:9px;text-decoration:none;border:0;cursor:pointer;
+  transition:transform .12s ease, filter .12s ease;
+}
+.btn:hover{filter:brightness(1.08);transform:translateY(-1px)}
+.btn.ghost{background:transparent;color:var(--fg);border:1px solid var(--s4)}
+.btn.sm{padding:9px 15px;font-size:12px}
+
+/* --- hero --- */
+.hero{border-top:0;padding-top:clamp(52px,7vw,92px);position:relative;overflow:hidden}
+.hero::before{
+  content:'';position:absolute;inset:-30% 40% 40% -20%;pointer-events:none;
+  background:radial-gradient(circle at 30% 40%, rgba(242,177,52,.10), transparent 62%);
+}
+.hero .wrap{position:relative;display:grid;grid-template-columns:1.15fr .85fr;gap:clamp(30px,5vw,64px);align-items:center}
+@media(max-width:880px){.hero .wrap{grid-template-columns:1fr}}
+.hero h1 em{font-style:normal;color:var(--gorse)}
+.herocta{display:flex;gap:12px;flex-wrap:wrap;margin-top:32px;align-items:center}
+.herophone{
+  border:1px solid var(--s3);border-radius:22px;overflow:hidden;background:var(--s1);
+  box-shadow:0 30px 80px -30px rgba(0,0,0,.9);max-width:330px;margin-inline:auto;
+}
+.microline{font-family:var(--mono);font-size:11.5px;color:var(--faint);margin-top:14px}
+
+/* --- stat strip --- */
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--s3);
+  border:1px solid var(--s3);border-radius:12px;overflow:hidden;margin-top:clamp(40px,6vw,64px)}
+@media(max-width:760px){.stats{grid-template-columns:repeat(2,1fr)}}
+.stat{background:var(--bg);padding:20px 18px}
+.stat b{display:block;font-family:var(--mono);font-size:clamp(21px,3.2vw,30px);font-weight:700;color:var(--fg);font-variant-numeric:tabular-nums}
+.stat span{display:block;font-size:12.5px;color:var(--faint);margin-top:5px;line-height:1.4}
+
+/* --- generic cards --- */
+.grid{display:grid;gap:16px}
+.g3{grid-template-columns:repeat(3,1fr)}
+.g2{grid-template-columns:repeat(2,1fr)}
+@media(max-width:880px){.g3,.g2{grid-template-columns:1fr}}
+.card{background:var(--s1);border:1px solid var(--s3);border-radius:13px;padding:22px}
+.card h3{margin-bottom:9px}
+.card p{color:var(--dim);font-size:14.5px}
+
+/* --- the engine panel --- */
+.engine{background:var(--s1);border:1px solid var(--s3);border-radius:16px;overflow:hidden;margin-top:36px}
+.engine-head{padding:16px 20px;border-bottom:1px solid var(--s3);display:flex;justify-content:space-between;
+  align-items:center;gap:14px;flex-wrap:wrap;background:var(--s2)}
+.engine-head .t{font-family:var(--mono);font-size:11.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--dim)}
+.live{display:inline-flex;align-items:center;gap:7px;font-family:var(--mono);font-size:11px;color:var(--go)}
+.live::before{content:'';width:7px;height:7px;border-radius:50%;background:var(--go)}
+.engine-body{display:grid;grid-template-columns:1fr 1fr;gap:0}
+@media(max-width:900px){.engine-body{grid-template-columns:1fr}}
+.pane{padding:22px}
+.pane+.pane{border-left:1px solid var(--s3)}
+@media(max-width:900px){.pane+.pane{border-left:0;border-top:1px solid var(--s3)}}
+.fieldlabel{font-family:var(--mono);font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--faint);margin-bottom:9px;display:block}
+.dayrow{margin-bottom:17px}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{
+  font-family:var(--mono);font-size:11px;font-weight:500;padding:6px 10px;border-radius:99px;
+  background:var(--s2);border:1px solid transparent;color:var(--dim);cursor:pointer;
+  transition:background .12s ease,color .12s ease;
+}
+.chip:hover{background:var(--s3);color:var(--fg)}
+.chip[aria-pressed="true"]{background:var(--chipc,var(--gorse));border-color:var(--chipc,var(--gorse));color:#181B22;font-weight:700}
+.chip:focus-visible{outline:2px solid var(--fg);outline-offset:2px}
+.divider{height:1px;background:var(--s3);margin:20px 0}
+
+/* readout */
+.readout{background:var(--bg);border:1px solid var(--s3);border-radius:11px;padding:20px;margin-bottom:16px}
+.rday{font-family:var(--mono);font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--faint)}
+.rname{font-size:clamp(24px,3.6vw,33px);font-weight:800;letter-spacing:-.015em;margin-top:5px;line-height:1.1}
+.rwhere{font-family:var(--mono);font-size:12px;color:var(--dim);margin-top:6px}
+.rwhy{
+  font-family:var(--mono);font-size:12.5px;line-height:1.65;color:var(--fg);margin-top:15px;
+  padding-top:15px;border-top:1px dashed var(--s4);
+}
+.rwhy b{font-family:var(--display);display:block;font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--faint);margin-bottom:7px;font-weight:700}
+.next3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+@media(max-width:520px){.next3{grid-template-columns:1fr}}
+.n3{background:var(--bg);border:1px solid var(--s3);border-left-width:3px;border-radius:9px;padding:12px}
+.n3 .d{font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--faint)}
+.n3 .n{font-weight:700;font-size:14px;margin-top:4px;line-height:1.25}
+.exlist{list-style:none;padding:0;margin:10px 0 0;display:grid;gap:5px}
+.exlist li{display:flex;justify-content:space-between;gap:12px;font-size:12.5px;color:var(--dim);
+  border-bottom:1px solid var(--s2);padding-bottom:5px}
+.exlist li span:last-child{font-family:var(--mono);font-size:11.5px;color:var(--faint);white-space:nowrap}
+
+/* profile controls */
+.ctlrow{display:flex;gap:16px;flex-wrap:wrap}
+.ctl{flex:1;min-width:130px}
+.stepper{display:flex;align-items:center;gap:12px}
+.stepbtn{width:32px;height:32px;border-radius:50%;background:var(--s2);border:1px solid var(--s3);
+  color:var(--fg);font-size:17px;line-height:1;cursor:pointer}
+.stepbtn:hover{background:var(--s3)}
+.stepval{font-family:var(--mono);font-size:19px;font-weight:700;min-width:20px;text-align:center;font-variant-numeric:tabular-nums}
+
+/* --- annotated screenshot --- */
+.shot-annotated{position:relative;max-width:330px;margin-inline:auto;
+  border:1px solid var(--s3);border-radius:22px;overflow:hidden;background:var(--s1)}
+.pin{
+  position:absolute;width:24px;height:24px;border-radius:50%;background:var(--gorse);color:#181B22;
+  font-family:var(--mono);font-size:12px;font-weight:700;display:grid;place-items:center;
+  transform:translate(-50%,-50%);box-shadow:0 0 0 4px rgba(242,177,52,.22);
+}
+.callouts{list-style:none;padding:0;margin:26px 0 0;display:grid;gap:13px}
+.callouts li{display:flex;gap:12px;align-items:flex-start}
+.callouts .num{flex:0 0 auto;width:22px;height:22px;border-radius:50%;background:var(--gorse);color:#181B22;
+  font-family:var(--mono);font-size:11px;font-weight:700;display:grid;place-items:center;margin-top:2px}
+.callouts strong{display:block;font-size:14.5px}
+.callouts p{color:var(--dim);font-size:13.5px;margin-top:2px}
+
+.rail{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:34px}
+@media(max-width:880px){.rail{grid-template-columns:repeat(2,1fr)}}
+.rail figure{margin:0}
+.rail img{border:1px solid var(--s3);border-radius:14px;background:var(--s1)}
+.rail figcaption{font-family:var(--mono);font-size:11px;color:var(--faint);margin-top:9px;text-align:center}
+
+/* --- adaptation examples --- */
+.profile{background:var(--s1);border:1px solid var(--s3);border-radius:13px;padding:20px;display:flex;flex-direction:column}
+.profile .who{font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--faint)}
+.profile .said{font-size:14px;color:var(--dim);margin:9px 0 16px;flex:0 0 auto;min-height:66px}
+.profile .got{border-top:1px solid var(--s3);padding-top:15px;margin-top:auto}
+.tag{display:inline-block;font-family:var(--mono);font-size:10.5px;padding:3px 8px;border-radius:99px;
+  background:var(--s2);color:var(--dim);margin:0 5px 5px 0}
+
+/* --- references --- */
+.ref{border-left:2px solid var(--s4);padding:2px 0 2px 18px;margin-bottom:24px}
+.ref h3{font-size:16px}
+.ref .cite{font-family:var(--mono);font-size:11.5px;color:var(--faint);margin-top:5px}
+.ref p{color:var(--dim);font-size:14.5px;margin-top:9px}
+.correction{background:rgba(242,177,52,.07);border:1px solid rgba(242,177,52,.32);border-radius:12px;padding:20px;margin-top:8px}
+.correction .eyebrow{color:var(--gorse)}
+
+/* --- pricing / faq --- */
+.price{display:flex;align-items:baseline;gap:9px;margin:14px 0 4px}
+.price b{font-family:var(--mono);font-size:34px;font-weight:700}
+.price span{color:var(--faint);font-size:13px;font-family:var(--mono)}
+details{border-bottom:1px solid var(--s3);padding:17px 0}
+details summary{cursor:pointer;font-weight:600;font-size:16px;list-style:none;display:flex;
+  justify-content:space-between;gap:16px;align-items:center}
+details summary::-webkit-details-marker{display:none}
+details summary::after{content:'+';font-family:var(--mono);color:var(--faint);font-size:19px}
+details[open] summary::after{content:'–'}
+details p{color:var(--dim);font-size:14.5px;margin-top:11px;max-width:var(--measure)}
+
+.warnbox{background:rgba(214,56,61,.08);border:1px solid rgba(214,56,61,.35);border-radius:12px;padding:20px}
+.warnbox .eyebrow{color:var(--restC)}
+.warnbox p{color:var(--dim);font-size:14.5px}
+
+footer{border-top:1px solid var(--s3);padding-block:44px;color:var(--faint);font-size:13px}
+footer .wrap{display:flex;justify-content:space-between;gap:22px;flex-wrap:wrap;align-items:flex-start}
+footer a{color:var(--dim);text-decoration:none;margin-right:18px}
+footer a:hover{color:var(--fg)}
+.disclaimer{max-width:56ch;font-size:12px;line-height:1.55;margin-top:14px}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="wrap">
+    <a class="mark" href="#top">DEAD<span>POINT</span></a>
+    <div class="navlinks">
+      <a href="#engine">The algorithm</a>
+      <a href="#adapts">Personalisation</a>
+      <a href="#app">The app</a>
+      <a href="#research">Research</a>
+      <a href="#faq">FAQ</a>
+    </div>
+    <a class="btn sm" href="https://apps.apple.com/app/id6800266835">Download on iOS</a>
+  </div>
+</nav>
+
+<section class="hero" id="top">
+  <div class="wrap">
+    <div>
+      <span class="eyebrow">Finger strength training · iOS</span>
+      <h1>Your plan reads <em>what you actually did.</em></h1>
+      <p class="lede measure">
+        Most training apps hand you a fixed programme and leave you to it. Deadpoint builds your plan
+        from your grade, your equipment and your weak points — then works out what you should do
+        <em>today</em>, based on the sessions you've actually logged.
+      </p>
+      <div class="herocta">
+        <a class="btn" href="https://apps.apple.com/app/id6800266835">Download on iOS</a>
+        <a class="btn ghost" href="#engine">Try the algorithm below</a>
+      </div>
+      <p class="microline">£0.99/month or £9.99/year · cancel any time</p>
+    </div>
+    <div>
+      <div class="herophone">
+        <img src="img/01-dashboard.png" alt="The Deadpoint daily card, showing today's session, its exercises, rest timers and a Done This Workout button." width="640" height="1385">
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="problem">
+  <div class="wrap">
+    <span class="eyebrow">The problem</span>
+    <h2 class="measure">A plan that ignores your week isn't a plan.</h2>
+    <p class="lede measure">
+      Hangboarding on fingers that are still cooked from Tuesday isn't training — it's how pulleys go.
+      But a printed 12-week programme has no idea you climbed hard yesterday, that you've had three days
+      on the trot, or that you don't own half the kit it assumes. Deadpoint does, because it reads your log
+      before it decides anything.
+    </p>
+
+    <div class="stats">
+      <div class="stat"><b>4</b><span>base programmes — bouldering or sport, intermediate or advanced</span></div>
+      <div class="stat"><b>7</b><span>things from the quiz reshape it: days, kit, weaknesses, injuries, trips</span></div>
+      <div class="stat"><b>6</b><span>injury and weakness modules that insert real prevention work</span></div>
+      <div class="stat"><b>1</b><span>decision recalculated every single day, from your actual log</span></div>
+    </div>
+  </div>
+</section>
+
+<section id="engine">
+  <div class="wrap">
+    <span class="eyebrow">The algorithm — running live on this page</span>
+    <h2 class="measure">Tell it your last three days. Watch it decide.</h2>
+    <p class="lede measure">
+      This isn't a mock-up or a marketing simulation. The panel below is running the exact rules engine
+      that ships inside the app — same file, same logic — in your browser. The reasoning underneath each
+      recommendation is the app's own words, not copy written for this page.
+    </p>
+
+    <div class="engine">
+      <div class="engine-head">
+        <span class="t">Deadpoint rules engine</span>
+        <span class="live">live · running the shipped engine</span>
+      </div>
+      <div class="engine-body">
+        <div class="pane">
+          <span class="fieldlabel">What did you do the last three days?</span>
+          <div id="daypicker"></div>
+
+          <div class="divider"></div>
+
+          <span class="fieldlabel">Your profile</span>
+          <div class="ctlrow" style="margin-bottom:16px">
+            <div class="ctl">
+              <span class="fieldlabel">Discipline</span>
+              <div class="chips" id="ctl-discipline"></div>
+            </div>
+            <div class="ctl">
+              <span class="fieldlabel">Level</span>
+              <div class="chips" id="ctl-level"></div>
+            </div>
+          </div>
+          <div class="ctlrow">
+            <div class="ctl">
+              <span class="fieldlabel">Days per week</span>
+              <div class="stepper">
+                <button class="stepbtn" id="days-down" aria-label="Fewer days per week">−</button>
+                <span class="stepval" id="days-val">4</span>
+                <button class="stepbtn" id="days-up" aria-label="More days per week">+</button>
+              </div>
+            </div>
+            <div class="ctl" style="flex:2 1 220px">
+              <span class="fieldlabel">Equipment</span>
+              <div class="chips" id="ctl-equip"></div>
+              <p class="microline" style="margin-top:8px">Kit changes which exercises appear — most visibly on pulling days, since finger work runs on any edge.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="pane">
+          <span class="fieldlabel">Today's recommendation</span>
+          <div class="readout" id="today-readout"></div>
+          <span class="fieldlabel">Then the three days after</span>
+          <div class="next3" id="next3"></div>
+        </div>
+      </div>
+    </div>
+    <p class="microline">
+      Try three finger sessions in a row, then try three rest days — the recommendation and its reasoning both change.
+    </p>
+  </div>
+</section>
+
+<section id="adapts">
+  <div class="wrap">
+    <span class="eyebrow">Personalisation</span>
+    <h2 class="measure">Three climbers, three genuinely different plans.</h2>
+    <p class="lede measure">
+      Every example below is generated by the real resolver from the answers shown — not illustrations
+      drawn for this page.
+    </p>
+
+    <div class="grid g3" style="margin-top:36px">
+      <div class="profile">
+        <span class="who">Climber A</span>
+        <p class="said">Intermediate boulderer. Trains 3 days a week. Owns a hangboard, nothing else.</p>
+        <div class="got">
+          <span class="fieldlabel">Their Max Fingers day</span>
+          <span class="tag">Weighted or edge max hang</span>
+          <span class="tag">Secondary position hang</span>
+          <p style="color:var(--dim);font-size:13px;margin-top:9px">Pull day drops the bar work they can't do — no pull-up bar, no gym.</p>
+        </div>
+      </div>
+      <div class="profile">
+        <span class="who">Climber B</span>
+        <p class="said">Same grade, same discipline. Trains 5 days. Has a pickup rig and prefers it.</p>
+        <div class="got">
+          <span class="fieldlabel">Their Max Fingers day</span>
+          <span class="tag" style="color:var(--gorse)">Weighted pickup — half crimp</span>
+          <span class="tag">Secondary position hang</span>
+          <p style="color:var(--dim);font-size:13px;margin-top:9px">Main lift swapped entirely, and the week runs at five days instead of three.</p>
+        </div>
+      </div>
+      <div class="profile">
+        <span class="who">Climber C</span>
+        <p class="said">Advanced sport climber, 4 days. Flagged an elbow history and wants sloper work.</p>
+        <div class="got">
+          <span class="fieldlabel">What changes</span>
+          <span class="tag" style="color:var(--tidepool)">+ Open-hand sloper hangs</span>
+          <span class="tag" style="color:var(--restC)">+ Elbow caution on every pulling session</span>
+          <p style="color:var(--dim);font-size:13px;margin-top:9px">Four phases including a dedicated Power Endurance block A and B never see.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:20px">
+      <h3>Change your mind later, without starting over</h3>
+      <p>
+        Got a pull-up bar for Christmas? Gym membership lapsed? Trip booked for April, and you want to
+        pivot from bouldering to sport for it? Change the answer in Settings and the plan updates from
+        that day forward — your logged history, your block and your week count all carry on exactly
+        where they were. Nothing resets.
+      </p>
+    </div>
+  </div>
+</section>
+
+<section id="app">
+  <div class="wrap">
+    <span class="eyebrow">The app</span>
+    <h2 class="measure">One card a day. Everything on it earns its place.</h2>
+
+    <div class="grid g2" style="margin-top:36px;align-items:start;gap:clamp(28px,5vw,56px)">
+      <div>
+        <div class="shot-annotated">
+          <img src="img/01-dashboard.png" alt="Deadpoint's daily card" width="640" height="1385">
+          <!-- Offset to sit beside each control, not on top of it — a pin that
+               covers the thing it's pointing at defeats the purpose. -->
+          <span class="pin" style="left:35%;top:18%">1</span>
+          <span class="pin" style="left:54%;top:23.5%">2</span>
+          <span class="pin" style="left:83%;top:52%">3</span>
+          <span class="pin" style="left:39%;top:55%">4</span>
+          <span class="pin" style="left:15%;top:95%">5</span>
+        </div>
+      </div>
+      <div>
+        <ul class="callouts">
+          <li><span class="num">1</span><div><strong>Where you are in the block</strong><p>Phase and week, always visible. Tap it for the whole plan — phases, deload weeks, and what changes when.</p></div></li>
+          <li><span class="num">2</span><div><strong>The ringed dot is today's call</strong><p>One dot per session type. The ringed one is what the engine reckons you should do — and it stays put while you look around at the others.</p></div></li>
+          <li><span class="num">3</span><div><strong>Weights that tell you when to go up</strong><p>Log what you actually lifted. When the number turns gold, you've held the same weight twice running — that's your cue to add.</p></div></li>
+          <li><span class="num">4</span><div><strong>Rest timers, in the row</strong><p>Every timed exercise has its rest wired in. Tap it and put the phone down — it keeps running.</p></div></li>
+          <li><span class="num">5</span><div><strong>The bit that actually matters</strong><p>Logging the session is what the engine reads tomorrow. One button, and the next day's decision changes because of it.</p></div></li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="rail">
+      <figure><img src="img/02-calendar.png" alt="Calendar view of logged sessions" width="640" height="1385"><figcaption>Every session you've logged</figcaption></figure>
+      <figure><img src="img/07-quiz-experience.png" alt="Quiz step asking about experience level" width="640" height="1385"><figcaption>A quiz that's honest about levels</figcaption></figure>
+      <figure><img src="img/03-quiz-equipment.png" alt="Quiz step asking what equipment you have" width="640" height="1385"><figcaption>Only what you can actually do</figcaption></figure>
+      <figure><img src="img/04-quiz-summary.png" alt="Summary of the assigned plan" width="640" height="1385"><figcaption>Your assignment, before you start</figcaption></figure>
+    </div>
+  </div>
+</section>
+
+<section id="research">
+  <div class="wrap">
+    <span class="eyebrow">Where the numbers come from</span>
+    <h2 class="measure">Sourced, cited, and corrected when we got it wrong.</h2>
+    <p class="lede measure">
+      The protocols in Deadpoint are drawn from published climbing-training work, cited per template in
+      the source itself. Here's what that actually rests on — including the bits that are coaching
+      judgement rather than evidence, because pretending otherwise would be worse than useless.
+    </p>
+
+    <div style="margin-top:38px;max-width:var(--measure)">
+      <div class="ref">
+        <h3>Added-weight hangboard training improves grip strength</h3>
+        <p class="cite">Mundry et al., <em>Scientific Reports</em>, 2021 · DOI <a href="https://doi.org/10.1038/s41598-021-92898-2">10.1038/s41598-021-92898-2</a></p>
+        <p>A randomised controlled trial across 30 climbers at UIAA VI–VIII (roughly French 6a–7c+) found
+        added-weight hangboard training significantly improved grip strength over eight weeks. This is the
+        strongest single piece of evidence behind the max-hang work in every template.</p>
+      </div>
+
+      <div class="ref">
+        <h3>The MaxHangs cycle: 4 weeks added weight, then 4 weeks smaller edge</h3>
+        <p class="cite">Eva López's protocol · via <a href="https://strengthclimbing.com">strengthclimbing.com</a>'s write-up</p>
+        <p>An eight-week structure alternating Maximum Additional Weight and Minimum Edge Depth blocks,
+        with 48 hours between sessions as sufficient recovery. The app uses her margin-before-failure
+        approach rather than true one-rep-max attempts: pick a load where your genuine limit sits a few
+        seconds past the prescribed hang, not exactly at it.</p>
+      </div>
+
+      <div class="ref">
+        <h3>Periodisation, and knowing when to stop adding volume</h3>
+        <p class="cite">Lattice Training</p>
+        <p>Strength work belongs in a base period — it's the slowest quality to adapt, and it sets up power
+        later. Power work gets introduced two to six weeks out from a goal. And two structured
+        strength/power sessions a week is the target: past that point, more doesn't buy more adaptation,
+        just more fatigue. That cap is why the engine will tell you to rest.</p>
+      </div>
+
+      <div class="ref">
+        <h3>Why there's no campus board work for intermediates</h3>
+        <p class="cite">Lattice Training; prerequisite protocol via climbmaxxing.today</p>
+        <p>Lattice explicitly cautions intermediate climbers against self-directed campus training without
+        a coach's direct guidance. Commonly cited gates before it's appropriate at all: a one-arm hang
+        around 20mm for ~20 seconds, and ten strict pull-ups. Rather than include it with a warning, the
+        intermediate templates use explosive pull-ups for the same power-conversion stimulus.</p>
+      </div>
+
+      <div class="correction">
+        <span class="eyebrow">A correction we caught ourselves</span>
+        <p style="color:var(--dim);font-size:14.5px">
+          An earlier draft of the advanced template claimed the Mundry RCT studied exclusively advanced
+          climbers. It didn't — the 30 subjects spanned UIAA VI–VIII, which is intermediate through
+          advanced. The claim was checked on a verification pass, found to be an overreach, and corrected
+          in the source. It's noted here because a training app quietly overstating its evidence is
+          exactly the thing you should be suspicious of, and the correction is still sitting in the code
+          with the reasoning attached.
+        </p>
+      </div>
+
+      <p style="color:var(--faint);font-size:13.5px;margin-top:26px">
+        Everything above informs the templates; none of it was copied from any paid programme's
+        proprietary content. Where a number is coaching judgement rather than a cited finding — most of
+        the set-and-rep specifics are — it's marked as such in the source rather than dressed up as
+        research.
+      </p>
+    </div>
+  </div>
+</section>
+
+<section id="notforyou">
+  <div class="wrap">
+    <span class="eyebrow">Honest bit</span>
+    <h2 class="measure">If you're new to climbing, don't buy this.</h2>
+    <p class="lede measure">
+      Deadpoint has no beginner tier, and that's deliberate — it was removed rather than hidden. If
+      you've been climbing under a couple of years, structured finger training is close to the worst use
+      of your time and a decent way to hurt yourself. Go climb a lot, get good at moving, and come back.
+      The app's floor is intermediate — roughly V3–V6 bouldering or French 6a–6c — because that's where
+      specific strength work starts paying off in a way volume alone doesn't.
+    </p>
+
+    <div class="warnbox measure" style="margin-top:30px">
+      <span class="eyebrow">Not medical advice</span>
+      <p>
+        Deadpoint prescribes physical training loads. It isn't a medical device, it doesn't diagnose
+        anything, and the injury flags in the quiz add general prevention work and caution notes — not
+        treatment. If something is currently painful or flaring up day to day, see a physio before
+        training through it.
+      </p>
+    </div>
+  </div>
+</section>
+
+<section id="pricing">
+  <div class="wrap">
+    <span class="eyebrow">Pricing</span>
+    <h2>One subscription. Cancel whenever.</h2>
+    <div class="grid g2" style="margin-top:32px;max-width:760px">
+      <div class="card">
+        <h3>Monthly</h3>
+        <div class="price"><b>£0.99</b><span>/ month</span></div>
+        <p>Everything in the app. No feature tiers, no add-ons.</p>
+      </div>
+      <div class="card" style="border-color:var(--gorse)">
+        <h3>Annual</h3>
+        <div class="price"><b>£9.99</b><span>/ year</span></div>
+        <p>The same thing, at about ten months for twelve.</p>
+      </div>
+    </div>
+    <p class="microline">Billed through the App Store. Manage or cancel any time in iOS Settings.</p>
+  </div>
+</section>
+
+<section id="faq">
+  <div class="wrap">
+    <span class="eyebrow">Questions</span>
+    <h2>FAQ</h2>
+    <div style="margin-top:26px;max-width:820px">
+      <details><summary>What equipment do I actually need?</summary>
+        <p>A hangboard or any decent edge is the real floor — that's what the finger sessions are built
+        around, and you can max-hang on an edge without owning a purpose-built board. A pull-up bar (or a
+        gym, which counts as having one) unlocks the pulling sessions. A weighted pickup rig is optional;
+        if you have one, you can choose it over hangs for your main finger lift. Tell the app what you've
+        got and it only shows you exercises you can actually do.</p></details>
+      <details><summary>Does it work if I only have a hangboard?</summary>
+        <p>Yes. Your finger sessions run in full. Your pull day drops to a warm-up and antagonist work,
+        because there's no honest substitute for weighted pull-ups without something to hang off — we'd
+        rather show you a short session than invent filler.</p></details>
+      <details><summary>Can I change my answers later?</summary>
+        <p>Any of them, in Settings, whenever. Days per week, equipment, weaknesses, injury flags, a trip
+        date, even switching from bouldering to sport. Your plan updates going forward and your history
+        and block progress carry on untouched.</p></details>
+      <details><summary>What happens if I miss a week?</summary>
+        <p>The engine notices. It reads your actual log rather than a calendar, so a layoff gets you eased
+        back in rather than dropped into whatever week the spreadsheet says you should be on.</p></details>
+      <details><summary>Is this coaching?</summary>
+        <p>No. It's a structured programme that adapts to what you log. It can't watch you climb, can't
+        assess your technique, and doesn't replace a coach who can. If you can afford real coaching and
+        want to get properly good, get real coaching.</p></details>
+      <details><summary>How do I cancel?</summary>
+        <p>iOS Settings → your name → Subscriptions → Deadpoint → Cancel. Nothing to email us about, and
+        you keep access to the end of the period you've paid for.</p></details>
+      <details><summary>Can I delete my account and data?</summary>
+        <p>Yes, from inside the app — Settings → Delete Account. It removes your account and the training
+        data attached to it.</p></details>
+    </div>
+  </div>
+</section>
+
+<section id="cta" style="text-align:center">
+  <div class="wrap">
+    <h2>Your plan, every day.</h2>
+    <p class="lede" style="margin-inline:auto">Built around your answers. Decided by what you actually did.</p>
+    <div style="margin-top:30px"><a class="btn" href="https://apps.apple.com/app/id6800266835">Download on iOS</a></div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div>
+      <a class="mark" href="#top" style="font-size:17px">DEAD<span>POINT</span></a>
+      <p class="disclaimer">
+        Training loads carry risk. Warm up properly, progress gradually, and stop for anything sharp.
+        Deadpoint is not medical advice.
+      </p>
+    </div>
+    <div>
+      <div style="margin-bottom:12px">
+        <a href="support.html">Support</a>
+        <a href="privacy.html">Privacy</a>
+        <a href="https://www.apple.com/legal/internet-services/itunes/dev/stdeula/">Terms of Use</a>
+      </div>
+      <div style="font-family:var(--mono);font-size:11.5px">© 2026 Deadpoint</div>
+    </div>
+  </div>
+</footer>
+
+<script src="js/engine/engine-core.js"></script>
+<script src="js/engine/templates.js"></script>
+<script src="js/engine/template-resolver.js"></script>
+<script>
+(function(){
+  'use strict';
+  var COLOURS = {'--gorse':'#F2B134','--tidepool':'#4FB3A5','--slate':'#7B93E0','--heather':'#C9739B','--grey':'#5A6069'};
+  var colour = function(v){ return COLOURS[v] || COLOURS['--gorse']; };
+
+  // Short picker labels. The engine's own session names come from whichever
+  // template is loaded (they differ per template — "Max Hangs" vs "Finger
+  // Strength"), so the picker uses stable generic wording instead.
+  var PICKER = [
+    {k:'maxFingers', label:'Max fingers',  c:'--gorse'},
+    {k:'hangboard',  label:'Repeaters',    c:'--slate'},
+    {k:'pull',       label:'Pull',         c:'--tidepool'},
+    {k:'climbHard',  label:'Hard climb',   c:'--heather'},
+    {k:'outdoorHard',label:'Outdoor',      c:'--heather'},
+    {k:'climbEasy',  label:'Easy climb',   c:'--tidepool'},
+    {k:'rest',       label:'Rest',         c:'--grey'}
+  ];
+  var DAYS = [{n:3,label:'Three days ago'},{n:2,label:'Two days ago'},{n:1,label:'Yesterday'}];
+  var EQUIP = [{k:'hangboard',label:'Hangboard'},{k:'pullBar',label:'Pull-up bar'},{k:'gym',label:'Gym'},{k:'pickupRig',label:'Pickup rig'}];
+
+  var state = {
+    log: {3:'maxFingers', 2:'climbHard', 1:'rest'},
+    discipline:'bouldering', level:'intermediate', days:4,
+    equipment:['hangboard','pullBar']
+  };
+
+  var today = EngineCore.today();
+  var el = function(id){ return document.getElementById(id); };
+
+  function chip(label, on, c, onClick){
+    var b = document.createElement('button');
+    b.className = 'chip'; b.type = 'button'; b.textContent = label;
+    b.setAttribute('aria-pressed', on ? 'true' : 'false');
+    if (c) b.style.setProperty('--chipc', colour(c));
+    b.addEventListener('click', onClick);
+    return b;
+  }
+
+  function buildDayPicker(){
+    var host = el('daypicker'); host.innerHTML = '';
+    DAYS.forEach(function(d){
+      var row = document.createElement('div'); row.className = 'dayrow';
+      var lab = document.createElement('span'); lab.className = 'fieldlabel'; lab.textContent = d.label;
+      var chips = document.createElement('div'); chips.className = 'chips';
+      PICKER.forEach(function(s){
+        chips.appendChild(chip(s.label, state.log[d.n] === s.k, s.c, function(){
+          state.log[d.n] = s.k; render();
+        }));
+      });
+      row.appendChild(lab); row.appendChild(chips); host.appendChild(row);
+    });
+  }
+
+  function buildControls(){
+    var disc = el('ctl-discipline'); disc.innerHTML = '';
+    [['bouldering','Bouldering'],['sport','Sport']].forEach(function(p){
+      disc.appendChild(chip(p[1], state.discipline === p[0], null, function(){ state.discipline = p[0]; render(); }));
+    });
+    var lvl = el('ctl-level'); lvl.innerHTML = '';
+    [['intermediate','Intermediate'],['advanced','Advanced']].forEach(function(p){
+      lvl.appendChild(chip(p[1], state.level === p[0], null, function(){ state.level = p[0]; render(); }));
+    });
+    var eq = el('ctl-equip'); eq.innerHTML = '';
+    EQUIP.forEach(function(e){
+      eq.appendChild(chip(e.label, state.equipment.indexOf(e.k) !== -1, null, function(){
+        var i = state.equipment.indexOf(e.k);
+        if (i === -1) state.equipment.push(e.k); else state.equipment.splice(i,1);
+        render();
+      }));
+    });
+    el('days-val').textContent = state.days;
+  }
+
+  function buildProgram(){
+    var id = state.discipline + state.level.charAt(0).toUpperCase() + state.level.slice(1);
+    // Start date is set 10 weeks back so the demo lands mid-plan rather than
+    // on week one of block one, which is the least interesting thing to show.
+    var start = EngineCore.addDays(today, -70);
+    return TemplateResolver.resolveTemplate(TEMPLATES[id], {
+      startDate: start,
+      modifiers: { daysPerWeek: state.days, equipment: state.equipment.slice() }
+    });
+  }
+
+  function sessionLog(){
+    var log = {};
+    DAYS.forEach(function(d){
+      var k = state.log[d.n];
+      if (k) log[EngineCore.addDays(today, -d.n)] = { t: k };
+    });
+    return log;
+  }
+
+  function render(){
+    buildDayPicker(); buildControls();
+
+    var program = buildProgram();
+    var engine = EngineCore.createEngine(program, { sessionLog: sessionLog(), loadLog: {} });
+    var decision = engine.decide(today);
+    var info = program.sessions[decision.k] || {};
+    var c = colour(info.c);
+
+    var r = el('today-readout');
+    r.style.borderLeft = '3px solid ' + c;
+    r.innerHTML = '';
+    var day = document.createElement('div'); day.className = 'rday'; day.textContent = 'Today';
+    var name = document.createElement('div'); name.className = 'rname'; name.style.color = c;
+    name.textContent = info.n || decision.k;
+    var where = document.createElement('div'); where.className = 'rwhere'; where.textContent = info.w || '';
+    var why = document.createElement('div'); why.className = 'rwhy';
+    var whyLab = document.createElement('b'); whyLab.textContent = "Why this, today";
+    var whyTxt = document.createElement('span'); whyTxt.textContent = decision.why || '';
+    why.appendChild(whyLab); why.appendChild(whyTxt);
+    r.appendChild(day); r.appendChild(name); r.appendChild(where); r.appendChild(why);
+
+    if (info.x && info.x.length){
+      var ul = document.createElement('ul'); ul.className = 'exlist';
+      info.x.forEach(function(ex){
+        var li = document.createElement('li');
+        var a = document.createElement('span'); a.textContent = ex.t;
+        var b = document.createElement('span'); b.textContent = ex.m || '';
+        li.appendChild(a); li.appendChild(b); ul.appendChild(li);
+      });
+      r.appendChild(ul);
+    }
+
+    // forecast() starts at today, so drop the first entry — the card above is today.
+    var fc = engine.forecast(4).slice(1, 4);
+    var host = el('next3'); host.innerHTML = '';
+    fc.forEach(function(f){
+      var d = document.createElement('div'); d.className = 'n3';
+      d.style.borderLeftColor = colour(f.colour);
+      var when = document.createElement('div'); when.className = 'd';
+      when.textContent = new Date(f.date + 'T12:00:00').toLocaleDateString('en-GB',{weekday:'short', day:'numeric', month:'short'});
+      var nm = document.createElement('div'); nm.className = 'n'; nm.textContent = f.name;
+      d.appendChild(when); d.appendChild(nm); host.appendChild(d);
+    });
+  }
+
+  el('days-up').addEventListener('click', function(){ if (state.days < 6){ state.days++; render(); } });
+  el('days-down').addEventListener('click', function(){ if (state.days > 2){ state.days--; render(); } });
+
+  render();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Privacy Policy — Deadpoint</title>
+<style>
+  :root{ --bg:#181B22; --s1:#1E222B; --s3:#333947; --fg:#EDEBE5; --dim:#9AA0AE; --faint:#666C7A; --accent:#D69A1F; }
+  *{box-sizing:border-box}
+  body{background:var(--bg);color:var(--fg);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;line-height:1.6;margin:0;padding:32px 20px 80px;max-width:720px;margin-inline:auto}
+  h1{font-size:clamp(28px,6vw,38px);margin-bottom:4px}
+  .updated{color:var(--faint);font-size:13px;margin-bottom:36px;font-family:ui-monospace,monospace}
+  h2{color:var(--accent);font-size:18px;margin-top:36px;margin-bottom:10px;text-transform:uppercase;letter-spacing:.02em}
+  p,li{color:var(--dim);font-size:15px}
+  li{margin-bottom:6px}
+  a{color:var(--accent)}
+  .box{background:var(--s1);border:1px solid var(--s3);border-radius:10px;padding:16px 18px;margin:18px 0;font-size:14px}
+  .box strong{color:var(--fg)}
+  code{background:var(--s1);border-radius:4px;padding:1px 5px;font-size:13px}
+  .placeholder{color:var(--accent);font-weight:600}
+</style>
+</head>
+<body>
+
+<div style="background:rgba(214,56,61,.1);border:1px solid #D6383D;border-radius:10px;padding:16px 18px;margin-bottom:26px">
+  <strong style="color:#D6383D">DRAFT — do not deploy yet.</strong>
+  <span style="color:#9AA0AE;font-size:14px">Three things still need confirming before this page goes live:
+  the legal entity name, the minimum age, and the Supabase data region. They're marked in amber below.
+  Fill them in, delete this banner, then publish.</span>
+</div>
+<h1>Privacy Policy</h1>
+<p class="updated">Deadpoint (formerly Crimp Block) · Last updated 7 September 2026</p>
+
+<div class="box">
+  <strong>The short version:</strong> Deadpoint stores your email (to sign you in), the training sessions you log, and the weights you record against exercises. That's it. There is no advertising, no analytics or tracking SDKs, no location data, and your data is never sold or shared with third parties for marketing.
+</div>
+
+<h2>Who this policy covers</h2>
+<p>Deadpoint is provided by <span class="placeholder">[Legal entity name — e.g. "Sullivan Ltd" or "[Your Name], sole trader" — confirm before publishing]</span> ("we", "us"), trading as Deadpoint. We are the data controller for the personal data described below. Contact: <a href="mailto:oscar@sullivanltd.co.uk">oscar@sullivanltd.co.uk</a>.</p>
+
+<h2>What we collect</h2>
+<ul>
+  <li><strong style="color:var(--fg)">Email address</strong> — used to sign you in via a one-time code (no passwords are stored, by you or us). Handled by our authentication provider, Supabase.</li>
+  <li><strong style="color:var(--fg)">Training session log</strong> — the date and type of each session you log (e.g. "Max Fingers", "Rest").</li>
+  <li><strong style="color:var(--fg)">Exercise weight log</strong> — the working weight you record against specific exercises, and the date recorded. This is fitness data you enter yourself; we don't read it from Apple Health or any other health platform.</li>
+</ul>
+<p>We do not collect your name, location, contacts, browsing history, device advertising identifiers, or any data through analytics or crash-reporting SDKs — none are included in the app.</p>
+
+<h2>Why we collect it</h2>
+<p>Solely to run the app: to know who you are when you sign in, and to compute your next recommended session and correct working weights from your own history. Nothing here is used for advertising or profiling, and nothing is used for any purpose beyond delivering the training plan you're using the app for.</p>
+
+<h2>Where it's stored</h2>
+<p>Your data is stored with <a href="https://supabase.com" target="_blank" rel="noopener">Supabase</a>, our database and authentication provider, who process it on our behalf under their own data processing agreement. Database access is protected by row-level security, so your training data is visible only to your own signed-in account — not to other users, and not readable by us without deliberately querying the database as the operator. Supabase project region: <span class="placeholder">[confirm region in Supabase dashboard — matters for UK/EU data residency]</span>.</p>
+<p>A small on-device cache of your upcoming week is also stored locally on your phone (in the app's private storage and, if you use it, the home-screen widget's shared container), purely so the widget can show something before the app has had a chance to refresh it. This never leaves your device.</p>
+
+<h2>How long we keep it</h2>
+<p>We keep your data for as long as your account is active. If you'd like your account and all associated data permanently deleted, contact us at <a href="mailto:oscar@sullivanltd.co.uk">oscar@sullivanltd.co.uk</a> — deleting the underlying account record removes your session log and weight log with it (they're linked to it directly, not kept separately). We aim to complete deletion requests within 30 days.</p>
+
+<h2>Your rights</h2>
+<p>If you're in the UK or EU, UK GDPR / EU GDPR gives you the right to:</p>
+<ul>
+  <li>Access the personal data we hold about you</li>
+  <li>Correct inaccurate data</li>
+  <li>Request erasure of your data</li>
+  <li>Object to or restrict how we process your data</li>
+  <li>Receive your data in a portable format</li>
+  <li>Complain to your local data protection authority (in the UK, the <a href="https://ico.org.uk" target="_blank" rel="noopener">ICO</a>) if you think we've got something wrong</li>
+</ul>
+<p>To exercise any of these, email <a href="mailto:oscar@sullivanltd.co.uk">oscar@sullivanltd.co.uk</a>.</p>
+
+<h2>Subscriptions and payment</h2>
+<p>If you subscribe to Deadpoint, payment is handled entirely by Apple through the App Store. We never see or store your card details — Apple's own privacy policy covers that transaction. We only receive confirmation of your subscription status, not your payment information.</p>
+
+<h2>Children</h2>
+<p>Deadpoint is not directed at children. You must be at least <span class="placeholder">[16 or 18 — confirm intended minimum age]</span> years old to create an account.</p>
+
+<h2>Changes to this policy</h2>
+<p>If this policy changes materially, we'll update the date at the top of this page and, where appropriate, let you know in the app.</p>
+
+<h2>Contact</h2>
+<p><a href="mailto:oscar@sullivanltd.co.uk">oscar@sullivanltd.co.uk</a></p>
+
+</body>
+</html>
