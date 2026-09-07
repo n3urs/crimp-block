@@ -14,6 +14,7 @@ import { useStore } from '../../src/data/useStore';
 import { useLoads } from '../../src/data/useLoads';
 import { useProfile } from '../../src/data/useProfile';
 import { createEngine } from '../../src/engine';
+import { resolveUserProgram } from '../../src/engine/resolveUserProgram';
 import { resolveColour } from '../../src/design/colours';
 import { useSwipeCarousel } from '../../src/components/daily-card/useSwipeCarousel';
 import { useDoneFlow } from '../../src/components/daily-card/useDoneFlow';
@@ -26,11 +27,6 @@ import { leadingInt } from '../../src/components/timers/intervalTimerLogic';
 import { getStoredTicks, setStoredTicks } from '../../src/data/tickStorage';
 import { cardMessage } from '../../src/components/daily-card/cardMessage';
 import { syncForecast } from '../../src/widget/syncForecast';
-
-// programs.js is plain JS (no .d.ts), same require-not-import pattern the
-// engine facade itself uses internally (src/engine/index.ts:8) and that
-// __tests__/engine-parity.test.ts already relies on.
-const PROGRAMS = require('../../src/engine/programs.js');
 
 /** Port of NativeAppView.dayLetter(_:) — a single-letter weekday
     abbreviation ("M", "T", "W"...) for WeekStrip's tiles. */
@@ -53,16 +49,21 @@ export default function Card() {
   // of this fix — see useStore.ts/useLoads.ts's doc comments.
   const userId = session?.user?.id ?? '';
 
-  // No template-resolver task exists anywhere in Tasks 1-12 (confirmed:
-  // src/engine/template-resolver.js exists on disk but nothing in this
-  // plan wires it up yet) — programs.js is keyed directly by real account
-  // email, exactly as __tests__/engine-parity.test.ts already exercises
-  // it, with a 'default' entry in the same file for anyone else. This is
-  // a judgment call the brief's Step 2 left open; see the Task 12 report.
-  const program = useMemo(() => PROGRAMS[(email ?? '').toLowerCase()] ?? PROGRAMS.default, [email]);
-
   const profile = useProfile(userId);
   const loads = useLoads(userId);
+
+  // Real bug, fixed here: this used to be `PROGRAMS[email] ?? PROGRAMS.default`
+  // unconditionally — every real customer's quiz answers (template +
+  // modifiers) were saved to their profile but never read back, so every
+  // one of them saw the literal same generic PROGRAMS.default content
+  // regardless of what they answered. See resolveUserProgram.ts's own doc
+  // comment for the full story. `profile.row` starts null on THIS
+  // screen's own first render (each screen owns its own independent
+  // useProfile instance — see the focus-refresh comment below) —
+  // resolveUserProgram's own null-profile fallback (PROGRAMS.default)
+  // covers that one frame safely, same as today's behaviour, and this
+  // recomputes correctly the moment profile.row loads.
+  const program = useMemo(() => resolveUserProgram(email, profile.row), [email, profile.row]);
 
   // engine.today() is a pure passthrough to engine-core's own today() —
   // it reads neither `program` nor the log data, so this cheap throwaway

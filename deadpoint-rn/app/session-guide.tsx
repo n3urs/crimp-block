@@ -9,14 +9,23 @@
     now. Registered in app/_layout.tsx with `presentation: 'modal'`, same
     pattern as day-picker.tsx/plan.tsx/settings.tsx.
 
-    Unlike those screens this one needs no engine/store/profile
-    resolution at all: src/engine/index.ts's sessionInfo(key) and
+    Unlike those screens this one needs no engine/store resolution at
+    all: src/engine/index.ts's sessionInfo(key) and
     sessionColourVarName(key) are both pure `program.sessions[key]`
     lookups with zero session-log dependency (confirmed directly against
-    their implementations), so this screen only needs `program` (resolved
-    from email, same as every other modal) and the `key` route param —
-    reading `program.sessions[key]` directly rather than constructing a
-    whole engine just to call a function that would do the same lookup.
+    their implementations), so this screen only needs `program` and the
+    `key` route param — reading `program.sessions[key]` directly rather
+    than constructing a whole engine just to call a function that would
+    do the same lookup. It DOES need profile resolution now (see
+    resolveUserProgram.ts): `program` used to be resolved from email
+    alone (`PROGRAMS[email] ?? PROGRAMS.default`), which meant a real
+    customer's session guide would silently come from the generic
+    default program, not their own template — no guide content exists
+    in src/engine/templates.js yet (only programs.js's hand-authored
+    accounts have one today), so this had no visible effect YET, but
+    would have quietly kept being wrong the moment a template guide is
+    ever authored. Fixed the same way as every other screen rather than
+    leaving this one call site still wrong.
 
     Two deliberate departures from the Swift source, both to match this
     RN app's OWN already-established conventions rather than copy Swift's
@@ -38,8 +47,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colours, resolveColour } from '../src/design/colours';
 import { Fonts } from '../src/design/fonts';
 import { useSession } from '../src/data/useSession';
-
-const PROGRAMS = require('../src/engine/programs.js');
+import { useProfile } from '../src/data/useProfile';
+import { resolveUserProgram } from '../src/engine/resolveUserProgram';
 
 interface GuideSection {
   heading: string;
@@ -57,7 +66,9 @@ export default function SessionGuideScreen() {
   const { key } = useLocalSearchParams<{ key: string }>();
   const { session } = useSession();
   const email = session?.user?.email ?? null;
-  const program = useMemo(() => PROGRAMS[(email ?? '').toLowerCase()] ?? PROGRAMS.default, [email]);
+  const userId = session?.user?.id ?? '';
+  const profile = useProfile(userId);
+  const program = useMemo(() => resolveUserProgram(email, profile.row), [email, profile.row]);
 
   // Same shape EngineBridge.SessionGuide/GuideSection defined in Swift —
   // { title, sections: [{ heading, body }] } — sourced straight from

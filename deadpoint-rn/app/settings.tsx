@@ -241,16 +241,22 @@ export default function Settings() {
                      Settings who taps the quiz's own visible CANCEL button
                      (rendered on every step — see QuizChrome.tsx's
                      QuizHeader) gets silently signed out.
-                  2) Even on success it did nothing visible: card.tsx picks
+                  2) Even on success it did nothing visible: card.tsx picked
                      its program via `PROGRAMS[email] ?? PROGRAMS.default`
-                     and never reads `row.trackType`/`row.assignedTemplateId`
+                     and never read `row.trackType`/`row.assignedTemplateId`
                      at all, so completing the quiz from here changed
-                     nothing the user could see.
+                     nothing the user could see. THIS HALF IS NOW FIXED —
+                     see src/engine/resolveUserProgram.ts: card.tsx (and
+                     every other program-resolving screen) now actually
+                     reads assignedTemplateId/modifiers. (1) above is a
+                     separate, still-open bug (quiz.tsx's onCancel signs
+                     out an already-signed-in user) and remains the sole
+                     reason SWITCH TRACK stays removed here.
                   Same "never show a control that does nothing" principle
                   this screen's own (unported) DELETE ACCOUNT section
                   followed in Swift. Tracked as a real follow-up, not a
-                  silent deletion — bring this back only once both (1) and
-                  (2) are actually fixed. RESTORE INSTANTLY below is
+                  silent deletion — bring this back only once (1) is also
+                  fixed. RESTORE INSTANTLY below is
                   unaffected: it never touches /quiz, and its own visible
                   effect (escaping the /rehab-coming-soon routing gate —
                   see src/routing/computeRoute.ts) is real regardless of

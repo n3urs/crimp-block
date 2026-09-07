@@ -19,8 +19,7 @@ import { useSession } from '../src/data/useSession';
 import { useStore } from '../src/data/useStore';
 import { useProfile } from '../src/data/useProfile';
 import { createEngine, SESSION_ORDER } from '../src/engine';
-
-const PROGRAMS = require('../src/engine/programs.js');
+import { resolveUserProgram } from '../src/engine/resolveUserProgram';
 
 /** Swift's `"EEEE d MMM"` via en_GB (e.g. "Tuesday 1 Sep"). Parsed at LOCAL
     NOON, never `new Date(dateString)` directly — matching this project's
@@ -39,8 +38,11 @@ export default function DayPicker() {
   const { session } = useSession();
   const email = session?.user?.email ?? null;
   const userId = session?.user?.id ?? '';
-  const program = useMemo(() => PROGRAMS[(email ?? '').toLowerCase()] ?? PROGRAMS.default, [email]);
   const profile = useProfile(userId);
+  // See src/engine/resolveUserProgram.ts's own doc comment: this used to
+  // be `PROGRAMS[email] ?? PROGRAMS.default` unconditionally, so a real
+  // customer's actual quiz-assigned template/modifiers were never read.
+  const program = useMemo(() => resolveUserProgram(email, profile.row), [email, profile.row]);
 
   const [today] = useState(() => createEngine(program, { sessionLog: {}, loadLog: {} }).today());
   const startDate = profile.row?.programStartDate ?? program.startDate ?? null;
