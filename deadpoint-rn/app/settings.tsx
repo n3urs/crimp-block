@@ -26,7 +26,7 @@ import { useSession } from '../src/data/useSession';
 import { useProfile, type ProfileRow } from '../src/data/useProfile';
 import { usePrefs, setSetsCounterEnabled, setAutoStartRestOnTally } from '../src/data/prefs';
 import { PRIVACY_POLICY_URL, TERMS_OF_USE_URL } from '../src/data/legal';
-import { TEMPLATE_META, REHAB_META } from '../src/screens/quiz/quizModel';
+import { TEMPLATE_META, REHAB_META, DISCIPLINE_LABELS, EXPERIENCE_LABELS, parseTemplateId } from '../src/screens/quiz/quizModel';
 
 // Swift hardcodes this same array inline (SettingsView.swift:240) rather
 // than sharing a constant elsewhere in the codebase — matched here rather
@@ -43,6 +43,23 @@ function trackSummaryText(row: ProfileRow): string {
   }
   const name = TEMPLATE_META[row.assignedTemplateId ?? '']?.name ?? row.assignedTemplateId ?? 'Standard';
   return `Standard — ${name}`;
+}
+
+/** One-line summary for the new PREFERENCES section below — the same
+    "discipline, experience, days/week" shape StandardSummaryStep shows
+    at the end of the quiz, condensed to a single row. Null for a rehab-
+    only account (no standard template ever assigned): Preferences is
+    still reachable there (this screen doesn't gate it on trackType —
+    see the section's own doc comment), but there's nothing real to
+    summarize yet, so the row just invites setting preferences instead
+    of showing a fake "Bouldering — Intermediate" default no one chose. */
+function preferencesSummaryText(row: ProfileRow): string | null {
+  if (row.assignedTemplateId == null) return null;
+  const parsed = parseTemplateId(row.assignedTemplateId);
+  if (parsed == null) return null;
+  const days = row.modifiers.daysPerWeek;
+  const daysPart = typeof days === 'number' ? `, ${days} days/week` : '';
+  return `${DISCIPLINE_LABELS[parsed.discipline]} — ${EXPERIENCE_LABELS[parsed.experienceLevel]}${daysPart}`;
 }
 
 /** Port of Swift's `section(_:content:)` helper — an all-caps faint
@@ -276,6 +293,31 @@ export default function Settings() {
           </Section>
         )}
 
+        {/* Lets someone change any of their original quiz answers —
+            days/week, equipment, weaknesses, injuries, trip date, or a
+            full discipline/experience switch — without redoing the quiz.
+            Not gated on row.trackType: a rehab-only account has never
+            been asked any of these, and opening the editor there is a
+            real, intentional first assignment (see
+            preferencesSummaryText's own doc comment), not a dead end. */}
+        {row != null && (
+          <Section title="PREFERENCES">
+            <View style={styles.preferencesBody}>
+              {preferencesSummaryText(row) != null && (
+                <Text style={styles.trackSummary}>{preferencesSummaryText(row)}</Text>
+              )}
+              <Pressable
+                onPress={() => router.push('/preferences-edit')}
+                accessibilityRole="button"
+                accessibilityLabel="Edit preferences"
+              >
+                <Text style={styles.helpAction}>EDIT PREFERENCES</Text>
+              </Pressable>
+              <Text style={styles.helpSubtitle}>Change your days per week, equipment, weaknesses, injuries, or even switch discipline — your progress carries on, nothing resets.</Text>
+            </View>
+          </Section>
+        )}
+
         <Section title="HELP">
           <View style={styles.helpBody}>
             <Pressable
@@ -362,6 +404,7 @@ const styles = StyleSheet.create({
   deleteAccountText: { ...Fonts.mono(12, 'bold'), color: Colours.restC },
 
   trackBody: { gap: 14 },
+  preferencesBody: { gap: 8 },
   trackSummary: { fontSize: 14, fontWeight: '600', color: Colours.fg },
   restoreAction: { ...Fonts.mono(11, 'medium'), color: Colours.faint },
 

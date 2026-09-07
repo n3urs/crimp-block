@@ -318,6 +318,40 @@ export function useProfile(userId: string) {
       : s));
   }, [userId]);
 
+  /** Lets a signed-in standard-track user change ANY of their original
+      quiz answers later (app/preferences-edit.tsx) — discipline,
+      experience level, equipment, weaknesses, injury flags, days/week,
+      trip date, prior-training/max-fingers preferences — without
+      resetting programStartDate, trackType, tier, or anything in their
+      session history. resolveUserProgram.ts (and the template resolver
+      underneath it) reads assignedTemplateId/modifiers fresh every time
+      it resolves a screen's program — nothing about a user's plan is
+      "baked in" beyond those two fields — so changing them here takes
+      effect immediately, going forward, with zero special handling
+      needed anywhere else: the exact mechanism that already lets a trip
+      taper or an injury caution appear the moment the quiz sets them the
+      first time now also lets someone change their mind later. PATCH
+      (`.update`), not upsert, matching switchToStandard/
+      advanceRehabPhase above — this only ever runs for an account that
+      already has a row (Preferences is reached from Settings, which
+      already requires `row != null` to render at all).
+
+      Deliberately a full REPLACE of `modifiers` (not a merge like some
+      other writes in this file) — the caller always supplies the
+      COMPLETE shape via quizModel's own modifiersPayload(), since the
+      Preferences screen edits every field that lives in it; a merge
+      here would leave a field the user just cleared (e.g. removing an
+      injury flag) stuck behind forever. */
+  const updatePreferences = useCallback(async (newTemplateId: string, modifiers: Record<string, unknown>) => {
+    const { error } = await supabase.from('profiles')
+      .update({ assigned_template_id: newTemplateId, modifiers })
+      .eq('user_id', userId);
+    if (error) throw error;
+    setState((s) => (s.status === 'ready' && s.forUserId === userId && s.row
+      ? { ...s, row: { ...s.row, assignedTemplateId: newTemplateId, modifiers } }
+      : s));
+  }, [userId]);
+
   const markTutorialCompleted = useCallback(async () => {
     const now = new Date().toISOString();
     const { error } = await supabase.from('profiles').update({ tutorial_completed_at: now }).eq('user_id', userId);
@@ -327,5 +361,5 @@ export function useProfile(userId: string) {
       : s));
   }, [userId]);
 
-  return { row, loaded, isLoading, hasError, reload, create, assignRehab, switchToStandard, advanceRehabPhase, markTutorialCompleted };
+  return { row, loaded, isLoading, hasError, reload, create, assignRehab, switchToStandard, advanceRehabPhase, updatePreferences, markTutorialCompleted };
 }

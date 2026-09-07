@@ -115,6 +115,15 @@ export default function RootLayout() {
               app/session-guide.tsx lives directly under app/, so its
               route name is just "session-guide". */}
           <Stack.Screen name="session-guide" options={{ presentation: 'modal' }} />
+          {/* Preferences editor — lets an already-onboarded user change
+              their original quiz answers (discipline, experience,
+              equipment, weaknesses, injuries, days/week, trip date)
+              without redoing the quiz. Reached from settings.tsx's
+              PREFERENCES section. Same not-group-qualified reasoning as
+              the other screens above: app/preferences-edit.tsx lives
+              directly under app/, so its route name is just
+              "preferences-edit". */}
+          <Stack.Screen name="preferences-edit" options={{ presentation: 'modal' }} />
           {/* Subscription paywall (Task 3, this plan) — direct port
               structurally similar to the modals above (app/paywall.tsx
               lives directly under app/, so its route name is just

@@ -1,4 +1,4 @@
-import { templateId, modifiersPayload, gradeRange, TEMPLATE_META, type QuizAnswers } from '../src/screens/quiz/quizModel';
+import { templateId, parseTemplateId, modifiersPayload, gradeRange, TEMPLATE_META, type QuizAnswers } from '../src/screens/quiz/quizModel';
 
 const TEMPLATES = require('../src/engine/templates.js');
 
@@ -27,6 +27,23 @@ test('gradeRange gives bouldering V-scale bands', () => {
 
 test('gradeRange gives sport French-grade bands', () => {
   expect(gradeRange('sport', 'intermediate')).toBe('Roughly French 6a–6c');
+});
+
+// parseTemplateId is the inverse used by the Preferences editor to seed
+// its form from an already-stored assignedTemplateId — round-tripping
+// through templateId() for all 4 real combinations pins that the two
+// functions can never silently disagree.
+test('parseTemplateId is the exact inverse of templateId for all 4 real combinations', () => {
+  for (const discipline of ['bouldering', 'sport'] as const) {
+    for (const experienceLevel of ['intermediate', 'advanced'] as const) {
+      const id = templateId(discipline, experienceLevel);
+      expect(parseTemplateId(id)).toEqual({ discipline, experienceLevel });
+    }
+  }
+});
+
+test('parseTemplateId returns null for a template id that was never assigned', () => {
+  expect(parseTemplateId('somethingThatDoesNotExist')).toBeNull();
 });
 
 const baseAnswers: QuizAnswers = {

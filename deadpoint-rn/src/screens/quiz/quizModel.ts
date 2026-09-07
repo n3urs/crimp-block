@@ -45,6 +45,27 @@ export function templateId(discipline: Discipline, level: ExperienceLevel): stri
   return discipline + level[0].toUpperCase() + level.slice(1);
 }
 
+/** Inverse of templateId() — needed by the Preferences editor (app/
+    preferences-edit.tsx) to seed its discipline/experienceLevel fields
+    FROM an already-stored assignedTemplateId, the one place that value
+    is ever read back rather than only ever produced by the quiz. Brute-
+    forced over the 4 real combinations rather than parsed with a regex —
+    there are exactly 4 templates today (templates.js), and matching by
+    literally recomputing templateId() for each guarantees this can never
+    silently drift from what templateId() itself actually produces, even
+    if the composition rule above ever changes. Returns null for
+    anything else (no template ever assigned — a rehab-only account, or a
+    profile still loading) rather than guessing a default; the caller
+    decides what to seed in that case. */
+export function parseTemplateId(id: string): { discipline: Discipline; experienceLevel: ExperienceLevel } | null {
+  for (const discipline of ['bouldering', 'sport'] as Discipline[]) {
+    for (const experienceLevel of ['intermediate', 'advanced'] as ExperienceLevel[]) {
+      if (templateId(discipline, experienceLevel) === id) return { discipline, experienceLevel };
+    }
+  }
+  return null;
+}
+
 export function modifiersPayload(answers: QuizAnswers): Record<string, unknown> {
   const payload: Record<string, unknown> = {
     equipment: answers.equipment,
