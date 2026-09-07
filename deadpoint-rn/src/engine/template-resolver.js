@@ -177,10 +177,17 @@ function deepClone(v){ return JSON.parse(JSON.stringify(v)); }
    drop any exercise tagged with equipment the user doesn't have.
    Untagged exercises (no `equip` field) are always kept — the tag is
    opt-in per exercise, not a whitelist you have to fill in for
-   everything. */
+   everything.
+
+   'gym' implies 'pullBar' — Oscar's own real-world call: virtually
+   every climbing gym has a pull-up bar, so someone who ticks "full gym
+   access" but doesn't separately think to also tick "pull-up bar" must
+   not be treated as lacking one. One-directional only: a pull-up bar at
+   home does NOT imply a full gym. */
 function filterEquipment(sessionsObj, haveEquipment){
   var have = {};
   (haveEquipment||[]).forEach(function(e){ have[e]=true; });
+  if(have.gym) have.pullBar = true;
   Object.keys(sessionsObj).forEach(function(key){
     var s = sessionsObj[key];
     if(!s.x) return;
