@@ -8,7 +8,7 @@ import { StepScaffold, ChoiceCard } from './QuizChrome';
 import {
   type QuizAnswers, type Discipline, type ExperienceLevel, type Weakness, type Equipment, type InjuryFlag,
   DISCIPLINE_LABELS, EXPERIENCE_LABELS, WEAKNESS_LABELS, EQUIPMENT_LABELS, INJURY_FLAG_LABELS, INJURY_FLAG_SUBTITLES,
-  gradeRange, templateId, TEMPLATE_META,
+  gradeRange, templateId, TEMPLATE_META, deriveMaxFingersMethod,
 } from './quizModel';
 
 interface StepProps { answers: QuizAnswers; onChange: (next: QuizAnswers) => void; totalSteps: number; }
@@ -79,15 +79,15 @@ export function WeaknessStep({ answers, onChange, totalSteps }: StepProps) {
 
 export function EquipmentStep({ answers, onChange, totalSteps }: StepProps) {
   const hasPickupRig = answers.equipment.includes('pickupRig');
+  const hasHangboard = answers.equipment.includes('hangboard');
 
-  // Toggling pickupRig off clears the preference too — it's only ever
-  // shown/meaningful while the equipment is actually selected, and a
-  // stale answer left behind after unchecking it would otherwise sit
-  // in modifiersPayload doing nothing visible, which is worse than not
-  // recording it at all.
+  // Recomputed from the FULL resulting equipment set on every toggle
+  // (not just pickupRig's own) — see deriveMaxFingersMethod's own doc
+  // comment for why this needs to react to hangboard changing too, not
+  // only pickupRig.
   const onToggleEquipment = (e: Equipment) => {
     const equipment = toggleIn(answers.equipment, e);
-    const maxFingersMethod = e === 'pickupRig' && !equipment.includes('pickupRig') ? null : answers.maxFingersMethod;
+    const maxFingersMethod = deriveMaxFingersMethod(equipment, answers.maxFingersMethod);
     onChange({ ...answers, equipment, maxFingersMethod });
   };
 
@@ -96,7 +96,7 @@ export function EquipmentStep({ answers, onChange, totalSteps }: StepProps) {
       {(['hangboard', 'pullBar', 'gym', 'pickupRig'] as Equipment[]).map((e) => (
         <ChoiceCard key={e} label={EQUIPMENT_LABELS[e]} isSelected={answers.equipment.includes(e)} onPress={() => onToggleEquipment(e)} />
       ))}
-      {hasPickupRig && (
+      {hasPickupRig && hasHangboard && (
         <View style={styles.followUp}>
           <Text style={styles.followUpLabel}>MAX FINGERS: HANGBOARD OR YOUR EDGE?</Text>
           <ChoiceCard

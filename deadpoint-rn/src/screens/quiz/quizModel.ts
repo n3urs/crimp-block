@@ -66,6 +66,43 @@ export function parseTemplateId(id: string): { discipline: Discipline; experienc
   return null;
 }
 
+/** Was: EquipmentStep's hangboard-vs-pickup follow-up showed (and had to
+    be manually answered) any time pickupRig was selected, even for
+    someone with NO hangboard at all — not a genuine either/or, just a
+    single real option dressed up as a choice. Oscar's own ask: only
+    present it as a choice when both are actually available.
+
+    Lives here rather than in StandardSteps.tsx (where the follow-up UI
+    itself is) because that file pulls in
+    @react-native-community/datetimepicker, an ESM-only native module
+    Jest can't transform under this project's config — the same reason
+    no test file exists for that component today. This is pure, RN-free
+    logic, so it belongs alongside templateId/modifiersPayload/
+    parseTemplateId, where it's actually testable.
+
+    The naive fix (gate the follow-up UI on hasPickupRig && hasHangboard,
+    change nothing else) would have been a real regression: a
+    pickup-rig-only person would never get to set maxFingersMethod at
+    all, and applyMaxFingersMethod's own no-op-when-unset behaviour
+    (template-resolver.js) means BOTH the hangboard and pickup variants
+    of Max Fingers would then show — including one they have no way to
+    actually do. So this keeps the auto-assignment for the
+    one-real-option case instead of just silently dropping it:
+      - no pickup rig at all -> null (question doesn't apply, unchanged
+        from before)
+      - pickup rig but no hangboard -> 'pickup', assigned automatically,
+        no prompt — there's nothing to genuinely choose between
+      - both available -> a real either/or; `current` is returned
+        rather than reset, so a person who already chose keeps their
+        choice as they keep ticking other equipment boxes, and the
+        follow-up UI's own default (EquipmentStep in StandardSteps.tsx)
+        is exactly this same value. */
+export function deriveMaxFingersMethod(equipment: Equipment[], current: MaxFingersMethod | null): MaxFingersMethod | null {
+  if (!equipment.includes('pickupRig')) return null;
+  if (!equipment.includes('hangboard')) return 'pickup';
+  return current;
+}
+
 export function modifiersPayload(answers: QuizAnswers): Record<string, unknown> {
   const payload: Record<string, unknown> = {
     equipment: answers.equipment,
