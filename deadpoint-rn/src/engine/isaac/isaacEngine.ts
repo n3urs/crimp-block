@@ -220,6 +220,7 @@ export function resolveIsaacExercises(
       hasWeightTracking,
       step: ex.pctOf1RM != null ? 0 : 2.5,
       interval: undefined,
+      rpeTarget: ex.rpeTarget,
     };
   });
 }

@@ -52,6 +52,14 @@ export interface RenderedExercise {
   hasWeightTracking: boolean;
   step: number;
   interval?: IntervalConfig;
+  /** Only ever set by src/engine/isaac/isaacEngine.ts — every climbing
+      exercise leaves this undefined, which is exactly what makes
+      ExerciseRow.tsx's RPE-prompt behaviour purely additive: it's gated on
+      `rpeTarget != null`, so it can never fire for a real climbing
+      customer. When present, ExerciseRow prompts for a logged RPE after
+      each set and, per isaacEngine's checkRpeDeviation(), suggests
+      dropping the weight for the rest of the exercise if it's too high. */
+  rpeTarget?: number;
 }
 
 export interface ReturnInfo {
