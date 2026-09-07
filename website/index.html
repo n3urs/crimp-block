@@ -32,7 +32,12 @@ body{
   -webkit-font-smoothing:antialiased;
 }
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
-img{max-width:100%;display:block}
+/* height:auto is load-bearing here, not decoration: every <img> below carries
+   real width/height attributes (so the browser can reserve layout space
+   before the file loads), but those attributes fix an explicit pixel height
+   unless CSS overrides it — max-width alone shrinks the width and leaves
+   height literal, stretching every screenshot badly. */
+img{max-width:100%;height:auto;display:block}
 a{color:var(--gorse)}
 h1,h2,h3{text-wrap:balance;line-height:1.08;margin:0}
 h1{font-weight:900;font-size:clamp(38px,7.5vw,74px);letter-spacing:-.02em}
@@ -255,7 +260,7 @@ footer a:hover{color:var(--fg)}
     </div>
     <div>
       <div class="herophone">
-        <img src="img/01-dashboard.png" alt="The Deadpoint daily card, showing today's session, its exercises, rest timers and a Done This Workout button." width="640" height="1385">
+        <img src="img/01-dashboard.png" alt="The Deadpoint daily card, showing today's session, its exercises, rest timers and a Done This Workout button." width="900" height="1947">
       </div>
     </div>
   </div>
@@ -407,7 +412,7 @@ footer a:hover{color:var(--fg)}
     <div class="grid g2" style="margin-top:36px;align-items:start;gap:clamp(28px,5vw,56px)">
       <div>
         <div class="shot-annotated">
-          <img src="img/01-dashboard.png" alt="Deadpoint's daily card" width="640" height="1385">
+          <img src="img/01-dashboard.png" alt="Deadpoint's daily card" width="900" height="1947">
           <!-- Offset to sit beside each control, not on top of it — a pin that
                covers the thing it's pointing at defeats the purpose. -->
           <span class="pin" style="left:35%;top:18%">1</span>
@@ -429,10 +434,10 @@ footer a:hover{color:var(--fg)}
     </div>
 
     <div class="rail">
-      <figure><img src="img/02-calendar.png" alt="Calendar view of logged sessions" width="640" height="1385"><figcaption>Every session you've logged</figcaption></figure>
-      <figure><img src="img/07-quiz-experience.png" alt="Quiz step asking about experience level" width="640" height="1385"><figcaption>A quiz that's honest about levels</figcaption></figure>
-      <figure><img src="img/03-quiz-equipment.png" alt="Quiz step asking what equipment you have" width="640" height="1385"><figcaption>Only what you can actually do</figcaption></figure>
-      <figure><img src="img/04-quiz-summary.png" alt="Summary of the assigned plan" width="640" height="1385"><figcaption>Your assignment, before you start</figcaption></figure>
+      <figure><img src="img/02-calendar.png" alt="Calendar view of logged sessions" width="900" height="1947"><figcaption>Every session you've logged</figcaption></figure>
+      <figure><img src="img/07-quiz-experience.png" alt="Quiz step asking about experience level" width="900" height="1947"><figcaption>A quiz that's honest about levels</figcaption></figure>
+      <figure><img src="img/03-quiz-equipment.png" alt="Quiz step asking what equipment you have" width="900" height="1947"><figcaption>Only what you can actually do</figcaption></figure>
+      <figure><img src="img/04-quiz-summary.png" alt="Summary of the assigned plan" width="900" height="1947"><figcaption>Your assignment, before you start</figcaption></figure>
     </div>
   </div>
 </section>
