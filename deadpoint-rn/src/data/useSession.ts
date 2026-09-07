@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { supabase, SUPABASE_URL, SUPABASE_ANON } from './supabase';
 import { callDeleteAccount } from './deleteAccount';
+import { syncRevenueCatIdentity } from './subscription';
 
 /** Thin wrapper over the real supabase-js auth API — there is no hand-rolled
     REST client here the way there is in SupabaseClient.swift, because unlike
@@ -28,10 +29,18 @@ export function useSession() {
     // from crashing/toasting as unhandled — `session` simply stays null,
     // same as any other not-signed-in state.
     supabase.auth.getSession()
-      .then(({ data }) => setSession(data.session))
+      .then(({ data }) => {
+        setSession(data.session);
+        syncRevenueCatIdentity(data.session?.user?.id ?? null, data.session?.user?.email ?? null);
+      })
       .catch((e) => console.error('useSession.getSession failed:', e));
+    // Fires on every real auth transition (sign in, sign out, token
+    // refresh) — see syncRevenueCatIdentity's own doc comment for why
+    // re-syncing on each one, and from every screen's own independent
+    // useSession() instance, is cheap and safe rather than wasteful.
     const { data: listener } = supabase.auth.onAuthStateChange((_event, newSession) => {
       setSession(newSession);
+      syncRevenueCatIdentity(newSession?.user?.id ?? null, newSession?.user?.email ?? null);
     });
     return () => listener.subscription.unsubscribe();
   }, []);

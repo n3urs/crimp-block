@@ -183,6 +183,46 @@ export async function restorePurchases(): Promise<boolean> {
   return hasEntitlement(customerInfo, ENTITLEMENT_ID);
 }
 
+/** Ties RevenueCat's customer identity to the real signed-in account,
+    instead of the SDK's own silent default: an anonymous per-install ID
+    ($RCAnonymousID:...) with no connection to who the person actually is.
+    Real gap found 2026-09-07 investigating how to comp a specific tester
+    a free pass — RevenueCat's dashboard can grant a named customer a
+    promotional entitlement (no purchase, no code, exactly the free ride
+    built-in accounts already get via isBuiltInProgram, but for an
+    ordinary customer-shaped account instead of hand-authored content),
+    but only if there's something to find them by. Without this, every
+    customer — real subscribers included, not just testers — would sit in
+    RevenueCat as an unlabelled anonymous ID forever.
+
+    Called from useSession.ts's own onAuthStateChange for every real auth
+    transition (sign in, restore, sign out) — logIn/setEmail/logOut are
+    all safe to call repeatedly with the same value, so re-firing on a
+    token refresh or a second screen's own useSession() instance costs
+    nothing beyond a redundant network call. userId (Supabase's own uuid)
+    is the stable identity RevenueCat's own docs recommend using as
+    app_user_id rather than PII; email is layered on as a searchable
+    customer attribute purely so Oscar can find a tester by the address he
+    actually knows, without needing their uuid to hand. */
+export async function syncRevenueCatIdentity(userId: string | null, email: string | null): Promise<void> {
+  try {
+    if (userId == null) {
+      await Purchases.logOut();
+      return;
+    }
+    await Purchases.logIn(userId);
+    if (email != null) await Purchases.setEmail(email);
+  } catch (e) {
+    // Never let an identity-sync hiccup take down the auth flow itself —
+    // same "log and continue" precedent as every other best-effort call
+    // in this codebase (this file's own configureRevenueCat() try/catch,
+    // useSession.ts's deleteAccount). Worst case a customer stays
+    // anonymous in RevenueCat until the next successful sync, not a
+    // crash or a blocked sign-in.
+    console.error('syncRevenueCatIdentity failed:', e);
+  }
+}
+
 /** Was hardcoded to "7-DAY FREE TRIAL" on the paywall for the monthly
     tier regardless of whether RevenueCat actually had a trial configured
     — meaning a user could be told "start free trial" and then get
