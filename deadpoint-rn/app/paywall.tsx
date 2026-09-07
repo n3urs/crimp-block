@@ -1,12 +1,14 @@
 // app/paywall.tsx
 import React, { useState } from 'react';
-import { Alert, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Purchases, { type PurchasesPackage } from 'react-native-purchases';
 import { Colours } from '../src/design/colours';
 import { Fonts } from '../src/design/fonts';
 import { useSession } from '../src/data/useSession';
 import { purchaseStandard, restorePurchases, trialLabel, useOfferings } from '../src/data/subscription';
+import { PRIVACY_POLICY_URL, TERMS_OF_USE_URL } from '../src/data/legal';
 
 const FEATURES = [
   'Your quiz-assigned training plan',
@@ -19,6 +21,7 @@ type Tier = 'monthly' | 'annual';
 
 export default function Paywall() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { signOut } = useSession();
   const { monthly, annual } = useOfferings();
   // Defaults to monthly — matches the trial-focused heading copy below.
@@ -98,7 +101,7 @@ export default function Paywall() {
   };
 
   return (
-    <ScrollView style={styles.root} contentContainerStyle={styles.content}>
+    <ScrollView style={styles.root} contentContainerStyle={[styles.content, { paddingTop: 24 + insets.top }]}>
       <Pressable onPress={onSignOut} style={styles.signOut}><Text style={styles.signOutText}>SIGN OUT</Text></Pressable>
 
       <View style={styles.heading}>
@@ -166,6 +169,20 @@ export default function Paywall() {
           ? "Payment is charged to your Apple ID after the trial ends unless cancelled at least 24 hours before it's up. Manage or cancel any time in Settings."
           : 'Payment is charged to your Apple ID immediately. Manage or cancel any time in Settings.'}
       </Text>
+
+      {/* Point-of-purchase disclosure Apple's subscription rules expect
+          alongside the terms above — added after a 3.1.2 rejection over
+          the App Description missing an EULA link (see src/data/legal.ts).
+          That fix alone was metadata-only; this is the in-app half. */}
+      <View style={styles.legalLinks}>
+        <Pressable onPress={() => Linking.openURL(PRIVACY_POLICY_URL).catch((e) => console.error('paywall: opening privacy policy failed:', e))}>
+          <Text style={styles.legalLink}>PRIVACY POLICY</Text>
+        </Pressable>
+        <Text style={styles.legalLinkDivider}>·</Text>
+        <Pressable onPress={() => Linking.openURL(TERMS_OF_USE_URL).catch((e) => console.error('paywall: opening terms of use failed:', e))}>
+          <Text style={styles.legalLink}>TERMS OF USE</Text>
+        </Pressable>
+      </View>
     </ScrollView>
   );
 }
@@ -200,4 +217,7 @@ const styles = StyleSheet.create({
   footerRow: { flexDirection: 'row', justifyContent: 'center', gap: 16 },
   footerLink: { ...Fonts.mono(11, 'semibold'), color: Colours.dim },
   legal: { ...Fonts.mono(10, 'medium'), color: Colours.faint, textAlign: 'center' },
+  legalLinks: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 8 },
+  legalLink: { ...Fonts.mono(10, 'semibold'), color: Colours.dim, textDecorationLine: 'underline' },
+  legalLinkDivider: { ...Fonts.mono(10, 'medium'), color: Colours.faint },
 });

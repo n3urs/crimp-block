@@ -17,7 +17,7 @@
     required for App Store review, Guideline 5.1.1(v) (account creation
     without in-app account deletion is a guaranteed rejection). */
 import React, { useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { Alert, Linking, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colours, resolveColour } from '../src/design/colours';
@@ -25,6 +25,7 @@ import { Fonts } from '../src/design/fonts';
 import { useSession } from '../src/data/useSession';
 import { useProfile, type ProfileRow } from '../src/data/useProfile';
 import { usePrefs, setSetsCounterEnabled, setAutoStartRestOnTally } from '../src/data/prefs';
+import { PRIVACY_POLICY_URL, TERMS_OF_USE_URL } from '../src/data/legal';
 import { TEMPLATE_META, REHAB_META } from '../src/screens/quiz/quizModel';
 
 // Swift hardcodes this same array inline (SettingsView.swift:240) rather
@@ -282,6 +283,25 @@ export default function Settings() {
           </View>
         </Section>
 
+        <Section title="LEGAL">
+          <View style={styles.legalBody}>
+            <Pressable
+              onPress={() => Linking.openURL(PRIVACY_POLICY_URL).catch((e) => console.error('settings: opening privacy policy failed:', e))}
+              accessibilityRole="link"
+              accessibilityLabel="Privacy Policy"
+            >
+              <Text style={styles.helpAction}>PRIVACY POLICY</Text>
+            </Pressable>
+            <Pressable
+              onPress={() => Linking.openURL(TERMS_OF_USE_URL).catch((e) => console.error('settings: opening terms of use failed:', e))}
+              accessibilityRole="link"
+              accessibilityLabel="Terms of Use"
+            >
+              <Text style={styles.helpAction}>TERMS OF USE</Text>
+            </Pressable>
+          </View>
+        </Section>
+
         <Section title="EXERCISE TRACKING">
           <View style={styles.exerciseBody}>
             <ToggleRow
@@ -340,6 +360,7 @@ const styles = StyleSheet.create({
   restoreAction: { ...Fonts.mono(11, 'medium'), color: Colours.faint },
 
   helpBody: { gap: 6 },
+  legalBody: { gap: 12 },
   helpAction: { ...Fonts.mono(12, 'bold'), color: Colours.fg },
   helpSubtitle: { fontSize: 11, color: Colours.faint },
 
