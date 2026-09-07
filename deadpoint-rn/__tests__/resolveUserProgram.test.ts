@@ -68,6 +68,21 @@ test('modifiers actually apply — equipment filtering removes gated exercises',
   expect(countAllEquipTagged(withoutEquipment)).toBe(0);
 });
 
+// Oscar's own call: with neither a gym nor a pull-up bar, there's
+// realistically nothing to substitute real pulling work with — no
+// fabricated bodyweight-only exercise was invented for this case.
+test('with no pull-up bar and no gym, every real template still leaves Warm up and Antagonists in Pull', () => {
+  for (const templateId of ['boulderingIntermediate', 'boulderingAdvanced', 'sportIntermediate', 'sportAdvanced']) {
+    const result = resolveUserProgram('real.customer@example.com', {
+      assignedTemplateId: templateId,
+      programStartDate: '2026-09-01',
+      modifiers: { equipment: [] },
+    });
+    const titles = result.sessions.pull.x.map((ex: any) => ex.t);
+    expect(titles).toEqual(['Warm up', 'Antagonists']);
+  }
+});
+
 test('profile not loaded yet (still fetching) falls back to PROGRAMS.default rather than crashing', () => {
   expect(resolveUserProgram('real.customer@example.com', null)).toBe(PROGRAMS.default);
 });
