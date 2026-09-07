@@ -85,9 +85,18 @@ export function SessionDots({
             >
               {/* Recommendation ring: a separate, wider circle rendered
                   BEHIND the inner circle — declared first so the inner
-                  circle (declared second) paints on top of it. */}
+                  circle (declared second) paints on top of it. Oscar's
+                  own words: "maybe the recommended day a bit more
+                  obvious somehow" — a 1.5pt outline in the session's own
+                  colour was easy to miss against the same colour used
+                  for isCurrent's fill. Left the size/position alone (a
+                  bigger ring would crowd `dotsGroup`'s 9pt gap between
+                  dots) and instead made the ring itself read as a
+                  highlighted badge: a bolder border plus a soft tint
+                  fill in the same colour, "33" = ~20% alpha
+                  (React Native accepts 8-digit RRGGBBAA hex). */}
               {isRecommended && (
-                <View style={[styles.recRing, { borderColor: colour }]} />
+                <View style={[styles.recRing, { borderColor: colour, backgroundColor: `${colour}33` }]} />
               )}
               <View
                 style={[
@@ -153,7 +162,9 @@ const styles = StyleSheet.create({
     width: DOT_TAP_SIZE,
     height: DOT_TAP_SIZE,
     borderRadius: DOT_TAP_SIZE / 2,
-    borderWidth: DOT_BORDER_WIDTH,
+    // Bolder than the plain dot borders (DOT_BORDER_WIDTH, 1.5) — this
+    // ring is the ONE thing on the row meant to grab the eye.
+    borderWidth: DOT_BORDER_WIDTH * 2,
   },
   innerCircle: {
     width: INNER_SIZE,
