@@ -104,6 +104,35 @@ test('resolveExercises: maxFingers on a brand-new account (no loadLog history)',
   expect(pickupHalf!.phaseAdjusted).toBe(true);
 });
 
+test('resolveExercises: maxFingers with no variant arg is unchanged (lift content)', () => {
+  // The `variant` param is purely additive (see index.ts's own doc
+  // comment) — every existing call site that never passes it must keep
+  // getting exactly what it always got.
+  const rows = engine().resolveExercises('maxFingers', '2026-08-29', 'Max Strength');
+  expect(rows.map(r => r.id)).toContain('osc-pickup-half');
+  expect(rows.map(r => r.id)).not.toContain('osc-hang-wt');
+});
+
+test('resolveExercises: maxFingers with variant "xAlt" returns the hangboard toggle content, separate ids', () => {
+  const rows = engine().resolveExercises('maxFingers', '2026-08-29', 'Max Strength', 'xAlt');
+  const ids = rows.map(r => r.id);
+  expect(ids).toContain('osc-hang-wt');
+  expect(ids).toContain('osc-rep20');
+  // Lift-mode ids must not leak into the alt content, or their weight
+  // histories would collide — the whole point of the toggle.
+  expect(ids).not.toContain('osc-pickup-half');
+  expect(ids).not.toContain('osc-pickup-drag');
+});
+
+test('resolveExercises: an unknown variant falls back to `.x`, never an empty session', () => {
+  // Joe's maxFingers has no xAlt defined at all — a variant naming a
+  // field that doesn't exist must degrade to normal content, not silently
+  // return nothing.
+  const joeEngine = createEngine(PROGRAMS['joepearce2005@icloud.com'], { sessionLog: {}, loadLog: {} });
+  const rows = joeEngine.resolveExercises('maxFingers', '2026-08-29', 'Base', 'xAlt');
+  expect(rows.length).toBeGreaterThan(0);
+});
+
 test('resolveExercises: hangboard drops a ^skip-ruled exercise for this phase', () => {
   const e = createEngine(PROGRAMS['oscar@sullivanltd.co.uk'], { sessionLog: HISTORY, loadLog: {} });
   const rows = e.resolveExercises('hangboard', '2026-08-29', 'Base');

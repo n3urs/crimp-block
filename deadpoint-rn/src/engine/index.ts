@@ -32,8 +32,8 @@ export function createEngine(program: any, data: { sessionLog: any; loadLog: any
     programStartDate: (): string | undefined => program.startDate,
     sessionColourVarName: (key: string): string => program.sessions?.[key]?.c ?? '--gorse',
     sessionInfo: (key: string) => program.sessions?.[key],
-    resolveExercises: (key: string, date: string, phaseName: string): RenderedExercise[] =>
-      resolveExercises(e, program, key, date, phaseName),
+    resolveExercises: (key: string, date: string, phaseName: string, variant?: string): RenderedExercise[] =>
+      resolveExercises(e, program, key, date, phaseName, variant),
   };
 }
 
@@ -48,8 +48,15 @@ export function createEngine(program: any, data: { sessionLog: any; loadLog: any
         weight" — an exercise with no history yet has no target() result but
         must still show the dashed "SET kg" badge, or a brand-new account
         can never record a first weight. */
-function resolveExercises(e: any, program: any, key: string, date: string, phaseName: string): RenderedExercise[] {
-  const raw = program.sessions?.[key]?.x;
+function resolveExercises(e: any, program: any, key: string, date: string, phaseName: string, variant?: string): RenderedExercise[] {
+  // `variant` is purely additive — every real call site (every screen,
+  // every account) omits it and gets exactly `.x` as before. Only
+  // programs.js entries that define an alternate array for a given
+  // session (today, just Oscar's `maxFingers.xAlt`) have anything for it
+  // to select; anyone else passing a variant that doesn't exist here
+  // falls straight back to `.x`, never to an empty session.
+  const session = program.sessions?.[key];
+  const raw = (variant != null && Array.isArray(session?.[variant])) ? session[variant] : session?.x;
   if (!Array.isArray(raw)) return [];
 
   const out: RenderedExercise[] = [];

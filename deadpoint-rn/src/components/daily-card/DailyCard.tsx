@@ -94,6 +94,14 @@ export interface DailyCardProps {
       explicitly allows this ("or an optional onTapGuide?: () => void prop
       you may add if it's cheap"). No screen it would open exists yet. */
   onTapGuide?: () => void;
+  /** NOT in any brief — added for Oscar's Max Fingers lift/hangboard
+      toggle (2026-09-07), gated entirely in card.tsx to one account and
+      one session key. `label` is the action to take (i.e. names the mode
+      you'd SWITCH TO, not the one you're on), matching guidePill's own
+      "tell me what tapping this does" convention right next to it.
+      undefined (every other account/session) renders nothing — same
+      purely-additive contract as every other optional prop here. */
+  variantToggle?: { label: string; onPress: () => void };
   phaseName: string;
   weekNumber: number;
   today: string;
@@ -160,6 +168,7 @@ interface CardBodyProps {
   /** null/undefined = no pill at all. */
   guide?: { title: string } | null;
   onTapGuide?: () => void;
+  variantToggle?: { label: string; onPress: () => void };
   accent: string;
   accentVarName: string;
   exercises: RenderedExercise[];
@@ -221,7 +230,7 @@ interface CardBodyProps {
     `__tests__/dailyCard.test.ts` relies on for its render-path smoke
     test. */
 export function CardBody({
-  session, guide, onTapGuide, accent, accentVarName, exercises, ticks,
+  session, guide, onTapGuide, variantToggle, accent, accentVarName, exercises, ticks,
   onToggleTick, onTapWeight, onTapRest, onStartInterval, onTapInfo,
   tutorialSpotlightExerciseId,
   message, messageEmphasis, footerNote, exercisesInteractive, exercisesOpacity,
@@ -241,6 +250,16 @@ export function CardBody({
           >
             <BookIcon color={accent} />
             <Text style={[styles.guideText, { color: accent }]}>{guide.title.toUpperCase()}</Text>
+          </Pressable>
+        )}
+        {variantToggle != null && (
+          <Pressable
+            onPress={variantToggle.onPress}
+            style={styles.guidePill}
+            accessibilityRole="button"
+            accessibilityLabel={variantToggle.label}
+          >
+            <Text style={[styles.guideText, { color: accent }]}>{'⇄ ' + variantToggle.label.toUpperCase()}</Text>
           </Pressable>
         )}
       </View>
@@ -306,7 +325,7 @@ export function DailyCard(props: DailyCardProps) {
     onTapWeight, onTapRest, onStartInterval, onTapInfo, tutorialSpotlightExerciseId,
     isLogged, cardMessage,
     weekDays, onTapDay, onTapCalendar, onTapSettings, onTapPhaseBadge,
-    onTapGuide, phaseName, weekNumber, today, recommendedKey, nextUp,
+    onTapGuide, variantToggle, phaseName, weekNumber, today, recommendedKey, nextUp,
     celebrationTrigger, footerNote, doneFlow, panGesture, contentOpacity,
     onTapSession, sessionColour, displayKey, scrollRef,
     restTimer, intervalTimer,
@@ -432,6 +451,7 @@ export function DailyCard(props: DailyCardProps) {
                 session={session}
                 guide={session.guide}
                 onTapGuide={onTapGuide}
+                variantToggle={variantToggle}
                 accent={accent}
                 accentVarName={accentVarName}
                 exercises={exercises}

@@ -44,6 +44,35 @@ return {
           {t:'Pickups — three-finger drag',id:'osc-pickup-drag',m:'3 × 5s / hand',d:'Lighter. Covers the rounded granite edges you actually climb on. Alternate hands.',r:90},
           {t:'Pinch block',id:'osc-pinch',step:1.25,m:'4 × 5s / hand',d:'Alternate hands.',r:60},
           {t:'Wrist roller',m:'3 sets',d:'Up and down to near failure.',r:60}
+        ],
+        /* Toggle-only alternate content for days without the lifting pin/
+           plates (see resolveExercises' new `variant` param in index.ts) —
+           requested 2026-09-07, UI toggle lives on card.tsx/DailyCard,
+           gated to this one account. `x` above is untouched and stays the
+           default; this only ever renders when Oscar explicitly flips the
+           toggle. Two-hand weighted hang + repeaters on the SAME edge/ids
+           (osc-hang-wt, osc-rep20) his real gym Hangboard session already
+           uses — deliberately the exact same lift, not a new one invented
+           for this toggle, so the weight history is shared with that
+           session rather than starting a second, disconnected history for
+           what is physically the same exercise. Pinch block/wrist roller
+           stay identical to the lift-mode tail above (equipment-agnostic,
+           not what the toggle is about). No `rotate` skip-week here
+           (unlike the real Hangboard session's own copy of this exercise):
+           `rotate`'s occurrence count is keyed by SESSION KEY
+           (engine-core.js's `occurrence(key, date)`), so under the
+           `maxFingers` key it would count maxFingers occurrences, not
+           Hangboard ones — a separate, out-of-sync cadence from the real
+           session's own skip-week. Since this toggle is for occasional
+           use (whenever the lifting pin isn't available that day), not a
+           weekly fixture, a plain always-current prescription is more
+           correct than an independently-drifting alternation. */
+        xAlt:[
+          {t:'Warm up',m:'10 min',d:'Pulse raise, then progressively heavier two-hand hangs on a jug before touching the edge.'},
+          {t:'Weighted hangs',id:'osc-hang-wt',m:'10s × 5',ph:{'Base':'4 × 8s — lighter','Power':'3s × 6 — short, sharp, contact-focused','Performance':'3 × 5s — maintain only'},d:'20mm half crimp. Heavy-ish, never maximal. Same lift, same edge, same weight history as your gym Hangboard day — whichever session you happen to log it under.',r:180},
+          {t:'20mm repeaters',id:'osc-rep20',m:'4–5 sets',interval:{on:7,off:3,reps:6},ph:{'Base':'5–6 sets — lighter, higher volume','Power':'3 sets — reduced, priority is the pickups','Performance':'2–3 sets — maintain only'},d:'7s on / 3s off × 6 = one set. Around 55–60% of max. Two minutes between sets. Press Start below and just hang.',r:120},
+          {t:'Pinch block',id:'osc-pinch',step:1.25,m:'4 × 5s / hand',d:'Alternate hands.',r:60},
+          {t:'Wrist roller',m:'3 sets',d:'Up and down to near failure.',r:60}
         ]},
       pull:{n:'Pull', w:'Home · 45 min', c:'--tidepool', finger:0, pull:3, note:'Climbing today? Climb FIRST and do this after — no fingers here, so spend them on the wall. This is the day to try hard on something crimpy. Just leave enough arm for the one-arm holds.',
         x:[

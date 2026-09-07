@@ -27,6 +27,7 @@ import { useRestTimer } from '../../src/components/timers/useRestTimer';
 import { useIntervalTimer } from '../../src/components/timers/useIntervalTimer';
 import { leadingInt } from '../../src/components/timers/intervalTimerLogic';
 import { getStoredTicks, setStoredTicks } from '../../src/data/tickStorage';
+import { getStoredMaxFingersVariant, setStoredMaxFingersVariant, type MaxFingersVariant } from '../../src/data/maxFingersVariant';
 import { cardMessage } from '../../src/components/daily-card/cardMessage';
 import { syncForecast } from '../../src/widget/syncForecast';
 
@@ -78,6 +79,11 @@ export default function Card() {
   // resolveUserProgram fallback (PROGRAMS.default) that's real, valid, and
   // never rendered, not a crash risk.
   const isaac = isIsaac(email);
+  // Oscar's Max Fingers lift/hangboard toggle (2026-09-07) — "just on my
+  // personal profile", so gated to this one account, same literal-email
+  // pattern isIsaac uses for his. See programs.js's `maxFingers.xAlt` doc
+  // comment and maxFingersVariant.ts for the rest of this feature.
+  const isOscar = (email ?? '').toLowerCase() === 'oscar@sullivanltd.co.uk';
   const program = useMemo(() => resolveUserProgram(email, profile.row), [email, profile.row]);
 
   // engine.today() is a pure passthrough to engine-core's own today() —
@@ -179,6 +185,31 @@ export default function Card() {
     return () => { cancelled = true; };
   }, [today, displayKey]);
 
+  // Oscar-only Max Fingers lift/hangboard toggle. Hydrated from device
+  // storage keyed by `today` (same reasoning as the ticks effect just
+  // above: survives browsing away and back, or an app close/reopen, but a
+  // genuinely new day starts back on 'lift' rather than silently carrying
+  // yesterday's choice forward — see maxFingersVariant.ts's own doc
+  // comment). Skipped entirely for every other account: no read, no
+  // write, no behaviour change.
+  const [maxFingersVariant, setMaxFingersVariant] = useState<MaxFingersVariant>('lift');
+  useEffect(() => {
+    if (!isOscar) return;
+    let cancelled = false;
+    getStoredMaxFingersVariant(today)
+      .then((stored) => { if (!cancelled) setMaxFingersVariant(stored); })
+      .catch((e) => console.error('card.tsx maxFingersVariant hydrate failed:', e));
+    return () => { cancelled = true; };
+  }, [isOscar, today]);
+
+  const onToggleMaxFingersVariant = useCallback(() => {
+    setMaxFingersVariant((prev) => {
+      const next: MaxFingersVariant = prev === 'lift' ? 'hangboard' : 'lift';
+      setStoredMaxFingersVariant(today, next).catch((e) => console.error('card.tsx maxFingersVariant persist failed:', e));
+      return next;
+    });
+  }, [today]);
+
   const onToggleTick = useCallback((id: string) => {
     setTicks((prev) => {
       const next = new Set(prev);
@@ -194,7 +225,12 @@ export default function Card() {
   const intervalTimer = useIntervalTimer();
 
   const phaseName = engine.phaseNameAt(today);
-  const exercises = engine.resolveExercises(displayKey, today, phaseName);
+  // `variant` only ever matters for Oscar's own maxFingers session — every
+  // other account/session passes undefined and climbingEngine's
+  // resolveExercises falls back to its normal `.x` content unchanged (see
+  // index.ts's own doc comment on the param).
+  const isOscarMaxFingersToggle = isOscar && displayKey === 'maxFingers';
+  const exercises = engine.resolveExercises(displayKey, today, phaseName, isOscarMaxFingersToggle ? maxFingersVariant : undefined);
   const block = engine.block(today);
   const accentVarName = engine.sessionColourVarName(displayKey);
   const accent = resolveColour(accentVarName);
@@ -340,6 +376,10 @@ export default function Card() {
   // (still genuinely useful there), gone from anything a real user sees.
   const footerNote = __DEV__ ? `React Native (live data) · ${email ?? ''} · ${today}` : undefined;
 
+  const variantToggle = isOscarMaxFingersToggle
+    ? { label: maxFingersVariant === 'lift' ? 'Hangboard' : 'Lifting Edge', onPress: onToggleMaxFingersVariant }
+    : undefined;
+
   return (
     <DailyCard
       session={sessionProp}
@@ -402,6 +442,7 @@ export default function Card() {
       // from just the session key, same "own independent resolution"
       // pattern as onTapDay/onTapSettings/onTapPhaseBadge above.
       onTapGuide={() => router.push({ pathname: '/session-guide', params: { key: displayKey } })}
+      variantToggle={variantToggle}
       phaseName={phaseName}
       weekNumber={block.w}
       today={today}
