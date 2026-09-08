@@ -37,7 +37,8 @@
       "expo-font",
       ["expo-audio", { "enableBackgroundPlayback": false }],
       "@react-native-community/datetimepicker",
-      "@bacons/apple-targets"
+      "@bacons/apple-targets",
+      "./plugins/withAndroidPhoneOnly"
     ],
     "extra": {
       "router": {},
