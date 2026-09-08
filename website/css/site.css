@@ -207,11 +207,21 @@ body[data-menu="open"] .burger span::after{opacity:0}
   margin-top:18px;padding-left:16px;border-left:2px solid var(--s3);
   font-size:14.5px;color:var(--faint);
 }
+/* Desktop holds one phone beside the argument; the shot inside each beat is
+   the phone-width answer to the same job and stays hidden here. */
+.beat-shot{display:none}
 @media(max-width:900px){
   .told{grid-template-columns:1fr}
-  .told-rail{position:static;margin-bottom:12px}
+  /* A single held phone has nowhere to sit on a narrow screen — pinning it
+     would eat over half the viewport and still be too small to read. Below
+     900px the rail is dropped and each beat carries its own screen instead,
+     so every claim still arrives next to the thing that proves it. */
+  .told-rail{display:none}
   .beats{gap:56px;padding-block:0 8px}
-  .told-caption{display:none}
+  .beat-shot{
+    display:block;width:min(64vw,248px);height:auto;margin:24px auto 0;
+    border:1px solid var(--s3);border-radius:20px;background:var(--s1);
+  }
 }
 
 /* --------------------------------------------------------------- cards --- */
