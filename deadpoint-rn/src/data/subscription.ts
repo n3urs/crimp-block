@@ -43,6 +43,18 @@ export const ENTITLEMENT_ID = 'deadpoint_pro';
     connects the SDK; nothing reads what it returns until the flag flips. */
 export const REVENUECAT_API_KEY_IOS = 'appl_KjyvfSZFCWyTrBZlyypQLJOljFY';
 
+/** Same "not a secret, safe to ship inert" status as REVENUECAT_API_KEY_IOS
+    above — from the Deadpoint (Play Store) app RevenueCat project. Real
+    key, but genuinely inert today in a way iOS's no longer is: the
+    Google Play service account credentials validated 2026-09-08, but
+    Deadpoint (Play Store) has zero products yet (Product catalog is
+    empty) — blocked on Oscar's Google Payments merchant account, which
+    is itself still under Google's review as of this key being added.
+    Wiring the key now, ahead of real products existing, matches
+    REVENUECAT_API_KEY_IOS's own history: nothing reads what
+    configureRevenueCat() returns until there's something real to read. */
+export const REVENUECAT_API_KEY_ANDROID = 'goog_bBuIbvaTZLooURvMbATxRcvXTLp';
+
 /** Pure — the only part of this file with real decision logic, so it's
     the only part unit tested. Defends against every malformed shape a
     caller could hand it, and denies access rather than granting it on
@@ -56,12 +68,15 @@ export function hasEntitlement(customerInfo: CustomerInfo | null | undefined, en
   return Boolean(customerInfo?.entitlements?.active?.[entitlementId]);
 }
 
-/** Android is out of scope — the app only ships on iOS today (matches the
-    Platform.OS guard style already established in useRestTimer.ts's
-    ensurePermission()). */
+/** Both platforms configure the SDK now that both have a real key (see
+    REVENUECAT_API_KEY_ANDROID's own doc comment for why Android's is
+    still inert in practice). No `else return` for a third platform: this
+    project only ships iOS and Android, and Purchases.configure() with
+    neither key would be the actual bug worth crashing loudly on rather
+    than silently swallowing here. */
 export function configureRevenueCat(): void {
-  if (Platform.OS !== 'ios') return;
-  Purchases.configure({ apiKey: REVENUECAT_API_KEY_IOS });
+  const apiKey = Platform.OS === 'ios' ? REVENUECAT_API_KEY_IOS : REVENUECAT_API_KEY_ANDROID;
+  Purchases.configure({ apiKey });
 }
 
 // Called once, at module load — not from a useEffect in app/_layout.tsx
