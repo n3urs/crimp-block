@@ -356,6 +356,26 @@ export function ExerciseRow({
                   // remembers not to suggest a bump on it.
                   onPress={onTapWeight && ex.hasWeightTracking ? () => onTapWeight(displayEx) : undefined}
                   accessibilityLabel={`Edit recorded weight for ${ex.title}, currently ${formatWeightKg(displayWeightKg)}`}
+                  // Gold alone didn't explain itself — direct feedback.
+                  // Only a real same-phase bump gets the arrow: NOT
+                  // weightIsCarriedOver (a different claim — "not yet
+                  // re-tested this phase," not "go up") and NOT while a
+                  // live RPE drop is showing (accent already means
+                  // something else entirely there: a lowered set, the
+                  // opposite direction). engine-core.js's target() always
+                  // returns the ALREADY-bumped kg when bump is true (last
+                  // logged + step), so the previous weight the badge is
+                  // suggesting a step up FROM is displayWeightKg - ex.step.
+                  showIncreaseArrow={ex.weightIsBump && liveWeightAdjustKg === 0}
+                  onPressIncreaseArrow={
+                    ex.weightIsBump && liveWeightAdjustKg === 0
+                      ? () =>
+                          Alert.alert(
+                            'Weight increase suggested',
+                            `You held ${formatWeightKg(displayWeightKg - ex.step)} for two sessions running, so ${formatWeightKg(displayWeightKg)} is today's suggested step up. Log what you actually lift — it's a cue, not a requirement.`
+                          )
+                      : undefined
+                  }
                 />
               ) : ex.hasWeightTracking ? (
                 <SetWeightBadge
@@ -423,23 +443,48 @@ function WeightBadge({
   colour,
   onPress,
   accessibilityLabel,
+  showIncreaseArrow,
+  onPressIncreaseArrow,
 }: {
   ref?: React.RefObject<View | null>;
   label: string;
   colour: string;
   onPress?: () => void;
   accessibilityLabel?: string;
+  /** Additive to the existing gold highlight, not a replacement for it —
+      the arrow is the tappable "why" the colour alone never explained. */
+  showIncreaseArrow?: boolean;
+  onPressIncreaseArrow?: () => void;
 }) {
-  const content = (
+  const badge = (
     <View style={styles.weightBadge}>
       <Text style={[styles.weightBadgeText, { color: colour }]}>{label}</Text>
     </View>
   );
-  return onPress ? (
+  const content = onPress ? (
     <Pressable ref={ref} onPress={onPress} accessibilityRole="button" accessibilityLabel={accessibilityLabel}>
-      {content}
+      {badge}
     </Pressable>
-  ) : content;
+  ) : (
+    badge
+  );
+  // A sibling Pressable, not nested inside the badge's own — tapping the
+  // arrow must open the explanation, not the weight-edit sheet the badge
+  // itself opens; nesting the two would make that ambiguous.
+  if (!showIncreaseArrow) return content;
+  return (
+    <View style={styles.weightWithArrow}>
+      <Pressable
+        onPress={onPressIncreaseArrow}
+        hitSlop={8}
+        accessibilityRole="button"
+        accessibilityLabel="Why is a weight increase suggested?"
+      >
+        <Text style={[styles.increaseArrow, { color: colour }]}>▲</Text>
+      </Pressable>
+      {content}
+    </View>
+  );
 }
 
 function SetWeightBadge({
@@ -575,6 +620,15 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
     borderRadius: 4,
     backgroundColor: Colours.s3,
+  },
+  weightWithArrow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+  },
+  increaseArrow: {
+    fontSize: 10,
+    fontWeight: '700',
   },
   setWeightBadge: {
     paddingHorizontal: 6,
