@@ -110,7 +110,7 @@
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useSession } from '../src/data/useSession';
+import { useSession, REVIEWER_EMAIL } from '../src/data/useSession';
 import { useProfile } from '../src/data/useProfile';
 import { getHasSeenWelcome, hasSeenBuiltInTutorial } from '../src/data/deviceFlags';
 import { supabase } from '../src/data/supabase';
@@ -199,7 +199,11 @@ export default function Index() {
   // value; both the readiness check below and the computeRoute() call
   // further down consume this same single derivation, so they can't
   // disagree with each other.
-  const hasActiveSubscription = !PAYWALL_ENABLED || entitlement.hasActiveSubscription;
+  // The `|| email === REVIEWER_EMAIL` term is Google Play review access,
+  // not a real entitlement — see REVIEWER_EMAIL's own doc comment
+  // (useSession.ts) for why this account needs the paywall bypassed
+  // specifically, rather than being made isBuiltInProgram like Oscar/Isaac.
+  const hasActiveSubscription = !PAYWALL_ENABLED || entitlement.hasActiveSubscription || email === REVIEWER_EMAIL;
 
   // Fix 3 (cont'd): computed ONCE per render, from the same readiness gate
   // and the same computeRoute() call — both the router.replace() effect

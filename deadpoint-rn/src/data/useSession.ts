@@ -4,6 +4,23 @@ import { supabase, SUPABASE_URL, SUPABASE_ANON } from './supabase';
 import { callDeleteAccount } from './deleteAccount';
 import { syncRevenueCatIdentity } from './subscription';
 
+/** Google Play's app reviewer signs in through this address with a fixed
+    code instead of a real emailed one-time code — see
+    supabase/functions/reviewer-signin/index.ts for why, and sendOTP /
+    verifyOTP below for how the two paths split. Not a secret: it's just
+    an email address with no code value on its own (same threat model as
+    the hardcoded account list isBuiltInProgram already checks against);
+    the fixed code that actually unlocks it lives only in that function's
+    environment, never in this bundle.
+
+    Exported so app/index.tsx's hasActiveSubscription derivation can also
+    check it — Play Console's Sign-in details form requires declaring that
+    the reviewer's sign-in grants full access "including premium or paid
+    content", and this account is otherwise just an ordinary new signup
+    (deliberately NOT isBuiltInProgram: the reviewer should see the real
+    quiz and personalised plan, only the paywall itself is bypassed). */
+export const REVIEWER_EMAIL = 'googlereview@getdeadpoint.co.uk';
+
 /** Thin wrapper over the real supabase-js auth API — there is no hand-rolled
     REST client here the way there is in SupabaseClient.swift, because unlike
     iOS there IS a real JS SDK on this platform, and it already owns session
@@ -53,10 +70,24 @@ export function useSession() {
         typed code beats a link: a link opens a browser with separate
         storage from this app). */
     sendOTP: async (email: string) => {
+      // No real code to send — REVIEWER_EMAIL's code is fixed, see its
+      // own doc comment. verifyOTP below is where that path actually
+      // does something.
+      if (email === REVIEWER_EMAIL) return;
       const { error } = await supabase.auth.signInWithOtp({ email });
       if (error) throw error;
     },
     verifyOTP: async (email: string, token: string) => {
+      if (email === REVIEWER_EMAIL) {
+        const { data, error } = await supabase.functions.invoke<{ access_token: string; refresh_token: string }>(
+          'reviewer-signin',
+          { body: { email, code: token } },
+        );
+        if (error || !data) throw new Error('Invalid code');
+        const { error: setErr } = await supabase.auth.setSession(data);
+        if (setErr) throw setErr;
+        return;
+      }
       const { error } = await supabase.auth.verifyOtp({ email, token, type: 'email' });
       if (error) throw error;
     },
