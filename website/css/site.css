@@ -14,6 +14,8 @@
   /* session semantics */
   --gorse:#F2B134; --tidepool:#4FB3A5; --slate:#7B93E0; --heather:#C9739B; --grey:#5A6069;
   --go:#1FA24A; --restC:#D6383D;
+  /* text-weight variants: the swatch colours above fail 4.5:1 as small text */
+  --goText:#3FD173; --restText:#EF7A7E;
 
   --measure:66ch;
   --display:'Archivo',system-ui,-apple-system,sans-serif;
@@ -192,7 +194,7 @@ body[data-menu="open"] .burger span::after{opacity:0}
 .beat h2{font-size:clamp(23px,3.1vw,33px)}
 .beat p{color:var(--dim);margin-top:15px;font-size:16.5px}
 .beat-note{
-  margin-top:18px;padding-left:16px;border-left:2px solid var(--s3);
+  margin-top:18px;padding-left:16px;border-left:1px solid var(--s3);
   font-size:14.5px;color:var(--faint);
 }
 /* Desktop holds one phone beside the argument; the shot inside each beat is
@@ -251,7 +253,7 @@ body[data-menu="open"] .burger span::after{opacity:0}
 .correction{background:var(--s1);border:1px solid var(--s3);border-radius:var(--r-md);padding:22px;margin-top:30px}
 .correction .boxh{color:var(--gorse)}
 .warnbox{background:rgba(214,56,61,.07);border:1px solid rgba(214,56,61,.3);border-radius:var(--r-md);padding:22px}
-.warnbox .boxh{color:var(--restC)}
+.warnbox .boxh{color:var(--restText)}
 .warnbox p{color:var(--dim);font-size:14.5px}
 
 .profile{background:var(--s1);border:1px solid var(--s3);border-radius:var(--r-md);padding:22px}
@@ -370,7 +372,7 @@ details p{color:var(--dim);font-size:15px;padding-bottom:19px;max-width:var(--me
   align-items:center;gap:14px;flex-wrap:wrap;background:var(--s2);
 }
 .engine-head .t{font-family:var(--mono);font-size:11.5px;letter-spacing:.15em;text-transform:uppercase;color:var(--dim)}
-.live{display:inline-flex;align-items:center;gap:7px;font-family:var(--mono);font-size:11px;color:var(--go)}
+.live{display:inline-flex;align-items:center;gap:7px;font-family:var(--mono);font-size:11px;color:var(--goText)}
 .live::before{
   content:'';width:7px;height:7px;border-radius:50%;background:var(--go);
   box-shadow:0 0 0 0 rgba(31,162,74,.55);animation:pulse 2.4s var(--ease) infinite;
