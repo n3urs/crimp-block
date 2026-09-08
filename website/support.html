@@ -2,159 +2,195 @@
 <html lang="en-GB">
 <head>
 <meta charset="UTF-8">
-<link rel="icon" type="image/png" href="/img/favicon-32.png">
-<link rel="apple-touch-icon" href="/img/apple-touch-icon.png">
+<!-- Sets .js before first paint so the entrance styles only ever hide
+     content when JavaScript is actually there to bring it back. -->
+<script>document.documentElement.classList.add('js')</script>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Support — Deadpoint</title>
-<meta name="description" content="Help with Deadpoint: subscriptions, sign-in codes, account deletion, and how to get in touch.">
+<meta name="description" content="Help with sign-in codes, subscriptions, restoring purchases, deleting your account and changing your plan — plus a direct line to the person who makes Deadpoint.">
+<link rel="canonical" href="https://getdeadpoint.co.uk/support.html">
+<link rel="icon" type="image/png" href="/img/favicon-32.png">
+<link rel="apple-touch-icon" href="/img/apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;700;800;900&family=JetBrains+Mono:wght@400;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;700;800;900&family=JetBrains+Mono:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="/css/site.css">
 <style>
-:root{
-  --bg:#181B22; --s1:#1E222B; --s2:#272C37; --s3:#333947; --s4:#454C5C;
-  --fg:#EDEBE5; --dim:#9AA0AE; --faint:#666C7A; --gorse:#F2B134; --restC:#D6383D;
-  --display:'Archivo',system-ui,-apple-system,sans-serif;
-  --mono:'JetBrains Mono',ui-monospace,Menlo,monospace;
-}
-*{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--display);line-height:1.6;
-  -webkit-font-smoothing:antialiased}
-.wrap{max-width:760px;margin-inline:auto;padding:0 22px}
-a{color:var(--gorse)}
-nav{border-bottom:1px solid var(--s3)}
-nav .wrap{display:flex;align-items:center;justify-content:space-between;height:62px}
-.mark{font-weight:900;letter-spacing:-.03em;font-size:20px;text-decoration:none;color:var(--fg)}
-.mark span{color:var(--gorse)}
-.back{font-family:var(--mono);font-size:12px;color:var(--dim);text-decoration:none}
-h1{font-weight:900;font-size:clamp(32px,6vw,46px);letter-spacing:-.02em;margin:0}
-.updated{font-family:var(--mono);font-size:12px;color:var(--faint);margin:8px 0 40px}
-h2{font-family:var(--mono);font-size:12px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;
-  color:var(--gorse);margin:44px 0 12px}
-p,li{color:var(--dim);font-size:15px}
-li{margin-bottom:7px}
-strong{color:var(--fg)}
-main{padding:44px 0 90px}
-.box{background:var(--s1);border:1px solid var(--s3);border-radius:12px;padding:20px;margin:18px 0}
-.box p{margin:0}
-.contact{font-family:var(--mono);font-size:16px;color:var(--gorse);word-break:break-all}
-.flabel{display:block;font-family:var(--mono);font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;
-  color:var(--faint);margin:14px 0 7px}
-#contactform select,#contactform textarea{
-  width:100%;background:var(--bg);color:var(--fg);border:1px solid var(--s3);border-radius:9px;
-  padding:11px 13px;font-family:inherit;font-size:14.5px;line-height:1.5;
-}
-#contactform textarea{resize:vertical;min-height:110px}
-#contactform select:focus,#contactform textarea:focus{outline:2px solid var(--gorse);outline-offset:1px;border-color:transparent}
-.sendbtn{
-  margin-top:16px;background:var(--gorse);color:#181B22;border:0;border-radius:9px;cursor:pointer;
-  font-family:var(--mono);font-weight:700;font-size:13px;letter-spacing:.04em;padding:13px 20px;
-}
-.sendbtn:hover{filter:brightness(1.08)}
-.fnote{font-family:var(--mono);font-size:11px;color:var(--faint);margin-top:10px}
-ol{padding-left:20px}
-footer{border-top:1px solid var(--s3);padding:30px 0;font-size:12.5px;color:var(--faint)}
-footer a{color:var(--dim);text-decoration:none;margin-right:16px}
+  /* The contact form is the only place on the site that takes input, so its
+     controls live here rather than bloating the shared sheet. */
+  .field{display:block;font-family:var(--mono);font-size:10.5px;letter-spacing:.15em;
+    text-transform:uppercase;color:var(--faint);margin:16px 0 8px}
+  #contactform select,#contactform textarea{
+    width:100%;background:var(--bg);color:var(--fg);border:1px solid var(--s3);border-radius:9px;
+    padding:11px 13px;font-family:inherit;font-size:15px;line-height:1.5;
+  }
+  #contactform textarea{resize:vertical;min-height:120px}
+  #contactform select:focus,#contactform textarea:focus{outline:2px solid var(--gorse);outline-offset:1px;border-color:transparent}
+  .contact-em{font-family:var(--mono);font-size:16px;color:var(--gorse);word-break:break-all}
 </style>
 </head>
 <body>
+<a class="skip" href="#main">Skip to content</a>
 
-<nav><div class="wrap">
-  <a class="mark" href="index.html">DEAD<span>POINT</span></a>
-  <a class="back" href="index.html">← Back to site</a>
-</div></nav>
-
-<main class="wrap">
-  <h1>Support</h1>
-  <p class="updated">Deadpoint for iOS</p>
-
-  <div class="box">
-    <p>Deadpoint is made by one person. Send a message and you'll get a real reply, usually within a
-    couple of days.</p>
-
-    <!-- Composes a mailto: rather than posting anywhere. The site is fully
-         static by design, so nothing you type here touches a server, a form
-         service, or any third party — it opens your own mail app, pre-filled,
-         and you send it yourself. -->
-    <form id="contactform" style="margin-top:18px">
-      <label class="flabel" for="c-subject">Subject</label>
-      <select id="c-subject">
-        <option>Sign-in code problem</option>
-        <option>Subscription or billing</option>
-        <option>Bug report</option>
-        <option>Feature request</option>
-        <option>Something else</option>
-      </select>
-
-      <label class="flabel" for="c-body">Message</label>
-      <textarea id="c-body" rows="5" placeholder="What's going on? For bugs, your iPhone model and iOS version help a lot."></textarea>
-
-      <button class="sendbtn" type="submit">Open in my mail app →</button>
-      <p class="fnote">Opens your mail app with this pre-filled. Nothing is sent from this page.</p>
-    </form>
-
-    <p style="margin-top:18px;font-size:13.5px">Or just email
-      <a class="contact" href="mailto:support@getdeadpoint.co.uk">support@getdeadpoint.co.uk</a>
-    </p>
+<header class="nav">
+  <div class="wrap">
+    <a class="mark" href="/">DEAD<span>POINT</span></a>
+    <nav class="navlinks" aria-label="Primary">
+      <a href="/how-it-works.html">How it works</a>
+      <a href="/research.html">Research</a>
+      <a href="/pricing.html">Pricing</a>
+      <a href="/support.html" aria-current="page">Support</a>
+    </nav>
+    <div class="navcta">
+      <a class="btn sm" href="https://apps.apple.com/app/id6800266835">Get the app</a>
+      <button class="burger" aria-label="Menu" aria-expanded="false"><span></span></button>
+    </div>
   </div>
+</header>
 
-  <h2>My sign-in code hasn't arrived</h2>
-  <p>Deadpoint signs you in with a one-time code by email — no passwords. If it hasn't turned up:</p>
-  <ul>
-    <li>Give it a minute. Delivery is usually quick but can lag.</li>
-    <li>Check spam or your Promotions tab.</li>
-    <li>Each code only works once, and only for a few minutes. If yours has expired, tap BACK and send a fresh one.</li>
-    <li>Still nothing after a few minutes? Email me with the address you're trying to use.</li>
-  </ul>
+<main id="main">
+<section class="section">
+  <div class="wrap">
+    <div style="max-width:70ch" data-reveal>
+      <span class="eyebrow">Support · iOS &amp; Android</span>
+      <h1 style="font-size:clamp(32px,5vw,50px)">Made by one person. You'll get a real reply.</h1>
+      <p class="lede">Usually within a couple of days.</p>
+    </div>
 
-  <h2>Managing or cancelling your subscription</h2>
-  <p>Subscriptions are billed by Apple, not by me, so they're managed in iOS Settings:</p>
-  <ol>
-    <li>Open <strong>Settings</strong> on your iPhone</li>
-    <li>Tap your name at the top</li>
-    <li>Tap <strong>Subscriptions</strong></li>
-    <li>Tap <strong>Deadpoint</strong>, then <strong>Cancel Subscription</strong></li>
-  </ol>
-  <p>You keep access until the end of the period you've already paid for. For refunds, Apple handles those
-  directly at <a href="https://reportaproblem.apple.com">reportaproblem.apple.com</a> — I can't issue them
-  from my end.</p>
+    <div class="grid g2" style="margin-top:40px;align-items:start;gap:clamp(24px,4vw,44px)">
+      <div class="card" data-reveal>
+        <h3>Send a message</h3>
+        <!-- Composes a mailto: rather than posting anywhere. The site is fully
+             static by design, so nothing typed here touches a server, a form
+             service, or any third party — it opens your own mail app,
+             pre-filled, and you send it yourself. -->
+        <form id="contactform">
+          <label class="field" for="subject">Subject</label>
+          <select id="subject">
+            <option>Sign-in code problem</option>
+            <option>Subscription or billing</option>
+            <option>Bug report</option>
+            <option>Feature request</option>
+            <option>Something else</option>
+          </select>
+          <label class="field" for="message">Message</label>
+          <textarea id="message" placeholder="What's going on?"></textarea>
+          <button class="btn" type="submit" style="margin-top:18px">Open in my mail app →</button>
+          <p class="microline">Opens your mail app with this pre-filled. Nothing is sent from this page.</p>
+        </form>
+      </div>
 
-  <h2>Restoring a purchase</h2>
-  <p>New phone, or reinstalled the app? Open the subscribe screen and tap <strong>RESTORE PURCHASES</strong>.
-  Make sure you're signed into the same Apple ID that bought the subscription.</p>
+      <div class="card" data-reveal>
+        <h3>Or just email</h3>
+        <p style="margin-top:12px"><a class="contact-em" href="mailto:support@getdeadpoint.co.uk">support@getdeadpoint.co.uk</a></p>
+        <p class="small" style="margin-top:18px">
+          For bugs, include your phone model and OS version, and a screenshot if you have one. It genuinely
+          speeds things up.
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
 
-  <h2>Deleting your account</h2>
-  <p>In the app: <strong>Settings → Delete Account</strong>. That removes your account and the training data
-  attached to it. It doesn't cancel an active subscription — do that separately in iOS Settings, as above.</p>
+<section class="section">
+  <div class="wrap">
+    <div class="prose" data-reveal>
+      <h2 id="signin">My sign-in code hasn't arrived</h2>
+      <p>Deadpoint signs you in with a one-time code by email — no passwords. If it hasn't turned up:</p>
+      <ul>
+        <li>Give it a minute. Delivery is usually quick but can lag.</li>
+        <li>Check spam, or your Promotions tab.</li>
+        <li>Each code only works once, and only for a few minutes. If yours has expired, tap BACK and send a fresh one.</li>
+        <li>Still nothing after a few minutes? Email me with the address you're trying to use.</li>
+      </ul>
 
-  <h2>Changing your plan</h2>
-  <p>You don't need to redo the quiz to change your mind. <strong>Settings → Preferences</strong> lets you
-  change your days per week, equipment, weaknesses, injury flags, trip date, or even switch discipline. Your
-  logged history and progress carry on unchanged.</p>
+      <h2 id="subscription">Managing or cancelling your subscription</h2>
+      <p>Subscriptions are billed by Apple or Google, not by me, so they're managed on your device:</p>
+      <h3>iPhone</h3>
+      <ul>
+        <li>Settings → your name → Subscriptions → Deadpoint → Cancel Subscription.</li>
+      </ul>
+      <h3>Android</h3>
+      <ul>
+        <li>Play Store → your profile picture → Payments &amp; subscriptions → Subscriptions → Deadpoint → Cancel.</li>
+      </ul>
+      <p>You keep access until the end of the period you've already paid for. Refunds are handled by the
+      store directly — Apple at <a href="https://reportaproblem.apple.com">reportaproblem.apple.com</a>,
+      Google through Play's own refund flow. I can't issue them from my end, but email me if something's
+      gone wrong and I'll help you make the case.</p>
 
-  <h2>Injuries and safety</h2>
-  <p>Deadpoint prescribes training loads and is <strong>not medical advice</strong>. The injury flags in the
-  quiz add general prevention work and caution notes — they are not treatment, and the app can't assess you.
-  If something is currently painful or flares up day to day, see a physio before training through it. Stop
-  immediately for anything sharp or localised, as opposed to general fatigue.</p>
+      <h2 id="restore">Restoring a purchase</h2>
+      <p>New phone, or reinstalled the app? Open the subscribe screen and tap RESTORE PURCHASES. Make sure
+      you're signed into the same Apple ID or Google account that bought the subscription.</p>
 
-  <h2>Feature requests and bugs</h2>
-  <p>Genuinely welcome — email me. Include your iPhone model and iOS version for bugs, and a screenshot if
-  you have one.</p>
+      <h2 id="delete">Deleting your account</h2>
+      <p>In the app: <strong>Settings → Delete Account</strong>. That removes your account and the training
+      data attached to it. It doesn't cancel an active subscription — do that separately, as above. You can
+      also email me and I'll do it for you.</p>
+
+      <h2 id="plan">Changing your plan</h2>
+      <p>You don't need to redo the quiz to change your mind. <strong>Settings → Preferences</strong> lets
+      you change your days per week, equipment, weaknesses, injury flags, trip date, or even switch
+      discipline. Your logged history and progress carry on unchanged.</p>
+
+      <h2 id="safety">Injuries and safety</h2>
+      <p>Deadpoint prescribes training loads and <strong>is not medical advice</strong>. The injury flags in
+      the quiz add general prevention work and caution notes — they are not treatment, and the app can't
+      assess you. If something is currently painful or flares up day to day, see a physio before training
+      through it. Stop immediately for anything sharp or localised, as opposed to general fatigue.</p>
+
+      <h2 id="requests">Feature requests and bugs</h2>
+      <p>Genuinely welcome — email me. Include your phone model and OS version for bugs, and a screenshot
+      if you have one.</p>
+    </div>
+  </div>
+</section>
 </main>
 
-<footer><div class="wrap">
-  <a href="index.html">Home</a>
-  <a href="privacy.html">Privacy</a>
-  <a href="https://www.apple.com/legal/internet-services/itunes/dev/stdeula/">Terms of Use</a>
-  <div style="margin-top:12px;font-family:var(--mono)">© 2026 Deadpoint</div>
-</div></footer>
+<footer class="footer">
+  <div class="wrap">
+    <div class="footcols">
+      <div class="footcol footbrand">
+        <a class="mark" href="/">DEAD<span>POINT</span></a>
+        <p>
+          Training loads carry risk. Warm up properly, progress gradually, and stop for anything sharp.
+          Deadpoint is not medical advice.
+        </p>
+      </div>
+      <div class="footcol">
+        <h4>Product</h4>
+        <a href="/how-it-works.html">How it works</a>
+        <a href="/research.html">Research</a>
+        <a href="/pricing.html">Pricing</a>
+        <a href="https://apps.apple.com/app/id6800266835">Download on iOS</a>
+        <a href="https://play.google.com/store/apps/details?id=uk.co.sullivanltd.deadpoint">Get it on Android</a>
+      </div>
+      <div class="footcol">
+        <h4>Support</h4>
+        <a href="/support.html">Help &amp; contact</a>
+        <a href="mailto:support@getdeadpoint.co.uk">support@getdeadpoint.co.uk</a>
+        <a href="/pricing.html#faq">FAQ</a>
+      </div>
+      <div class="footcol">
+        <h4>Legal</h4>
+        <a href="/terms.html">Terms of Service</a>
+        <a href="/privacy.html">Privacy Policy</a>
+        <a href="/privacy.html#deletion">Delete your data</a>
+      </div>
+    </div>
+    <div class="footbase">
+      <span>© 2026 Deadpoint · R. T. Sullivan Consulting Limited, Bexhill-on-Sea, UK</span>
+      <span><a href="mailto:support@getdeadpoint.co.uk">support@getdeadpoint.co.uk</a></span>
+    </div>
+  </div>
+</footer>
 
+<script src="/js/site.js" defer></script>
 <script>
-document.getElementById('contactform').addEventListener('submit', function(e){
+document.getElementById('contactform').addEventListener('submit', function (e) {
   e.preventDefault();
-  var subject = document.getElementById('c-subject').value;
-  var body = document.getElementById('c-body').value;
+  var subject = document.getElementById('subject').value;
+  var body = document.getElementById('message').value;
   window.location.href = 'mailto:support@getdeadpoint.co.uk'
     + '?subject=' + encodeURIComponent('Deadpoint — ' + subject)
     + '&body=' + encodeURIComponent(body);

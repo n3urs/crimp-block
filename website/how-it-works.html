@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="UTF-8">
+<!-- Sets .js before first paint so the entrance styles only ever hide
+     content when JavaScript is actually there to bring it back. -->
+<script>document.documentElement.classList.add('js')</script>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>How it works — Deadpoint</title>
+<meta name="description" content="Run the exact rules engine that ships inside Deadpoint, right in your browser. Tell it your last three days and watch it decide, with the app's own reasoning.">
+<link rel="canonical" href="https://getdeadpoint.co.uk/how-it-works.html">
+<link rel="icon" type="image/png" href="/img/favicon-32.png">
+<link rel="apple-touch-icon" href="/img/apple-touch-icon.png">
+<meta property="og:title" content="How Deadpoint decides — run the real engine">
+<meta property="og:description" content="The exact rules engine that ships in the app, running live in your browser.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://getdeadpoint.co.uk/how-it-works.html">
+<meta property="og:image" content="https://getdeadpoint.co.uk/img/og-image.png">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;700;800;900&family=JetBrains+Mono:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="/css/site.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="nav">
+  <div class="wrap">
+    <a class="mark" href="/">DEAD<span>POINT</span></a>
+    <nav class="navlinks" aria-label="Primary">
+      <a href="/how-it-works.html" aria-current="page">How it works</a>
+      <a href="/research.html">Research</a>
+      <a href="/pricing.html">Pricing</a>
+      <a href="/support.html">Support</a>
+    </nav>
+    <div class="navcta">
+      <a class="btn sm" href="https://apps.apple.com/app/id6800266835">Get the app</a>
+      <button class="burger" aria-label="Menu" aria-expanded="false"><span></span></button>
+    </div>
+  </div>
+</header>
+
+<main id="main">
+
+<section class="section" style="padding-bottom:0">
+  <div class="wrap" data-reveal-group>
+    <span class="eyebrow">The algorithm, running live on this page</span>
+    <h1 style="font-size:clamp(32px,5.2vw,54px)">Tell it your last three days. Watch it decide.</h1>
+    <p class="lede measure">
+      This isn't a mock-up or a marketing simulation. The panel below runs the exact rules engine that
+      ships inside the app (same file, same logic) in your browser. The reasoning underneath each
+      recommendation is the app's own words, not copy written for this page.
+    </p>
+  </div>
+</section>
+
+<section class="section" style="border-top:0;padding-top:clamp(28px,4vw,44px)">
+  <div class="wrap">
+    <div class="engine" data-reveal>
+      <div class="engine-head">
+        <span class="t">Deadpoint rules engine</span>
+        <span class="live">live · running the shipped engine</span>
+      </div>
+      <div class="engine-body">
+        <div class="pane">
+          <span class="fieldlabel">What did you do the last three days?</span>
+          <div id="daypicker"></div>
+
+          <div class="divider"></div>
+
+          <span class="fieldlabel">Your profile</span>
+          <div class="ctlrow" style="margin-bottom:16px">
+            <div class="ctl">
+              <span class="fieldlabel">Discipline</span>
+              <div class="chips" id="ctl-discipline"></div>
+            </div>
+            <div class="ctl">
+              <span class="fieldlabel">Level</span>
+              <div class="chips" id="ctl-level"></div>
+            </div>
+          </div>
+          <div class="ctlrow">
+            <div class="ctl">
+              <span class="fieldlabel">Days per week</span>
+              <div class="stepper">
+                <button class="stepbtn" id="days-down" aria-label="Fewer days per week">−</button>
+                <span class="stepval" id="days-val">4</span>
+                <button class="stepbtn" id="days-up" aria-label="More days per week">+</button>
+              </div>
+            </div>
+            <div class="ctl" style="flex:2 1 220px">
+              <span class="fieldlabel">Equipment</span>
+              <div class="chips" id="ctl-equip"></div>
+              <p class="microline" style="margin-top:8px">Kit changes which exercises appear, most visibly on pulling days, since finger work runs on any edge.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="pane">
+          <span class="fieldlabel">Today's recommendation</span>
+          <div class="readout" id="today-readout"></div>
+          <span class="fieldlabel">Then the three days after</span>
+          <div class="next3" id="next3"></div>
+        </div>
+      </div>
+    </div>
+    <p class="microline">
+      Try three finger sessions in a row, then try three rest days: the recommendation and its reasoning both change.
+    </p>
+  </div>
+</section>
+
+<section class="section">
+  <div class="wrap">
+    <div data-reveal>
+      <span class="eyebrow">The rules underneath</span>
+      <h2 class="measure">Recovery is the limiter, not the calendar.</h2>
+      <p class="lede measure">
+        The engine never asks what week of a programme you're on. It asks what your last seven days
+        actually contained, and then applies gates in a fixed order.
+      </p>
+    </div>
+
+    <div class="grid g3" style="margin-top:38px" data-reveal-group>
+      <div class="card">
+        <h3 style="color:var(--gorse)">Fingers get their own ceiling</h3>
+        <p>
+          Pull is systemically hard but it's a rest day for fingers. Counting both against one combined
+          cap strangled the rotation, so finger-loading days are capped separately, because connective tissue
+          adapts slower than muscle, and that's the limit that matters for injury.
+        </p>
+      </div>
+      <div class="card">
+        <h3 style="color:var(--tidepool)">Three on, one off: earned, not scheduled</h3>
+        <p>
+          Each session returns as soon as the tissue it loads has recovered. Three hard days on the trot
+          and it stops you: nothing productive happens on day four.
+        </p>
+      </div>
+      <div class="card">
+        <h3 style="color:var(--slate)">Deloads and layoffs tighten it further</h3>
+        <p>
+          Week four of every block pulls both ceilings down. Come back from ten days off and you get a
+          two-session taper at 85% of your loads, because cold tissue meeting a near-max weight is how
+          people get hurt.
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="wrap">
+    <div data-reveal>
+      <span class="eyebrow">Personalisation</span>
+      <h2 class="measure">Three climbers, three genuinely different plans.</h2>
+      <p class="lede measure">
+        Every example below is generated by the real resolver from the answers shown, not illustrations
+        drawn for this page.
+      </p>
+    </div>
+
+    <div class="grid g3" style="margin-top:36px" data-reveal-group>
+      <div class="profile">
+        <span class="who">Climber A</span>
+        <p class="said">Intermediate boulderer. Trains 3 days a week. Owns a hangboard, nothing else.</p>
+        <div class="got">
+          <span class="fieldlabel">Their Max Fingers day</span>
+          <span class="tag">Weighted or edge max hang</span>
+          <span class="tag">Secondary position hang</span>
+          <p class="small" style="margin-top:10px">Pull day drops the bar work they can't do. No pull-up bar, no gym.</p>
+        </div>
+      </div>
+      <div class="profile">
+        <span class="who">Climber B</span>
+        <p class="said">Same grade, same discipline. Trains 5 days. Has a pickup rig and prefers it.</p>
+        <div class="got">
+          <span class="fieldlabel">Their Max Fingers day</span>
+          <span class="tag" style="color:var(--gorse)">Weighted pickup · half crimp</span>
+          <span class="tag">Secondary position hang</span>
+          <p class="small" style="margin-top:10px">Main lift swapped entirely, and the week runs at five days instead of three.</p>
+        </div>
+      </div>
+      <div class="profile">
+        <span class="who">Climber C</span>
+        <p class="said">Advanced sport climber, 4 days. Flagged an elbow history and wants sloper work.</p>
+        <div class="got">
+          <span class="fieldlabel">What changes</span>
+          <span class="tag" style="color:var(--tidepool)">+ Open-hand sloper hangs</span>
+          <span class="tag" style="color:var(--restC)">+ Elbow caution on every pulling session</span>
+          <p class="small" style="margin-top:10px">Four phases including a dedicated Power Endurance block A and B never see.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:20px" data-reveal>
+      <h3>Change your mind later, without starting over</h3>
+      <p>
+        Got a pull-up bar for Christmas? Gym membership lapsed? Trip booked for April, and you want to
+        pivot from bouldering to sport for it? Change the answer in Settings and the plan updates from
+        that day forward. Your logged history, your block and your week count all carry on exactly
+        where they were. Nothing resets.
+      </p>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="wrap">
+    <div data-reveal>
+      <span class="eyebrow">The app</span>
+      <h2 class="measure">One card a day. Everything on it earns its place.</h2>
+    </div>
+
+    <div class="grid g2" style="margin-top:38px;align-items:start;gap:clamp(28px,5vw,56px)" data-reveal>
+      <div class="shot-annotated">
+        <img src="/img/01-dashboard.png" alt="Deadpoint's daily card, annotated" width="900" height="1947" loading="lazy">
+        <!-- Offset to sit beside each control, not on top of it — a pin that
+             covers the thing it points at defeats the purpose. -->
+        <span class="pin" style="left:35%;top:18%">1</span>
+        <span class="pin" style="left:54%;top:23.5%">2</span>
+        <span class="pin" style="left:83%;top:52%">3</span>
+        <span class="pin" style="left:39%;top:55%">4</span>
+        <span class="pin" style="left:15%;top:95%">5</span>
+      </div>
+      <ul class="callouts">
+        <li><span class="num">1</span><div><strong>Where you are in the block</strong><p>Phase and week, always visible. Tap it for the whole plan: phases, deload weeks, and what changes when.</p></div></li>
+        <li><span class="num">2</span><div><strong>The ringed dot is today's call</strong><p>One dot per session type. The ringed one is what the engine reckons you should do, and it stays put while you look around at the others.</p></div></li>
+        <li><span class="num">3</span><div><strong>Weights that tell you when to go up</strong><p>Log what you actually lifted. When the number turns gold, you've held the same weight twice running. That's your cue to add.</p></div></li>
+        <li><span class="num">4</span><div><strong>Rest timers, in the row</strong><p>Every timed exercise has its rest wired in. Tap it and put the phone down. It keeps running.</p></div></li>
+        <li><span class="num">5</span><div><strong>The bit that actually matters</strong><p>Logging the session is what the engine reads tomorrow. One button, and the next day's decision changes because of it.</p></div></li>
+      </ul>
+    </div>
+
+    <div class="rail" data-reveal>
+      <figure><img src="/img/02-calendar.png" alt="Calendar view of logged sessions" width="900" height="1947" loading="lazy"><figcaption>Every session you've logged</figcaption></figure>
+      <figure><img src="/img/07-quiz-experience.png" alt="Quiz step asking about experience level" width="900" height="1947" loading="lazy"><figcaption>A quiz that's honest about levels</figcaption></figure>
+      <figure><img src="/img/03-quiz-equipment.png" alt="Quiz step asking what equipment you have" width="900" height="1947" loading="lazy"><figcaption>Only what you can actually do</figcaption></figure>
+      <figure><img src="/img/04-quiz-summary.png" alt="Summary of the assigned plan" width="900" height="1947" loading="lazy"><figcaption>Your assignment, before you start</figcaption></figure>
+      <figure><img src="/img/06-quiz-discipline.png" alt="Quiz step asking bouldering or sport" width="900" height="1947" loading="lazy"><figcaption>Bouldering or sport</figcaption></figure>
+      <figure><img src="/img/05-welcome.png" alt="The welcome screen" width="900" height="1947" loading="lazy"><figcaption>Where it starts</figcaption></figure>
+    </div>
+  </div>
+</section>
+
+<section class="section" style="text-align:center">
+  <div class="wrap" data-reveal-group>
+    <h2>Ready to stop guessing?</h2>
+    <p class="lede" style="margin-inline:auto;max-width:52ch">The engine you just ran is the one that decides your day, every day.</p>
+    <div class="btnrow" style="justify-content:center;margin-top:30px">
+      <a class="btn" href="https://apps.apple.com/app/id6800266835">Download on iOS</a>
+      <a class="btn ghost" href="https://play.google.com/store/apps/details?id=uk.co.sullivanltd.deadpoint">Get it on Android</a>
+    </div>
+    <p class="microline">£0.99 / month or £9.99 / year · 7-day free trial</p>
+  </div>
+</section>
+
+</main>
+
+<footer class="footer">
+  <div class="wrap">
+    <div class="footcols">
+      <div class="footcol footbrand">
+        <a class="mark" href="/">DEAD<span>POINT</span></a>
+        <p>
+          Training loads carry risk. Warm up properly, progress gradually, and stop for anything sharp.
+          Deadpoint is not medical advice.
+        </p>
+      </div>
+      <div class="footcol">
+        <h4>Product</h4>
+        <a href="/how-it-works.html">How it works</a>
+        <a href="/research.html">Research</a>
+        <a href="/pricing.html">Pricing</a>
+        <a href="https://apps.apple.com/app/id6800266835">Download on iOS</a>
+        <a href="https://play.google.com/store/apps/details?id=uk.co.sullivanltd.deadpoint">Get it on Android</a>
+      </div>
+      <div class="footcol">
+        <h4>Support</h4>
+        <a href="/support.html">Help &amp; contact</a>
+        <a href="mailto:support@getdeadpoint.co.uk">support@getdeadpoint.co.uk</a>
+        <a href="/pricing.html#faq">FAQ</a>
+      </div>
+      <div class="footcol">
+        <h4>Legal</h4>
+        <a href="/terms.html">Terms of Service</a>
+        <a href="/privacy.html">Privacy Policy</a>
+        <a href="/privacy.html#deletion">Delete your data</a>
+      </div>
+    </div>
+    <div class="footbase">
+      <span>© 2026 Deadpoint · R. T. Sullivan Consulting Limited, Bexhill-on-Sea, UK</span>
+      <span><a href="mailto:support@getdeadpoint.co.uk">support@getdeadpoint.co.uk</a></span>
+    </div>
+  </div>
+</footer>
+
+<script src="/js/site.js" defer></script>
+<script src="/js/engine/engine-core.js"></script>
+<script src="/js/engine/templates.js"></script>
+<script src="/js/engine/template-resolver.js"></script>
+<script src="/js/engine-demo.js"></script>
+</body>
+</html>

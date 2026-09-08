@@ -1,80 +1,190 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en-GB">
 <head>
 <meta charset="UTF-8">
-<link rel="icon" type="image/png" href="/img/favicon-32.png">
-<link rel="apple-touch-icon" href="/img/apple-touch-icon.png">
+<!-- Sets .js before first paint so the entrance styles only ever hide
+     content when JavaScript is actually there to bring it back. -->
+<script>document.documentElement.classList.add('js')</script>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Privacy Policy — Deadpoint</title>
-<style>
-  :root{ --bg:#181B22; --s1:#1E222B; --s3:#333947; --fg:#EDEBE5; --dim:#9AA0AE; --faint:#666C7A; --accent:#D69A1F; }
-  *{box-sizing:border-box}
-  body{background:var(--bg);color:var(--fg);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;line-height:1.6;margin:0;padding:32px 20px 80px;max-width:720px;margin-inline:auto}
-  h1{font-size:clamp(28px,6vw,38px);margin-bottom:4px}
-  .updated{color:var(--faint);font-size:13px;margin-bottom:36px;font-family:ui-monospace,monospace}
-  h2{color:var(--accent);font-size:18px;margin-top:36px;margin-bottom:10px;text-transform:uppercase;letter-spacing:.02em}
-  p,li{color:var(--dim);font-size:15px}
-  li{margin-bottom:6px}
-  a{color:var(--accent)}
-  .box{background:var(--s1);border:1px solid var(--s3);border-radius:10px;padding:16px 18px;margin:18px 0;font-size:14px}
-  .box strong{color:var(--fg)}
-  code{background:var(--s1);border-radius:4px;padding:1px 5px;font-size:13px}
-  .placeholder{color:var(--accent);font-weight:600}
-</style>
+<meta name="description" content="What Deadpoint collects (your email, your session log, your exercise weights), why, where it's stored, and how to get it deleted. No ads, no analytics SDKs, no data sold.">
+<link rel="canonical" href="https://getdeadpoint.co.uk/privacy.html">
+<link rel="icon" type="image/png" href="/img/favicon-32.png">
+<link rel="apple-touch-icon" href="/img/apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;700;800;900&family=JetBrains+Mono:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="/css/site.css">
 </head>
 <body>
+<a class="skip" href="#main">Skip to content</a>
 
-<h1>Privacy Policy</h1>
-<p class="updated">Deadpoint (formerly Crimp Block) · Last updated 7 September 2026</p>
+<header class="nav">
+  <div class="wrap">
+    <a class="mark" href="/">DEAD<span>POINT</span></a>
+    <nav class="navlinks" aria-label="Primary">
+      <a href="/how-it-works.html">How it works</a>
+      <a href="/research.html">Research</a>
+      <a href="/pricing.html">Pricing</a>
+      <a href="/support.html">Support</a>
+    </nav>
+    <div class="navcta">
+      <a class="btn sm" href="https://apps.apple.com/app/id6800266835">Get the app</a>
+      <button class="burger" aria-label="Menu" aria-expanded="false"><span></span></button>
+    </div>
+  </div>
+</header>
 
-<div class="box">
-  <strong>The short version:</strong> Deadpoint stores your email (to sign you in), the training sessions you log, and the weights you record against exercises. That's it. There is no advertising, no analytics or tracking SDKs, no location data, and your data is never sold or shared with third parties for marketing.
-</div>
+<main id="main">
+<section class="section">
+  <div class="wrap">
+    <div style="max-width:70ch" data-reveal>
+      <span class="eyebrow">Legal</span>
+      <h1 style="font-size:clamp(30px,4.6vw,46px)">Privacy Policy</h1>
+      <p class="updated mono" style="margin-top:16px">Deadpoint (formerly Crimp Block) · Last updated 8 September 2026</p>
+    </div>
 
-<h2>Who this policy covers</h2>
-<p>Deadpoint is provided by Sullivan Ltd ("we", "us"), trading as Deadpoint. We are the data controller for the personal data described below. Contact: <a href="mailto:support@getdeadpoint.co.uk">support@getdeadpoint.co.uk</a>.</p>
+    <div class="card" style="max-width:70ch;margin-top:28px" data-reveal>
+      <p style="color:var(--fg);font-size:15.5px;margin:0">
+        <strong style="color:var(--gorse)">The short version:</strong> Deadpoint stores your email (to sign you in), the training
+        sessions you log, and the weights you record against exercises. That's it. There is no
+        advertising, no analytics or tracking SDKs, no location data, and your data is never sold or
+        shared with third parties for marketing.
+      </p>
+    </div>
 
-<h2>What we collect</h2>
-<ul>
-  <li><strong style="color:var(--fg)">Email address</strong> — used to sign you in via a one-time code (no passwords are stored, by you or us). Handled by our authentication provider, Supabase.</li>
-  <li><strong style="color:var(--fg)">Training session log</strong> — the date and type of each session you log (e.g. "Max Fingers", "Rest").</li>
-  <li><strong style="color:var(--fg)">Exercise weight log</strong> — the working weight you record against specific exercises, and the date recorded. This is fitness data you enter yourself; we don't read it from Apple Health or any other health platform.</li>
-</ul>
-<p>We do not collect your name, location, contacts, browsing history, device advertising identifiers, or any data through analytics or crash-reporting SDKs — none are included in the app.</p>
+    <div class="prose" style="margin-top:44px">
+      <h2>Who this policy covers</h2>
+      <p>Deadpoint is provided by <strong>R. T. Sullivan Consulting Limited</strong> ("we", "us"), trading
+      as Deadpoint, registered in England and Wales at Unit 2, 02 High Weald House, Glovers End,
+      Bexhill-on-Sea, TN39 5ES. We are the data controller for the personal data described below.
+      Contact: <a href="mailto:support@getdeadpoint.co.uk">support@getdeadpoint.co.uk</a>.</p>
 
-<h2>Why we collect it</h2>
-<p>Solely to run the app: to know who you are when you sign in, and to compute your next recommended session and correct working weights from your own history. Nothing here is used for advertising or profiling, and nothing is used for any purpose beyond delivering the training plan you're using the app for.</p>
+      <h2>What we collect</h2>
+      <ul>
+        <li><strong>Email address</strong>: used to sign you in via a one-time code (no passwords are
+        stored, by you or us). Handled by our authentication provider, Supabase.</li>
+        <li><strong>Training session log</strong>: the date and type of each session you log
+        (e.g. "Max Fingers", "Rest").</li>
+        <li><strong>Exercise weight log</strong>: the working weight you record against specific
+        exercises, and the date recorded. This is fitness data you enter yourself; we don't read it from
+        Apple Health, Google Fit, or any other health platform.</li>
+        <li><strong>Subscription status</strong>: whether your subscription is active, via RevenueCat.
+        Not your payment details, which we never see.</li>
+      </ul>
+      <p>We do not collect your name, location, contacts, browsing history, device advertising
+      identifiers, or any data through analytics or crash-reporting SDKs. None are included in the app.</p>
 
-<h2>Where it's stored</h2>
-<p>Your data is stored with <a href="https://supabase.com" target="_blank" rel="noopener">Supabase</a>, our database and authentication provider, who process it on our behalf under their own data processing agreement. Database access is protected by row-level security, so your training data is visible only to your own signed-in account — not to other users, and not readable by us without deliberately querying the database as the operator. Supabase project region: <strong style="color:var(--fg)">West EU (Ireland), eu-west-1</strong> — your data is stored within the EEA.</p>
-<p>A small on-device cache of your upcoming week is also stored locally on your phone (in the app's private storage and, if you use it, the home-screen widget's shared container), purely so the widget can show something before the app has had a chance to refresh it. This never leaves your device.</p>
+      <h2>Why we collect it</h2>
+      <p>Solely to run the app: to know who you are when you sign in, and to compute your next recommended
+      session and correct working weights from your own history. Nothing here is used for advertising or
+      profiling, and nothing is used for any purpose beyond delivering the training plan you're using the
+      app for.</p>
+      <p>Our lawful basis is performance of a contract with you: the app cannot do its job without this
+      data.</p>
 
-<h2>How long we keep it</h2>
-<p>We keep your data for as long as your account is active. If you'd like your account and all associated data permanently deleted, contact us at <a href="mailto:support@getdeadpoint.co.uk">support@getdeadpoint.co.uk</a> — deleting the underlying account record removes your session log and weight log with it (they're linked to it directly, not kept separately). We aim to complete deletion requests within 30 days.</p>
+      <h2>Where it's stored</h2>
+      <p>Your data is stored with <strong>Supabase</strong>, our database and authentication provider, who
+      process it on our behalf under their own data processing agreement. Database access is protected by
+      row-level security, so your training data is visible only to your own signed-in account — not to
+      other users, and not readable by us without deliberately querying the database as the operator.
+      Supabase project region: West EU (Ireland), eu-west-1 — your data is stored within the EEA.</p>
+      <p>A small on-device cache of your upcoming week is also stored locally on your phone (in the app's
+      private storage and, if you use it, the home-screen widget's shared container), purely so the widget
+      can show something before the app has had a chance to refresh it. This never leaves your device.</p>
 
-<h2>Your rights</h2>
-<p>If you're in the UK or EU, UK GDPR / EU GDPR gives you the right to:</p>
-<ul>
-  <li>Access the personal data we hold about you</li>
-  <li>Correct inaccurate data</li>
-  <li>Request erasure of your data</li>
-  <li>Object to or restrict how we process your data</li>
-  <li>Receive your data in a portable format</li>
-  <li>Complain to your local data protection authority (in the UK, the <a href="https://ico.org.uk" target="_blank" rel="noopener">ICO</a>) if you think we've got something wrong</li>
-</ul>
-<p>To exercise any of these, email <a href="mailto:support@getdeadpoint.co.uk">support@getdeadpoint.co.uk</a>.</p>
+      <h2>Who else touches it</h2>
+      <ul>
+        <li><strong>Supabase</strong>: database and sign-in, EU region, as above.</li>
+        <li><strong>Resend</strong>: sends your one-time sign-in code emails.</li>
+        <li><strong>RevenueCat</strong>: tells the app whether your subscription is active.</li>
+        <li><strong>Apple / Google</strong>: take the payment. We never see your card details.</li>
+        <li><strong>Cloudflare</strong>: serves this website.</li>
+      </ul>
+      <p>Each acts as a processor on our instructions. None of them are given your data to use for their
+      own marketing.</p>
 
-<h2>Subscriptions and payment</h2>
-<p>If you subscribe to Deadpoint, payment is handled entirely by Apple through the App Store. We never see or store your card details — Apple's own privacy policy covers that transaction. We only receive confirmation of your subscription status, not your payment information.</p>
+      <h2 id="deletion">How long we keep it, and how to delete it</h2>
+      <p>We keep your data for as long as your account is active.</p>
+      <p><strong>To delete everything:</strong> in the app, go to <strong>Settings → Delete Account</strong>.
+      That removes the underlying account record, and your session log and weight log go with it — they're
+      linked to it directly, not kept separately.</p>
+      <p>You can also email <a href="mailto:support@getdeadpoint.co.uk">support@getdeadpoint.co.uk</a> and
+      we'll do it for you. We aim to complete deletion requests within 30 days.</p>
+      <p>Deleting your account does not cancel an active subscription. Do that through the App Store or
+      Play Store, as described on the <a href="/support.html#subscription">support page</a>.</p>
 
-<h2>Children</h2>
-<p>Deadpoint is not directed at children. You must be at least 16 years old to create an account.</p>
+      <h2>Your rights</h2>
+      <p>If you're in the UK or EU, UK GDPR / EU GDPR gives you the right to:</p>
+      <ul>
+        <li>access the personal data we hold about you;</li>
+        <li>correct inaccurate data;</li>
+        <li>request erasure of your data;</li>
+        <li>object to or restrict how we process your data;</li>
+        <li>receive your data in a portable format;</li>
+        <li>complain to your local data protection authority (in the UK, the ICO) if you think we've got
+        something wrong.</li>
+      </ul>
+      <p>To exercise any of these, email <a href="mailto:support@getdeadpoint.co.uk">support@getdeadpoint.co.uk</a>.</p>
 
-<h2>Changes to this policy</h2>
-<p>If this policy changes materially, we'll update the date at the top of this page and, where appropriate, let you know in the app.</p>
+      <h2>Subscriptions and payment</h2>
+      <p>If you subscribe to Deadpoint, payment is handled entirely by <strong>Apple</strong> (App Store)
+      or <strong>Google</strong> (Play Store). We never see or store your card details — their own privacy
+      policies cover that transaction. We only receive confirmation of your subscription status, not your
+      payment information.</p>
 
-<h2>Contact</h2>
-<p><a href="mailto:support@getdeadpoint.co.uk">support@getdeadpoint.co.uk</a></p>
+      <h2>Children</h2>
+      <p>Deadpoint is not directed at children. You must be at least 16 years old to create an account.</p>
 
+      <h2>Changes to this policy</h2>
+      <p>If this policy changes materially, we'll update the date at the top of this page and, where
+      appropriate, let you know in the app.</p>
+
+      <h2>Contact</h2>
+      <p><a href="mailto:support@getdeadpoint.co.uk">support@getdeadpoint.co.uk</a></p>
+    </div>
+  </div>
+</section>
+</main>
+
+<footer class="footer">
+  <div class="wrap">
+    <div class="footcols">
+      <div class="footcol footbrand">
+        <a class="mark" href="/">DEAD<span>POINT</span></a>
+        <p>
+          Training loads carry risk. Warm up properly, progress gradually, and stop for anything sharp.
+          Deadpoint is not medical advice.
+        </p>
+      </div>
+      <div class="footcol">
+        <h4>Product</h4>
+        <a href="/how-it-works.html">How it works</a>
+        <a href="/research.html">Research</a>
+        <a href="/pricing.html">Pricing</a>
+        <a href="https://apps.apple.com/app/id6800266835">Download on iOS</a>
+        <a href="https://play.google.com/store/apps/details?id=uk.co.sullivanltd.deadpoint">Get it on Android</a>
+      </div>
+      <div class="footcol">
+        <h4>Support</h4>
+        <a href="/support.html">Help &amp; contact</a>
+        <a href="mailto:support@getdeadpoint.co.uk">support@getdeadpoint.co.uk</a>
+        <a href="/pricing.html#faq">FAQ</a>
+      </div>
+      <div class="footcol">
+        <h4>Legal</h4>
+        <a href="/terms.html">Terms of Service</a>
+        <a href="/privacy.html">Privacy Policy</a>
+        <a href="/privacy.html#deletion">Delete your data</a>
+      </div>
+    </div>
+    <div class="footbase">
+      <span>© 2026 Deadpoint · R. T. Sullivan Consulting Limited, Bexhill-on-Sea, UK</span>
+      <span><a href="mailto:support@getdeadpoint.co.uk">support@getdeadpoint.co.uk</a></span>
+    </div>
+  </div>
+</footer>
+
+<script src="/js/site.js" defer></script>
 </body>
 </html>
