@@ -43,7 +43,7 @@ return {
           {t:'Pickups — half crimp',id:'osc-pickup-half',m:'5 × 5s / hand',ph:{'Base':'4 × 8s / hand — lighter','Power':'5 × 3s / hand — fast pickup','Performance':'3 × 5s / hand — maintain only'},d:'20mm. Rep five hard but form-perfect. Alternate hands — each hand then gets about three minutes between efforts, which is what near-max work needs to stay near-max.',r:90},
           {t:'Pickups — three-finger drag',id:'osc-pickup-drag',m:'3 × 5s / hand',d:'Lighter. Covers the rounded granite edges you actually climb on. Alternate hands.',r:90},
           {t:'Pinky lifts',id:'osc-pinky',step:1.25,m:'3 × 5s / hand',d:'Alternate hands. Start light — a single finger fails long before the weight feels heavy.',r:60},
-          {t:'Wrist roller',m:'3 sets',d:'Up and down to near failure.',r:60}
+          {t:'Wrist curls',id:'osc-wristcurl',step:1.25,m:'3 × 6',d:'On the wrist roller. Six controlled reps per set rather than rolling to failure.',r:60}
         ],
         /* Toggle-only alternate content for days without the lifting pin/
            plates (see resolveExercises' new `variant` param in index.ts) —
@@ -72,7 +72,7 @@ return {
           {t:'Weighted hangs',id:'osc-hang-wt',m:'10s × 5',ph:{'Base':'4 × 8s — lighter','Power':'3s × 6 — short, sharp, contact-focused','Performance':'3 × 5s — maintain only'},d:'20mm half crimp. Heavy-ish, never maximal. Same lift, same edge, same weight history as your gym Hangboard day — whichever session you happen to log it under.',r:180},
           {t:'20mm repeaters',id:'osc-rep20',m:'4–5 sets',interval:{on:7,off:3,reps:6},ph:{'Base':'5–6 sets — lighter, higher volume','Power':'3 sets — reduced, priority is the pickups','Performance':'2–3 sets — maintain only'},d:'7s on / 3s off × 6 = one set. Around 55–60% of max. Two minutes between sets. Press Start below and just hang.',r:120},
           {t:'Pinky lifts',id:'osc-pinky',step:1.25,m:'3 × 5s / hand',d:'Alternate hands. Start light — a single finger fails long before the weight feels heavy.',r:60},
-          {t:'Wrist roller',m:'3 sets',d:'Up and down to near failure.',r:60}
+          {t:'Wrist curls',id:'osc-wristcurl',step:1.25,m:'3 × 6',d:'On the wrist roller. Six controlled reps per set rather than rolling to failure.',r:60}
         ]},
       pull:{n:'Pull', w:'Home · 45 min', c:'--tidepool', finger:0, pull:3, note:'Climbing today? Climb FIRST and do this after — no fingers here, so spend them on the wall. This is the day to try hard on something crimpy. Just leave enough arm for the one-arm holds.',
         x:[
@@ -86,8 +86,7 @@ return {
           {t:'Weighted one-arm shrugs',id:'osc-shrug',m:'3 × 3 / arm',d:'Belt or vest, three-second hold at the top. Alternate arms. Three reps is right at your current ceiling, so the weight moves rather than the reps.',r:60},
           {t:'Shoulder anti-rotation holds',m:'3 × 5–10s / arm',d:'One-arm pulling strength alone will not stop you twisting off a hold — this is the fix. Hang one-armed off the bar (band or a toe on a stool for assistance, same setup as the transition holds above), open grip rather than a crimp. Without using your wrist or arm, resist rotation using the small stabiliser muscles around your shoulder. Once that feels solid, progress to turning deliberately to one side, holding, then returning to centre before turning the other way. A real limiter for the one-arm pull-up on its own, not just prep for whatever comes after it.',r:45},
           {t:'Front lever',m:'4 × 8–10s',d:'Hardest tuck or straddle you hold clean. If you cannot hold a tuck yet, do slow negative lowers from a tuck for the same sets.',r:75},
-          {t:'Reverse wrist curls',id:'osc-wristcurl',step:1.25,m:'3 × 6',d:'Antagonist work. Pulled out of the old superset blob so it gets its own weight tracking instead of a fixed rep count.',r:60},
-          {t:'Antagonists',m:'3 supersets',d:'Finger extensors 3×20 (a rubber band round the fingertips, opening the hand against it — no dedicated tool needed) · external rotation 3×12 · dips 3×10. Run as supersets with minimal rest — maintenance work, not a strength focus.'}
+          {t:'Antagonists',m:'3 supersets',d:'Reverse wrist curls 3×15 · finger extensors 3×20 (a rubber band round the fingertips, opening the hand against it — no dedicated tool needed) · external rotation 3×12 · dips 3×10. Run as supersets with minimal rest — maintenance work, not a strength focus.'}
         ]},
       hangboard:{n:'Hangboard', w:'Gym · 40–55 min + climb', c:'--slate', finger:2, pull:1, note:'Board work before climbing, in the order below. Repeaters on already-tired fingers is a different exercise at a load you did not choose.',
         x:[
