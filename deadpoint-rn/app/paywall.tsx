@@ -7,7 +7,7 @@ import Purchases, { type PurchasesPackage } from 'react-native-purchases';
 import { Colours } from '../src/design/colours';
 import { Fonts } from '../src/design/fonts';
 import { useSession } from '../src/data/useSession';
-import { purchaseStandard, restorePurchases, trialLabel, useOfferings } from '../src/data/subscription';
+import { purchaseStandard, restorePurchases, trialLabel, trialLengthLabel, useOfferings } from '../src/data/subscription';
 import { PRIVACY_POLICY_URL, TERMS_OF_USE_URL } from '../src/data/legal';
 
 const FEATURES = [
@@ -164,10 +164,21 @@ export default function Paywall() {
         )}
       </View>
 
+      {/* Guideline 3.1.2(c) rejection, 2026-09-09 (submission 30bb0320):
+          this said payment would be "charged after the trial ends"
+          without ever stating the trial's actual length or the amount —
+          both were only inferable from the tier badge above, which Apple
+          read as the purchase flow itself failing to disclose its own
+          terms. Now states the length, the exact post-trial price and
+          billing period, and the renewal cutoff in one sentence, reusing
+          the same priceString/tier data already shown on the tier row
+          rather than restating it as a separate hardcoded claim. */}
       <Text style={styles.legal}>
-        {selectedTrial
-          ? "Payment is charged to your Apple ID after the trial ends unless cancelled at least 24 hours before it's up. Manage or cancel any time in Settings."
-          : 'Payment is charged to your Apple ID immediately. Manage or cancel any time in Settings.'}
+        {selectedTrial && selectedPackage
+          ? `${trialLengthLabel(selectedPackage)} free, then ${selectedPackage.product.priceString} per ${selectedTier === 'monthly' ? 'month' : 'year'}, billed to your Apple ID. Cancel any time in Settings — at least 24 hours before renewal to avoid being charged.`
+          : selectedPackage
+          ? `${selectedPackage.product.priceString} per ${selectedTier === 'monthly' ? 'month' : 'year'}, billed to your Apple ID immediately. Manage or cancel any time in Settings.`
+          : 'Manage or cancel any time in Settings.'}
       </Text>
 
       {/* Point-of-purchase disclosure Apple's subscription rules expect

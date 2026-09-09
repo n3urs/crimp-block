@@ -253,3 +253,20 @@ export function trialLabel(pkg: PurchasesPackage | null): string | null {
   // "7-DAYS", same as "a two-week vacation").
   return `${intro.periodNumberOfUnits}-${intro.periodUnit.toUpperCase()} FREE TRIAL`;
 }
+
+/** Plain-sentence trial length ("7 days", "1 week") for the purchase-flow
+    disclosure text itself — trialLabel's all-caps badge phrasing ("7-DAY
+    FREE TRIAL") reads wrong inline in a sentence. Added for Apple's
+    Guideline 3.1.2(c) rejection (2026-09-09, submission 30bb0320): the
+    paywall said payment would be "charged after the trial ends" without
+    ever stating how long the trial actually was or what it would cost —
+    both had to be inferred from a badge elsewhere on the screen, which
+    Apple read as the purchase flow failing to make its own terms clear.
+    Same null/zero-price guard as trialLabel, since this only makes sense
+    to say alongside it. */
+export function trialLengthLabel(pkg: PurchasesPackage | null): string | null {
+  const intro = pkg?.product.introPrice;
+  if (!intro || intro.price !== 0) return null;
+  const n = intro.periodNumberOfUnits;
+  return `${n} ${intro.periodUnit.toLowerCase()}${n === 1 ? '' : 's'}`;
+}
