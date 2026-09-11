@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import type { RefObject } from 'react';
 import { Gesture } from 'react-native-gesture-handler';
 import { Easing, runOnJS, useSharedValue, withTiming } from 'react-native-reanimated';
@@ -128,80 +128,144 @@ export function useSwipeCarousel({ displayKey, containerWidth, onBrowse, scrollR
     triggerFade(SESSION_ORDER[to]);
   }, [displayKey, triggerFade]);
 
-  // `panGesture` is built fresh in the hook body on every render — NOT
-  // wrapped in useMemo/useCallback. That's deliberate, not an oversight:
-  // GestureDetector re-runs `updateAttachedGestures()` in a `useEffect`
-  // keyed on its own `props` object on every render of the CALLER (its
-  // effect dependency is `[props]`, and JSX always produces a fresh props
-  // object, so this fires every render — confirmed by reading
-  // react-native-gesture-handler's own GestureDetector/index.tsx), which
-  // re-applies whatever callbacks are on the gesture object it was just
-  // given. So every render of THIS hook produces a new `panGesture`
-  // object whose `.onEnd` closure captures THIS render's `advance` (and
-  // thus, transitively, this render's `displayKey`/`pendingKeyRef`) —
-  // there is no stale-closure window, because there is no memoization
-  // boundary here for a stale closure to hide behind. This is the same
-  // rebuild-per-render behaviour the ORIGINAL drag-based gesture already
-  // relied on for its own `displayKey`/`pendingKeyShared` reads; the fade
-  // redesign doesn't change that mechanism, only what's inside `.onEnd`.
-  const panGesture = Gesture.Pan()
-    .minDistance(Motion.swipe.minimumDistance)
-    // Same activeOffsetX/failOffsetY directional lock the drag-based
-    // version used, and for the same reason — confirmed real against a
-    // vertical-scroll-vs-horizontal-swipe bug hit live on Android: this
-    // gesture only ACTIVATES once horizontal movement passes the claim
-    // threshold, and FAILS (ceding to the sibling ScrollView) the moment
-    // vertical movement passes it first. Still needed even though nothing
-    // visually tracks the finger anymore — this is what decides whether a
-    // touch is a horizontal swipe attempt AT ALL, before `.onEnd` ever
-    // gets a chance to run. `.onEnd`'s own doc comment ("It will be called
-    // only if the handler was previously in the ACTIVE state") is why
-    // there's no separate "was this actually a horizontal gesture" guard
-    // inside `.onEnd` below — activeOffsetX/failOffsetY already decided
-    // that before `.onEnd` can fire at all.
-    .activeOffsetX([-Motion.swipe.horizontalClaimDx, Motion.swipe.horizontalClaimDx])
-    .failOffsetY([-Motion.swipe.horizontalClaimDx, Motion.swipe.horizontalClaimDx])
-    // react-native-gesture-handler@2.32.0's own .d.ts types this method's
-    // ref parameter as RefObject<React.ComponentType | undefined | null>
-    // (a component CLASS/function), not RefObject<React.Component | null>
-    // (a component INSTANCE) — the type this hook's own scrollRef param
-    // uses, matching what every real caller (a `ref` on a ScrollView
-    // instance) actually produces. Re-verified directly against the
-    // installed package's shipped type declarations for this task. This
-    // cast is type-only — it changes nothing about what's passed to the
-    // gesture at runtime.
-    .simultaneousWithExternalGesture(
-      ...(scrollRef ? [scrollRef as unknown as RefObject<React.ComponentType | undefined | null>] : [])
-    )
-    // No `.onUpdate` at all — the whole point of this redesign is that
-    // nothing visually tracks the finger during the drag itself; the only
-    // decision made is here, once the gesture completes: was this a real
-    // swipe (past the same distance-based commit threshold the drag-based
-    // version used), and which direction. `success` is checked so a
-    // gesture that got INTERRUPTED (cancelled by the OS, or pre-empted by
-    // another gesture) after activating never fires a phantom advance off
-    // a partial/stale translation — the drag-based version didn't need
-    // this check because it had no equivalent "commit based on final
-    // event value alone" decision point; this one does, so it's worth the
-    // extra guard.
-    //
-    // Everything read here — `e.translationX`, the closed-over
-    // `containerWidth` param, and `Motion.swipe.commitFraction` (a plain
-    // number off a plain imported object) — is data, not a function call,
-    // so none of it needs a 'worklet' directive to be safe to read from
-    // this UI-thread callback (this inline arrow is auto-workletized by
-    // Reanimated's babel plugin, the same as the previous version's
-    // `.onUpdate`/`.onEnd` were). The ONE thing that crosses back to the
-    // JS thread — calling `advance`, a plain (non-worklet) function — goes
-    // through `runOnJS`, exactly the boundary this file's `nextIndex`
-    // comment above exists to explain.
-    .onEnd((e, success) => {
-      if (!success) return;
-      const pastThreshold = Math.abs(e.translationX) > Motion.swipe.commitFraction * containerWidth;
-      if (!pastThreshold) return;
-      const direction = e.translationX < 0 ? -1 : 1;
-      runOnJS(advance)(direction);
-    });
+  // `advance` closes over `displayKey`/`pendingKeyRef` and so gets a new
+  // identity on basically every render — but `panGesture` below must NOT
+  // be rebuilt every render (see its own comment), so `.onEnd` calls
+  // through this ref instead of closing over `advance` directly. Kept
+  // current with a plain assignment in the render body (not an effect):
+  // effects run after paint, and a real touch's `.onEnd` firing in that
+  // gap would read one render stale, which a same-tick assignment avoids.
+  const advanceRef = useRef(advance);
+  advanceRef.current = advance;
+
+  // Stable wrapper `advance` itself isn't (its identity changes with
+  // `displayKey` above) — this is what `.onEnd` actually calls via
+  // `runOnJS`, exactly the same shape as the original `runOnJS(advance)`
+  // call it replaces. Deliberately NOT an inline arrow written directly
+  // inside `.onEnd`'s worklet body: that arrow would close over
+  // `advanceRef` from UI-thread code, and Reanimated's babel plugin
+  // workletizes inline functions it finds inside a worklet, which would
+  // make `advanceRef.current` an unsafe cross-thread ref read — the exact
+  // "[Worklets] Tried to synchronously call a Remote Function" class of
+  // crash `nextIndex`'s own comment above describes. A real
+  // `useCallback`, defined here on the JS thread and only ever passed BY
+  // REFERENCE into `runOnJS(...)`, is the same safe shape `runOnJS(advance)`
+  // already was.
+  const advanceViaRef = useCallback((direction: -1 | 1) => {
+    advanceRef.current(direction);
+  }, []);
+
+  // `panGesture` IS memoized (built once, stable identity for the life of
+  // this hook instance) — this used to be deliberately rebuilt fresh every
+  // render instead, to keep `.onEnd` closing over the current `advance`
+  // without a stale-closure window. That traded one bug for a worse one:
+  // `Card()` also owns `useRestTimer`/`useIntervalTimer`, both of which
+  // tick their own state every 200ms (`Motion.restOverlayTickMs` /
+  // `Motion.intervalControllerTickMs`) while a rest countdown or a
+  // repeater set is running — re-rendering `Card()`, and with it every
+  // hook inside it, five times a second. Rebuilding `panGesture` on each
+  // of those ticks gives `GestureDetector` a new `gesture` prop five times
+  // a second; `GestureDetector`'s own `useEffect(() => {...
+  // updateAttachedGestures() }, [props])` reruns on every one of those
+  // renders regardless (its dependency is the WHOLE `props` object, which
+  // JSX always makes fresh — confirmed against the installed
+  // react-native-gesture-handler's own GestureDetector/index.tsx, not
+  // assumed), and — because it's the same single Pan handler each time,
+  // so `needsToReattach()` says no reattach is needed — takes the
+  // "update the handler's callbacks in place" path
+  // (useDetectorUpdater.ts's `updateHandlers()`), which swaps the native
+  // handler's registered `.onEnd` callback to that render's fresh closure
+  // on every one of those five-times-a-second ticks. If a real touch is
+  // in flight on the native side at that moment (scrolling the exercise
+  // list while a rep timer counts down is completely normal usage), that
+  // is a live gesture handler having its callback wiring reassigned out
+  // from under it repeatedly while it's tracking a touch — exactly the
+  // class of Android-specific gesture-timing fragility this same gesture
+  // already needed a real fix for once before (see the
+  // activeOffsetX/failOffsetY comment below, and commit 5c35ba6). Traced
+  // live from a tester's report of the home screen "rapidly flicking
+  // between workouts, four or five times a second" — 4-5Hz matching the
+  // timer tick rate exactly, and SESSION_ORDER having 7 entries matching
+  // what "flicking through workouts" at that rate would look like.
+  // Memoizing `panGesture` makes `gestureConfig` (and so
+  // `gesturesToAttach`, itself `useMemo`'d on `gestureConfig` inside
+  // GestureDetector) referentially stable across those ticks, so
+  // `updateHandlers()` still runs every tick but reassigns the SAME
+  // object to itself — a true no-op, not a live callback swap — while
+  // `advanceRef` above keeps the direction handler correct regardless.
+  const panGesture = useMemo(
+    () =>
+      Gesture.Pan()
+        .minDistance(Motion.swipe.minimumDistance)
+        // Same activeOffsetX/failOffsetY directional lock the drag-based
+        // version used, and for the same reason — confirmed real against a
+        // vertical-scroll-vs-horizontal-swipe bug hit live on Android: this
+        // gesture only ACTIVATES once horizontal movement passes the claim
+        // threshold, and FAILS (ceding to the sibling ScrollView) the moment
+        // vertical movement passes it first. Still needed even though nothing
+        // visually tracks the finger anymore — this is what decides whether a
+        // touch is a horizontal swipe attempt AT ALL, before `.onEnd` ever
+        // gets a chance to run. `.onEnd`'s own doc comment ("It will be called
+        // only if the handler was previously in the ACTIVE state") is why
+        // there's no separate "was this actually a horizontal gesture" guard
+        // inside `.onEnd` below — activeOffsetX/failOffsetY already decided
+        // that before `.onEnd` can fire at all.
+        .activeOffsetX([-Motion.swipe.horizontalClaimDx, Motion.swipe.horizontalClaimDx])
+        .failOffsetY([-Motion.swipe.horizontalClaimDx, Motion.swipe.horizontalClaimDx])
+        // react-native-gesture-handler@2.32.0's own .d.ts types this method's
+        // ref parameter as RefObject<React.ComponentType | undefined | null>
+        // (a component CLASS/function), not RefObject<React.Component | null>
+        // (a component INSTANCE) — the type this hook's own scrollRef param
+        // uses, matching what every real caller (a `ref` on a ScrollView
+        // instance) actually produces. Re-verified directly against the
+        // installed package's shipped type declarations for this task. This
+        // cast is type-only — it changes nothing about what's passed to the
+        // gesture at runtime.
+        .simultaneousWithExternalGesture(
+          ...(scrollRef ? [scrollRef as unknown as RefObject<React.ComponentType | undefined | null>] : [])
+        )
+        // No `.onUpdate` at all — the whole point of this redesign is that
+        // nothing visually tracks the finger during the drag itself; the only
+        // decision made is here, once the gesture completes: was this a real
+        // swipe (past the same distance-based commit threshold the drag-based
+        // version used), and which direction. `success` is checked so a
+        // gesture that got INTERRUPTED (cancelled by the OS, or pre-empted by
+        // another gesture) after activating never fires a phantom advance off
+        // a partial/stale translation — the drag-based version didn't need
+        // this check because it had no equivalent "commit based on final
+        // event value alone" decision point; this one does, so it's worth the
+        // extra guard.
+        //
+        // Everything read here — `e.translationX` and `Motion.swipe.commitFraction`
+        // (a plain number off a plain imported object) — is data, not a
+        // function call, so none of it needs a 'worklet' directive to be safe
+        // to read from this UI-thread callback (this inline arrow is
+        // auto-workletized by Reanimated's babel plugin). `containerWidth` is
+        // read as a plain closed-over number, same as before — it's a layout
+        // measurement, not per-render app state, so this gesture being built
+        // once does not go stale against it in practice (a container resize
+        // mid-drag was never handled by the per-render rebuild either). The
+        // ONE thing that crosses back to the JS thread — calling
+        // `advanceViaRef`, a plain (non-worklet) function — goes through
+        // `runOnJS`, exactly the boundary this file's `nextIndex` comment
+        // above exists to explain, and exactly the same shape as the
+        // original `runOnJS(advance)(direction)` call this replaces.
+        .onEnd((e, success) => {
+          if (!success) return;
+          const pastThreshold = Math.abs(e.translationX) > Motion.swipe.commitFraction * containerWidth;
+          if (!pastThreshold) return;
+          const direction = e.translationX < 0 ? -1 : 1;
+          runOnJS(advanceViaRef)(direction);
+        }),
+    // Deliberately NOT depending on `displayKey`/`advance`/`triggerFade` —
+    // that's the entire point (see comment above). `containerWidth` and
+    // `scrollRef` are included because they're real configuration, not
+    // per-render app state; both are stable across a screen's lifetime in
+    // every real caller today, so this still only ever builds once in
+    // practice.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [containerWidth, scrollRef]
+  );
 
   /** Mirror of the drag-based version's `animateTo` (Swift's
       `animatedBrowse(to:)`): one full programmatic session change — a
