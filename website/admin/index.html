@@ -1,0 +1,690 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Deadpoint — Admin</title>
+<!--
+  Private by RLS + a SECURITY DEFINER admin gate on the Supabase side (see
+  SUPABASE.md's "Admin dashboard" section), not by this URL being unlisted.
+  Anyone can load this file; every read it makes fails with "not authorized"
+  unless they can sign in as the one admin email the database itself checks.
+  Same OTP flow and same public anon key as the rest of the product.
+
+  Lives inside website/ so it ships with the marketing site's own Cloudflare
+  deploy (wrangler.toml points at ./website) — one deploy, one repo, reachable
+  at getdeadpoint.co.uk/admin. It deliberately does NOT load /css/site.css:
+  that stylesheet is built for the marketing site's nav/hero/device/beat
+  components, none of which exist here. The token block below is copied
+  verbatim from site.css's :root and must stay in sync with it.
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;700;800;900&family=JetBrains+Mono:wght@400;500;700&display=swap">
+<link rel="icon" type="image/png" href="/img/favicon-32.png">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+/* Tokens verbatim from website/css/site.css — session colours are semantic
+   (gorse = max fingers, tidepool = pull, slate = board/legs, heather =
+   climbing, grey = rest) and are never reassigned here either. */
+:root{
+  --bg:#181B22; --s1:#1E222B; --s2:#272C37; --s3:#333947; --s4:#454C5C;
+  --fg:#EDEBE5; --dim:#9AA0AE; --faint:#8A90A0;
+  --gorse:#F2B134; --tidepool:#4FB3A5; --slate:#7B93E0; --heather:#C9739B; --grey:#5A6069;
+  --go:#1FA24A; --restC:#D6383D; --goText:#3FD173; --restText:#EF7A7E;
+  --display:'Archivo',system-ui,-apple-system,sans-serif;
+  --mono:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
+  --r-sm:8px; --r-md:13px;
+  --ease:cubic-bezier(.22,.61,.36,1);
+  --gut:clamp(18px,4vw,26px);
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{
+  margin:0;background:var(--bg);color:var(--fg);
+  font-family:var(--display);font-size:16px;line-height:1.6;
+  -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;
+}
+h1,h2,h3{margin:0;line-height:1.07;font-weight:800;text-wrap:balance}
+h1{font-size:clamp(28px,4.6vw,40px);font-weight:900;letter-spacing:-.022em}
+h2{font-size:19px;font-weight:700;letter-spacing:-.01em}
+h3{font-size:15px;font-weight:700;letter-spacing:-.005em}
+p{margin:0}
+button{font-family:inherit}
+:focus-visible{outline:2px solid var(--gorse);outline-offset:3px;border-radius:4px}
+/* Browser surfaces ship with defaults belonging to no design system. */
+::selection{background:var(--gorse);color:#181B22}
+:root{caret-color:var(--gorse)}
+.n,.mono,td,th,time,.pulse,.bar-n{font-variant-numeric:tabular-nums}
+
+.wrap{max-width:1080px;margin-inline:auto;padding:clamp(24px,4vw,40px) var(--gut) 96px}
+.mono{font-family:var(--mono)}
+.dim{color:var(--dim)}
+.faint{color:var(--faint)}
+.label{
+  font-family:var(--mono);font-size:11.5px;font-weight:700;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--faint);
+}
+
+/* ---------- header ---------- */
+.top{display:flex;align-items:flex-end;justify-content:space-between;gap:20px;flex-wrap:wrap;margin-bottom:8px}
+.who{font-size:13.5px;color:var(--dim);text-align:right}
+.who b{color:var(--fg);font-weight:700}
+.tools{display:flex;gap:8px;justify-content:flex-end;margin-top:9px}
+.btn{
+  font-family:var(--mono);font-size:11.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--dim);background:transparent;border:1px solid var(--s3);border-radius:10px;
+  padding:9px 14px;cursor:pointer;transition:color .15s,border-color .15s,background .15s;
+}
+.btn:hover{color:var(--fg);border-color:var(--s4);background:var(--s1)}
+.btn:disabled{opacity:.45;cursor:default}
+.btn.primary{background:var(--gorse);color:#181B22;border-color:var(--gorse)}
+.btn.primary:hover{background:var(--gorse);color:#181B22;filter:brightness(1.07)}
+.stamp{font-size:12.5px;color:var(--faint);margin-bottom:clamp(30px,4.5vw,46px)}
+
+/* ---------- section rhythm ---------- */
+.sec{padding-top:clamp(34px,4.6vw,52px);margin-top:clamp(34px,4.6vw,52px);border-top:1px solid var(--s3)}
+.sec-head{display:flex;align-items:baseline;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:22px}
+.sec-note{font-size:13.5px;color:var(--faint);max-width:56ch}
+
+/* ---------- funnel ----------
+   Not a row of stat cards: each stage is a strict subset of the one above it,
+   so the sequence itself is the information and the bar length is the honest
+   picture of the drop. Every piece of text sits on the page ground rather
+   than on the bar — a label inside a fill is only legible while the fill
+   happens to be wide, and a stage that collapses to near-zero is exactly
+   when the label matters most. */
+.funnel{display:grid;gap:2px}
+.stage{
+  display:grid;grid-template-columns:4.2ch minmax(0,23ch) minmax(0,1fr) auto;
+  align-items:center;gap:16px;padding:11px 0;border-bottom:1px solid var(--s2);
+}
+.stage:last-child{border-bottom:none}
+.bar-n{font-family:var(--mono);font-size:21px;font-weight:700;text-align:right;letter-spacing:-.02em}
+.stage.zero .bar-n{color:var(--faint)}
+.stage-t{font-size:14px;font-weight:700}
+.track{min-width:0}
+.fill{
+  height:12px;border-radius:99px;background:var(--s4);
+  width:var(--w);min-width:3px;transform-origin:left center;
+}
+.stage[data-key="trained"] .fill,.stage[data-key="active"] .fill{background:var(--gorse)}
+.stage-d{font-size:12.5px;color:var(--faint);white-space:nowrap;text-align:right}
+.js .fill{animation:grow .62s var(--ease) both}
+@keyframes grow{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+@media (prefers-reduced-motion:reduce){.js .fill{animation:none}}
+
+/* ---------- pulse (daily activity, everyone) ---------- */
+.pulse-scroll{overflow-x:auto;padding-bottom:10px;scrollbar-width:thin;scrollbar-color:var(--s4) transparent}
+.pulse-scroll::-webkit-scrollbar{height:8px}
+.pulse-scroll::-webkit-scrollbar-track{background:transparent}
+.pulse-scroll::-webkit-scrollbar-thumb{background:var(--s3);border-radius:99px}
+.pulse-scroll::-webkit-scrollbar-thumb:hover{background:var(--s4)}
+/* A run of empty days used to be drawn as one faint marker each, which
+   collapses into a dashed rule and reads as a rendering artifact rather than
+   as "nothing happened". A single real baseline says the same thing and is an
+   actual chart element. */
+.pulse{
+  display:flex;align-items:flex-end;gap:2px;height:78px;min-width:min-content;
+  border-bottom:1px solid var(--s3);padding-bottom:2px;
+}
+.day{display:flex;flex-direction:column-reverse;gap:2px;width:9px;flex:0 0 9px}
+.seg{height:15px;border-radius:2px}
+.pulse-axis{display:flex;justify-content:space-between;gap:12px;margin-top:8px;font-size:11.5px;color:var(--faint);font-family:var(--mono)}
+@media (max-width:560px){ .pulse-axis .peak{display:none} }
+
+/* ---------- session-type mix ---------- */
+.mix{display:grid;gap:2px;margin-top:30px}
+.mixrow{
+  display:grid;grid-template-columns:minmax(120px,15ch) minmax(0,1fr) 4ch;
+  align-items:center;gap:14px;padding:7px 0;border-bottom:1px solid var(--s2);font-size:13.5px;
+}
+.mixrow:last-child{border-bottom:none}
+.mixbar{height:9px;border-radius:99px;min-width:2px}
+.mixn{font-family:var(--mono);font-size:13px;text-align:right;color:var(--dim)}
+.swatch{width:9px;height:9px;border-radius:2px;display:inline-block;margin-right:8px;vertical-align:baseline}
+
+/* ---------- people ---------- */
+.person{border-bottom:1px solid var(--s2)}
+.person:first-child{border-top:1px solid var(--s3)}
+.prow{
+  display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px 18px;align-items:center;
+  width:100%;text-align:left;background:transparent;border:0;color:inherit;
+  padding:15px 10px 15px 0;cursor:pointer;font-family:inherit;
+}
+.prow:hover{background:var(--s1)}
+/* Header and its drill-down read as one block while open, rather than a lit
+   row sitting above unrelated content on the page ground. */
+.prow[aria-expanded="true"],.prow[aria-expanded="true"]+.detail{background:var(--s1)}
+.prow[aria-expanded="true"]{border-radius:var(--r-sm) var(--r-sm) 0 0}
+.prow[aria-expanded="true"]+.detail{border-radius:0 0 var(--r-sm) var(--r-sm)}
+.pmain{min-width:0;display:flex;align-items:center;gap:11px}
+.chev{
+  width:8px;height:8px;flex:0 0 8px;margin-right:1px;
+  border-right:1.6px solid var(--faint);border-bottom:1.6px solid var(--faint);
+  transform:rotate(-45deg);transition:transform .2s var(--ease),border-color .2s;
+}
+.prow[aria-expanded="true"] .chev{transform:rotate(45deg);border-color:var(--gorse)}
+.pid{min-width:0}
+.pmail{font-size:14.5px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pmeta{font-size:12.5px;color:var(--faint);margin-top:2px}
+.pright{display:flex;align-items:center;gap:clamp(12px,2.4vw,26px);flex-wrap:wrap;justify-content:flex-end}
+.sig{display:flex;gap:1.5px;align-items:flex-end;height:16px;min-width:163px}
+.sigcell{width:3px;height:3px;border-radius:1px;background:var(--s2)}
+.sigcell.on{height:16px}
+.pnum{font-family:var(--mono);font-size:15px;font-weight:700;text-align:right;min-width:3ch}
+.pnum small{display:block;font-size:10.5px;font-weight:400;letter-spacing:.1em;text-transform:uppercase;color:var(--faint)}
+.plast{font-size:13px;color:var(--dim);min-width:8ch;text-align:right}
+.plast.cold{color:var(--faint)}
+.plast.hot{color:var(--goText)}
+.tag{
+  display:inline-block;font-family:var(--mono);font-size:11px;font-weight:500;letter-spacing:.01em;
+  padding:3px 8px;border-radius:5px;white-space:nowrap;
+  background:var(--s2);color:var(--dim);border:1px solid var(--s3);
+}
+.tag.builtin{color:var(--gorse);border-color:color-mix(in srgb,var(--gorse) 38%,transparent)}
+.tag.rehab{color:var(--heather);border-color:color-mix(in srgb,var(--heather) 38%,transparent)}
+
+/* ---------- detail ---------- */
+.detail{padding:4px 18px 26px 30px;display:grid;gap:26px}
+.detail-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:26px}
+/* grid-auto-columns is load-bearing: with grid-auto-flow:column the implicit
+   columns default to `auto` and stretch to fill the container, scattering the
+   cells across the full width instead of forming a calendar. */
+.cal{
+  display:grid;grid-auto-flow:column;grid-auto-columns:13px;grid-template-rows:repeat(7,13px);
+  gap:2.5px;justify-content:start;overflow-x:auto;padding-bottom:8px;
+  scrollbar-width:thin;scrollbar-color:var(--s4) transparent;
+}
+.cal::-webkit-scrollbar{height:8px}
+.cal::-webkit-scrollbar-thumb{background:var(--s3);border-radius:99px}
+.cell{width:13px;height:13px;border-radius:2.5px;background:var(--s2)}
+.list{display:grid;gap:1px}
+.li{display:flex;justify-content:space-between;gap:14px;font-size:13.5px;padding:6px 0;border-bottom:1px solid var(--s2)}
+.li:last-child{border-bottom:none}
+.li .r{color:var(--dim);font-family:var(--mono);font-size:12.5px;white-space:nowrap}
+.kv{display:grid;grid-template-columns:auto minmax(0,1fr);gap:5px 14px;font-size:13.5px}
+.kv dt{color:var(--faint);font-size:12.5px}
+.kv dd{margin:0;color:var(--fg)}
+
+/* ---------- dead signups ---------- */
+details.dead{margin-top:6px}
+details.dead summary{
+  list-style:none;cursor:pointer;display:flex;align-items:center;gap:11px;
+  padding:13px 0;border-top:1px solid var(--s3);font-size:14px;color:var(--dim);
+}
+details.dead summary::-webkit-details-marker{display:none}
+details.dead[open] summary{color:var(--fg)}
+details.dead[open] .chev{transform:rotate(45deg);border-color:var(--gorse)}
+.deadlist{display:grid;gap:1px;padding-bottom:12px}
+.deadrow{display:flex;justify-content:space-between;gap:14px;font-size:13.5px;color:var(--faint);padding:6px 0;border-bottom:1px solid var(--s2)}
+.deadrow:last-child{border-bottom:none}
+
+/* ---------- sign-in / states ---------- */
+.gate{max-width:392px;margin:14vh auto 0}
+.gate h1{font-size:clamp(26px,4vw,34px)}
+.gate p{color:var(--dim);font-size:14px;margin:14px 0 22px}
+.gate input{
+  font-family:var(--display);font-size:16px;color:var(--fg);background:var(--s1);
+  border:1px solid var(--s3);border-radius:10px;padding:13px 15px;width:100%;
+}
+.gate input::placeholder{color:var(--faint)}
+.gate input:focus{outline:none;border-color:var(--slate)}
+.gate .btn{width:100%;margin-top:12px;padding:13px 20px;font-size:12px}
+.err{color:var(--restText);font-size:13.5px;margin-top:14px}
+.state{color:var(--faint);font-size:14px;padding:28px 0}
+.empty{color:var(--faint);font-size:14px;padding:22px 0;border-top:1px solid var(--s2)}
+
+@media (max-width:860px){
+  .stage{grid-template-columns:4.2ch minmax(0,1fr) auto;gap:6px 14px}
+  .stage .track{grid-column:2/4;margin-top:2px}
+  .stage-d{text-align:left;grid-column:2/4;order:3}
+}
+@media (max-width:640px){
+  .prow{grid-template-columns:minmax(0,1fr)}
+  .pright{justify-content:flex-start;padding-left:19px}
+  .sig{display:none}
+  .stage{grid-template-columns:3.6ch minmax(0,1fr);gap:5px 12px}
+  .stage .track,.stage-d{grid-column:2/3}
+}
+</style>
+</head>
+<body>
+<div class="wrap" id="app"><div class="state">Loading…</div></div>
+
+<script>
+document.documentElement.classList.add('js');
+
+var SUPABASE_URL  = 'https://lbhsgkadlhcqqnlbfswr.supabase.co';
+var SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxiaHNna2FkbGhjcXFubGJmc3dyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYzNTg2NzMsImV4cCI6MjEwMTkzNDY3M30.3Df2BW9YVfJYZVSalLWGsx54iY_RvnZdln71Kehljug';
+var sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+var app = document.getElementById('app');
+
+/* Session keys across all three program families that exist in real data:
+   the climbing programs/templates, Isaac's powerbuilding program
+   (isaacProgram.ts), and rehab tracks. Colours are each program's own `c`
+   value, not invented here. Anything unknown falls back to grey and shows
+   its raw key rather than guessing a label. */
+var SESSION = {
+  maxFingers:    { c:'--gorse',    n:'Max fingers' },
+  hangboard:     { c:'--slate',    n:'Hangboard' },
+  pull:          { c:'--tidepool', n:'Pull' },
+  climbHard:     { c:'--heather',  n:'Hard climb' },
+  outdoorHard:   { c:'--heather',  n:'Outdoor' },
+  climbEasy:     { c:'--tidepool', n:'Easy climb' },
+  pushHeavy:     { c:'--gorse',    n:'Push — heavy' },
+  pushSecondary: { c:'--gorse',    n:'Push — secondary' },
+  pushSpeed:     { c:'--gorse',    n:'Push — speed' },
+  pullHeavy:     { c:'--tidepool', n:'Pull — heavy' },
+  pullSpeed:     { c:'--tidepool', n:'Pull — speed' },
+  legs:          { c:'--slate',    n:'Legs' },
+  rest:          { c:'--grey',     n:'Rest' }
+};
+var CSS = getComputedStyle(document.documentElement);
+function colourFor(t){ return CSS.getPropertyValue((SESSION[t] && SESSION[t].c) || '--grey').trim(); }
+function nameFor(t){ return (SESSION[t] && SESSION[t].n) || t; }
+
+function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){
+  return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+function fmtDate(d){ return d ? new Date(d).toLocaleDateString('en-GB',{day:'numeric',month:'short'}) : '—'; }
+function fmtFull(d){ return d ? new Date(d).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}) : '—'; }
+function iso(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function daysSince(d){ return d == null ? null : Math.floor((todayMidnight() - new Date(d+'T00:00:00').getTime())/86400000); }
+function todayMidnight(){ var t = new Date(); t.setHours(0,0,0,0); return t.getTime(); }
+function plural(n,s,p){ return n + ' ' + (n === 1 ? s : (p || s + 's')); }
+/* Template ids and injury keys are camelCase identifiers straight out of the
+   code ('boulderingAdvanced', 'elbowLateral'). Uppercasing them in CSS turns
+   them into unreadable runs, so they get split and sentence-cased here and
+   the tag keeps its natural case. */
+function humanise(k){
+  if (!k) return '';
+  var s = String(k).replace(/([a-z0-9])([A-Z])/g, '$1 $2').replace(/[_-]+/g, ' ').toLowerCase();
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+/* ---------------- auth ---------------- */
+
+function renderGate(stage, email, error){
+  app.innerHTML =
+    '<div class="gate">' +
+      '<h1>Deadpoint admin</h1>' +
+      '<p>Signs in with the same one-time code as the app. Everything on this page is refused by the database itself unless the account is the admin one.</p>' +
+      (stage === 'code'
+        ? '<input id="code" type="text" inputmode="numeric" autocomplete="one-time-code" placeholder="6-digit code">' +
+          '<button class="btn primary" id="go">Verify code</button>' +
+          '<button class="btn" id="back" style="margin-top:8px">Use a different email</button>'
+        : '<input id="email" type="email" autocomplete="email" placeholder="admin email" value="' + esc(email) + '">' +
+          '<button class="btn primary" id="go">Send code</button>') +
+      (error ? '<p class="err">' + esc(error) + '</p>' : '') +
+    '</div>';
+
+  var go = document.getElementById('go');
+  if (stage === 'code'){
+    document.getElementById('back').onclick = function(){ renderGate('email', email); };
+    document.getElementById('code').focus();
+    go.onclick = function(){
+      var code = document.getElementById('code').value.trim();
+      if (!code) return;
+      go.disabled = true; go.textContent = 'Checking…';
+      sb.auth.verifyOtp({ email:email, token:code, type:'email' }).then(function(r){
+        if (r.error) return renderGate('code', email, r.error.message);
+        boot();
+      });
+    };
+  } else {
+    document.getElementById('email').focus();
+    go.onclick = function(){
+      var em = document.getElementById('email').value.trim();
+      if (!em) return;
+      go.disabled = true; go.textContent = 'Sending…';
+      sb.auth.signInWithOtp({ email:em }).then(function(r){
+        if (r.error) return renderGate('email', em, r.error.message);
+        renderGate('code', em);
+      });
+    };
+  }
+}
+
+/* ---------------- data shaping ---------------- */
+
+/* One row per account from admin_user_summary(), plus every session for the
+   accounts that have any. Sessions come from admin_user_sessions() per user,
+   fired in parallel and only for users the summary already says have logged
+   something — so this is 5 extra calls today, not 18. If the roster ever
+   grows past a few dozen active accounts, replace this with a single
+   all-sessions RPC rather than widening the fan-out. */
+function loadEverything(){
+  return sb.rpc('admin_user_summary').then(function(r){
+    if (r.error) throw r.error;
+    var users = r.data || [];
+    var live = users.filter(function(u){ return u.sessions_logged > 0 || u.last_session_date; });
+    return Promise.all(live.map(function(u){
+      return sb.rpc('admin_user_sessions', { target_user_id: u.user_id })
+        .then(function(s){ return { id:u.user_id, rows: s.error ? [] : (s.data || []) }; });
+    })).then(function(all){
+      var byUser = {};
+      all.forEach(function(x){ byUser[x.id] = x.rows; });
+      return { users: users, sessions: byUser };
+    });
+  });
+}
+
+function shape(users, sessions){
+  var real = [], dead = [];
+  users.forEach(function(u){
+    /* Never signed in = the account exists but nobody was ever behind it:
+       a typo'd address, a bot, or a test row. Counting these as "signups"
+       is what made the old page's headline number meaningless. */
+    (u.last_sign_in_at ? real : dead).push(u);
+  });
+
+  real.forEach(function(u){
+    u.rows = sessions[u.user_id] || [];
+    u.trained = u.rows.filter(function(s){ return s.type !== 'rest'; }).length;
+    u.ago = daysSince(u.last_session_date);
+    /* quiz_completed_at / track_type only exist once the optional SQL in
+       SUPABASE.md is applied; assigned_template_id is the fallback signal
+       and misses rehab-track users, who never get a template id. */
+    u.setUp = !!(u.quiz_completed_at || u.assigned_template_id || u.track_type === 'rehab');
+    u.builtIn = !u.assigned_template_id && u.track_type !== 'rehab' && !u.quiz_completed_at;
+  });
+  real.sort(function(a,b){
+    if (!!a.last_session_date !== !!b.last_session_date) return a.last_session_date ? -1 : 1;
+    if (a.last_session_date && b.last_session_date && a.last_session_date !== b.last_session_date)
+      return a.last_session_date < b.last_session_date ? 1 : -1;
+    return (a.last_sign_in_at || '') < (b.last_sign_in_at || '') ? 1 : -1;
+  });
+  dead.sort(function(a,b){ return a.signed_up_at < b.signed_up_at ? 1 : -1; });
+  return { real: real, dead: dead };
+}
+
+/* ---------------- pieces ---------------- */
+
+function funnel(users, real){
+  var signedIn = real.length;
+  var setUp    = real.filter(function(u){ return u.setUp; }).length;
+  var trained  = real.filter(function(u){ return u.rows.length > 0; }).length;
+  var active   = real.filter(function(u){ return u.ago !== null && u.ago <= 7; }).length;
+  var total    = users.length || 1;
+
+  var stages = [
+    { k:'accounts', n:users.length, t:'Accounts created',
+      d:(users.length - signedIn) > 0 ? (users.length - signedIn) + ' never signed in' : '' },
+    { k:'signedin', n:signedIn, t:'Signed in at least once',
+      d:(signedIn - setUp) > 0 ? (signedIn - setUp) + ' stopped before setup' : '' },
+    { k:'setup',    n:setUp, t:'Finished setup',
+      d:(setUp - trained) > 0 ? (setUp - trained) + ' set up but never trained' : '' },
+    { k:'trained',  n:trained, t:'Logged a session', d:'' },
+    { k:'active',   n:active,  t:'Trained in the last 7 days', d:'' }
+  ];
+
+  return '<div class="funnel">' + stages.map(function(s, i){
+    var pct = s.n / total * 100;
+    return '<div class="stage' + (s.n === 0 ? ' zero' : '') + '" data-key="' + s.k + '">' +
+      '<div class="bar-n">' + s.n + '</div>' +
+      '<div class="stage-t">' + esc(s.t) + '</div>' +
+      '<div class="track"><div class="fill" style="--w:' + pct.toFixed(1) + '%;animation-delay:' + (i * 55) + 'ms"></div></div>' +
+      '<div class="stage-d">' + esc(s.d) + '</div>' +
+    '</div>';
+  }).join('') + '</div>';
+}
+
+/* Every session anyone logged, by day, for the last `days` days. Column
+   height is the honest count for that day; each block is one session in its
+   own type colour. */
+function pulse(real, days){
+  var byDate = {};
+  real.forEach(function(u){
+    u.rows.forEach(function(s){ (byDate[s.date] = byDate[s.date] || []).push(s.type); });
+  });
+  var out = '', first = null, last = null, peak = 0;
+  var d = new Date(); d.setHours(0,0,0,0); d.setDate(d.getDate() - (days - 1));
+  for (var i = 0; i < days; i++){
+    var key = iso(d);
+    if (i === 0) first = key;
+    last = key;
+    var types = byDate[key] || [];
+    if (types.length > peak) peak = types.length;
+    out += types.length
+      ? '<div class="day" title="' + esc(key + ' · ' + plural(types.length,'session')) + '">' +
+          types.map(function(t){ return '<div class="seg" style="background:' + colourFor(t) + '"></div>'; }).join('') +
+        '</div>'
+      : '<div class="day" title="' + esc(key) + ' · nothing logged"></div>';
+    d.setDate(d.getDate() + 1);
+  }
+  return '<div class="pulse-scroll" id="pulseScroll"><div class="pulse">' + out + '</div></div>' +
+    '<div class="pulse-axis"><span>' + fmtFull(first) + '</span>' +
+    '<span class="peak">' + (peak ? 'peak ' + plural(peak,'session') + ' in a day' : '') + '</span>' +
+    '<span>' + fmtFull(last) + '</span></div>';
+}
+
+function mix(real){
+  var counts = {}, total = 0;
+  real.forEach(function(u){ u.rows.forEach(function(s){ counts[s.type] = (counts[s.type]||0)+1; total++; }); });
+  var keys = Object.keys(counts).sort(function(a,b){ return counts[b] - counts[a]; });
+  if (!keys.length) return '';
+  var max = counts[keys[0]];
+  return '<div class="mix">' + keys.map(function(k){
+    return '<div class="mixrow">' +
+      '<div><span class="swatch" style="background:' + colourFor(k) + '"></span>' + esc(nameFor(k)) + '</div>' +
+      '<div class="mixbar" style="background:' + colourFor(k) + ';width:' + (counts[k]/max*100).toFixed(1) + '%"></div>' +
+      '<div class="mixn">' + counts[k] + '</div>' +
+    '</div>';
+  }).join('') + '</div>';
+}
+
+/* A person's own last 8 weeks, dense enough to read as a shape at a glance
+   rather than needing the drill-down open. */
+function signature(rows, days){
+  var byDate = {};
+  rows.forEach(function(s){ if (!byDate[s.date]) byDate[s.date] = s.type; });
+  var out = '', any = false, d = new Date(); d.setHours(0,0,0,0); d.setDate(d.getDate() - (days - 1));
+  for (var i = 0; i < days; i++){
+    var t = byDate[iso(d)];
+    if (t) any = true;
+    out += t
+      ? '<div class="sigcell on" style="background:' + colourFor(t) + '" title="' + esc(iso(d) + ' · ' + nameFor(t)) + '"></div>'
+      : '<div class="sigcell"></div>';
+    d.setDate(d.getDate() + 1);
+  }
+  /* Nothing in the window: an all-empty strip is 56 faint ticks that read as a
+     stray dashed rule, which is worse than showing no strip at all. */
+  if (!any) return '<div class="sig" aria-hidden="true"></div>';
+  return '<div class="sig" aria-hidden="true">' + out + '</div>';
+}
+
+function whatTheyreOn(u){
+  if (u.track_type === 'rehab')
+    return '<span class="tag rehab">Rehab' + (u.rehab_injury_area ? ' · ' + esc(humanise(u.rehab_injury_area)) : '') + '</span>';
+  if (u.assigned_template_id) return '<span class="tag">' + esc(humanise(u.assigned_template_id)) + '</span>';
+  if (u.builtIn) return '<span class="tag builtin">Own program</span>';
+  return '<span class="tag">No plan yet</span>';
+}
+
+function lastSeen(u){
+  if (u.ago === null) return '<div class="plast cold">Never</div>';
+  var cls = u.ago <= 2 ? 'hot' : (u.ago <= 9 ? '' : 'cold');
+  var txt = u.ago === 0 ? 'Today' : (u.ago === 1 ? 'Yesterday' : u.ago + 'd ago');
+  return '<div class="plast ' + cls + '">' + txt + '</div>';
+}
+
+function person(u, i){
+  return '<div class="person">' +
+    '<button class="prow" data-i="' + i + '" aria-expanded="false" aria-controls="d' + i + '">' +
+      '<div class="pmain">' +
+        '<span class="chev"></span>' +
+        '<div class="pid">' +
+          '<div class="pmail">' + esc(u.email) + '</div>' +
+          '<div class="pmeta">Joined ' + fmtDate(u.signed_up_at) +
+            (u.last_session_type ? ' · last did ' + esc(nameFor(u.last_session_type)) : '') + '</div>' +
+        '</div>' +
+      '</div>' +
+      '<div class="pright">' +
+        whatTheyreOn(u) +
+        signature(u.rows, 56) +
+        '<div class="pnum">' + u.trained + '<small>trained</small></div>' +
+        lastSeen(u) +
+      '</div>' +
+    '</button>' +
+    '<div class="detail" id="d' + i + '" hidden></div>' +
+  '</div>';
+}
+
+function detail(u){
+  if (!u.rows.length){
+    return '<div class="empty">Nothing logged yet — signed in ' +
+      (u.last_sign_in_at ? 'on ' + fmtFull(u.last_sign_in_at) : 'at some point') +
+      (u.setUp ? ' and finished setup, but has never opened a session.' : ', but never finished setup.') + '</div>';
+  }
+  var weeks = 18, cells = '';
+  var byDate = {};
+  u.rows.forEach(function(s){ if (!byDate[s.date]) byDate[s.date] = s; });
+  var d = new Date(); d.setHours(0,0,0,0);
+  var start = new Date(d); start.setDate(start.getDate() - (weeks*7 - 1) - d.getDay());
+  for (var c = new Date(start); c <= d; c.setDate(c.getDate()+1)){
+    var key = iso(c), s = byDate[key];
+    cells += '<div class="cell" title="' + esc(key + (s ? ' · ' + nameFor(s.type) : ' · nothing')) + '"' +
+      (s ? ' style="background:' + colourFor(s.type) + '"' : '') + '></div>';
+  }
+  var recent = u.rows.slice(0, 10).map(function(s){
+    return '<div class="li"><span>' + esc(nameFor(s.type)) + (s.sub ? ' · ' + esc(s.sub) : '') + '</span>' +
+      '<span class="r">' + fmtFull(s.date) + (s.load ? ' · ' + s.load + 'kg' : '') + '</span></div>';
+  }).join('');
+
+  var m = u.modifiers || null;
+  var facts =
+    '<dl class="kv">' +
+      '<dt>Signed up</dt><dd>' + fmtFull(u.signed_up_at) + '</dd>' +
+      '<dt>Last sign-in</dt><dd>' + fmtFull(u.last_sign_in_at) + '</dd>' +
+      '<dt>Sessions</dt><dd>' + u.rows.length + ' logged · ' + u.trained + ' training, ' +
+        (u.rows.length - u.trained) + ' rest</dd>' +
+      '<dt>Tier</dt><dd>' + esc(u.tier || 'standard') + '</dd>' +
+      (u.quiz_completed_at ? '<dt>Setup done</dt><dd>' + fmtFull(u.quiz_completed_at) + '</dd>' : '') +
+      (m && m.daysPerWeek ? '<dt>Days/week</dt><dd>' + m.daysPerWeek + '</dd>' : '') +
+      (m && m.equipment && m.equipment.length ? '<dt>Equipment</dt><dd>' + esc(m.equipment.join(', ')) + '</dd>' : '') +
+      (m && m.weaknesses && m.weaknesses.length ? '<dt>Weaknesses</dt><dd>' + esc(m.weaknesses.join(', ')) + '</dd>' : '') +
+      (m && m.injuryFlags && m.injuryFlags.length ? '<dt>Injuries</dt><dd>' + esc(m.injuryFlags.join(', ')) + '</dd>' : '') +
+    '</dl>';
+
+  return '<div><h3 style="margin-bottom:12px">Last ' + weeks + ' weeks</h3>' +
+      '<div class="cal">' + cells + '</div></div>' +
+    '<div class="detail-grid">' +
+      '<div><h3 style="margin-bottom:11px">Recent sessions</h3><div class="list">' + recent + '</div></div>' +
+      '<div><h3 style="margin-bottom:11px">Account</h3>' + facts + '</div>' +
+    '</div>';
+}
+
+/* ---------------- dashboard ---------------- */
+
+var state = { real: [], open: null };
+
+function renderDashboard(users, sessions, whoami){
+  var s = shape(users, sessions);
+  state.real = s.real; state.open = null;
+
+  var trainedUsers = s.real.filter(function(u){ return u.rows.length > 0; });
+  var totalSessions = trainedUsers.reduce(function(a,u){ return a + u.rows.length; }, 0);
+
+  app.innerHTML =
+    '<div class="top">' +
+      '<h1>Admin</h1>' +
+      '<div><div class="who">Signed in as <b>' + esc(whoami) + '</b></div>' +
+        '<div class="tools"><button class="btn" id="refresh">Refresh</button>' +
+        '<button class="btn" id="signout">Sign out</button></div></div>' +
+    '</div>' +
+    '<p class="stamp">Live from the database · read ' +
+      new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}) + '</p>' +
+
+    '<h2>Who is actually here</h2>' +
+    '<p class="sec-note" style="margin:8px 0 20px">Every stage below is a subset of the one above it.</p>' +
+    funnel(users, s.real) +
+
+    '<section class="sec">' +
+      '<div class="sec-head"><h2>What they are doing</h2>' +
+        '<p class="sec-note">' + plural(totalSessions,'session') + ' logged by ' +
+        plural(trainedUsers.length,'person','people') + ', last 12 weeks.</p></div>' +
+      (totalSessions ? pulse(s.real, 84) + mix(s.real) : '<div class="empty">No sessions logged yet.</div>') +
+    '</section>' +
+
+    '<section class="sec">' +
+      '<div class="sec-head"><h2>People</h2>' +
+        '<p class="sec-note">Most recently active first. Tap anyone for their full history.</p></div>' +
+      (s.real.length
+        ? s.real.map(person).join('')
+        : '<div class="empty">Nobody has signed in yet.</div>') +
+      (s.dead.length
+        ? '<details class="dead"><summary><span class="chev"></span>' +
+            plural(s.dead.length,'account') + ' created but never signed in' +
+          '</summary><div class="deadlist">' +
+            s.dead.map(function(u){
+              return '<div class="deadrow"><span>' + esc(u.email) + '</span>' +
+                '<span class="mono">' + fmtFull(u.signed_up_at) + '</span></div>';
+            }).join('') +
+          '</div></details>'
+        : '') +
+    '</section>' +
+
+    '<p class="sec-note" style="margin-top:34px">Subscription status is not shown here: entitlements live in RevenueCat, ' +
+      'and nothing in this database records who is paying.</p>';
+
+  document.getElementById('signout').onclick = function(){ sb.auth.signOut().then(boot); };
+  document.getElementById('refresh').onclick = function(){ boot(); };
+
+  /* The strip is a time series ending today, and on a narrow screen most of
+     it is off-canvas — opening it parked on the oldest, emptiest end shows a
+     blank chart. Start at today and let the reader scroll back. */
+  var ps = document.getElementById('pulseScroll');
+  if (ps) ps.scrollLeft = ps.scrollWidth;
+
+  Array.prototype.forEach.call(document.querySelectorAll('.prow'), function(btn){
+    btn.onclick = function(){ toggle(parseInt(btn.getAttribute('data-i'), 10)); };
+  });
+}
+
+function toggle(i){
+  var btn = document.querySelector('.prow[data-i="' + i + '"]');
+  var box = document.getElementById('d' + i);
+  if (state.open !== null && state.open !== i){
+    var pb = document.querySelector('.prow[data-i="' + state.open + '"]');
+    if (pb) pb.setAttribute('aria-expanded','false');
+    var pd = document.getElementById('d' + state.open);
+    if (pd) pd.hidden = true;
+  }
+  if (state.open === i){
+    btn.setAttribute('aria-expanded','false'); box.hidden = true; state.open = null; return;
+  }
+  btn.setAttribute('aria-expanded','true');
+  box.hidden = false;
+  box.innerHTML = detail(state.real[i]);
+  state.open = i;
+}
+
+/* ---------------- boot ---------------- */
+
+function boot(){
+  app.innerHTML = '<div class="state">Loading…</div>';
+  sb.auth.getSession().then(function(res){
+    var session = res.data.session;
+    if (!session) return renderGate('email', '');
+    loadEverything().then(function(d){
+      renderDashboard(d.users, d.sessions, session.user.email);
+    }).catch(function(err){
+      /* Signed in, but not as the admin account — or the SQL in SUPABASE.md
+         was never run. Fail closed and say which, never fall back to
+         showing anything. */
+      app.innerHTML =
+        '<div class="gate"><h1>Not authorised</h1>' +
+          '<p>Signed in as <span class="mono">' + esc(session.user.email) + '</span>, which is not the admin account — ' +
+          'or the admin functions in SUPABASE.md have not been run on this project.</p>' +
+          '<p class="err">' + esc(err.message || String(err)) + '</p>' +
+          '<button class="btn" id="so">Sign out</button></div>';
+      document.getElementById('so').onclick = function(){ sb.auth.signOut().then(boot); };
+    });
+  });
+}
+
+boot();
+</script>
+</body>
+</html>

@@ -501,3 +501,43 @@ beside it shifts.
   own screenshot.
 - **Don't** invent a screen, a user, a testimonial, a rating or a press mention.
   Deadpoint has none, and no visual component may be designed to hold one.
+
+---
+
+## Surface: /admin (Operate)
+
+Everything above describes the marketing site, which is **Persuade** — it earns
+attention and action from a stranger. `website/admin/` is the one **Operate**
+surface in this deploy: a private dashboard read by one person who already
+knows the product and wants a status answer in seconds. It takes the same
+ground, the same session semantics, the same two typefaces and the same
+hairline ramp, and it is deliberately not styled like the rest of the site.
+See `website/admin/README.md` for what it reads and how it is gated.
+
+**What it inherits without exception:** the `bg → s1 → s2 → s3 → s4` ramp, 1px
+`s3` hairlines, `--faint` never below `#8A90A0`, session colours carrying their
+app meaning and never reassigned, no shadows on panels, no gradients, no kicker
+above a heading, and `font-variant-numeric: tabular-nums` on every digit.
+
+**Where it legitimately departs, and why:**
+
+- **A denser type ramp.** The documented ramp is built for a landing page whose
+  smallest step is 13.5px. A dashboard row carrying an email, a tag, a count and
+  a recency reads at 12.5–14.5px, and mono numerics run 10.5–21px. These steps
+  are intentional for tabular density, not drift; the detector flags them as
+  advisory and that is the correct verdict, not a fix list.
+- **Radii below the `rounded` scale.** The smallest documented radius is 8px.
+  A 3px activity tick, a 13px calendar cell and a 12px bar cannot take it —
+  they use 1–5px. Cards, buttons and panels here still use the real scale.
+- **No `.card` grid, and no hero-metric row.** The counts are a funnel: each
+  stage is a strict subset of the one above it, so the sequence is the
+  information and the bar length is the honest shape of the drop. Four
+  independent big-number tiles would state the same figures and lose the only
+  thing worth seeing.
+- **One authored moment.** The funnel bars scale in once from zero, staggered
+  55ms, and nothing else moves. No reveals, no observers.
+
+**Named rule — The Honest Denominator.** The headline population is people who
+have actually signed in, never rows in `auth.users`. Accounts nobody was ever
+behind (typos, crawlers, test rows) are counted separately and shown at the
+bottom. A dashboard that flatters its owner is worse than no dashboard.
