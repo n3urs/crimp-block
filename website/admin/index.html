@@ -145,6 +145,44 @@ button{font-family:inherit}
 .mixn{font-family:var(--mono);font-size:13px;text-align:right;color:var(--dim)}
 .swatch{width:9px;height:9px;border-radius:2px;display:inline-block;margin-right:8px;vertical-align:baseline}
 
+/* ---------- retention ----------
+   Deliberately no cohort percentage grid. With a handful of people a "40%
+   week-1 retention" is two people wearing a lab coat, and the shrinking
+   denominator is the whole story rather than a footnote — so every figure
+   here is a count shown against the population it came from. */
+.spans{display:grid;gap:2px}
+.spanrow{
+  display:grid;grid-template-columns:minmax(0,15ch) minmax(0,1fr) auto;
+  align-items:center;gap:14px;padding:8px 0;border-bottom:1px solid var(--s2);
+}
+.spanrow:last-child{border-bottom:none}
+.spanwho{font-size:13.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.spantrack{position:relative;height:14px;min-width:0}
+.spanbar{
+  position:absolute;top:3px;height:8px;border-radius:99px;background:var(--tidepool);
+  left:var(--l);width:var(--w);min-width:3px;
+}
+.spanrow.quiet .spanbar{background:var(--s4)}
+.spantip{position:absolute;top:0;width:3px;height:14px;border-radius:2px;background:var(--goText);left:var(--t)}
+.spanrow.quiet .spantip{background:var(--restText);opacity:.75}
+.spanstate{font-size:12.5px;color:var(--dim);white-space:nowrap;min-width:9ch;text-align:right}
+.spanrow.quiet .spanstate{color:var(--faint)}
+.spanaxis{display:flex;justify-content:space-between;margin-top:9px;font-size:11.5px;color:var(--faint);font-family:var(--mono)}
+
+.twoup{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:clamp(28px,4vw,44px);margin-top:34px}
+.wau{display:flex;align-items:flex-end;gap:5px;height:74px;border-bottom:1px solid var(--s3);padding-bottom:2px}
+.waucol{flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:4px;min-width:0}
+.waubar{width:100%;max-width:34px;border-radius:3px 3px 0 0;background:var(--tidepool);min-height:2px}
+.waun{font-family:var(--mono);font-size:11px;color:var(--dim)}
+.wauaxis{display:flex;justify-content:space-between;margin-top:8px;font-size:11.5px;color:var(--faint);font-family:var(--mono)}
+.ret{display:grid;gap:1px}
+.retrow{display:grid;grid-template-columns:7ch minmax(0,1fr) auto;align-items:center;gap:12px;padding:6px 0;border-bottom:1px solid var(--s2);font-size:13.5px}
+.retrow:last-child{border-bottom:none}
+.retw{font-family:var(--mono);font-size:12.5px;color:var(--faint)}
+.retbar{height:8px;border-radius:99px;background:var(--s3);position:relative;overflow:hidden}
+.retfill{position:absolute;inset:0 auto 0 0;background:var(--gorse);border-radius:99px;width:var(--w)}
+.retn{font-family:var(--mono);font-size:12.5px;color:var(--dim);white-space:nowrap}
+
 /* ---------- people ---------- */
 .person{border-bottom:1px solid var(--s2)}
 .person:first-child{border-top:1px solid var(--s3)}
@@ -188,6 +226,11 @@ button{font-family:inherit}
 
 /* ---------- detail ---------- */
 .detail{padding:4px 18px 26px 30px;display:grid;gap:26px}
+/* Load-bearing: the browser hides [hidden] via a UA rule, which ANY author
+   `display` beats — so `.detail{display:grid}` silently kept an expanded row
+   open forever. Shipped that once; it only looked fine before first open
+   because the box was still empty. */
+.detail[hidden]{display:none}
 .detail-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:26px}
 /* grid-auto-columns is load-bearing: with grid-auto-flow:column the implicit
    columns default to `auto` and stretch to fill the container, scattering the
@@ -290,6 +333,12 @@ function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, function(
 function fmtDate(d){ return d ? new Date(d).toLocaleDateString('en-GB',{day:'numeric',month:'short'}) : '—'; }
 function fmtFull(d){ return d ? new Date(d).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}) : '—'; }
 function iso(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+var day = 86400000;
+/* Parsed at local midnight, not as a UTC instant: 'YYYY-MM-DD' alone is
+   treated as UTC by Date, which lands an hour or two into the previous day
+   for anyone west of UTC and quietly shifts every day-difference by one. */
+function D(s){ return new Date(s + 'T00:00:00').getTime(); }
+function weekStart(t){ var d = new Date(t); d.setHours(0,0,0,0); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return d.getTime(); }
 function daysSince(d){ return d == null ? null : Math.floor((todayMidnight() - new Date(d+'T00:00:00').getTime())/86400000); }
 function todayMidnight(){ var t = new Date(); t.setHours(0,0,0,0); return t.getTime(); }
 function plural(n,s,p){ return n + ' ' + (n === 1 ? s : (p || s + 's')); }
@@ -474,6 +523,118 @@ function mix(real){
   }).join('') + '</div>';
 }
 
+/* ---------------- retention ----------------
+
+   Three questions, each answered in counts against a stated population:
+   how long has each person lasted, is the group growing or shrinking week
+   to week, and do people come back after their first session.
+
+   Note on dates: a first session can PREDATE the account's signup, because
+   backdating a session is normal use (four of five people here did it). So
+   everything below keys off first SESSION, never signup — "days from signup
+   to first session" would render as a negative number and mean nothing. */
+
+var QUIET_AFTER = 7; /* days without a session before someone counts as gone quiet */
+
+function retention(real){
+  var live = real.filter(function(u){ return u.rows.length > 0; });
+  if (!live.length) return '<div class="empty">Nobody has logged a session yet, so there is nothing to retain.</div>';
+
+  var people = live.map(function(u){
+    var ds = u.rows.map(function(s){ return s.date; }).sort();
+    return {
+      email: u.email,
+      first: ds[0],
+      last: ds[ds.length - 1],
+      activeDays: Object.keys(ds.reduce(function(a,d){ a[d]=1; return a; }, {})).length,
+      quiet: daysSince(ds[ds.length - 1])
+    };
+  }).sort(function(a,b){ return a.first < b.first ? -1 : 1; });
+
+  /* Shared calendar axis: first session anyone ever logged, through today.
+     Aligning to a common axis rather than to each person's own day zero is
+     what makes "who is still here" legible — you can see who overlaps and
+     who stopped. */
+  var minT = Math.min.apply(null, people.map(function(p){ return D(p.first); }));
+  var maxT = todayMidnight();
+  var span = Math.max(maxT - minT, day);
+
+  var rows = people.map(function(p){
+    var l = (D(p.first) - minT) / span * 100;
+    var w = (D(p.last) - D(p.first)) / span * 100;
+    var t = (D(p.last) - minT) / span * 100;
+    var isQuiet = p.quiet > QUIET_AFTER;
+    var state = p.quiet === 0 ? 'Today'
+      : (isQuiet ? 'Quiet ' + p.quiet + 'd' : p.quiet + 'd ago');
+    return '<div class="spanrow' + (isQuiet ? ' quiet' : '') + '">' +
+      '<div class="spanwho" title="' + esc(p.email) + '">' + esc(p.email.split('@')[0]) + '</div>' +
+      '<div class="spantrack" title="' + esc(p.first + ' → ' + p.last + ' · ' + plural(p.activeDays,'day') + ' logged') + '">' +
+        '<div class="spanbar" style="--l:' + l.toFixed(2) + '%;--w:' + w.toFixed(2) + '%"></div>' +
+        '<div class="spantip" style="--t:' + t.toFixed(2) + '%"></div>' +
+      '</div>' +
+      '<div class="spanstate">' + state + '</div>' +
+    '</div>';
+  }).join('');
+
+  /* Distinct people logging anything in each of the last 12 ISO weeks. */
+  var weeks = [], wStart = weekStart(maxT) - 11 * 7 * day;
+  for (var i = 0; i < 12; i++){
+    var from = wStart + i * 7 * day, to = from + 7 * day;
+    var set = {};
+    live.forEach(function(u){
+      u.rows.forEach(function(s){ var t = D(s.date); if (t >= from && t < to) set[u.email] = 1; });
+    });
+    weeks.push({ from: from, n: Object.keys(set).length });
+  }
+  var peakW = Math.max.apply(null, weeks.map(function(w){ return w.n; })) || 1;
+  var wau = weeks.map(function(w){
+    return '<div class="waucol" title="' + esc('week of ' + iso(new Date(w.from)) + ' · ' + plural(w.n,'person','people')) + '">' +
+      '<span class="waun">' + (w.n || '') + '</span>' +
+      '<div class="waubar" style="height:' + (w.n / peakW * 52 + 2).toFixed(0) + 'px' +
+        (w.n ? '' : ';background:var(--s2)') + '"></div>' +
+    '</div>';
+  }).join('');
+
+  /* Weeks since a person's OWN first session. The denominator is everyone
+     who has existed long enough to have reached that week at all — shown
+     explicitly, because it is the number that shrinks. */
+  var maxW = 8, held = [], elig = [];
+  for (var w = 0; w < maxW; w++){ held[w] = 0; elig[w] = 0; }
+  people.forEach(function(p){
+    var f = D(p.first);
+    var reached = Math.floor((maxT - f) / (7 * day));
+    var on = {};
+    live.forEach(function(u){
+      if (u.email !== p.email) return;
+      u.rows.forEach(function(s){ on[Math.floor((D(s.date) - f) / (7 * day))] = 1; });
+    });
+    for (var k = 0; k < maxW; k++){
+      if (k <= reached){ elig[k]++; if (on[k]) held[k]++; }
+    }
+  });
+  var ret = '';
+  for (var k = 0; k < maxW; k++){
+    if (!elig[k]) continue;
+    ret += '<div class="retrow">' +
+      '<span class="retw">' + (k === 0 ? 'first' : 'wk ' + k) + '</span>' +
+      '<span class="retbar"><span class="retfill" style="--w:' + (held[k]/elig[k]*100).toFixed(1) + '%"></span></span>' +
+      '<span class="retn">' + held[k] + ' of ' + elig[k] + '</span>' +
+    '</div>';
+  }
+
+  return '<div class="spans">' + rows + '</div>' +
+    '<div class="spanaxis"><span>' + fmtFull(iso(new Date(minT))) + '</span><span>today</span></div>' +
+    '<div class="twoup">' +
+      '<div><h3 style="margin-bottom:14px">People training each week</h3>' +
+        '<div class="wau">' + wau + '</div>' +
+        '<div class="wauaxis"><span>' + fmtFull(iso(new Date(weeks[0].from))) + '</span><span>this week</span></div></div>' +
+      '<div><h3 style="margin-bottom:14px">Still logging, by week since their first session</h3>' +
+        '<div class="ret">' + ret + '</div>' +
+        '<p class="sec-note" style="margin-top:12px;font-size:12.5px">Counted against everyone who has been here that long — ' +
+        'the second number shrinks because most people joined recently, not because they left.</p></div>' +
+    '</div>';
+}
+
 /* A person's own last 8 weeks, dense enough to read as a shape at a glance
    rather than needing the drill-down open. */
 function signature(rows, days){
@@ -608,6 +769,13 @@ function renderDashboard(users, sessions, whoami){
     '</section>' +
 
     '<section class="sec">' +
+      '<div class="sec-head"><h2>Are they sticking around</h2>' +
+        '<p class="sec-note">Counts, not rates — at this size a percentage would read as ' +
+        'precision the numbers do not have.</p></div>' +
+      retention(s.real) +
+    '</section>' +
+
+    '<section class="sec">' +
       '<div class="sec-head"><h2>People</h2>' +
         '<p class="sec-note">Most recently active first. Tap anyone for their full history.</p></div>' +
       (s.real.length
@@ -649,10 +817,12 @@ function toggle(i){
     var pb = document.querySelector('.prow[data-i="' + state.open + '"]');
     if (pb) pb.setAttribute('aria-expanded','false');
     var pd = document.getElementById('d' + state.open);
-    if (pd) pd.hidden = true;
+    if (pd){ pd.hidden = true; pd.innerHTML = ''; }
   }
   if (state.open === i){
-    btn.setAttribute('aria-expanded','false'); box.hidden = true; state.open = null; return;
+    btn.setAttribute('aria-expanded','false');
+    box.hidden = true; box.innerHTML = '';
+    state.open = null; return;
   }
   btn.setAttribute('aria-expanded','true');
   box.hidden = false;
