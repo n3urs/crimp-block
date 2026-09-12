@@ -49,6 +49,7 @@ function makeExercise(id: string): RenderedExercise {
 
 const baseProps = {
   session: { name: 'Max Fingers', where: 'Home · 50 min' },
+  isRecommended: false,
   accent: '#F2B134',
   accentVarName: '--gorse',
   ticks: new Set<string>(),
@@ -83,6 +84,17 @@ test('the guide pill only renders when guide is supplied — matches peekContent
   const withoutGuide = CardBody({ ...baseProps, exercises: [], guide: null });
 
   expect(collect(withGuide, Text).length).toBeGreaterThan(collect(withoutGuide, Text).length);
+});
+
+test('the RECOMMENDED label only renders when isRecommended is true', () => {
+  const recommended = CardBody({ ...baseProps, exercises: [], isRecommended: true });
+  const notRecommended = CardBody({ ...baseProps, exercises: [], isRecommended: false });
+
+  const recommendedTexts = collect(recommended, Text).map((t) => t.props.children);
+  const notRecommendedTexts = collect(notRecommended, Text).map((t) => t.props.children);
+
+  expect(recommendedTexts).toContain('RECOMMENDED');
+  expect(notRecommendedTexts).not.toContain('RECOMMENDED');
 });
 
 test('cardMessage only renders a Text node when non-empty, matching Swift\'s !cardMessage.isEmpty guard', () => {

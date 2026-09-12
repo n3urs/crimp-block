@@ -160,6 +160,12 @@ interface CardBodyProps {
   /** null/undefined = no pill at all. */
   guide?: { title: string } | null;
   onTapGuide?: () => void;
+  /** True only when the session actually on screen is the engine's real
+      recommendation — i.e. not while browsing a different day, and not
+      once today is already logged (recommendedKey goes null then, so
+      nothing can ever equal it). Requested directly after a tester said
+      the recommended day wasn't obvious enough. */
+  isRecommended: boolean;
   accent: string;
   accentVarName: string;
   exercises: RenderedExercise[];
@@ -221,7 +227,7 @@ interface CardBodyProps {
     `__tests__/dailyCard.test.ts` relies on for its render-path smoke
     test. */
 export function CardBody({
-  session, guide, onTapGuide, accent, accentVarName, exercises, ticks,
+  session, guide, onTapGuide, isRecommended, accent, accentVarName, exercises, ticks,
   onToggleTick, onTapWeight, onTapRest, onStartInterval, onTapInfo,
   tutorialSpotlightExerciseId,
   message, messageEmphasis, footerNote, exercisesInteractive, exercisesOpacity,
@@ -230,6 +236,7 @@ export function CardBody({
   return (
     <View style={styles.contentColumn}>
       <View style={styles.titleBlock}>
+        {isRecommended && <Text style={styles.recommendedLabel}>RECOMMENDED</Text>}
         <Text style={styles.title}>{session.name.toUpperCase()}</Text>
         <Text style={[styles.where, { color: accent }]}>{session.where}</Text>
         {guide != null && (
@@ -366,6 +373,11 @@ export function DailyCard(props: DailyCardProps) {
   // for exactly that reason.
   const fadeStyle = useAnimatedStyle(() => ({ opacity: contentOpacity.value }));
 
+  // recommendedKey is null once today is already logged (see card.tsx's
+  // own computation), so a null-vs-null match can never happen here —
+  // `displayKey` is always a real session key, never null.
+  const isRecommended = displayKey === recommendedKey;
+
   // Confirmed live on device, real bug Oscar caught: the week strip
   // rendered starting at y=0, sitting behind the Dynamic Island/status
   // bar/time. Matches Swift's own split exactly — DailyCardView.swift
@@ -432,6 +444,7 @@ export function DailyCard(props: DailyCardProps) {
                 session={session}
                 guide={session.guide}
                 onTapGuide={onTapGuide}
+                isRecommended={isRecommended}
                 accent={accent}
                 accentVarName={accentVarName}
                 exercises={exercises}
@@ -499,6 +512,10 @@ const styles = StyleSheet.create({
   layer: { ...StyleSheet.absoluteFill },
   contentColumn: { flex: 1, gap: 18, backgroundColor: Colours.bg },
   titleBlock: { alignItems: 'flex-start', gap: 4 },
+  // Same small-caps status-label style as LoggedStamp's tomorrowLabel —
+  // reused rather than invented, this app already has exactly one way to
+  // say "this is a status word, not the thing itself".
+  recommendedLabel: { ...Fonts.mono(10, 'bold'), color: Colours.faint, letterSpacing: 1.2 },
   title: { ...Fonts.heading(32), color: '#FFFFFF' },
   where: { ...Fonts.mono(13, 'medium') },
   guidePill: {
