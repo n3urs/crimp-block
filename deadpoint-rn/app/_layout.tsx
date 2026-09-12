@@ -84,6 +84,11 @@ export default function RootLayout() {
               not inside the (main) group, so its route name is just
               "weight-edit", matching its file path relative to app/. */}
           <Stack.Screen name="weight-edit" options={{ presentation: 'modal' }} />
+          {/* Multi-weight editing modal for a superset/accessory row (e.g.
+              Oscar's Antagonists) — same not-group-qualified reasoning as
+              weight-edit above: app/weights-edit.tsx lives directly under
+              app/, so its route name is just "weights-edit". */}
+          <Stack.Screen name="weights-edit" options={{ presentation: 'modal' }} />
           {/* Day picker modal (Task 2, this plan) — direct port of
               DayPickerView.swift. Backdating/editing a previous
               (non-today) day tapped in DailyCard's WeekStrip. Same

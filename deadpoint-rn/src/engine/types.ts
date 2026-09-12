@@ -60,6 +60,24 @@ export interface RenderedExercise {
       each set and, per isaacEngine's checkRpeDeviation(), suggests
       dropping the weight for the rest of the exercise if it's too high. */
   rpeTarget?: number;
+  /** A superset/accessory exercise that carries several INDEPENDENT tracked
+      weights under one card row, instead of one row per movement — Oscar's
+      Antagonists (reverse wrist curls / external rotation / dips) rather
+      than the row splitting into three. Each item resolves through the
+      exact same target()/exercise_loads path a normal single-weight
+      exercise does; this is a display grouping, not a different tracking
+      mechanism. Undefined for every exercise that isn't a group (which is
+      every exercise except this one, today) — ExerciseRow renders nothing
+      extra when absent. */
+  weightGroup?: WeightGroupItem[];
+}
+
+export interface WeightGroupItem {
+  id: string;
+  title: string;
+  step: number;
+  weightKg?: number;
+  weightIsBump: boolean;
 }
 
 export interface ReturnInfo {

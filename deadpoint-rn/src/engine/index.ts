@@ -78,6 +78,17 @@ function resolveExercises(e: any, program: any, key: string, date: string, phase
         ? { on: iv.on, off: iv.off, reps: iv.reps }
         : undefined;
 
+    // Antagonists-style grouped weights: each item goes through the exact
+    // same target() an ordinary single-weight exercise uses — target()
+    // only ever reads .id/.step off whatever it's given, so a plain
+    // {id, step} literal is a real, valid call, not a workaround. This is
+    // a display grouping over the same tracking mechanism, not a second one.
+    const rawGroup: Array<{ id: string; title: string; step: number }> | undefined = ex?.weightGroup;
+    const weightGroup = rawGroup?.map((item) => {
+      const tg = e.target({ id: item.id, step: item.step }, date);
+      return { id: item.id, title: item.title, step: item.step, weightKg: tg?.kg, weightIsBump: tg?.bump ?? false };
+    });
+
     out.push({
       id: hasWeightTracking ? String(ex.id) : title,
       title,
@@ -85,7 +96,7 @@ function resolveExercises(e: any, program: any, key: string, date: string, phase
       phaseAdjusted: base.m != null && base.m !== m,
       description: ex?.d ?? undefined,
       restSeconds: ex?.r ?? undefined,
-      weightKg, weightIsBump, weightIsCarriedOver, hasWeightTracking, step, interval,
+      weightKg, weightIsBump, weightIsCarriedOver, hasWeightTracking, step, interval, weightGroup,
     });
   }
   return out;

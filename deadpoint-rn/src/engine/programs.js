@@ -57,7 +57,21 @@ return {
           {t:'Weighted one-arm shrugs',id:'osc-shrug',m:'3 × 3 / arm',d:'Belt or vest, three-second hold at the top. Alternate arms. Three reps is right at your current ceiling, so the weight moves rather than the reps.',r:60},
           {t:'Shoulder anti-rotation holds',m:'3 × 5–10s / arm',d:'One-arm pulling strength alone will not stop you twisting off a hold — this is the fix. Hang one-armed off the bar (band or a toe on a stool for assistance, same setup as the transition holds above), open grip rather than a crimp. Without using your wrist or arm, resist rotation using the small stabiliser muscles around your shoulder. Once that feels solid, progress to turning deliberately to one side, holding, then returning to centre before turning the other way. A real limiter for the one-arm pull-up on its own, not just prep for whatever comes after it.',r:45},
           {t:'Front lever',m:'4 × 8–10s',d:'Hardest tuck or straddle you hold clean. If you cannot hold a tuck yet, do slow negative lowers from a tuck for the same sets.',r:75},
-          {t:'Antagonists',m:'3 supersets',d:'Reverse wrist curls 3×15 · finger extensors 3×20 (a rubber band round the fingertips, opening the hand against it — no dedicated tool needed) · external rotation 3×12 · dips 3×10. Run as supersets with minimal rest — maintenance work, not a strength focus.'}
+          /* weightGroup tracks the three loaded movements in the superset
+             below independently — requested 2026-09-12: weights here have
+             crept up enough that Oscar was forgetting what he last used.
+             Finger extensors stays untracked (fixed rubber band, no real
+             number to log). Each id gets its own exercise_loads history,
+             own auto-bump, same as any other tracked exercise — this is a
+             DISPLAY grouping (see WeightGroupItem's own doc comment), not
+             a separate tracking mechanism, so nothing else about how
+             weights work had to change to support it. */
+          {t:'Antagonists',m:'3 supersets',d:'Reverse wrist curls 3×15 · finger extensors 3×20 (a rubber band round the fingertips, opening the hand against it — no dedicated tool needed) · external rotation 3×12 · dips 3×10. Run as supersets with minimal rest — maintenance work, not a strength focus.',
+            weightGroup:[
+              {id:'osc-antag-wristcurl',title:'Reverse wrist curls',step:1.25},
+              {id:'osc-antag-extrot',title:'External rotation',step:1.25},
+              {id:'osc-antag-dip',title:'Dips',step:1.25}
+            ]}
         ]},
       hangboard:{n:'Hangboard', w:'Gym · 40–55 min + climb', c:'--slate', finger:2, pull:1, note:'Board work before climbing, in the order below. Repeaters on already-tired fingers is a different exercise at a load you did not choose.',
         x:[

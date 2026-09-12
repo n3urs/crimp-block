@@ -330,6 +330,24 @@ export default function Card() {
     });
   }, [router, today]);
 
+  // Same push-a-real-route pattern as onTapWeight just above, at a
+  // separate route since the screen shows several steppers rather than
+  // one — weights-edit.tsx has no engine/program dependency either, same
+  // reasoning: everything it needs travels as a route param. Group items
+  // already carry title/step/weightKg fully resolved (index.ts's
+  // resolveExercises), so this is a straight serialize, no re-derivation.
+  const onTapWeightGroup = useCallback((ex: RenderedExercise) => {
+    if (ex.weightGroup == null) return;
+    router.push({
+      pathname: '/weights-edit',
+      params: {
+        groupTitle: ex.title,
+        items: JSON.stringify(ex.weightGroup),
+        date: today,
+      },
+    });
+  }, [router, today]);
+
   const doneFlow = useDoneFlow({ isLogged, loggedSessionKey, displayKey, onLog });
 
   // __DEV__-gated: this is diagnostic text (see DailyCard's own doc
@@ -385,6 +403,7 @@ export default function Card() {
       // something to rush into this fix.
       onTapCalendar={() => (isaac ? showNotBuiltForIsaac() : router.push('/calendar'))}
       onTapWeight={onTapWeight}
+      onTapWeightGroup={onTapWeightGroup}
       onTapRest={handleTapRest}
       onStartInterval={handleStartInterval}
       restTimer={restTimer}

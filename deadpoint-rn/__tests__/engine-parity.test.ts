@@ -119,3 +119,25 @@ test('resolveExercises: rest sessions have no exercises', () => {
   const e = createEngine(PROGRAMS['oscar@sullivanltd.co.uk'], { sessionLog: HISTORY, loadLog: {} });
   expect(e.resolveExercises('rest', '2026-08-29', 'Base')).toEqual([]);
 });
+
+test('resolveExercises: pull day Antagonists carries a 3-item weightGroup, each independently tracked', () => {
+  const e = createEngine(PROGRAMS['oscar@sullivanltd.co.uk'], { sessionLog: HISTORY, loadLog: {} });
+  const rows = e.resolveExercises('pull', '2026-08-29', 'Base');
+  const antagonists = rows.find(r => r.title === 'Antagonists');
+  expect(antagonists).toBeDefined();
+  expect(antagonists!.weightGroup).toEqual([
+    { id: 'osc-antag-wristcurl', title: 'Reverse wrist curls', step: 1.25, weightKg: undefined, weightIsBump: false },
+    { id: 'osc-antag-extrot', title: 'External rotation', step: 1.25, weightKg: undefined, weightIsBump: false },
+    { id: 'osc-antag-dip', title: 'Dips', step: 1.25, weightKg: undefined, weightIsBump: false },
+  ]);
+
+  // Each group item resolves through the same target()/loadLog path a
+  // normal single-weight exercise does — not a separate mechanism.
+  const withLoads = createEngine(PROGRAMS['oscar@sullivanltd.co.uk'], {
+    sessionLog: HISTORY,
+    loadLog: { 'osc-antag-dip': [{ date: '2026-08-27', kg: 20 }] },
+  });
+  const dip = withLoads.resolveExercises('pull', '2026-08-29', 'Base')
+    .find(r => r.title === 'Antagonists')!.weightGroup!.find(i => i.id === 'osc-antag-dip');
+  expect(dip?.weightKg).toBe(20);
+});

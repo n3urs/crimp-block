@@ -38,6 +38,13 @@ export interface ExerciseRowProps {
   isTicked: boolean;
   onToggleTick?: (id: string) => void;
   onTapWeight?: (ex: RenderedExercise) => void;
+  /** Called with the whole exercise when the WEIGHTS pill is tapped —
+      only ever renders for an exercise carrying ex.weightGroup (today,
+      just Antagonists). A separate callback from onTapWeight above
+      rather than overloading it, because the two open genuinely
+      different screens (one weight vs several) and the caller needs to
+      know which was tapped without inspecting the exercise itself. */
+  onTapWeightGroup?: (ex: RenderedExercise) => void;
   /** Called with the whole exercise when the Rest button is pressed —
       starting a real timer needs ex.title and ex.restSeconds, not just
       the raw seconds this used to pass (matches onTapWeight's own
@@ -117,6 +124,7 @@ export function ExerciseRow({
   isTicked,
   onToggleTick,
   onTapWeight,
+  onTapWeightGroup,
   onTapRest,
   onStartInterval,
   onTapInfo,
@@ -318,6 +326,16 @@ export function ExerciseRow({
                 accessibilityLabel={showDetail ? `Hide description for ${ex.title}` : `Show description for ${ex.title}`}
               >
                 <InfoIcon color={Colours.faint} />
+              </Pressable>
+            )}
+            {showRight && ex.weightGroup != null && ex.weightGroup.length > 0 && (
+              <Pressable
+                onPress={() => onTapWeightGroup?.(ex)}
+                style={styles.weightGroupPill}
+                accessibilityRole="button"
+                accessibilityLabel={`Set weights for ${ex.title}`}
+              >
+                <Text style={styles.weightGroupPillText}>WEIGHTS</Text>
               </Pressable>
             )}
           </View>
@@ -637,6 +655,22 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colours.s4,
     borderStyle: 'dashed',
+  },
+  // Solid border, not dashed — unlike setWeightBadge above, this isn't
+  // signalling "nothing logged yet"; it's a permanent affordance for an
+  // exercise that always has several weights behind one row, whether or
+  // not any of them have been set.
+  weightGroupPill: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: Colours.s4,
+  },
+  weightGroupPillText: {
+    ...Fonts.mono(9.5, 'bold'),
+    letterSpacing: 0.6,
+    color: Colours.faint,
   },
   weightBadgeText: {
     ...Fonts.mono(12, 'bold'),

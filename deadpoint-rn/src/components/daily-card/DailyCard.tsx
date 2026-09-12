@@ -59,6 +59,7 @@ export interface DailyCardProps {
   ticks: Set<string>;
   onToggleTick: (id: string) => void;
   onTapWeight?: (ex: RenderedExercise) => void;
+  onTapWeightGroup?: (ex: RenderedExercise) => void;
   onTapRest?: (ex: RenderedExercise) => void;
   onStartInterval?: (ex: RenderedExercise) => void;
   /** Called with the whole exercise whenever its info icon is tapped —
@@ -172,6 +173,7 @@ interface CardBodyProps {
   ticks: Set<string>;
   onToggleTick?: (id: string) => void;
   onTapWeight?: (ex: RenderedExercise) => void;
+  onTapWeightGroup?: (ex: RenderedExercise) => void;
   onTapRest?: (ex: RenderedExercise) => void;
   onStartInterval?: (ex: RenderedExercise) => void;
   onTapInfo?: (ex: RenderedExercise) => void;
@@ -228,7 +230,7 @@ interface CardBodyProps {
     test. */
 export function CardBody({
   session, guide, onTapGuide, isRecommended, accent, accentVarName, exercises, ticks,
-  onToggleTick, onTapWeight, onTapRest, onStartInterval, onTapInfo,
+  onToggleTick, onTapWeight, onTapWeightGroup, onTapRest, onStartInterval, onTapInfo,
   tutorialSpotlightExerciseId,
   message, messageEmphasis, footerNote, exercisesInteractive, exercisesOpacity,
   isLogged, doneClearance, scrollEnabled, scrollRef,
@@ -285,6 +287,7 @@ export function CardBody({
                 isTicked={isLogged || ticks.has(ex.id)}
                 onToggleTick={onToggleTick}
                 onTapWeight={onTapWeight}
+                onTapWeightGroup={onTapWeightGroup}
                 onTapRest={onTapRest}
                 onStartInterval={onStartInterval}
                 onTapInfo={onTapInfo}
@@ -310,7 +313,7 @@ export function CardBody({
 export function DailyCard(props: DailyCardProps) {
   const {
     session, accent, accentVarName, exercises, ticks, onToggleTick,
-    onTapWeight, onTapRest, onStartInterval, onTapInfo, tutorialSpotlightExerciseId,
+    onTapWeight, onTapWeightGroup, onTapRest, onStartInterval, onTapInfo, tutorialSpotlightExerciseId,
     isLogged, cardMessage,
     weekDays, onTapDay, onTapCalendar, onTapSettings, onTapPhaseBadge,
     onTapGuide, phaseName, weekNumber, today, recommendedKey, nextUp,
@@ -451,6 +454,7 @@ export function DailyCard(props: DailyCardProps) {
                 ticks={ticks}
                 onToggleTick={onToggleTick}
                 onTapWeight={onTapWeight}
+                onTapWeightGroup={onTapWeightGroup}
                 onTapRest={onTapRest}
                 onStartInterval={onStartInterval}
                 onTapInfo={onTapInfo}
