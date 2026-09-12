@@ -66,11 +66,21 @@ without them:
 - **Climb sub-type** (board vs. plain climb) is not shown in a person's recent
   sessions.
 
-Run in the Supabase dashboard → SQL Editor. Both are `create or replace`, so
-they are safe to run repeatedly and safe to skip entirely.
+Run in the Supabase dashboard → SQL Editor.
+
+**Each function must be dropped before it is recreated.** `CREATE OR REPLACE
+FUNCTION` cannot change a function's `RETURNS TABLE` signature — adding a
+column to the returned row fails with `42P13: cannot change return type of
+existing function`. The `drop ... if exists` lines below are what make this
+runnable, and they also make the whole script safe to run repeatedly.
+
+Dropping is safe here: the admin page is the only caller of either function,
+and it re-grants execute immediately afterwards. An older cached copy of the
+page keeps working too, since the extra columns are simply ignored by JS.
 
 ```sql
 -- Adds the profile columns the dashboard reads for track/rehab/setup state.
+drop function if exists public.admin_user_summary();
 -- Every column is cast explicitly to exactly what RETURNS TABLE declares:
 -- plpgsql's RETURN QUERY demands an exact type match, not a compatible one,
 -- and this function has already shipped one production failure from that
@@ -138,6 +148,7 @@ $$;
 grant execute on function public.admin_user_summary() to authenticated;
 
 -- Adds the climb sub-type (board vs. plain climb) to the drill-down.
+drop function if exists public.admin_user_sessions(uuid);
 create or replace function public.admin_user_sessions(target_user_id uuid)
 returns table (date date, type text, load numeric, sub text)
 language plpgsql
