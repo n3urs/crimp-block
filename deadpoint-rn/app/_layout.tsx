@@ -14,6 +14,10 @@ import { Colours } from '../src/design/colours';
 // import stays here anyway, at the true app root, so the guarantee
 // doesn't quietly depend on Metro never lazy-loading a screen bundle.
 import '../src/data/subscription';
+// Same reasoning, same module-scope side-effect pattern — see
+// audioMode.ts's own doc comment for why this must run before any timer
+// chime plays, not inside a screen's effect.
+import '../src/components/timers/audioMode';
 
 export default function RootLayout() {
   const [loaded] = useFonts({
