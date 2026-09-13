@@ -79,7 +79,15 @@ export function computeTrendForecast(
     const endOffset = Math.max(1, Math.round(remainingTrainingDays * calendarDaysPerTrainingDay));
     deload = { start: today, end: engine.addDays(today, endOffset) };
   } else {
-    const trainingDaysToDeload = Math.max(0, b.per * 3 - b.total);
+    // Block-local, not b.total: total is cumulative training days since
+    // START_DATE (never resets per block, despite its doc comment on
+    // BlockInfo), so `b.per*3 - b.total` only ever came out right for
+    // block 1 — every later block's total already exceeds per*3, clamping
+    // this to 0 and silently hiding every deload after the first. w/done
+    // are already block-local (engine-core.js's block()), so (4-b.w)
+    // full weeks plus the sessions already banked this week (b.done) gets
+    // the same number without needing b.total at all.
+    const trainingDaysToDeload = Math.max(0, (4 - b.w) * b.per - b.done);
     const deloadStartOffset = Math.round(trainingDaysToDeload * calendarDaysPerTrainingDay);
     const deloadLengthOffset = Math.max(1, Math.round(b.per * calendarDaysPerTrainingDay));
     const deloadStart = engine.addDays(today, deloadStartOffset);

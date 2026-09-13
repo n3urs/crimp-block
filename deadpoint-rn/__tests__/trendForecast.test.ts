@@ -62,9 +62,19 @@ test('non-deload week projects a future deload window, offset ahead of today', (
 });
 
 test('a deload projected to already be under way (offset <= 0) is not shown', () => {
-  // per=3, total already at/past 3*3=9 -> trainingDaysToDeload floors at 0 -> offset 0, not shown
-  const engine = makeEngine(() => ({ b: 1, w: 2, done: 2, per: 3, total: 12, wIdx: 1, over: false }));
+  // (4-w)*per - done floors at 0 when done has already caught up to (4-w)*per
+  const engine = makeEngine(() => ({ b: 1, w: 3, done: 3, per: 3, total: 9, wIdx: 2, over: false }));
   const history: Days = { '2026-08-01': { t: 'pull', l: null, sub: null } };
   const result = computeTrendForecast(engine, history, '2026-08-15');
   expect(result.deload).toBeNull();
+});
+
+test('non-deload week in block 2+ still projects a future deload (regression: b.total is cumulative since START_DATE, not block-local, so it must not be used here)', () => {
+  // w=2, per=4, done=1 -> (4-2)*4-1 = 7 training days still needed, regardless
+  // of how large the cumulative `total` has grown across prior blocks.
+  const engine = makeEngine(() => ({ b: 3, w: 2, done: 1, per: 4, total: 41, wIdx: 9, over: false }));
+  const history: Days = { '2026-08-01': { t: 'pull', l: null, sub: null } };
+  const result = computeTrendForecast(engine, history, '2026-08-15');
+  expect(result.deload).not.toBeNull();
+  expect(result.deload!.start > '2026-08-15').toBe(true);
 });

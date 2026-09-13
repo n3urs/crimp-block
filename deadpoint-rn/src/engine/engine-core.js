@@ -126,7 +126,7 @@ function createEngine(program, data){
       w: (wIdx%4)+1,
       done: n%per,        // sessions banked into the current week
       per: per,
-      total: n,           // total training days since the block started
+      total: n,           // cumulative training days since START_DATE (NOT reset per block — use w/done for block-local counts)
       wIdx: wIdx,          // training weeks completed, uncapped
       /* Six blocks is the whole structured plan. Once wIdx passes 24 there is
          no block 7 — you hold in block 6 (Performance/maintenance) and just
