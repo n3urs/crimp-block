@@ -114,7 +114,32 @@ export function useProfile(userId: string) {
   const loaded = state.status === 'ready' && state.forUserId === userId;
   const isLoading = state.status === 'loading' && state.forUserId === userId;
   const hasError = state.status === 'error' && state.forUserId === userId;
-  const row = loaded && state.status === 'ready' ? state.row : null;
+
+  // `row` alone gets a last-good fallback that `loaded`/`isLoading`/
+  // `hasError` deliberately do NOT — those three stay a pure, untouched
+  // function of `state` (see the doc comment above on why that agreement
+  // matters). Real bug this fixes: reload() moves `state` to `loading`
+  // synchronously, before the network call even starts (by design, for
+  // retry-button correctness — see `reload`'s own comment) — which used to
+  // make `row` flash to `null` on every focus-triggered background
+  // refresh, even though a good row already existed for this exact user.
+  // Every screen that derives its program from `profile.row` (card.tsx,
+  // plan.tsx, day-picker.tsx, calendar.tsx, etc.) would briefly fall back
+  // to resolveUserProgram's null-profile default and back, flashing the
+  // phase name and every phase-adjusted exercise title 2-3 times on every
+  // navigate-away-and-back. Holding the last row for the SAME userId
+  // across a `loading` transition removes that flash without changing
+  // what `isLoading`/retry-button consumers see.
+  const lastGoodRowRef = useRef<{ forUserId: string; row: ProfileRow | null } | null>(null);
+  let row: ProfileRow | null;
+  if (state.status === 'ready' && state.forUserId === userId) {
+    row = state.row;
+    lastGoodRowRef.current = { forUserId: userId, row: state.row };
+  } else if (lastGoodRowRef.current?.forUserId === userId) {
+    row = lastGoodRowRef.current.row;
+  } else {
+    row = null;
+  }
 
   // Belt-and-braces guard against a STALE write landing in `state` at
   // all, for the case the routing-correctness argument above doesn't by
