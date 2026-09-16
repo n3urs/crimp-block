@@ -76,19 +76,25 @@ test('same-phase history still wins over an older, different-phase entry — car
   const rows = e.resolveExercises('lift', '2026-01-05', 'Max Strength');
   const bench = rows.find(r => r.id === 'bench');
 
-  // Two same-phase entries at different weights is neither a fresh log
-  // for today nor a two-in-a-row hold, so this is the ordinary
-  // "just use the last one" path — same behaviour target() already had,
-  // unrelated to carryover.
   expect(bench).toMatchObject({ weightKg: 45, weightIsBump: false, weightIsCarriedOver: false });
 });
 
-test('carrying a weight forward across phases never bumps it, even if two same-phase sessions would have', () => {
-  // Two Base-phase entries at the SAME weight would normally trigger a
-  // bump (engine-core.js target()'s "held" rule) — but they're in a
-  // different phase from where we're asking, so this must land as a
-  // plain carryover, not a bump the lifter never actually confirmed in
-  // the new phase.
+test('two sessions running at the same weight repeat that weight — no automatic step up', () => {
+  const e = createEngine(PROGRAM, {
+    sessionLog: FOUR_LIFTS,
+    loadLog: { bench: [
+      { date: '2026-01-05', kg: 45 },
+      { date: '2026-01-04', kg: 45 },
+    ] },
+  });
+
+  const rows = e.resolveExercises('lift', '2026-01-06', 'Max Strength');
+  const bench = rows.find(r => r.id === 'bench');
+
+  expect(bench).toMatchObject({ weightKg: 45, weightIsBump: false, weightIsCarriedOver: false });
+});
+
+test('two same-weight entries from an earlier phase carry forward as-is', () => {
   const e = createEngine(PROGRAM, {
     sessionLog: FOUR_LIFTS,
     loadLog: { bench: [

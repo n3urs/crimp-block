@@ -291,21 +291,15 @@ function createEngine(program, data){
     return LoadsFacade.history(id).filter(function(r){ return r.date<date && phaseNameAt(r.date)===ph; });
   }
 
-  /* What to put on the bar today, for exercises carrying an `id`.
-
-     This is the last hand-administered rule in the plan: "add 1–2.5kg once
-     all five feel solid two sessions running" used to sit in the exercise
-     description, which meant YOU had to remember what you lifted and how
-     many times. The app has the history, so it does the arithmetic.
+  /* What to put on the bar today, for exercises carrying an `id`: the last
+     weight you logged. Deciding when to go up is left to the lifter: a fixed
+     "+step after two sessions at the same weight" rule was too rigid to be
+     right often enough, so nothing currently returns bump:true.
 
      Returns null when there is no history at all — the app cannot invent a
-     starting weight, so the first one is always typed in by hand.
-
-     Deload weeks never bump: the whole point of the week is holding the load
-     while volume drops, so suggesting a PB in one would be backwards. */
+     starting weight, so the first one is always typed in by hand. */
   function target(e, date){
     date = date || today();
-    var step = e.step || 2.5;
     var set = LoadsFacade.on(e.id, date);
     if(set) return {kg:set.kg, bump:false, set:true};
 
@@ -334,10 +328,7 @@ function createEngine(program, data){
     var last = past[0];
     if(isDeload(date)) return {kg:last.kg, bump:false};
     if(isReturning(date)) return {kg:+(last.kg*RETURN_CUT).toFixed(2), bump:false, eased:true};
-    /* Two sessions at the same weight = it has stopped being hard. One is
-       not enough — a single good session is as likely to be a good day. */
-    var held = past.length>=2 && past[1].kg===last.kg;
-    return held ? {kg:+(last.kg+step).toFixed(2), bump:true} : {kg:last.kg, bump:false};
+    return {kg:last.kg, bump:false};
   }
 
   /* Every load-tracked exercise in a session, already resolved for rotation
