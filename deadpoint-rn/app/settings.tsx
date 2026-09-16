@@ -302,51 +302,55 @@ export default function Settings() {
             preferencesSummaryText's own doc comment), not a dead end. */}
         {row != null && (
           <Section title="PREFERENCES">
-            <View style={styles.preferencesBody}>
+            {/* The whole card is the tap target (hitSlop reaches the card's own
+                padding) — a Pressable around just the 12pt label was a ~16pt
+                target that took several tries to hit. */}
+            <Pressable
+              style={styles.preferencesBody}
+              hitSlop={16}
+              onPress={() => router.push('/preferences-edit')}
+              accessibilityRole="button"
+              accessibilityLabel="Edit preferences"
+            >
               {preferencesSummaryText(row) != null && (
                 <Text style={styles.trackSummary}>{preferencesSummaryText(row)}</Text>
               )}
-              <Pressable
-                onPress={() => router.push('/preferences-edit')}
-                accessibilityRole="button"
-                accessibilityLabel="Edit preferences"
-              >
-                <Text style={styles.helpAction}>EDIT PREFERENCES</Text>
-              </Pressable>
+              <Text style={styles.helpAction}>EDIT PREFERENCES</Text>
               <Text style={styles.helpSubtitle}>Change your days per week, equipment, weaknesses, injuries, or even switch discipline — your progress carries on, nothing resets.</Text>
-            </View>
+            </Pressable>
           </Section>
         )}
 
         <Section title="FORCE GAUGE">
-          <View style={styles.helpBody}>
-            <Pressable
-              onPress={() => router.push('/force-gauge')}
-              accessibilityRole="button"
-              accessibilityLabel="Connect to force gauge"
-            >
-              <Text style={styles.helpAction}>GOT A FORCE GAUGE? SCAN HERE</Text>
-            </Pressable>
+          <Pressable
+            style={styles.helpBody}
+            hitSlop={16}
+            onPress={() => router.push('/force-gauge')}
+            accessibilityRole="button"
+            accessibilityLabel="Connect to force gauge"
+          >
+            <Text style={styles.helpAction}>GOT A FORCE GAUGE? SCAN HERE</Text>
             <Text style={styles.helpSubtitle}>Connect over Bluetooth to see live current and peak force, with a graph, while you pull.</Text>
-          </View>
+          </Pressable>
         </Section>
 
         <Section title="HELP">
-          <View style={styles.helpBody}>
-            <Pressable
-              onPress={onReplayTutorial}
-              accessibilityRole="button"
-              accessibilityLabel="Replay tutorial"
-            >
-              <Text style={styles.helpAction}>REPLAY TUTORIAL</Text>
-            </Pressable>
+          <Pressable
+            style={styles.helpBody}
+            hitSlop={16}
+            onPress={onReplayTutorial}
+            accessibilityRole="button"
+            accessibilityLabel="Replay tutorial"
+          >
+            <Text style={styles.helpAction}>REPLAY TUTORIAL</Text>
             <Text style={styles.helpSubtitle}>The walkthrough of the daily card, from the beginning.</Text>
-          </View>
+          </Pressable>
         </Section>
 
         <Section title="LEGAL">
           <View style={styles.legalBody}>
             <Pressable
+              hitSlop={6}
               onPress={() => Linking.openURL(PRIVACY_POLICY_URL).catch((e) => console.error('settings: opening privacy policy failed:', e))}
               accessibilityRole="link"
               accessibilityLabel="Privacy Policy"
@@ -354,6 +358,7 @@ export default function Settings() {
               <Text style={styles.helpAction}>PRIVACY POLICY</Text>
             </Pressable>
             <Pressable
+              hitSlop={6}
               onPress={() => Linking.openURL(TERMS_OF_USE_URL).catch((e) => console.error('settings: opening terms of use failed:', e))}
               accessibilityRole="link"
               accessibilityLabel="Terms of Use"
