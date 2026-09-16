@@ -13,7 +13,9 @@
       "buildNumber": "28",
       "appleTeamId": "87F48SV42Q",
       "entitlements": {
-        "com.apple.security.application-groups": ["group.uk.co.sullivanltd.crimpblock"]
+        "com.apple.security.application-groups": [
+          "group.uk.co.sullivanltd.crimpblock"
+        ]
       },
       "infoPlist": {
         "NSSupportsLiveActivities": true,
@@ -35,10 +37,22 @@
       "expo-router",
       "expo-secure-store",
       "expo-font",
-      ["expo-audio", { "enableBackgroundPlayback": false }],
+      [
+        "expo-audio",
+        {
+          "enableBackgroundPlayback": false
+        }
+      ],
       "@react-native-community/datetimepicker",
       "@bacons/apple-targets",
-      "./plugins/withAndroidPhoneOnly"
+      "./plugins/withAndroidPhoneOnly",
+      [
+        "react-native-ble-plx",
+        {
+          "bluetoothAlwaysPermission": "Deadpoint uses Bluetooth to connect to your force gauge and stream live readings.",
+          "neverForLocation": true
+        }
+      ]
     ],
     "extra": {
       "router": {},

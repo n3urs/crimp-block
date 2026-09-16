@@ -318,6 +318,19 @@ export default function Settings() {
           </Section>
         )}
 
+        <Section title="FORCE GAUGE">
+          <View style={styles.helpBody}>
+            <Pressable
+              onPress={() => router.push('/force-gauge')}
+              accessibilityRole="button"
+              accessibilityLabel="Connect to force gauge"
+            >
+              <Text style={styles.helpAction}>GOT A FORCE GAUGE? SCAN HERE</Text>
+            </Pressable>
+            <Text style={styles.helpSubtitle}>Connect over Bluetooth to see live current and peak force, with a graph, while you pull.</Text>
+          </View>
+        </Section>
+
         <Section title="HELP">
           <View style={styles.helpBody}>
             <Pressable

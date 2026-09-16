@@ -90,6 +90,11 @@ export default function RootLayout() {
               weight-edit above: app/weights-edit.tsx lives directly under
               app/, so its route name is just "weights-edit". */}
           <Stack.Screen name="weights-edit" options={{ presentation: 'modal' }} />
+          {/* Force gauge live viewer — same not-group-qualified reasoning
+              as weight-edit/weights-edit above: app/force-gauge.tsx lives
+              directly under app/, so its route name is just
+              "force-gauge". */}
+          <Stack.Screen name="force-gauge" options={{ presentation: 'modal' }} />
           {/* Day picker modal (Task 2, this plan) — direct port of
               DayPickerView.swift. Backdating/editing a previous
               (non-today) day tapped in DailyCard's WeekStrip. Same
