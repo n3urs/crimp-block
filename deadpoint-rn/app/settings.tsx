@@ -25,6 +25,7 @@ import { Fonts } from '../src/design/fonts';
 import { useSession } from '../src/data/useSession';
 import { useProfile, type ProfileRow } from '../src/data/useProfile';
 import { usePrefs, setSetsCounterEnabled, setAutoStartRestOnTally } from '../src/data/prefs';
+import { SettingsGroup, SettingsRow } from '../src/components/settings/SettingsList';
 import { PRIVACY_POLICY_URL, TERMS_OF_USE_URL } from '../src/data/legal';
 import { TEMPLATE_META, REHAB_META, DISCIPLINE_LABELS, EXPERIENCE_LABELS, parseTemplateId } from '../src/screens/quiz/quizModel';
 
@@ -60,38 +61,6 @@ function preferencesSummaryText(row: ProfileRow): string | null {
   const days = row.modifiers.daysPerWeek;
   const daysPart = typeof days === 'number' ? `, ${days} days/week` : '';
   return `${DISCIPLINE_LABELS[parsed.discipline]} — ${EXPERIENCE_LABELS[parsed.experienceLevel]}${daysPart}`;
-}
-
-/** Port of Swift's `section(_:content:)` helper — an all-caps faint
-    title above a rounded, `Colours.s1`-backed content box. */
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <View style={styles.section}>
-      <Text style={styles.sectionTitle}>{title}</Text>
-      <View style={styles.sectionBody}>{children}</View>
-    </View>
-  );
-}
-
-/** Port of Swift's `toggleRow(title:subtitle:isOn:)` helper. */
-function ToggleRow({
-  title, subtitle, value, onValueChange,
-}: {
-  title: string; subtitle: string; value: boolean; onValueChange: (v: boolean) => void;
-}) {
-  return (
-    <View style={styles.toggleRow}>
-      <View style={styles.toggleRowHeader}>
-        <Text style={styles.toggleTitle}>{title}</Text>
-        <Switch
-          value={value}
-          onValueChange={onValueChange}
-          trackColor={{ false: Colours.s3, true: resolveColour('--gorse') }}
-        />
-      </View>
-      <Text style={styles.toggleSubtitle}>{subtitle}</Text>
-    </View>
-  );
 }
 
 export default function Settings() {
@@ -213,206 +182,168 @@ export default function Settings() {
     ? TEMPLATE_META[row.assignedTemplateId]?.name ?? row.assignedTemplateId
     : null;
 
+  const prefsSummary = row != null ? preferencesSummaryText(row) : null;
+  const gorse = resolveColour('--gorse');
+  const tidepool = resolveColour('--tidepool');
+  const slate = resolveColour('--slate');
+
   return (
     <View style={styles.root}>
       <View style={[styles.header, { paddingTop: 20 + insets.top }]}>
         <Text style={styles.headerTitle}>SETTINGS</Text>
-        <Pressable onPress={() => router.back()} accessibilityRole="button" accessibilityLabel="Close">
+        <Pressable onPress={() => router.back()} hitSlop={12} accessibilityRole="button" accessibilityLabel="Close">
           <Text style={styles.close}>CLOSE</Text>
         </Pressable>
       </View>
 
-      <ScrollView contentContainerStyle={[styles.list, { paddingBottom: 20 + insets.bottom }]}>
-        {email != null && (
-          <Section title="ACCOUNT">
-            <View style={styles.accountBody}>
-              <Text style={styles.accountEmail}>{email}</Text>
-              <Pressable onPress={onSignOut} accessibilityRole="button" accessibilityLabel="Sign out">
-                <Text style={styles.signOutText}>SIGN OUT</Text>
-              </Pressable>
-              <Pressable
-                onPress={onDeleteAccount}
-                disabled={busy}
-                accessibilityRole="button"
-                accessibilityLabel="Delete account"
-              >
-                <Text style={styles.deleteAccountText}>DELETE ACCOUNT</Text>
-              </Pressable>
-              {deleteError != null && <Text style={styles.error}>{deleteError}</Text>}
-            </View>
-          </Section>
-        )}
+      <ScrollView contentContainerStyle={[styles.list, { paddingBottom: 32 + insets.bottom }]}>
+        {/* Final-review Fix 3 (Critical root cause, addressed by removal):
+            SWITCH TRACK used to push /quiz from TRAINING. quiz.tsx's
+            onCancel is `await signOut(); router.replace('/')` — correct for
+            first-time onboarding, wrong for an already-signed-in user
+            reached via Settings, who'd be silently signed out by the quiz's
+            own CANCEL button. Bring SWITCH TRACK back only once that is
+            fixed. RESTORE INSTANTLY is unaffected: it never touches /quiz.
 
+            PREFERENCES isn't gated on row.trackType: a rehab-only account
+            has never been asked any of these, and opening the editor there
+            is a real first assignment (see preferencesSummaryText). */}
         {row != null && (
-          <Section title="TRAINING TRACK">
-            <View style={styles.trackBody}>
-              <Text style={styles.trackSummary}>{trackSummaryText(row)}</Text>
-              {/* Final-review Fix 3 (Critical root cause, addressed by
-                  removal): SWITCH TRACK used to push /quiz here. Two
-                  separate real bugs, found together, need fixing together
-                  before this comes back:
-                  1) quiz.tsx's onCancel is `await signOut(); router.replace
-                     ('/')` — correct for its ONLY other caller (first-time
-                     onboarding, no real account to sign out of yet), but
-                     wrong here: an already-signed-in user reached via
-                     Settings who taps the quiz's own visible CANCEL button
-                     (rendered on every step — see QuizChrome.tsx's
-                     QuizHeader) gets silently signed out.
-                  2) Even on success it did nothing visible: card.tsx picked
-                     its program via `PROGRAMS[email] ?? PROGRAMS.default`
-                     and never read `row.trackType`/`row.assignedTemplateId`
-                     at all, so completing the quiz from here changed
-                     nothing the user could see. THIS HALF IS NOW FIXED —
-                     see src/engine/resolveUserProgram.ts: card.tsx (and
-                     every other program-resolving screen) now actually
-                     reads assignedTemplateId/modifiers. (1) above is a
-                     separate, still-open bug (quiz.tsx's onCancel signs
-                     out an already-signed-in user) and remains the sole
-                     reason SWITCH TRACK stays removed here.
-                  Same "never show a control that does nothing" principle
-                  this screen's own (unported) DELETE ACCOUNT section
-                  followed in Swift. Tracked as a real follow-up, not a
-                  silent deletion — bring this back only once (1) is also
-                  fixed. RESTORE INSTANTLY below is
-                  unaffected: it never touches /quiz, and its own visible
-                  effect (escaping the /rehab-coming-soon routing gate —
-                  see src/routing/computeRoute.ts) is real regardless of
-                  card.tsx's own indifference to trackType. */}
-              {row.trackType === 'rehab' && restoreName != null && (
-                <Pressable
-                  onPress={onRestoreStandard}
-                  disabled={busy}
-                  accessibilityRole="button"
-                  accessibilityLabel={`Restore ${restoreName} instantly`}
-                >
-                  <Text style={styles.restoreAction}>RESTORE “{restoreName}” INSTANTLY</Text>
-                </Pressable>
-              )}
-              {error != null && <Text style={styles.error}>{error}</Text>}
-            </View>
-          </Section>
-        )}
-
-        {/* Lets someone change any of their original quiz answers —
-            days/week, equipment, weaknesses, injuries, trip date, or a
-            full discipline/experience switch — without redoing the quiz.
-            Not gated on row.trackType: a rehab-only account has never
-            been asked any of these, and opening the editor there is a
-            real, intentional first assignment (see
-            preferencesSummaryText's own doc comment), not a dead end. */}
-        {row != null && (
-          <Section title="PREFERENCES">
-            {/* The whole card is the tap target (hitSlop reaches the card's own
-                padding) — a Pressable around just the 12pt label was a ~16pt
-                target that took several tries to hit. */}
-            <Pressable
-              style={styles.preferencesBody}
-              hitSlop={16}
-              onPress={() => router.push('/preferences-edit')}
-              accessibilityRole="button"
-              accessibilityLabel="Edit preferences"
-            >
-              {preferencesSummaryText(row) != null && (
-                <Text style={styles.trackSummary}>{preferencesSummaryText(row)}</Text>
-              )}
-              <Text style={styles.helpAction}>EDIT PREFERENCES</Text>
-              <Text style={styles.helpSubtitle}>Change your days per week, equipment, weaknesses, injuries, or even switch discipline — your progress carries on, nothing resets.</Text>
-            </Pressable>
-          </Section>
-        )}
-
-        <Section title="FORCE GAUGE">
-          <Pressable
-            style={styles.helpBody}
-            hitSlop={16}
-            onPress={() => router.push('/force-gauge')}
-            accessibilityRole="button"
-            accessibilityLabel="Connect to force gauge"
-          >
-            <Text style={styles.helpAction}>GOT A FORCE GAUGE? SCAN HERE</Text>
-            <Text style={styles.helpSubtitle}>Connect over Bluetooth to see live current and peak force, with a graph, while you pull.</Text>
-          </Pressable>
-        </Section>
-
-        <Section title="NO-HANG ROUTINE">
-          <Pressable
-            style={styles.helpBody}
-            hitSlop={16}
-            onPress={() => router.push('/no-hang')}
-            accessibilityRole="button"
-            accessibilityLabel="Open the no-hang routine"
-          >
-            <Text style={styles.helpAction}>EMIL'S DAILY NO-HANG ROUTINE</Text>
-            <Text style={styles.helpSubtitle}>A 10-minute sub-max fingerboard follow-along for a Beastmaker 1000 or 2000.</Text>
-          </Pressable>
-        </Section>
-
-        <Section title="HELP">
-          <Pressable
-            style={styles.helpBody}
-            hitSlop={16}
-            onPress={onReplayTutorial}
-            accessibilityRole="button"
-            accessibilityLabel="Replay tutorial"
-          >
-            <Text style={styles.helpAction}>REPLAY TUTORIAL</Text>
-            <Text style={styles.helpSubtitle}>The walkthrough of the daily card, from the beginning.</Text>
-          </Pressable>
-        </Section>
-
-        <Section title="LEGAL">
-          <View style={styles.legalBody}>
-            <Pressable
-              hitSlop={6}
-              onPress={() => Linking.openURL(PRIVACY_POLICY_URL).catch((e) => console.error('settings: opening privacy policy failed:', e))}
-              accessibilityRole="link"
-              accessibilityLabel="Privacy Policy"
-            >
-              <Text style={styles.helpAction}>PRIVACY POLICY</Text>
-            </Pressable>
-            <Pressable
-              hitSlop={6}
-              onPress={() => Linking.openURL(TERMS_OF_USE_URL).catch((e) => console.error('settings: opening terms of use failed:', e))}
-              accessibilityRole="link"
-              accessibilityLabel="Terms of Use"
-            >
-              <Text style={styles.helpAction}>TERMS OF USE</Text>
-            </Pressable>
-          </View>
-        </Section>
-
-        <Section title="EXERCISE TRACKING">
-          <View style={styles.exerciseBody}>
-            <ToggleRow
-              title="SETS COUNTER"
-              subtitle="Tap through a tally of sets on each exercise, instead of ticking it off all at once. Only shows up where the set count is unambiguous in the prescription text."
-              value={prefs.setsCounterEnabled}
-              onValueChange={(v) => {
-                // Fix 4 (minor): setSetsCounterEnabled/setAutoStartRestOnTally
-                // return a Promise (the underlying AsyncStorage.setItem call)
-                // — passing the setter directly as onValueChange discarded
-                // it, so a rejected write was an unhandled rejection with the
-                // UI already diverged from storage. Matches the house
-                // .catch(console.error(...)) pattern (useSession.ts,
-                // useProfile.ts, app/index.tsx).
-                setSetsCounterEnabled(v).catch((e) => console.error('settings: setSetsCounterEnabled failed:', e));
-              }}
-            />
-            {prefs.setsCounterEnabled && (
+          <SettingsGroup
+            title="TRAINING"
+            footer={
               <>
-                <View style={styles.toggleDivider} />
-                <ToggleRow
-                  title="AUTO-START REST TIMER"
-                  subtitle="Every tally tap also starts that exercise's rest timer, so you don't have to tap Rest separately."
-                  value={prefs.autoStartRestOnTally}
-                  onValueChange={(v) => {
-                    setAutoStartRestOnTally(v).catch((e) => console.error('settings: setAutoStartRestOnTally failed:', e));
-                  }}
-                />
+                {error != null && <Text style={styles.error}>{error}</Text>}
+                <Text style={styles.footnote}>Changing preferences never resets your progress.</Text>
               </>
+            }
+          >
+            <SettingsRow icon="target" tint={tidepool} title="Training track" subtitle={trackSummaryText(row)} />
+            {row.trackType === 'rehab' && restoreName != null && (
+              <SettingsRow
+                icon="restore"
+                tint={tidepool}
+                title={`Restore “${restoreName}”`}
+                subtitle="Switch back to your standard plan instantly"
+                trailing="chevron"
+                onPress={onRestoreStandard}
+                disabled={busy}
+                accessibilityLabel={`Restore ${restoreName} instantly`}
+              />
             )}
-          </View>
-        </Section>
+            <SettingsRow
+              icon="sliders"
+              tint={tidepool}
+              title="Preferences"
+              subtitle={prefsSummary ?? 'Days, equipment, weaknesses and injuries'}
+              trailing="chevron"
+              onPress={() => router.push('/preferences-edit')}
+              accessibilityLabel="Edit preferences"
+            />
+          </SettingsGroup>
+        )}
+
+        <SettingsGroup title="EXERCISE TRACKING">
+          <SettingsRow
+            icon="hash"
+            tint={slate}
+            title="Sets counter"
+            subtitle="Tap through a tally of sets. Only on exercises with a clear set count."
+            trailing={
+              <Switch
+                value={prefs.setsCounterEnabled}
+                // The setters return AsyncStorage's Promise — handled here so a
+                // failed write isn't an unhandled rejection.
+                onValueChange={(v) => { setSetsCounterEnabled(v).catch((e) => console.error('settings: setSetsCounterEnabled failed:', e)); }}
+                trackColor={{ false: Colours.s3, true: gorse }}
+                accessibilityLabel="Sets counter"
+              />
+            }
+          />
+          {prefs.setsCounterEnabled && (
+            <SettingsRow
+              icon="clock"
+              tint={slate}
+              title="Auto-start rest timer"
+              subtitle="Each tally tap also starts that exercise's rest timer."
+              trailing={
+                <Switch
+                  value={prefs.autoStartRestOnTally}
+                  onValueChange={(v) => { setAutoStartRestOnTally(v).catch((e) => console.error('settings: setAutoStartRestOnTally failed:', e)); }}
+                  trackColor={{ false: Colours.s3, true: gorse }}
+                  accessibilityLabel="Auto-start rest timer"
+                />
+              }
+            />
+          )}
+        </SettingsGroup>
+
+        <SettingsGroup title="TOOLS">
+          <SettingsRow
+            icon="activity"
+            tint={gorse}
+            title="Force gauge"
+            subtitle="Live force, peak and graph over Bluetooth"
+            trailing="chevron"
+            onPress={() => router.push('/force-gauge')}
+            accessibilityLabel="Connect to force gauge"
+          />
+          <SettingsRow
+            icon="hangboard"
+            tint={gorse}
+            title="No-hang routine"
+            subtitle="Emil's 10-minute daily follow-along"
+            trailing="chevron"
+            onPress={() => router.push('/no-hang')}
+            accessibilityLabel="Open the no-hang routine"
+          />
+        </SettingsGroup>
+
+        <SettingsGroup title="HELP & LEGAL">
+          <SettingsRow
+            icon="play"
+            tint={Colours.dim}
+            title="Replay tutorial"
+            subtitle="The daily card walkthrough, from the start"
+            trailing="chevron"
+            onPress={onReplayTutorial}
+          />
+          <SettingsRow
+            icon="shield"
+            tint={Colours.dim}
+            title="Privacy policy"
+            trailing="external"
+            accessibilityRole="link"
+            onPress={() => Linking.openURL(PRIVACY_POLICY_URL).catch((e) => console.error('settings: opening privacy policy failed:', e))}
+          />
+          <SettingsRow
+            icon="file"
+            tint={Colours.dim}
+            title="Terms of use"
+            trailing="external"
+            accessibilityRole="link"
+            onPress={() => Linking.openURL(TERMS_OF_USE_URL).catch((e) => console.error('settings: opening terms of use failed:', e))}
+          />
+        </SettingsGroup>
+
+        {email != null && (
+          <SettingsGroup
+            title="ACCOUNT"
+            footer={deleteError != null ? <Text style={styles.error}>{deleteError}</Text> : undefined}
+          >
+            <SettingsRow icon="mail" tint={Colours.dim} title={email} subtitle="Signed in" />
+            <SettingsRow icon="logout" tint={Colours.restC} title="Sign out" destructive onPress={onSignOut} />
+            <SettingsRow
+              icon="trash"
+              tint={Colours.restC}
+              title="Delete account"
+              subtitle="Permanently removes your account and training history"
+              destructive
+              onPress={onDeleteAccount}
+              disabled={busy}
+            />
+          </SettingsGroup>
+        )}
       </ScrollView>
     </View>
   );
@@ -423,40 +354,7 @@ const styles = StyleSheet.create({
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20 },
   headerTitle: { fontSize: 17, fontWeight: '700', color: Colours.fg },
   close: { ...Fonts.mono(12, 'bold'), color: Colours.faint },
-  list: { padding: 20, paddingTop: 0, gap: 28 },
-
-  section: { gap: 12 },
-  sectionTitle: { ...Fonts.mono(11, 'bold'), color: Colours.faint, letterSpacing: 1.2 },
-  sectionBody: { padding: 16, borderRadius: 10, backgroundColor: Colours.s1 },
-
-  accountBody: { gap: 14 },
-  accountEmail: { ...Fonts.mono(13, 'medium'), color: Colours.dim },
-  signOutText: { ...Fonts.mono(12, 'bold'), color: Colours.restC },
-  deleteAccountText: { ...Fonts.mono(12, 'bold'), color: Colours.restC },
-
-  trackBody: { gap: 14 },
-  preferencesBody: { gap: 8 },
-  trackSummary: { fontSize: 14, fontWeight: '600', color: Colours.fg },
-  restoreAction: { ...Fonts.mono(11, 'medium'), color: Colours.faint },
-
-  helpBody: { gap: 6 },
-  legalBody: { gap: 12 },
-  helpAction: { ...Fonts.mono(12, 'bold'), color: Colours.fg },
-  helpSubtitle: { fontSize: 11, color: Colours.faint },
-
-  exerciseBody: { gap: 18 },
-  // Fix 5 (minor): matches SettingsView.swift's EXERCISE TRACKING section
-  // (`Rectangle().fill(SessionColours.s3).frame(height: 1)`, drawn between
-  // SETS COUNTER and AUTO-START REST TIMER when both are visible) — same
-  // `{ height: 1, backgroundColor: <colour> }` shape already used for every
-  // other divider in this codebase (DailyCard.tsx, StatsPanel.tsx,
-  // LoggedStamp.tsx), just with Colours.s3 as Swift's own choice for this
-  // specific section.
-  toggleDivider: { height: 1, backgroundColor: Colours.s3 },
-  toggleRow: { gap: 6 },
-  toggleRowHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  toggleTitle: { fontSize: 14, fontWeight: '600', color: Colours.fg },
-  toggleSubtitle: { fontSize: 12, color: Colours.faint },
-
-  error: { fontSize: 11, color: Colours.restC },
+  list: { padding: 20, paddingTop: 4, gap: 28 },
+  footnote: { fontSize: 12, color: Colours.dim, paddingHorizontal: 4 },
+  error: { fontSize: 12, color: Colours.restC, paddingHorizontal: 4 },
 });
