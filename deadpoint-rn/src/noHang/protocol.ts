@@ -45,10 +45,19 @@ export function gripForRep(rep: number): Grip {
   return GRIPS[GRIPS.length - 1];
 }
 
+/** First rep of the next (direction 1) or previous (-1) exercise, or null
+    past either end. */
+export function skipTarget(rep: number, direction: 1 | -1): number | null {
+  const target = GRIPS.indexOf(gripForRep(rep)) + direction;
+  if (target < 0 || target >= GRIPS.length) return null;
+  return GRIPS.slice(0, target).reduce((sum, g) => sum + g.reps, 0) + 1;
+}
+
 /** The current grip while loading; the UPCOMING one while getting ready or
-    resting, so fingers are set before the load starts. */
+    resting, so fingers are set before the load starts. `ready` is the
+    start of the routine or straight after a skip, so it shows `set`. */
 export function displayedGrip(phase: Phase, set: number): { grip: Grip; rep: number; isNext: boolean; isChange: boolean } {
-  if (phase === 'ready') return { grip: gripForRep(1), rep: 1, isNext: true, isChange: true };
+  if (phase === 'ready') return { grip: gripForRep(set), rep: set, isNext: true, isChange: true };
   if (phase === 'setrest') {
     const grip = gripForRep(set + 1);
     return { grip, rep: set + 1, isNext: true, isChange: grip !== gripForRep(set) };

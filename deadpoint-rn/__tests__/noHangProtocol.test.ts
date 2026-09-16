@@ -1,5 +1,5 @@
 import { advancePhase, type PhaseState } from '../src/components/timers/intervalTimerLogic';
-import { BOARDS, TIMER_CONFIG, TOTAL_REPS, displayedGrip, gripForRep, parseBoardId } from '../src/noHang/protocol';
+import { BOARDS, TIMER_CONFIG, TOTAL_REPS, displayedGrip, gripForRep, parseBoardId, skipTarget } from '../src/noHang/protocol';
 
 test('the routine is 20 reps', () => {
   expect(TOTAL_REPS).toBe(20);
@@ -19,6 +19,17 @@ test.each([
 
 test('get ready previews the first grip', () => {
   expect(displayedGrip('ready', 1)).toMatchObject({ rep: 1, isNext: true, isChange: true, grip: { name: 'Half crimp' } });
+});
+
+test('get ready after skipping previews the grip it skipped to', () => {
+  expect(displayedGrip('ready', 13)).toMatchObject({ rep: 13, isNext: true, isChange: true, grip: { name: 'Front two-finger drag' } });
+});
+
+test.each([
+  [1, 1, 7], [3, 1, 7], [9, 1, 13], [13, 1, 15], [18, 1, 19], [19, 1, null], [20, 1, null],
+  [1, -1, null], [6, -1, null], [7, -1, 1], [9, -1, 1], [13, -1, 7], [20, -1, 17],
+] as const)('skipping from rep %i by %i lands on %s', (rep, direction, target) => {
+  expect(skipTarget(rep, direction)).toBe(target);
 });
 
 test('a load shows the current grip', () => {

@@ -10,15 +10,19 @@ import { Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-na
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import Svg, { Path } from 'react-native-svg';
 import { Colours, resolveColour } from '../src/design/colours';
 import { Fonts } from '../src/design/fonts';
 import { useIntervalTimer, type IntervalTimerState } from '../src/components/timers/useIntervalTimer';
 import { BoardDiagram } from '../src/noHang/BoardDiagram';
 import { GripDiagram } from '../src/noHang/GripDiagram';
-import { BOARDS, TIMER_CONFIG, TOTAL_REPS, displayedGrip, parseBoardId, type BoardId } from '../src/noHang/protocol';
+import { BOARDS, TIMER_CONFIG, TOTAL_REPS, displayedGrip, parseBoardId, skipTarget, type BoardId } from '../src/noHang/protocol';
 
 const ACCENT = resolveColour('--gorse');
 const BOARD_KEY = 'noHangBoard';
+// Routines that reached DONE (not ones started and stopped). Stored only,
+// not shown anywhere yet.
+const COMPLETED_KEY = 'noHangCompletedCount';
 const RULES = [
   'Feet stay on the floor. Take some weight off, never a full hang.',
   'About 40% effort, 30–50% on the two-finger grips. Unsure? Go lighter.',
@@ -43,15 +47,23 @@ export default function NoHang() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { width: screenWidth } = useWindowDimensions();
-  const { state, start, stop, pause, resume, toggleMute } = useIntervalTimer();
+  const { state, start, stop, pause, resume, toggleMute, jumpTo } = useIntervalTimer();
   const [boardId, setBoardId] = useState<BoardId>('bm1000');
   const chosenRef = useRef(false);
+  const phase = state?.phase;
 
   useEffect(() => {
     AsyncStorage.getItem(BOARD_KEY)
       .then((raw) => { if (!chosenRef.current) setBoardId(parseBoardId(raw)); })
       .catch(() => {});
   }, []);
+
+  useEffect(() => {
+    if (phase !== 'done') return;
+    AsyncStorage.getItem(COMPLETED_KEY)
+      .then((raw) => AsyncStorage.setItem(COMPLETED_KEY, String((Number(raw) || 0) + 1)))
+      .catch(() => {});
+  }, [phase]);
 
   const chooseBoard = (id: BoardId) => {
     chosenRef.current = true;
@@ -122,6 +134,7 @@ export default function NoHang() {
           onResume={resume}
           onStop={stop}
           onToggleMute={toggleMute}
+          onJump={jumpTo}
         />
       )}
     </View>
@@ -129,7 +142,7 @@ export default function NoHang() {
 }
 
 function FollowAlong({
-  state, boardWidth, boardId, onPause, onResume, onStop, onToggleMute,
+  state, boardWidth, boardId, onPause, onResume, onStop, onToggleMute, onJump,
 }: {
   state: IntervalTimerState;
   boardWidth: number;
@@ -138,9 +151,12 @@ function FollowAlong({
   onResume: () => void;
   onStop: () => void;
   onToggleMute: () => void;
+  onJump: (rep: number) => void;
 }) {
   const shown = displayedGrip(state.phase, state.set);
   const isDone = state.phase === 'done';
+  const prevRep = skipTarget(shown.rep, -1);
+  const nextRep = skipTarget(shown.rep, 1);
   const detail = isDone
     ? `All ${TOTAL_REPS} reps done`
     : shown.isNext
@@ -154,7 +170,11 @@ function FollowAlong({
 
         <View style={styles.gripPanel}>
           <GripDiagram fingers={shown.grip.fingers} />
-          <Text style={styles.gripName}>{shown.grip.name.toUpperCase()}</Text>
+          <View style={styles.gripNameRow}>
+            {!isDone && <SkipButton direction={-1} target={prevRep} onJump={onJump} />}
+            <Text style={styles.gripName} numberOfLines={2} adjustsFontSizeToFit>{shown.grip.name.toUpperCase()}</Text>
+            {!isDone && <SkipButton direction={1} target={nextRep} onJump={onJump} />}
+          </View>
           <Text style={[styles.gripDetail, shown.isChange && !isDone && { color: ACCENT }]}>{detail}</Text>
         </View>
 
@@ -177,6 +197,32 @@ function FollowAlong({
         </View>
       )}
     </>
+  );
+}
+
+function SkipButton({ direction, target, onJump }: { direction: 1 | -1; target: number | null; onJump: (rep: number) => void }) {
+  const disabled = target == null;
+  return (
+    <Pressable
+      onPress={() => { if (target != null) onJump(target); }}
+      disabled={disabled}
+      hitSlop={8}
+      style={({ pressed }) => [styles.skipButton, pressed && styles.controlButtonPressed, disabled && styles.skipButtonDisabled]}
+      accessibilityRole="button"
+      accessibilityLabel={direction === 1 ? 'Next exercise' : 'Previous exercise'}
+      accessibilityState={{ disabled }}
+    >
+      <Svg width={16} height={16} viewBox="0 0 16 16">
+        <Path
+          d={direction === 1 ? 'M6 3 L11 8 L6 13' : 'M10 3 L5 8 L10 13'}
+          stroke={Colours.fg}
+          strokeWidth={2}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          fill="none"
+        />
+      </Svg>
+    </Pressable>
   );
 }
 
@@ -218,7 +264,10 @@ const styles = StyleSheet.create({
 
   followBody: { flex: 1, gap: 20 },
   gripPanel: { alignItems: 'center', gap: 10 },
-  gripName: { ...Fonts.heading(24), color: Colours.fg, textAlign: 'center' },
+  gripNameRow: { flexDirection: 'row', alignItems: 'center', gap: 12, alignSelf: 'stretch' },
+  gripName: { ...Fonts.heading(24), color: Colours.fg, textAlign: 'center', flex: 1 },
+  skipButton: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', backgroundColor: Colours.s2 },
+  skipButtonDisabled: { opacity: 0.3 },
   gripDetail: { ...Fonts.mono(12, 'medium'), color: Colours.dim, textAlign: 'center' },
 
   countdownCard: { flex: 1, borderRadius: 12, alignItems: 'center', justifyContent: 'center', gap: 4 },

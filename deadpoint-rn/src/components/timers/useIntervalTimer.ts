@@ -120,6 +120,22 @@ export function useIntervalTimer() {
     setAndTrack(null);
   }, [clearTimers, setAndTrack]);
 
+  /** Jumps a running timer to the start of `set`, via a fresh get-ready
+      countdown so there's time to change grip. Unpauses; the ticker is
+      still running, so nothing needs restarting. */
+  const jumpTo = useCallback((set: number) => {
+    const s = stateRef.current;
+    if (s == null || s.phase === 'done') return;
+    const target = Math.min(Math.max(1, set), s.sets);
+    const ready: PhaseState = { phase: 'ready', set: target, rep: 1 };
+    playIfUnmuted('ready');
+    setAndTrack({
+      ...s, phase: 'ready', set: target, rep: 1, isPaused: false,
+      totalSeconds: READY_SECS, remainingSeconds: READY_SECS, phaseEndMs: Date.now() + READY_SECS * 1000,
+      statusText: statusText(ready, s.sets, s.reps),
+    });
+  }, [playIfUnmuted, setAndTrack]);
+
   /** Freezes the countdown in place — phaseEndMs goes null so runTick's
       guard above skips ticking, and remainingSeconds stays exactly where
       it was; resume() re-anchors phaseEndMs to "now + whatever was left"
@@ -149,5 +165,5 @@ export function useIntervalTimer() {
   // audible tones. Same precedent as useRestTimer.ts's own unmount effect.
   useEffect(() => () => clearTimers(), [clearTimers]);
 
-  return { state, start, stop, pause, resume, toggleMute };
+  return { state, start, stop, pause, resume, toggleMute, jumpTo };
 }
