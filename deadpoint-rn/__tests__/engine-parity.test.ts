@@ -115,6 +115,47 @@ test('resolveExercises: hangboard drops a ^skip-ruled exercise for this phase', 
   });
 });
 
+test('the plan cycles Max Strength <-> Power forever instead of plateauing at Performance', () => {
+  // A long, unbroken run of training days from Oscar's real start date —
+  // far more than the one-time 24-week structured plan needs, so this
+  // genuinely exercises wrapping more than once, not just the first time.
+  const longRun: Record<string, { t: string }> = {};
+  let d = new Date('2026-08-10T12:00:00');
+  for (let i = 0; i < 240; i++) {
+    longRun[d.toISOString().slice(0, 10)] = { t: 'maxFingers' };
+    d.setDate(d.getDate() + 1);
+  }
+  const e = createEngine(PROGRAMS['oscar@sullivanltd.co.uk'], { sessionLog: longRun, loadLog: {} });
+  const dateAt = (wIdxTarget: number) => {
+    const nd = new Date('2026-08-10T12:00:00');
+    nd.setDate(nd.getDate() + (wIdxTarget * 4)); // n trained days = wIdx*4, one trained day per calendar day here
+    return nd.toISOString().slice(0, 10);
+  };
+
+  // The exact crux of the fix: the week Power's own deload finishes is
+  // still 'Power' — the very next tracked week must NOT hold at
+  // 'Performance' the way it used to, it must fall back to 'Max Strength'.
+  expect(e.phaseNameAt(dateAt(19))).toBe('Power');
+  expect(e.phaseNameAt(dateAt(20))).toBe('Max Strength');
+
+  // Swept across many blocks (well past a second and third lap), the
+  // automatic cycle must never once select Performance, and the block
+  // number must stay within the repeating [2,5] range once Base is done.
+  for (let wIdx = 4; wIdx <= 59; wIdx++) {
+    const date = dateAt(wIdx);
+    expect(e.phaseNameAt(date)).not.toBe('Performance');
+    const b = e.block(date).b;
+    expect(b).toBeGreaterThanOrEqual(2);
+    expect(b).toBeLessThanOrEqual(5);
+  }
+
+  // And it really does keep cycling, not just wrap once and get stuck:
+  // Power (block 5) must recur more than once across that sweep.
+  const phaseNames = Array.from({ length: 56 }, (_, i) => e.phaseNameAt(dateAt(i + 4)));
+  const powerCount = phaseNames.filter((n) => n === 'Power').length;
+  expect(powerCount).toBeGreaterThan(1);
+});
+
 test('resolveExercises: rest sessions have no exercises', () => {
   const e = createEngine(PROGRAMS['oscar@sullivanltd.co.uk'], { sessionLog: HISTORY, loadLog: {} });
   expect(e.resolveExercises('rest', '2026-08-29', 'Base')).toEqual([]);

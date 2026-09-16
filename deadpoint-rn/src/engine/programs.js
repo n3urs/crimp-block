@@ -34,7 +34,7 @@ return {
       {n:'Base', from:1, c:'--tidepool', cue:'Submaximal — build capacity, not a top set', d:'Four weeks building tissue tolerance before the heavy work starts. Loads sit clearly submaximal and sets run longer — the point is capacity and movement quality, not a top set. You are already training, so this is short: one block, not two.'},
       {n:'Max Strength', from:2, c:'--gorse', cue:'Near-maximal — heavy is correct here', d:'The main event, and the longest phase — twelve weeks. Pickups and hangs go near-maximal, rests go long, set counts stay low. This is where the crimp weakness and the one-arm actually move. Everything else in the week exists to let these sessions happen fresh.'},
       {n:'Power', from:5, c:'--heather', cue:'Lighter, fast — speed over load', d:'Converting the strength you built into speed. Same movements, fewer reps, moved fast and explosively rather than ground out. Contact strength on the fingers rather than long holds.'},
-      {n:'Performance', from:6, c:'--slate', cue:'Maintain only — climbing is the real work now', d:'Structured training steps back and climbing takes over. Keep one light finger session a week to hold what you built, and spend the rest of your days projecting. This is when the previous five months are supposed to show up on rock.'}
+      {n:'Performance', from:6, c:'--slate', cue:'Maintain only — climbing is the real work now', d:'Structured training steps back and climbing takes over. Keep one light finger session a week to hold what you built, and spend the rest of your days projecting. This is when the previous five months are supposed to show up on rock.', loopBlock:2}
     ],
     sessions:{
       maxFingers:{n:'Max Fingers', w:'Home · 50 min', c:'--gorse', finger:3, pull:1, note:'Climbing today? This first, then the gym a few hours later. Never climb before max finger work — you cannot pull max on tired fingers, and that is how pulleys go.',
@@ -131,7 +131,7 @@ return {
       {n:'Power Endurance', from:2, c:'--tidepool', cue:'Submaximal, high volume — chase reps, not weight', d:'Strength work drops to maintenance and the endurance gap becomes the priority — that is the thing most likely to cost you a 7B+. Circuits, boulder doubles and 4x4s move to the front of the session, where they get your best effort instead of your leftovers.'},
       {n:'Max Strength', from:3, c:'--gorse', cue:'Near-maximal, and higher than block 1 — you are stronger now', d:'Second strength block, and the long one. You come into it stronger and better conditioned than the first, so the loads should be meaningfully higher — that is the point of alternating rather than grinding one quality for six months.'},
       {n:'Power Endurance', from:5, c:'--tidepool', cue:'Submaximal, high volume — chase reps, not weight', d:'Convert the second strength block into staying power. Same format as before, heavier problems in the circuits.'},
-      {n:'Performance', from:6, c:'--slate', cue:'Maintain only — climbing is the real work now', d:'Structured training steps back and climbing takes over — keep one finger session and one circuit a week to hold what you built, and spend the rest projecting. If the Font trip has a date by now, say so and this becomes a proper taper instead.'}
+      {n:'Performance', from:6, c:'--slate', cue:'Maintain only — climbing is the real work now', d:'Structured training steps back and climbing takes over — keep one finger session and one circuit a week to hold what you built, and spend the rest projecting. If the Font trip has a date by now, say so and this becomes a proper taper instead.', loopBlock:1}
     ],
     sessions:{
       maxFingers:{n:'Max Strength', w:'Work · 40 min', c:'--gorse', finger:3, pull:1, note:'Climbing today? This first, ideally hours before. Fingers cannot pull near-max once they are already tired, and that is when they get hurt.',
@@ -206,7 +206,7 @@ return {
     phases:[
       {n:'Max Strength', from:1, c:'--gorse', cue:'Near-maximal — heavy is correct here', d:'Your existing split, structured through the app: limit bouldering and fingerboard near-maximal, pull-ups heavy. No easing-in phase — you are already training this hard, so this starts straight at your current numbers and is the longest phase.'},
       {n:'Power', from:5, c:'--heather', cue:'Lighter, fast — speed over load', d:'Same three days, converted to speed. Fingerboard goes short and sharp, pull-ups explosive, and the deadpoint/power bouldering gets priority over the limit boulders.'},
-      {n:'Performance', from:6, c:'--slate', cue:'Maintain only — climbing is the real work now', d:'Structured training steps back. One finger day and one pull day a week to hold what you built, everything else goes to outside projects.'}
+      {n:'Performance', from:6, c:'--slate', cue:'Maintain only — climbing is the real work now', d:'Structured training steps back. One finger day and one pull day a week to hold what you built, everything else goes to outside projects.', loopBlock:1}
     ],
     sessions:{
       maxFingers:{n:'Max Strength', w:'Gym · 2 hr', c:'--gorse', finger:3, pull:1, climb:1, note:'Your Monday — warm up, work through the grades, then finish on the board.',
@@ -257,7 +257,7 @@ return {
       {n:'Base', from:1, c:'--tidepool', cue:'Submaximal — build capacity, not a top set', d:'Build capacity and movement quality before loading heavy. Submaximal throughout.'},
       {n:'Max Strength', from:2, c:'--gorse', cue:'Near-maximal — heavy is correct here', d:'Near-maximal work, long rests, low set counts.'},
       {n:'Power', from:5, c:'--heather', cue:'Lighter, fast — speed over load', d:'Convert strength to speed — same movements, fewer reps, moved fast.'},
-      {n:'Performance', from:6, c:'--slate', cue:'Maintain only — climbing is the real work now', d:'Structured training steps back, climbing takes over.'}
+      {n:'Performance', from:6, c:'--slate', cue:'Maintain only — climbing is the real work now', d:'Structured training steps back, climbing takes over.', loopBlock:2}
     ],
     sessions:{
       maxFingers:{n:'Finger Strength', w:'Home · 30 min', c:'--gorse', finger:3, pull:1, note:'Climbing today? This first, ideally hours before. Near-max finger work on already-tired fingers is the classic injury mechanism.',

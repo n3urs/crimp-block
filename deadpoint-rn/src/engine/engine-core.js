@@ -114,6 +114,21 @@ function createEngine(program, data){
      them. Take a fortnight off and you resume exactly where you left off. */
   function isTraining(t){ return load(t,'finger')+load(t,'pull')>0; }
 
+  /* Training genuinely never plateaus into permanent maintenance — once the
+     last phase (Performance, by convention) would start, wrap back to its
+     `loopBlock` instead, so the plan keeps repeating Max Strength -> Power
+     -> Max Strength forever rather than holding at "Performance" for good.
+     A raw block number (uncapped, growing forever as `b` in block() below,
+     or a hypothetical future block computed elsewhere) is wrapped through
+     here so every caller — block()'s own `b`, and phaseIndexAt() for any
+     projected/future block number — agrees on where you actually are.
+     Absent `loopBlock` means "no repeat", matching the old behaviour. */
+  function wrapBlock(b){
+    var last = PHASES[PHASES.length-1];
+    if(last.loopBlock==null || b<last.from) return b;
+    var cycleLen = last.from - last.loopBlock;
+    return last.loopBlock + ((b-last.loopBlock) % cycleLen);
+  }
   function block(date){
     date = date || today();
     var all=StoreFacade.all(), n=0;
@@ -122,22 +137,18 @@ function createEngine(program, data){
     }
     var per=PER_WEEK, wIdx=Math.floor(n/per);
     return {
-      b: Math.min(6, Math.floor(wIdx/4)+1),
+      b: wrapBlock(Math.floor(wIdx/4)+1),
       w: (wIdx%4)+1,
       done: n%per,        // sessions banked into the current week
       per: per,
       total: n,           // cumulative training days since START_DATE (NOT reset per block — use w/done for block-local counts)
-      wIdx: wIdx,          // training weeks completed, uncapped
-      /* Six blocks is the whole structured plan. Once wIdx passes 24 there is
-         no block 7 — you hold in block 6 (Performance/maintenance) and just
-         keep cycling its 4-week deload rhythm indefinitely. `over` marks that
-         so the UI can say so instead of quietly repeating "Block 6" forever. */
-      over: wIdx>=24
+      wIdx: wIdx          // training weeks completed, uncapped
     };
   }
   /* Index, not the object — a plan may repeat a phase name (e.g. two separate
      Max Strength blocks), and "you are here" has to mark the right one. */
   function phaseIndexAt(b){
+    b = wrapBlock(b);
     var out=0;
     for(var i=0;i<PHASES.length;i++) if(b>=PHASES[i].from) out=i;
     return out;

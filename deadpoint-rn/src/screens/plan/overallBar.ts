@@ -1,34 +1,55 @@
-/** Direct port of PlanSheetView.swift's `overallBar` (:64-79) — one
-    fill-fraction + accent-colour lookup per each of the 6 fixed block
-    segments. Pulled out of plan.tsx's JSX into its own pure function
-    (no React/RN import) purely so its two fiddly bits have a single place
-    to get right and a test that pins them down:
-      · the fraction clamp: (wIdx - (b-1)*4) / 4, clamped to [0,1] — a
-        segment b is 0% filled until wIdx reaches (b-1)*4, 100% once it
-        reaches b*4.
-      · the *last* phase (in array order, not by highest `from`) whose
-        `from` is <= b — Swift's `phases.last(where:)` — INCLUDING its
-        "colour is s3 (not any phase accent), once b exceeds phases.length"
-        quirk, which for a real 4-phase program (Base/Max Strength/Power/
-        Performance, `from` 1/2/5/6) means blocks 5 and 6 render s3 even
-        though Power/Performance's own `from` covers them — ported
-        verbatim per the task brief, not "fixed". */
+/** One fill-fraction + accent-colour segment per block of the REPEATING
+    cycle (e.g. Oscar's Max Strength x3 + Power x1), plus which numbered
+    lap of that cycle you're currently on. Replaces the old fixed
+    "6 segments, the whole plan, done" bar — training doesn't finish once
+    it reaches Performance any more (see engine-core.js's `wrapBlock`),
+    it keeps repeating the same wave, so "progress through the whole
+    plan" no longer means anything. This shows progress through the
+    CURRENT lap instead, resetting every time the cycle repeats.
+
+    Pulled out of plan.tsx's JSX into its own pure function (no React/RN
+    import) for the same reason the old computeOverallBar was: the
+    fiddly wIdx-to-fraction math belongs somewhere it can be pinned down
+    by a test on its own. */
 import type { Phase } from '../../engine/types';
 
-export interface OverallBarSegment {
+export interface CycleBarSegment {
   /** 0..1 filled fraction of this segment's width. */
   frac: number;
-  /** Phase colour variable name to resolve (e.g. "--gorse"), or null
-      meaning "use Colours.s3 literal" (Swift's beyond-phases.count case). */
-  varName: string | null;
+  /** Phase colour variable name to resolve (e.g. "--gorse"). */
+  varName: string;
 }
 
-export function computeOverallBar(phases: Phase[], wIdx: number): OverallBarSegment[] {
-  const segments: OverallBarSegment[] = [];
-  for (let b = 1; b <= 6; b++) {
-    const frac = Math.max(0, Math.min(1, (wIdx - (b - 1) * 4) / 4));
-    const varName = b <= phases.length ? phases.findLast((p) => p.from <= b)?.c ?? '--gorse' : null;
+export interface CycleBar {
+  /** Which numbered lap of the repeating cycle you're on — 1 for the
+      first time through (including while still in a one-time phase like
+      Base, before the cycle has even started: shown prospectively, all
+      segments empty). */
+  cycleNumber: number;
+  segments: CycleBarSegment[];
+}
+
+/** `phases` must end with the phase carrying `loopBlock` (Performance, by
+    convention — see engine-core.js's `wrapBlock`). Returns null if the
+    program doesn't define one, since there's nothing repeating to show a
+    lap of. */
+export function computeCycleBar(phases: Phase[], wIdx: number): CycleBar | null {
+  const last = phases[phases.length - 1];
+  const loopBlock = last.loopBlock;
+  if (loopBlock == null) return null;
+
+  const cycleLen = last.from - loopBlock;
+  const rawB = Math.floor(wIdx / 4) + 1;
+  const cycleNumber = rawB < loopBlock ? 1 : Math.floor((rawB - loopBlock) / cycleLen) + 1;
+  const cycleStartWIdx = (loopBlock - 1) * 4 + (cycleNumber - 1) * cycleLen * 4;
+
+  const segments: CycleBarSegment[] = [];
+  for (let i = 0; i < cycleLen; i++) {
+    const b = loopBlock + i;
+    const segStartWIdx = cycleStartWIdx + i * 4;
+    const frac = Math.max(0, Math.min(1, (wIdx - segStartWIdx) / 4));
+    const varName = phases.findLast((p) => p.from <= b)?.c ?? last.c;
     segments.push({ frac, varName });
   }
-  return segments;
+  return { cycleNumber, segments };
 }

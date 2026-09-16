@@ -10,7 +10,6 @@ export interface BlockInfo {
   per: number;
   total: number;
   wIdx: number;
-  over: boolean;
 }
 
 export interface Decision {
@@ -24,6 +23,15 @@ export interface Phase {
   c: string;
   d: string;
   cue?: string;
+  /** Only ever set on the LAST phase in the array (Performance, by
+      convention) — the block number to wrap back to once this phase's
+      own `from` is reached, instead of holding here forever. Makes the
+      plan a genuinely repeating wave (Max Strength -> Power -> back to
+      Max Strength...) rather than a one-time plan that plateaus into
+      permanent maintenance. Absent means "no repeat, hold at the last
+      phase" — kept optional rather than required so a future account
+      could still opt out. */
+  loopBlock?: number;
 }
 
 export interface IntervalConfig {

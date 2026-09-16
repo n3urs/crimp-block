@@ -244,7 +244,7 @@ export function createIsaacEngine(startDate: string, data: { sessionLog: Session
       const isTestDeloadWeek = phase.n === 'Peak & Test';
       return {
         b: week, w: isTestDeloadWeek ? 4 : (week % 4 === 0 ? 3 : week % 4), // w:4 only during the real deload (Week 10) — see isaacProgram's own ISAAC_PHASES doc comment
-        done: 0, per: 6, total: 6, wIdx: 0, over: false,
+        done: 0, per: 6, total: 6, wIdx: 0,
       };
     },
     phaseNameAt: (date: string): string => phaseForWeek(weekNumberSince(startDate, date)).n,

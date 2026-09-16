@@ -1,8 +1,15 @@
 // app/plan.tsx
-/** Direct port of PlanSheetView.swift — tapping the phase/week badge on
-    the daily card opens this. Same content, same order: overall block
-    progress, the current phase's own progress, the "coming back" taper
-    card when returning from a layoff, and a tappable list of every phase.
+/** Originally a direct port of PlanSheetView.swift; the top progress bar
+    has since diverged from that port on purpose (see overallBar.ts's own
+    doc comment) — training now cycles Max Strength <-> Power forever
+    instead of finishing, so this shows progress through the CURRENT lap
+    of that cycle plus which lap you're on, not "how far through the
+    whole plan." Same order otherwise: cycle progress, the current
+    phase's own progress, the "coming back" taper card when returning
+    from a layoff, and a tappable list of every phase the automatic cycle
+    can actually reach (Performance is deliberately left out — see
+    engine-core.js's `wrapBlock` — it's reserved for a future planned-trip
+    taper, not something you land on by training as normal).
     Reached via router.push('/plan') from card.tsx's phase badge and
     registered in app/_layout.tsx with `presentation: 'modal'`, the same
     pattern as day-picker.tsx/settings.tsx/calendar.tsx. Like those
@@ -25,7 +32,7 @@ import { useProfile } from '../src/data/useProfile';
 import { createEngine } from '../src/engine';
 import { resolveUserProgram } from '../src/engine/resolveUserProgram';
 import type { Phase, BlockInfo } from '../src/engine/types';
-import { computeOverallBar } from '../src/screens/plan/overallBar';
+import { computeCycleBar } from '../src/screens/plan/overallBar';
 
 export default function Plan() {
   const router = useRouter();
@@ -49,7 +56,12 @@ export default function Plan() {
   const currentIndex = engine.phaseIndexAt(block.b);
   const current = currentIndex >= 0 && currentIndex < phases.length ? phases[currentIndex] : null;
   const returnInfo = engine.returnInfo(today);
-  const overallSegments = computeOverallBar(phases, block.wIdx);
+  const cycleBar = computeCycleBar(phases, block.wIdx);
+  // The last phase (Performance, by convention) only exists today as data
+  // for a future planned-trip taper (see its own `loopBlock`) — it's never
+  // reached by the automatic cycle any more, so it's left out of this list
+  // rather than shown as a row you can never actually get to yet.
+  const listedPhases = cycleBar ? phases.slice(0, -1) : phases;
 
   return (
     <View style={styles.root}>
@@ -61,27 +73,30 @@ export default function Plan() {
       </View>
 
       <ScrollView contentContainerStyle={[styles.list, { paddingBottom: 20 + insets.bottom }]}>
-        <View style={styles.overallBarRow}>
-          {overallSegments.map((seg, i) => (
-            <View key={i} style={styles.overallSegmentTrack}>
-              <View
-                style={[
-                  styles.overallSegmentFill,
-                  { width: `${seg.frac * 100}%`, backgroundColor: seg.varName != null ? resolveColour(seg.varName) : Colours.s3 },
-                ]}
-              />
+        {cycleBar != null && (
+          <>
+            <Text style={styles.cycleLabel}>{`CYCLE ${cycleBar.cycleNumber}`}</Text>
+            <View style={styles.overallBarRow}>
+              {cycleBar.segments.map((seg, i) => (
+                <View key={i} style={styles.overallSegmentTrack}>
+                  <View
+                    style={[
+                      styles.overallSegmentFill,
+                      { width: `${seg.frac * 100}%`, backgroundColor: resolveColour(seg.varName) },
+                    ]}
+                  />
+                </View>
+              ))}
             </View>
-          ))}
-        </View>
+          </>
+        )}
 
         {current != null && (
           <CurrentPhaseCard phase={current} block={block} />
         )}
 
         <Text style={styles.explainer}>
-          {block.over
-            ? "You've worked through all six blocks — the structured plan is complete. It doesn't stop or reset: you now hold here indefinitely, still on the same 4-week rhythm with a deload every fourth trained week."
-            : `A week advances when you've banked ${block.per} sessions that carried load — not every 7 days. Take a fortnight off and you pick up exactly where you left off. Four weeks make a block, and every fourth week is a deload.`}
+          {`A week advances when you've banked ${block.per} sessions that carried load — not every 7 days. Take a fortnight off and you pick up exactly where you left off. Four weeks make a block, and every fourth week is a deload.`}
         </Text>
 
         {returnInfo != null && (
@@ -94,7 +109,7 @@ export default function Plan() {
         )}
 
         <View style={styles.phaseList}>
-          {phases.map((phase, index) => {
+          {listedPhases.map((phase, index) => {
             const isCurrent = index === currentIndex;
             const colour = isCurrent ? resolveColour(phase.c) : Colours.dim;
             return (
@@ -128,7 +143,7 @@ export default function Plan() {
 function CurrentPhaseCard({ phase, block }: { phase: Phase; block: BlockInfo }) {
   const accent = resolveColour(phase.c);
   const barFrac = Math.min(1, block.done / Math.max(block.per, 1));
-  const title = `${phase.n.toUpperCase()} · ${block.over ? 'ONGOING' : `BLOCK ${block.b}`} · WEEK ${block.w}` + (block.w === 4 ? ' · DELOAD' : '');
+  const title = `${phase.n.toUpperCase()} · BLOCK ${block.b} · WEEK ${block.w}` + (block.w === 4 ? ' · DELOAD' : '');
   return (
     <View style={[styles.currentCard, { backgroundColor: Colours.s1 }]}>
       <View style={[styles.currentCardAccent, { backgroundColor: accent }]} />
@@ -152,6 +167,7 @@ const styles = StyleSheet.create({
   close: { ...Fonts.mono(12, 'bold'), color: Colours.faint },
   list: { padding: 20, paddingTop: 0, gap: 20 },
 
+  cycleLabel: { ...Fonts.mono(11, 'bold'), color: Colours.faint, letterSpacing: 1 },
   overallBarRow: { flexDirection: 'row', gap: 3 },
   overallSegmentTrack: { flex: 1, height: 6, borderRadius: 3, backgroundColor: Colours.s2, overflow: 'hidden' },
   overallSegmentFill: { height: '100%', borderRadius: 3 },
