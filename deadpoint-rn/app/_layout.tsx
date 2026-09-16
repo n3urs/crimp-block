@@ -95,6 +95,9 @@ export default function RootLayout() {
               directly under app/, so its route name is just
               "force-gauge". */}
           <Stack.Screen name="force-gauge" options={{ presentation: 'modal' }} />
+          {/* No-hang routine follow-along — app/no-hang.tsx, same
+              not-group-qualified naming as force-gauge above. */}
+          <Stack.Screen name="no-hang" options={{ presentation: 'modal' }} />
           {/* Day picker modal (Task 2, this plan) — direct port of
               DayPickerView.swift. Backdating/editing a previous
               (non-today) day tapped in DailyCard's WeekStrip. Same

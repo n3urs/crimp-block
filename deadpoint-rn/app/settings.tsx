@@ -334,6 +334,19 @@ export default function Settings() {
           </Pressable>
         </Section>
 
+        <Section title="NO-HANG ROUTINE">
+          <Pressable
+            style={styles.helpBody}
+            hitSlop={16}
+            onPress={() => router.push('/no-hang')}
+            accessibilityRole="button"
+            accessibilityLabel="Open the no-hang routine"
+          >
+            <Text style={styles.helpAction}>EMIL'S DAILY NO-HANG ROUTINE</Text>
+            <Text style={styles.helpSubtitle}>A 10-minute sub-max fingerboard follow-along for a Beastmaker 1000 or 2000.</Text>
+          </Pressable>
+        </Section>
+
         <Section title="HELP">
           <Pressable
             style={styles.helpBody}
