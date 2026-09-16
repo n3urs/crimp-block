@@ -10,7 +10,7 @@ function fakeAddDays(date: string, n: number): string {
 function makeEngine(overrides: Partial<AllTimeStatsEngine> = {}): AllTimeStatsEngine {
   return {
     addDays: fakeAddDays,
-    block: () => ({ b: 1, w: 1, done: 0, per: 3, total: 0, wIdx: 0, over: false }),
+    block: () => ({ b: 1, w: 1, done: 0, per: 3, total: 0, wIdx: 0 }),
     decide: () => ({ k: 'pull' }),
     programStartDate: () => undefined,
     sessionColourVarName: (key) => `--${key}`,
@@ -55,7 +55,7 @@ test('a session type with zero logged entries is omitted from the breakdown (exc
 
 test('consistency percent and fraction are computed from block().total against a time-scaled expectation', () => {
   const engine = makeEngine({
-    block: () => ({ b: 1, w: 1, done: 0, per: 3, total: 3, wIdx: 0, over: false }),
+    block: () => ({ b: 1, w: 1, done: 0, per: 3, total: 3, wIdx: 0 }),
     programStartDate: () => '2026-08-01',
   });
   // daysElapsed = Aug1 -> Aug8 inclusive = 8 days; expected = round(3 * 8 / 7) = 3

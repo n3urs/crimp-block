@@ -61,6 +61,46 @@ function weeklyRate(
   return { rate: daily * 7, actualDays: calendarCount };
 }
 
+/** Whether a given future date (as `daysAhead` from today) falls inside a
+    projected deload week, at the CURRENT trained-pace. Unlike
+    `computeTrendForecast`'s own `deload` field (only the single NEXT
+    upcoming window, for the one-line legend caption), this answers the
+    question for ANY date — however many months ahead the calendar is
+    scrolled — so every future deload shows, not just the first. Real bug
+    reported live: only ever seeing one predicted deload on the calendar,
+    every later month blank.
+
+    Deliberately independent of phase/block wrapping (engine-core.js's
+    `wrapBlock`): a deload is week 4 of every 4-week block, which recurs
+    on its own 4-week rhythm forever regardless of which phase a block
+    belongs to — the same reason `isDeload()` never needed the block
+    number capped in the first place. Continuous training-week math
+    mirrors `projectedPhaseName` (CalendarScreen.tsx) so the two stay
+    consistent, but works in WEEKS directly rather than blocks — no need
+    to route through phaseIndexAt() at all. */
+export function isProjectedDeload(
+  engine: TrendForecastEngine,
+  today: string,
+  weeklyRate: number,
+  daysAhead: number
+): boolean {
+  const b = engine.block(today);
+  if (weeklyRate <= 0) return b.w === 4;
+  const calendarDaysPerTrainingDay = 7 / weeklyRate;
+  const trainingDaysAhead = daysAhead / calendarDaysPerTrainingDay;
+  // Block-local, deliberately not b.total/b.wIdx (same reasoning as the
+  // deload calc below this function, and the actual bug fixed earlier
+  // today: b.total is cumulative since START_DATE and never resets per
+  // block, so using it here would silently break every deload after the
+  // first, exactly like before). `w` is already `(realWIdx % 4) + 1`, so
+  // `w - 1` IS `realWIdx % 4` — no need for the real unbounded wIdx at
+  // all to get the right 4-week-cycle phase.
+  const weeksAheadContinuous = trainingDaysAhead / b.per;
+  const currentWeekProgress = b.done / b.per;
+  const projectedWeekSlot = Math.floor((b.w - 1) + currentWeekProgress + weeksAheadContinuous) % 4;
+  return projectedWeekSlot === 3;
+}
+
 export function computeTrendForecast(
   engine: TrendForecastEngine,
   history: Days,

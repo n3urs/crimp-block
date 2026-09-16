@@ -12,7 +12,8 @@ import type { Phase } from '../../engine/types';
 import { SESSION_ORDER } from '../../engine';
 import type { Days } from '../../data/useStore';
 import { daysInMonthGrid, monthTitle, shiftMonth, startOfMonth } from './calendarMath';
-import { computeTrendForecast, type TrendForecastEngine } from './trendForecast';
+import { computeTrendForecast, isProjectedDeload, type TrendForecastEngine } from './trendForecast';
+import { computeCycleBar } from '../plan/overallBar';
 import { computeAllTimeStats, type AllTimeStatsEngine } from './allTimeStats';
 import { computePlanProgress, type PlanProgressEngine } from './planProgress';
 import { MonthGrid } from './MonthGrid';
@@ -132,8 +133,15 @@ export function CalendarScreen({ engine, history, today, onDismiss }: CalendarSc
     return out;
   }, [engine]);
   const currentPhaseColour = phaseColourByName[currentPhaseName] ?? null;
-  const currentPositionLine = `${currentPhaseName.toUpperCase()} · BLOCK ${currentBlock.b} · WK ${currentBlock.w} OF 4${currentBlock.w === 4 ? ' · DELOAD' : ''}`;
+  const cycleBar = useMemo(() => computeCycleBar(engine.phases, currentBlock.wIdx), [engine, currentBlock.wIdx]);
+  const cycleLabel = cycleBar != null ? `CYCLE ${cycleBar.cycleNumber} · ` : '';
+  const currentPositionLine = `${currentPhaseName.toUpperCase()} · ${cycleLabel}BLOCK ${currentBlock.b} · WK ${currentBlock.w} OF 4${currentBlock.w === 4 ? ' · DELOAD' : ''}`;
   const isDeloadOngoing = currentBlock.w === 4;
+  // The last phase (Performance) is reserved for a future planned-trip
+  // taper (see engine-core.js's `wrapBlock`) — it's never reached by the
+  // automatic cycle any more, so a legend swatch for it would key a
+  // colour that never actually shows up on the grid.
+  const legendPhases = cycleBar != null ? engine.phases.slice(0, -1) : engine.phases;
 
   const cells: (DayCellData | null)[] = useMemo(() => {
     const rawDays = daysInMonthGrid(visibleMonth);
@@ -159,7 +167,7 @@ export function CalendarScreen({ engine, history, today, onDismiss }: CalendarSc
 
       const isDeloadWindow = isPast
         ? engine.isDeload(date)
-        : forecast.deload != null && date >= forecast.deload.start && date <= forecast.deload.end;
+        : isProjectedDeload(engine, today, forecast.weeklyRate, daysBetweenLocal(today, date));
 
       const myPhase = phases[i];
       const col = i % 7;
@@ -208,7 +216,7 @@ export function CalendarScreen({ engine, history, today, onDismiss }: CalendarSc
           </View>
         </GestureDetector>
 
-        <Legend phases={engine.phases} deload={forecast.deload} isDeloadOngoing={isDeloadOngoing} resolveColour={resolveColour} />
+        <Legend phases={legendPhases} deload={forecast.deload} isDeloadOngoing={isDeloadOngoing} resolveColour={resolveColour} />
 
         <StatsPanel stats={allTimeStats} />
       </ScrollView>
