@@ -108,13 +108,13 @@
     read any profile field at all, so gating a built-in account's route on
     a Supabase round trip it doesn't need would just be needless latency. */
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSession, REVIEWER_EMAIL } from '../src/data/useSession';
 import { useProfile } from '../src/data/useProfile';
 import { getHasSeenWelcome, hasSeenBuiltInTutorial } from '../src/data/deviceFlags';
 import { supabase } from '../src/data/supabase';
-import { computeRoute, isBuiltInProgram, isRouteReady, type Route } from '../src/routing/computeRoute';
+import { computeRoute, isBuiltInProgram, isRouteReady, passesPaywall, type Route } from '../src/routing/computeRoute';
 import { PAYWALL_ENABLED, useEntitlement } from '../src/data/subscription';
 import { Colours, resolveColour } from '../src/design/colours';
 import { Fonts } from '../src/design/fonts';
@@ -190,20 +190,15 @@ export default function Index() {
   // against computeRoute.ts's isBuiltInProgram branch).
   const profileFetchFailed = !builtIn && profile.hasError;
 
-  // Task 4: the whole "provably inert until the flag flips" guarantee
-  // lives in this one line. With PAYWALL_ENABLED false (its current,
-  // shipped value) this is unconditionally `true` — full stop, short-
-  // circuiting before entitlement.hasActiveSubscription is ever read — so
-  // computeRoute() structurally cannot return '/paywall' no matter what
-  // RevenueCat reports. There is no other code path that computes this
-  // value; both the readiness check below and the computeRoute() call
-  // further down consume this same single derivation, so they can't
-  // disagree with each other.
-  // The `|| email === REVIEWER_EMAIL` term is Google Play review access,
-  // not a real entitlement — see REVIEWER_EMAIL's own doc comment
-  // (useSession.ts) for why this account needs the paywall bypassed
-  // specifically, rather than being made isBuiltInProgram like Oscar/Isaac.
-  const hasActiveSubscription = !PAYWALL_ENABLED || entitlement.hasActiveSubscription || email === REVIEWER_EMAIL;
+  // The one derivation both the readiness check and computeRoute() below
+  // consume, so they can't disagree. See passesPaywall for why the
+  // reviewer account only skips the paywall on Android.
+  const hasActiveSubscription = passesPaywall({
+    paywallEnabled: PAYWALL_ENABLED,
+    entitled: entitlement.hasActiveSubscription,
+    isReviewerAccount: email === REVIEWER_EMAIL,
+    platform: Platform.OS,
+  });
 
   // Fix 3 (cont'd): computed ONCE per render, from the same readiness gate
   // and the same computeRoute() call — both the router.replace() effect

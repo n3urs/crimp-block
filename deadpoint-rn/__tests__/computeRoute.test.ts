@@ -1,4 +1,4 @@
-import { computeRoute, isBuiltInProgram, isRouteReady, type RouteInputs, type RouteReadinessInputs } from '../src/routing/computeRoute';
+import { computeRoute, isBuiltInProgram, isRouteReady, passesPaywall, type RouteInputs, type RouteReadinessInputs } from '../src/routing/computeRoute';
 
 const base: RouteInputs = {
   hasSeenWelcome: true, isSignedIn: true, email: 'new@example.com', isBuiltInProgram: false,
@@ -285,4 +285,26 @@ test('ready: built-in account ignores entitlement.failed entirely, even with the
     ...readyBase, isBuiltInProgram: true, builtInSeen: true, profileLoaded: false,
     paywallEnabled: true, entitlementLoaded: true, entitlementFetchFailed: true,
   })).toBe(true);
+});
+
+describe('passesPaywall', () => {
+  const gate = { paywallEnabled: true, entitled: false, isReviewerAccount: false, platform: 'ios' };
+
+  test('the App Store reviewer account still meets the paywall on iOS, so the subscriptions are reviewable', () => {
+    expect(passesPaywall({ ...gate, isReviewerAccount: true, platform: 'ios' })).toBe(false);
+  });
+
+  test('the Play reviewer account skips the paywall on Android, where review needs full access', () => {
+    expect(passesPaywall({ ...gate, isReviewerAccount: true, platform: 'android' })).toBe(true);
+  });
+
+  test('a subscriber passes on either platform; a non-subscriber does not', () => {
+    expect(passesPaywall({ ...gate, entitled: true })).toBe(true);
+    expect(passesPaywall({ ...gate, entitled: true, platform: 'android' })).toBe(true);
+    expect(passesPaywall(gate)).toBe(false);
+  });
+
+  test('nobody is gated when the paywall is off', () => {
+    expect(passesPaywall({ ...gate, paywallEnabled: false })).toBe(true);
+  });
 });

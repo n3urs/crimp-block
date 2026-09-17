@@ -1,7 +1,7 @@
 // app/paywall.tsx
 import React, { useState } from 'react';
 import { Alert, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Purchases, { type PurchasesPackage } from 'react-native-purchases';
 import { Colours } from '../src/design/colours';
@@ -9,6 +9,11 @@ import { Fonts } from '../src/design/fonts';
 import { useSession } from '../src/data/useSession';
 import { purchaseStandard, restorePurchases, trialLabel, trialLengthLabel, useOfferings } from '../src/data/subscription';
 import { PRIVACY_POLICY_URL, TERMS_OF_USE_URL } from '../src/data/legal';
+
+// Where the purchase is billed and managed, in the store's own words.
+const STORE = Platform.OS === 'ios'
+  ? { account: 'your Apple ID', manage: 'Settings' }
+  : { account: 'your Google Play account', manage: 'the Play Store' };
 
 const FEATURES = [
   'Your quiz-assigned training plan',
@@ -23,7 +28,10 @@ export default function Paywall() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { signOut } = useSession();
-  const { monthly, annual } = useOfferings();
+  const { monthly, annual, status: offeringsStatus, refresh: refreshOfferings } = useOfferings();
+  // Opened from Settings to view plans (not as the post-onboarding gate):
+  // offer a way back instead of SIGN OUT.
+  const dismissible = useLocalSearchParams<{ from?: string }>().from === 'settings';
   // Defaults to monthly — matches the trial-focused heading copy below.
   const [selectedTier, setSelectedTier] = useState<Tier>('monthly');
   const [subscribing, setSubscribing] = useState(false);
@@ -77,7 +85,7 @@ export default function Paywall() {
       if (restored) {
         router.replace('/');
       } else {
-        Alert.alert('Nothing to restore', 'No previous purchase was found for this Apple ID.');
+        Alert.alert('Nothing to restore', `No previous purchase was found for ${STORE.account}.`);
       }
     } catch (e: any) {
       Alert.alert('Restore failed', e?.message ?? 'Something went wrong. Please try again.');
@@ -102,7 +110,15 @@ export default function Paywall() {
 
   return (
     <ScrollView style={styles.root} contentContainerStyle={[styles.content, { paddingTop: 24 + insets.top }]}>
-      <Pressable onPress={onSignOut} style={styles.signOut}><Text style={styles.signOutText}>SIGN OUT</Text></Pressable>
+      {dismissible ? (
+        <Pressable onPress={() => router.back()} hitSlop={12} style={styles.signOut} accessibilityRole="button" accessibilityLabel="Close">
+          <Text style={styles.signOutText}>CLOSE</Text>
+        </Pressable>
+      ) : (
+        <Pressable onPress={onSignOut} hitSlop={12} style={styles.signOut} accessibilityRole="button" accessibilityLabel="Sign out">
+          <Text style={styles.signOutText}>SIGN OUT</Text>
+        </Pressable>
+      )}
 
       <View style={styles.heading}>
         <Text style={styles.eyebrow}>DEADPOINT STANDARD</Text>
@@ -137,11 +153,20 @@ export default function Paywall() {
                 <Text style={styles.tierLabel}>{label}</Text>
                 {badge != null && <Text style={styles.tierBadge}>{badge}</Text>}
               </View>
-              <Text style={styles.tierPrice}>{pkg ? pkg.product.priceString : '—'}</Text>
+              <Text style={styles.tierPrice}>{pkg ? pkg.product.priceString : offeringsStatus === 'loading' ? '…' : '—'}</Text>
             </Pressable>
           );
         })}
       </View>
+
+      {offeringsStatus === 'failed' && (
+        <View style={styles.loadError}>
+          <Text style={styles.loadErrorText}>Couldn't load the plans. Check your connection and try again.</Text>
+          <Pressable onPress={refreshOfferings} hitSlop={8} accessibilityRole="button" accessibilityLabel="Try loading the plans again">
+            <Text style={styles.footerLink}>TRY AGAIN</Text>
+          </Pressable>
+        </View>
+      )}
 
       <Pressable
         onPress={onSubscribe}
@@ -175,10 +200,10 @@ export default function Paywall() {
           rather than restating it as a separate hardcoded claim. */}
       <Text style={styles.legal}>
         {selectedTrial && selectedPackage
-          ? `${trialLengthLabel(selectedPackage)} free, then ${selectedPackage.product.priceString} per ${selectedTier === 'monthly' ? 'month' : 'year'}, billed to your Apple ID. Cancel any time in Settings — at least 24 hours before renewal to avoid being charged.`
+          ? `${trialLengthLabel(selectedPackage)} free, then ${selectedPackage.product.priceString} per ${selectedTier === 'monthly' ? 'month' : 'year'}, billed to ${STORE.account}. Cancel any time in ${STORE.manage} — at least 24 hours before renewal to avoid being charged.`
           : selectedPackage
-          ? `${selectedPackage.product.priceString} per ${selectedTier === 'monthly' ? 'month' : 'year'}, billed to your Apple ID immediately. Manage or cancel any time in Settings.`
-          : 'Manage or cancel any time in Settings.'}
+          ? `${selectedPackage.product.priceString} per ${selectedTier === 'monthly' ? 'month' : 'year'}, billed to ${STORE.account} immediately. Manage or cancel any time in ${STORE.manage}.`
+          : `Manage or cancel any time in ${STORE.manage}.`}
       </Text>
 
       {/* Point-of-purchase disclosure Apple's subscription rules expect
@@ -225,6 +250,8 @@ const styles = StyleSheet.create({
   subscribeButton: { paddingVertical: 16, borderRadius: 10, alignItems: 'center', backgroundColor: Colours.fg },
   subscribeButtonDisabled: { opacity: 0.6 },
   subscribeText: { ...Fonts.mono(14, 'bold'), color: Colours.bg },
+  loadError: { alignItems: 'center', gap: 8, padding: 14, borderRadius: 12, backgroundColor: Colours.s1 },
+  loadErrorText: { fontSize: 13, color: Colours.dim, textAlign: 'center' },
   footerRow: { flexDirection: 'row', justifyContent: 'center', gap: 16 },
   footerLink: { ...Fonts.mono(11, 'semibold'), color: Colours.dim },
   legal: { ...Fonts.mono(10, 'medium'), color: Colours.faint, textAlign: 'center' },

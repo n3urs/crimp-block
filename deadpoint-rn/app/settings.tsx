@@ -17,7 +17,8 @@
     required for App Store review, Guideline 5.1.1(v) (account creation
     without in-app account deletion is a guaranteed rejection). */
 import React, { useState } from 'react';
-import { Alert, Linking, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { Alert, Linking, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import Purchases from 'react-native-purchases';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colours, resolveColour } from '../src/design/colours';
@@ -26,6 +27,8 @@ import { useSession } from '../src/data/useSession';
 import { useProfile, type ProfileRow } from '../src/data/useProfile';
 import { usePrefs, setSetsCounterEnabled, setAutoStartRestOnTally } from '../src/data/prefs';
 import { SettingsGroup, SettingsRow } from '../src/components/settings/SettingsList';
+import { useEntitlement } from '../src/data/subscription';
+import { isBuiltInProgram } from '../src/routing/computeRoute';
 import { PRIVACY_POLICY_URL, TERMS_OF_USE_URL } from '../src/data/legal';
 import { TEMPLATE_META, REHAB_META, DISCIPLINE_LABELS, EXPERIENCE_LABELS, parseTemplateId } from '../src/screens/quiz/quizModel';
 
@@ -71,6 +74,7 @@ export default function Settings() {
   const userId = session?.user?.id ?? '';
   const profile = useProfile(userId);
   const prefs = usePrefs();
+  const entitlement = useEntitlement();
 
   // Mirrors day-picker.tsx's own busy/error pattern exactly — shared by
   // the one async action this screen performs (RESTORE INSTANTLY).
@@ -164,6 +168,20 @@ export default function Settings() {
     router.replace('/tutorial');
   };
 
+  // Subscribers go to the store's own manage/cancel screen; everyone else
+  // sees the plans. Built-in accounts aren't customers, so the row is hidden
+  // for them below.
+  const onSubscription = () => {
+    if (!entitlement.hasActiveSubscription) {
+      router.push({ pathname: '/paywall', params: { from: 'settings' } });
+    } else if (Platform.OS === 'ios') {
+      Purchases.showManageSubscriptions().catch((e) => console.error('settings: showManageSubscriptions failed:', e));
+    } else {
+      Linking.openURL('https://play.google.com/store/account/subscriptions?package=uk.co.sullivanltd.deadpoint')
+        .catch((e) => console.error('settings: opening Play subscriptions failed:', e));
+    }
+  };
+
   const onRestoreStandard = async () => {
     setBusy(true);
     setError(null);
@@ -208,6 +226,20 @@ export default function Settings() {
             PREFERENCES isn't gated on row.trackType: a rehab-only account
             has never been asked any of these, and opening the editor there
             is a real first assignment (see preferencesSummaryText). */}
+        {email != null && !isBuiltInProgram(email) && (
+          <SettingsGroup title="SUBSCRIPTION">
+            <SettingsRow
+              icon="card"
+              tint={gorse}
+              title="Deadpoint Standard"
+              subtitle={entitlement.hasActiveSubscription ? 'Active · manage or cancel' : 'View plans and pricing'}
+              trailing="chevron"
+              onPress={onSubscription}
+              accessibilityLabel={entitlement.hasActiveSubscription ? 'Manage subscription' : 'View subscription plans'}
+            />
+          </SettingsGroup>
+        )}
+
         {row != null && (
           <SettingsGroup
             title="TRAINING"

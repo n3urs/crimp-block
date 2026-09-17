@@ -56,6 +56,19 @@ export function computeRoute(inputs: RouteInputs): Route {
   return '/card';
 }
 
+/** Whether an account gets past the paywall gate. The store-reviewer
+    account skips it on Android only: Google Play's review asks for full
+    access, but Apple's reviewer has to reach the paywall to review the
+    subscriptions at all (Guideline 2.1(b)). */
+export function passesPaywall(inputs: {
+  paywallEnabled: boolean;
+  entitled: boolean;
+  isReviewerAccount: boolean;
+  platform: string;
+}): boolean {
+  return !inputs.paywallEnabled || inputs.entitled || (inputs.isReviewerAccount && inputs.platform === 'android');
+}
+
 // programs.js is plain JS (no .d.ts) — same require-not-import pattern
 // app/(main)/card.tsx, app/tutorial.tsx, and the engine facade itself
 // already use.

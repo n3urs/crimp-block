@@ -151,16 +151,25 @@ export function useEntitlement() {
 export function useOfferings() {
   const [monthly, setMonthly] = useState<PurchasesPackage | null>(null);
   const [annual, setAnnual] = useState<PurchasesPackage | null>(null);
+  // 'failed' covers both a thrown fetch and an Offering with no packages:
+  // either way there's nothing to buy, and the paywall must say so rather
+  // than just greying the plans out.
+  const [status, setStatus] = useState<'loading' | 'ready' | 'failed'>('loading');
 
   const refresh = useCallback(async () => {
+    setStatus('loading');
     try {
       const offerings = await Purchases.getOfferings();
-      setMonthly(offerings.current?.monthly ?? null);
-      setAnnual(offerings.current?.annual ?? null);
+      const m = offerings.current?.monthly ?? null;
+      const a = offerings.current?.annual ?? null;
+      setMonthly(m);
+      setAnnual(a);
+      setStatus(m || a ? 'ready' : 'failed');
     } catch (e) {
       console.error('useOfferings.refresh failed:', e);
       setMonthly(null);
       setAnnual(null);
+      setStatus('failed');
     }
   }, []);
 
@@ -168,7 +177,7 @@ export function useOfferings() {
     refresh();
   }, [refresh]);
 
-  return { monthly, annual };
+  return { monthly, annual, status, refresh };
 }
 
 /** Buys whichever package the paywall's caller picked (Task 3.5: monthly
