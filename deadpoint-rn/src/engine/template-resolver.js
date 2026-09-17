@@ -267,7 +267,13 @@ function applyInjuryFlags(program, flags){
     (mod.appliesToSessions||[]).forEach(function(sessionKey){
       var s = program.sessions[sessionKey];
       if(!s) return;
-      s.note = s.note ? (s.note + ' ' + mod.caution) : mod.caution;
+      // Two-newline join, not a single space: with several injury flags
+      // set (a real quiz answer set, not just a hypothetical), this can
+      // stack 2-3 of these onto one session — a single space ran every
+      // caution into the next with no way to tell where one ends and the
+      // next begins, on top of DailyCard's own screen-space problem with
+      // the combined length (see CardBody's messageExpanded handling).
+      s.note = s.note ? (s.note + '\n\n' + mod.caution) : mod.caution;
     });
     if(mod.mandatoryInsert){
       insertExerciseOnce(program.sessions[mod.mandatoryInsert.sessionKey], mod.mandatoryInsert.exercise);

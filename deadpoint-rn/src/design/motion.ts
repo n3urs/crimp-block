@@ -32,7 +32,6 @@ export const Motion = {
     holdMs: 2500,
     fadeOutMs: 400,
   },
-  restOverlaySlideMs: 200,
   restOverlayTickMs: 200,
   intervalTickMs: 50,
   /** IntervalTimerController's OWN ticker — distinct from intervalTickMs

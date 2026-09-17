@@ -55,6 +55,8 @@ const baseProps = {
   ticks: new Set<string>(),
   message: '',
   messageEmphasis: false,
+  messageExpanded: false,
+  onToggleMessage: () => {},
   footerNote: 'test footer',
   exercisesInteractive: true,
   exercisesOpacity: 1,
@@ -102,6 +104,40 @@ test('cardMessage only renders a Text node when non-empty, matching Swift\'s !ca
   const withoutMessage = CardBody({ ...baseProps, exercises: [], message: '' });
 
   expect(collect(withMessage, Text).length).toBeGreaterThan(collect(withoutMessage, Text).length);
+});
+
+/** Real report: a quiz answer with several injury flags stacks their
+    cautions into one session's message, long enough to fill the whole
+    screen above the exercise list. Long messages now default to a
+    2-line preview with a SHOW MORE toggle; short ones (the common case —
+    a deload note, say) are unaffected. */
+const LONG_MESSAGE = 'You flagged a finger or pulley injury history — ease into any new edge size over 2–3 sessions rather than loading it maximally on day one, and stop immediately for anything sharp.';
+const SHORT_MESSAGE = 'Deload week — go easy.';
+
+test('a short message renders in full with no SHOW MORE toggle', () => {
+  const tree = CardBody({ ...baseProps, exercises: [], message: SHORT_MESSAGE, messageExpanded: false });
+  const texts = collect(tree, Text);
+  expect(texts.some((t) => t.props.children === SHORT_MESSAGE)).toBe(true);
+  expect(texts.some((t) => t.props.children === 'SHOW MORE')).toBe(false);
+  const messageNode = texts.find((t) => t.props.children === SHORT_MESSAGE);
+  expect(messageNode?.props.numberOfLines).toBeUndefined();
+});
+
+test('a long message collapses to 2 lines with a SHOW MORE toggle when not expanded', () => {
+  const tree = CardBody({ ...baseProps, exercises: [], message: LONG_MESSAGE, messageExpanded: false });
+  const texts = collect(tree, Text);
+  const messageNode = texts.find((t) => t.props.children === LONG_MESSAGE);
+  expect(messageNode?.props.numberOfLines).toBe(2);
+  expect(texts.some((t) => t.props.children === 'SHOW MORE')).toBe(true);
+});
+
+test('messageExpanded=true shows the full long message and switches the toggle to SHOW LESS', () => {
+  const tree = CardBody({ ...baseProps, exercises: [], message: LONG_MESSAGE, messageExpanded: true });
+  const texts = collect(tree, Text);
+  const messageNode = texts.find((t) => t.props.children === LONG_MESSAGE);
+  expect(messageNode?.props.numberOfLines).toBeUndefined();
+  expect(texts.some((t) => t.props.children === 'SHOW LESS')).toBe(true);
+  expect(texts.some((t) => t.props.children === 'SHOW MORE')).toBe(false);
 });
 
 test('isLogged forces every row ticked even when none were individually checked, and un-logging reverts them', () => {

@@ -6,11 +6,16 @@
     the paywall itself. Kept in one file rather than duplicated in both
     screens so the two links can't drift apart.
 
-    PRIVACY_POLICY_URL is the actual hosted policy — the same one
-    registered as this app's Privacy Policy URL in App Store Connect's App
-    Privacy section; keep them in sync if it ever moves.
-    TERMS_OF_USE_URL is Apple's own standard EULA — this app never
-    registered a custom one, so this is the one actually governing it,
-    matching the exact link added to the App Description. */
-export const PRIVACY_POLICY_URL = 'https://claude.ai/code/artifact/f709c8dc-fd11-4bd4-bef8-1221413b1d4a';
-export const TERMS_OF_USE_URL = 'https://www.apple.com/legal/internet-services/itunes/dev/stdeula/';
+    Both now point at the real getdeadpoint.co.uk pages (website/privacy.html,
+    website/terms.html in the `website` branch of this same repo — a full,
+    Oscar-read-and-approved Terms of Service, not a placeholder), replacing
+    a stale claude.ai artifact link and Apple's own generic EULA template
+    that were never actually the real destinations. This is separate from,
+    and doesn't need to match, whatever EULA link is registered in App
+    Store Connect's own App Description/App Privacy metadata — that field
+    governs the App Store subscription transaction itself; this is the
+    app's own general terms/privacy for using the service, the same
+    distinction most apps' in-app Settings links vs. their store-listing
+    EULA already draw. */
+export const PRIVACY_POLICY_URL = 'https://getdeadpoint.co.uk/privacy';
+export const TERMS_OF_USE_URL = 'https://getdeadpoint.co.uk/terms';

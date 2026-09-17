@@ -6,20 +6,24 @@
     the number and Stop are all that's needed, the exercise is still
     right there on the card underneath).
 
-    Slide-up/down on mount/unmount uses react-native-reanimated's
-    entering/exiting props — the RN equivalent of Swift's
-    `.transition(.move(edge: .bottom))` + `.animation(.easeInOut(duration: 0.2))`
-    around the conditional `if restTimer.endDate != nil`. A bare
-    conditional render with no entering/exiting animation snaps instantly
-    either way, same as Swift's own comment about a bare `if` with no
-    transition. */
+    Plain conditional mount/unmount — no slide animation. This used to
+    animate in/out with react-native-reanimated's entering/exiting props
+    (SlideInDown/SlideOutDown), but a real Android tester got stuck mid-
+    tutorial: the tap that starts the timer genuinely ran (confirmed by
+    the tutorial step itself advancing to "tap STOP", which only happens
+    from the same code path as starting the timer), yet this overlay
+    never became visible, leaving no STOP button and the DONE button as
+    the only thing left to tap. This is the only place in the app that
+    used entering/exiting — every other conditional overlay (see
+    IntervalTimerView's own doc comment) already snaps in/out with a bare
+    conditional render, which is the fallback this file's own comment
+    already described before this fix. Losing a 200ms slide is a much
+    smaller cost than a tester getting stuck with no way to proceed. */
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import Animated, { SlideInDown, SlideOutDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colours } from '../../design/colours';
 import { Fonts } from '../../design/fonts';
-import { Motion } from '../../design/motion';
 import { fraction, formatCountdown } from './restTimerLogic';
 import type { RestTimerState } from './useRestTimer';
 import { useTutorialTarget } from '../tutorial/TutorialTargetContext';
@@ -35,11 +39,7 @@ export function RestTimerOverlay({ state, onStop }: RestTimerOverlayProps) {
   const insets = useSafeAreaInsets();
 
   return (
-    <Animated.View
-      entering={SlideInDown.duration(Motion.restOverlaySlideMs)}
-      exiting={SlideOutDown.duration(Motion.restOverlaySlideMs)}
-      style={styles.root}
-    >
+    <View style={styles.root}>
       <View style={styles.progressTrack}>
         <View style={[styles.progressFill, { width: `${frac * 100}%`, backgroundColor: state.accent }]} />
       </View>
@@ -52,7 +52,7 @@ export function RestTimerOverlay({ state, onStop }: RestTimerOverlayProps) {
           <Text style={styles.stopButtonText}>STOP</Text>
         </Pressable>
       </View>
-    </Animated.View>
+    </View>
   );
 }
 

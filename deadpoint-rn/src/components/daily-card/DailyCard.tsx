@@ -181,6 +181,13 @@ interface CardBodyProps {
   message: string;
   /** true -> 14px semibold+accent; false -> 14px regular+dim. */
   messageEmphasis: boolean;
+  /** Long messages (multiple stacked injury cautions, mainly) render
+      truncated to 2 lines with a SHOW MORE/LESS toggle below — see
+      MESSAGE_COLLAPSE_THRESHOLD. Below that length the message always
+      renders in full and this prop/callback have no visible effect,
+      matching how short/empty messages behaved before this existed. */
+  messageExpanded: boolean;
+  onToggleMessage: () => void;
   footerNote: string;
   /** false disables (pointerEvents 'none') just the exercise list, NOT
       the whole body — matches Swift's `.allowsHitTesting(!isLogged)`
@@ -200,20 +207,23 @@ interface CardBodyProps {
   /** Opacity applied to the exercise list only, not the whole card
       (1 = fully visible). */
   exercisesOpacity: number;
-  /** Real bug reported live: the last exercise row(s) visibly peeked out
-      from behind the floating Done button — on a 7-exercise session, on
-      a real device with a real bottom safe-area inset. The trailing
-      spacer at the bottom of the scroll content reserves space for the
-      button, but a flat guessed constant undershot the button's real
-      footprint (its actual rendered height, its own `16 + insets.bottom`
-      offset from the screen edge, and the inset itself all add up — a
-      first attempt at a smarter guess still fell short on this exact
-      session). This is the real, measured number instead: `bottom` offset
-      (`16 + insets.bottom`) plus the Done button's own actual
-      `onLayout`-measured height (see `DailyCard` below), plus a little
-      breathing room — computed once, in one place, rather than guessed
-      twice (here and at the button's own position) and left to drift
-      apart again. */
+  /** Real bug reported live, TWICE: the last exercise row(s) visibly
+      peeked out from behind the floating Done button. First on a
+      7-exercise session with a flat guessed constant; "fixed" by
+      switching to the Done button's own `onLayout`-measured height plus
+      a 16pt buffer (see `DailyCard` below) — and then reported AGAIN, on
+      a 5-exercise Max Fingers session with per-set rep-circle rows. A
+      tight, precisely-computed match has now undershot the button's real
+      on-device footprint twice in a row (most likely culprit: `gap: 18`
+      on `scrollContent` — React Native's `gap` support inside a
+      ScrollView's content container has known cross-platform
+      inconsistencies, particularly on Android — though `onLayout` firing
+      late/stale on a swiped-to session is also possible; neither is
+      reproducible on this simulator). Rather than chase a third exact
+      match, `DailyCard` now pads this generously past the button's
+      measured footprint instead of matching it — a little extra blank
+      space at the very bottom of a fully-scrolled list is unnoticeable;
+      an exercise peeking out from behind the button is not. */
   doneClearance: number;
   scrollEnabled: boolean;
   scrollRef?: RefObject<React.Component | null>;
@@ -232,9 +242,15 @@ export function CardBody({
   session, guide, onTapGuide, isRecommended, accent, accentVarName, exercises, ticks,
   onToggleTick, onTapWeight, onTapWeightGroup, onTapRest, onStartInterval, onTapInfo,
   tutorialSpotlightExerciseId,
-  message, messageEmphasis, footerNote, exercisesInteractive, exercisesOpacity,
+  message, messageEmphasis, messageExpanded, onToggleMessage, footerNote, exercisesInteractive, exercisesOpacity,
   isLogged, doneClearance, scrollEnabled, scrollRef,
 }: CardBodyProps) {
+  // Below this, a message always fits comfortably in 2 lines on a real
+  // phone width and renders in full — no point collapsing a single short
+  // note. Above it (mainly several injury cautions concatenated by
+  // applyInjuryFlags), default to a 2-line preview plus a toggle rather
+  // than pushing the whole exercise list off the first screen.
+  const isLongMessage = message.length > 110;
   return (
     <View style={styles.contentColumn}>
       <View style={styles.titleBlock}>
@@ -268,14 +284,28 @@ export function CardBody({
         scrollEnabled={scrollEnabled}
       >
         {message.length > 0 && (
-          <Text
-            style={[
-              styles.message,
-              { color: messageEmphasis ? accent : Colours.dim, fontWeight: messageEmphasis ? '600' : '400' },
-            ]}
-          >
-            {message}
-          </Text>
+          <View style={styles.messageBlock}>
+            <Text
+              numberOfLines={isLongMessage && !messageExpanded ? 2 : undefined}
+              style={[
+                styles.message,
+                { color: messageEmphasis ? accent : Colours.dim, fontWeight: messageEmphasis ? '600' : '400' },
+              ]}
+            >
+              {message}
+            </Text>
+            {isLongMessage && (
+              <Pressable
+                onPress={onToggleMessage}
+                hitSlop={8}
+                accessibilityRole="button"
+                accessibilityLabel={messageExpanded ? 'Show less' : 'Show more'}
+                accessibilityState={{ expanded: messageExpanded }}
+              >
+                <Text style={styles.messageToggle}>{messageExpanded ? 'SHOW LESS' : 'SHOW MORE'}</Text>
+              </Pressable>
+            )}
+          </View>
         )}
         <View style={{ opacity: exercisesOpacity }} pointerEvents={exercisesInteractive ? 'auto' : 'none'}>
           {exercises.map((ex, i) => (
@@ -394,14 +424,27 @@ export function DailyCard(props: DailyCardProps) {
   const insets = useSafeAreaInsets();
   const doneButtonRef = useTutorialTarget('doneButton');
 
-  // Real, onLayout-measured Done button height, not a guessed constant —
-  // see CardBodyProps' own doc comment on doneClearance for why a guess
-  // (twice) already undershot this live. 54 is a reasonable first-paint
-  // fallback (this component's real historical footprint: 16+16
-  // paddingVertical + a ~14px line), used only for the one frame before
-  // the real Pressable has actually laid out and reported its height.
+  // Real, onLayout-measured Done button height as a floor, not a guessed
+  // constant. 54 is a reasonable first-paint fallback (this component's
+  // real historical footprint: 16+16 paddingVertical + a ~14px line),
+  // used only for the one frame before the real Pressable has actually
+  // laid out and reported its height.
   const [doneButtonHeight, setDoneButtonHeight] = useState(54);
-  const doneClearance = doneButtonHeight + 16 + insets.bottom + 16;
+  // +64 (not +16, +16) — see CardBodyProps' own doc comment on
+  // doneClearance: a tight match to the button's measured footprint has
+  // undershot it live twice now, so this deliberately overshoots instead
+  // of trying for a third exact match.
+  const doneClearance = doneButtonHeight + 16 + insets.bottom + 64;
+
+  // Real bug reported live: a quiz answer set with several injury flags
+  // stacks each flagged injury's own caution paragraph into one session's
+  // cardMessage (applyInjuryFlags in template-resolver.js), long enough
+  // to fill the whole screen above the exercise list. Collapsed by
+  // default now (see CardBody's own message-rendering below); reset
+  // whenever the session on screen changes so an expanded caution from
+  // one session never carries over onto the next one swiped to.
+  const [messageExpanded, setMessageExpanded] = useState(false);
+  useEffect(() => { setMessageExpanded(false); }, [displayKey]);
 
   return (
     <View style={styles.root}>
@@ -461,6 +504,8 @@ export function DailyCard(props: DailyCardProps) {
                 tutorialSpotlightExerciseId={tutorialSpotlightExerciseId}
                 message={cardMessage}
                 messageEmphasis={isLogged}
+                messageExpanded={messageExpanded}
+                onToggleMessage={() => setMessageExpanded((v) => !v)}
                 footerNote={footerNote ?? ''}
                 exercisesInteractive={!isLogged}
                 exercisesOpacity={1}
@@ -537,7 +582,9 @@ const styles = StyleSheet.create({
   guideText: { ...Fonts.mono(11, 'bold') },
   scroll: { flex: 1 },
   scrollContent: { gap: 18 },
-  message: { fontSize: 14 },
+  messageBlock: { gap: 6 },
+  message: { fontSize: 14, lineHeight: 19 },
+  messageToggle: { ...Fonts.mono(11, 'bold'), color: Colours.faint, letterSpacing: 0.5 },
   divider: { height: 1, backgroundColor: Colours.s2 },
   footer: {
     ...Fonts.mono(10, 'medium'),

@@ -59,3 +59,59 @@ test('without gym or pullBar, a pullBar-tagged exercise is dropped', () => {
   });
   expect(pullSessionTitles(withNeither)).toEqual([]);
 });
+
+// Real report: a tester picked every injury flag at once, and the
+// hangboard/pull sessions' notes turned into a single run-on wall of
+// text (every flagged injury's caution paragraph jammed onto the last
+// with nothing but a space between). applyInjuryFlags isn't directly
+// exported, so this drives it the same way real quiz answers do — through
+// resolveTemplate's own modifiers.injuryFlags — and inspects the
+// resulting session note.
+function templateWithEmptySessions() {
+  return {
+    perWeek: 4,
+    phases: [{ n: 'Base', from: 1, c: '--tidepool', cue: '', d: '' }],
+    sessions: {
+      maxFingers: { n: 'Max Fingers', w: '', c: '--gorse', x: [] },
+      hangboard: { n: 'Hangboard', w: '', c: '--slate', x: [] },
+      pull: { n: 'Pull', w: '', c: '--tidepool', x: [] },
+      climbHard: { n: 'Limit', w: '', c: '--heather', x: [] },
+      outdoorHard: { n: 'Outdoor', w: '', c: '--heather', x: [] },
+      climbEasy: { n: 'Easy', w: '', c: '--tidepool', x: [] },
+      rest: { n: 'Rest', w: '', c: '--grey', x: [] },
+    },
+  };
+}
+
+test('a single injury flag sets that session\'s note to exactly its own caution text', () => {
+  const program = resolveTemplate(templateWithEmptySessions(), {
+    startDate: '2026-09-01',
+    modifiers: { injuryFlags: ['shoulder'] },
+  });
+  expect(program.sessions.pull.note).toMatch(/^You flagged shoulder injury history/);
+  expect(program.sessions.pull.note).not.toContain('\n\n');
+});
+
+test('stacking every injury flag joins each session\'s cautions with a blank line, not a run-on space', () => {
+  const program = resolveTemplate(templateWithEmptySessions(), {
+    startDate: '2026-09-01',
+    // pull's appliesToSessions list: bicepTendon, shoulder, elbow — three cautions on one session.
+    modifiers: { injuryFlags: ['fingerPulley', 'bicepTendon', 'shoulder', 'elbow'] },
+  });
+  const paragraphs = program.sessions.pull.note.split('\n\n');
+  expect(paragraphs).toHaveLength(3);
+  expect(paragraphs[0]).toMatch(/^You flagged bicep tendon history/);
+  expect(paragraphs[1]).toMatch(/^You flagged shoulder injury history/);
+  expect(paragraphs[2]).toMatch(/^You flagged elbow injury history/);
+  // The bug DailyCard's own collapse threshold exists for: this really is
+  // long enough to fill a whole phone screen above the exercise list.
+  expect(program.sessions.pull.note.length).toBeGreaterThan(110);
+});
+
+test('an unrecognised flag id is ignored rather than throwing — quiz data may outpace this seed library', () => {
+  const program = resolveTemplate(templateWithEmptySessions(), {
+    startDate: '2026-09-01',
+    modifiers: { injuryFlags: ['notARealFlag'] },
+  });
+  expect(program.sessions.pull.note).toBeUndefined();
+});
