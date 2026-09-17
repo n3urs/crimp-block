@@ -62,14 +62,13 @@ test('a gap on a real workout day does NOT recommend rest', () => {
 });
 
 test('decide() does not crash on a foreign (non-climbing) session type in history', () => {
-  // Real bug, live: any screen not yet routed through isaacEngine.ts (see
-  // its own doc comment) that constructs a plain climbing engine with a
-  // built-in non-climbing account's real sessionLog — e.g. Isaac's
-  // 'pushHeavy' — crashed the whole screen the moment decide() looked back
-  // and found that entry within its own 7-day history window, because
-  // `T[type]` was assumed to always exist once `type` was truthy. Session
-  // key doesn't matter here beyond "not one of PROGRAMS.default's own" —
-  // this guards the shared engine itself, not any one account's data.
+  // Real bug, live: a foreign session key ('pushHeavy', from a non-climbing
+  // built-in account resolved through a different engine) crashed the
+  // whole screen the moment decide() looked back and found that entry
+  // within its own 7-day history window, because `T[type]` was assumed to
+  // always exist once `type` was truthy. Session key doesn't matter here
+  // beyond "not one of PROGRAMS.default's own" — this guards the shared
+  // engine itself, not any one account's data.
   const withForeignType = { ...HISTORY, '2026-08-28': { t: 'pushHeavy' } };
   const e = createEngine(PROGRAMS['oscar@sullivanltd.co.uk'], { sessionLog: withForeignType, loadLog: {} });
   expect(() => e.decide('2026-08-29')).not.toThrow();

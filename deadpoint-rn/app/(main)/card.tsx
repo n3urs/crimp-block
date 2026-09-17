@@ -7,7 +7,7 @@
     `browsedKey`, one level above DailyCardView, not inside it (see
     NativeAppView.swift:52,406,528,546 and DailyCardView.swift:150-153). */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, useWindowDimensions } from 'react-native';
+import { useWindowDimensions } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useSession } from '../../src/data/useSession';
 import { useStore } from '../../src/data/useStore';
@@ -15,8 +15,6 @@ import { useLoads } from '../../src/data/useLoads';
 import { useProfile } from '../../src/data/useProfile';
 import { createEngine } from '../../src/engine';
 import { resolveUserProgram } from '../../src/engine/resolveUserProgram';
-import { isIsaac, createIsaacEngine, checkPushSpacingForKey } from '../../src/engine/isaac/isaacEngine';
-import { ISAAC_START_DATE, type IsaacSessionKey } from '../../src/engine/isaac/isaacProgram';
 import { resolveColour } from '../../src/design/colours';
 import { useSwipeCarousel } from '../../src/components/daily-card/useSwipeCarousel';
 import { useDoneFlow } from '../../src/components/daily-card/useDoneFlow';
@@ -32,10 +30,6 @@ import { syncForecast } from '../../src/widget/syncForecast';
 
 /** Port of NativeAppView.dayLetter(_:) — a single-letter weekday
     abbreviation ("M", "T", "W"...) for WeekStrip's tiles. */
-function showNotBuiltForIsaac(): void {
-  Alert.alert('Coming soon', "The plan and calendar views aren't built for your program yet — everything on the main card is real and up to date.");
-}
-
 function dayLetter(date: string): string {
   const [y, m, d] = date.split('-').map(Number);
   const dt = new Date(y, m - 1, d);
@@ -69,15 +63,6 @@ export default function Card() {
   // resolveUserProgram's own null-profile fallback (PROGRAMS.default)
   // covers that one frame safely, same as today's behaviour, and this
   // recomputes correctly the moment profile.row loads.
-  // Isaac (phillipsisaac14@gmail.com) is a hand-authored, non-climbing
-  // account resolved entirely outside this — see isaacEngine.ts's own doc
-  // comment for why his program needed a genuinely separate engine rather
-  // than a climbing-shaped PROGRAMS entry. `program`/`climbingEngine` below
-  // still get computed for him (React hooks can't be called conditionally),
-  // but the result is simply discarded in favour of `isaacEngine` — a
-  // resolveUserProgram fallback (PROGRAMS.default) that's real, valid, and
-  // never rendered, not a crash risk.
-  const isaac = isIsaac(email);
   const program = useMemo(() => resolveUserProgram(email, profile.row), [email, profile.row]);
 
   // engine.today() is a pure passthrough to engine-core's own today() —
@@ -92,7 +77,7 @@ export default function Card() {
   // profile.row.programStartDate is preferred once it loads, but starting
   // useStore's fetch immediately off the program's own default avoids an
   // initial null-startDate stall while the profile row is still in flight.
-  const startDate = isaac ? ISAAC_START_DATE : (profile.row?.programStartDate ?? program.startDate ?? null);
+  const startDate = profile.row?.programStartDate ?? program.startDate ?? null;
   const store = useStore(startDate, today, userId);
 
   // Refetch every time this screen regains focus, not just on first mount.
@@ -119,34 +104,22 @@ export default function Card() {
     }, [store.reload, loads.reload, profile.reload])
   );
 
-  const climbingEngine = useMemo(
+  const engine = useMemo(
     () => createEngine(program, { sessionLog: store.days, loadLog: loads.all() }),
     // loads.all() just returns loads.byExercise (see useLoads.ts) — depending
     // on the underlying value directly avoids recreating the engine on every
     // render for an unstable-but-equal function reference.
     [program, store.days, loads.byExercise]
   );
-  const isaacEngine = useMemo(
-    () => createIsaacEngine(ISAAC_START_DATE, { sessionLog: store.days, loadLog: loads.all() }),
-    [store.days, loads.byExercise]
-  );
-  const engine = isaac ? isaacEngine : climbingEngine;
 
   // Pushes the freshly-recomputed forecast into the home-screen widget's
   // shared storage — fires on mount and again whenever `engine` changes,
   // i.e. every time store/loads actually finish a reload with new data
   // (see the useFocusEffect above), not just on focus regain itself.
   // syncForecast no-ops on Android internally — no Platform.OS guard here.
-  //
-  // Skipped for Isaac: syncForecast needs engine.forecast(), which
-  // isaacEngine.ts deliberately doesn't implement (see its own doc comment
-  // — only the methods card.tsx actually calls are reimplemented, and a
-  // home-screen widget isn't anything his spec doc asked for). Not a gap
-  // to silently paper over with a fake forecast() — just genuinely out of
-  // scope for a single custom account.
   useEffect(() => {
-    if (!isaac) syncForecast(climbingEngine);
-  }, [isaac, climbingEngine]);
+    syncForecast(engine);
+  }, [engine]);
 
   const [browsedKey, setBrowsedKey] = useState<string | null>(null);
   const decision = engine.decide(today);
@@ -230,32 +203,14 @@ export default function Card() {
   // placeholder (`info?.note ?? ''`) through the whole RN port; the deload
   // and easing-back guidance it should have been showing was missing
   // entirely, which matters most in exactly the week it applies to.
-  //
-  // Isaac bypasses cardMessage() entirely — every input it reasons about
-  // (isDeload as a repeating 4-week-block concept, isReturning from a
-  // climbing layoff, isClimb) is climbing-specific and doesn't apply to
-  // his program. His own message is the Push-spacing check (section 3C)
-  // against WHATEVER session is actually on screen right now — not just
-  // decide()'s own suggestion, since the real trigger case is free-
-  // browsing to a Push day the app didn't just recommend (see
-  // checkPushSpacingForKey's own doc comment in isaacEngine.ts) — falling
-  // back to the session's own note (e.g. pushSpeed's "no barbell grinding
-  // allowed") when there's nothing to warn about.
-  // Cast is safe, not a type-hole: displayKey is only ever one of Isaac's
-  // own 7 session keys while isaac is true, since his engine's own
-  // decide()/resolveExercises() (the only sources of a displayed key on
-  // his account) never produce anything else.
-  const isaacSpacing = isaac ? checkPushSpacingForKey(store.days, displayKey as IsaacSessionKey, today) : null;
-  const message = isaac
-    ? (isaacSpacing?.warn ? isaacSpacing.message : (info?.note ?? ''))
-    : cardMessage({
-        sessionKey: displayKey,
-        isDeload: block.w === 4,
-        isReturning: engine.isReturning(today),
-        isClimb: info?.climb != null,
-        isLogged,
-        note: info?.note ?? null,
-      });
+  const message = cardMessage({
+    sessionKey: displayKey,
+    isDeload: block.w === 4,
+    isReturning: engine.isReturning(today),
+    isClimb: info?.climb != null,
+    isLogged,
+    note: info?.note ?? null,
+  });
 
   const scrollRef = useRef<React.Component | null>(null);
   const { width: containerWidth } = useWindowDimensions();
@@ -391,17 +346,7 @@ export default function Card() {
       // session/profile rather than sharing this screen's state, same
       // pattern as onTapCalendar/onTapDay.
       onTapDay={(date: string) => router.push({ pathname: '/day-picker', params: { date } })}
-      // Real bug, fixed here: calendar.tsx (like plan.tsx below) has no
-      // Isaac branch of its own yet — its whole month view (deload
-      // forecasting, "6 blocks of 4 weeks" progress) is a climbing-
-      // specific shape that doesn't describe his linear 10-week arc at
-      // all, so this isn't a quick plumbing fix the way day-picker.tsx's
-      // was. Rather than route him into a screen that (even after the
-      // engine-core.js decide() crash guard) would show made-up climbing
-      // phase/session content that isn't his, tell him plainly instead —
-      // a real Isaac-native calendar is separate follow-up work, not
-      // something to rush into this fix.
-      onTapCalendar={() => (isaac ? showNotBuiltForIsaac() : router.push('/calendar'))}
+      onTapCalendar={() => router.push('/calendar')}
       onTapWeight={onTapWeight}
       onTapWeightGroup={onTapWeightGroup}
       onTapRest={handleTapRest}
@@ -413,9 +358,7 @@ export default function Card() {
       // modal route at app/plan.tsx (PlanSheetView.swift port), which
       // resolves its own independent session/store/program rather than
       // sharing this screen's state, same pattern as onTapDay/onTapSettings.
-      // Same Isaac carve-out as onTapCalendar above — plan.tsx's whole
-      // "block/phase" model is climbing-specific.
-      onTapPhaseBadge={() => (isaac ? showNotBuiltForIsaac() : router.push('/plan'))}
+      onTapPhaseBadge={() => router.push('/plan')}
       // Now real (this plan's follow-up fix) — pushes the modal route at
       // app/session-guide.tsx, which resolves the guide content itself
       // from just the session key, same "own independent resolution"

@@ -454,16 +454,15 @@ function createEngine(program, data){
     var h=hOverride || history(date);
     var yf=load(h[0].type,'finger');
     // Guarded against an unrecognized type, not just a falsy one: real bug
-    // hit live when a Isaac's (a non-climbing built-in account resolved
-    // through a wholly different session-key vocabulary — see
-    // isaacProgram.ts's own doc comment) logged session type reached this
-    // climbing engine on a screen that hadn't yet learned to route him
-    // through his own engine (e.g. the calendar's all-time-stats streak
-    // walk, which calls decide() for every un-logged day and can land
-    // within 7 days of a real logged entry). `T[h[0].type]` was assumed to
-    // always exist once `h[0].type` was truthy — true for every real
-    // climbing session key, false for a foreign one — and indexing
-    // `.n` off `undefined` crashed the whole screen.
+    // hit live when a foreign session-key vocabulary (a non-climbing
+    // built-in account, resolved through a wholly different engine) logged
+    // a session type that reached this climbing engine on a screen that
+    // hadn't yet learned to route it elsewhere (e.g. the calendar's
+    // all-time-stats streak walk, which calls decide() for every un-logged
+    // day and can land within 7 days of a real logged entry). `T[h[0].type]`
+    // was assumed to always exist once `h[0].type` was truthy — true for
+    // every real climbing session key, false for a foreign one — and
+    // indexing `.n` off `undefined` crashed the whole screen.
     var yName=(h[0].type && T[h[0].type])?T[h[0].type].n:null;
     var run=streak(h);
 

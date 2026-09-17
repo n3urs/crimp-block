@@ -22,7 +22,6 @@ import { clarifySets } from './clarifySets';
 import { useTutorialTarget } from '../tutorial/TutorialTargetContext';
 import { usePrefs } from '../../data/prefs';
 import { SetsTally, totalSetsFor } from './SetsTally';
-import { checkRpeDeviation } from '../../engine/isaac/isaacEngine';
 
 export interface ExerciseRowProps {
   ex: RenderedExercise;
@@ -156,21 +155,6 @@ export function ExerciseRow({
   const totalSets = totalSetsFor({ prescription: ex.prescription, interval: ex.interval });
   const [completedSets, setCompletedSets] = useState(0);
 
-  // Isaac's RPE autoregulation (section 3A of his spec doc) — see
-  // RenderedExercise.rpeTarget's own doc comment for why this is
-  // completely inert for every climbing exercise (rpeTarget is always
-  // undefined there). Live, in-session only: not persisted anywhere, since
-  // the doc's own requirement is an immediate in-the-moment prompt, not a
-  // historical RPE log. Reset whenever the exercise identity changes or it
-  // gets (un)ticked, matching the exact same reset trigger completedSets
-  // itself already uses above, for the same reason: a stale adjustment
-  // from a previous day's version of this row must never survive into a
-  // fresh one.
-  const [liveWeightAdjustKg, setLiveWeightAdjustKg] = useState(0);
-  useEffect(() => {
-    setLiveWeightAdjustKg(0);
-  }, [ex.id, isTicked]);
-
   // Mirrors Swift's `.onChange(of: isTicked) { completedSets = newValue ? totalSets : 0 }`
   // (DailyCardView.swift:1307-1310) — keeps the tally in sync with whichever
   // side actually changed isTicked: filling every pip auto-ticks (see
@@ -201,34 +185,6 @@ export function ExerciseRow({
     if (next >= totalSets && !isTicked) {
       onToggleTick?.(ex.id);
     }
-    if (ex.rpeTarget != null) promptRpe();
-  };
-
-  /** Doc section 3A, verbatim: "If the user logs an RPE of 9 or higher on
-      a set targeted for RPE 8, the app must immediately prompt a weight
-      reduction." Alert.prompt is iOS-only (matches this app's own
-      iOS-only scope elsewhere, e.g. subscription.ts's onRedeemCode) and is
-      RN's own built-in free-text input dialog — no new dependency for a
-      one-off numeric prompt, same "use what RN already ships" call this
-      codebase makes everywhere else (see settings.tsx's own Alert.alert
-      confirmations). */
-  const promptRpe = () => {
-    Alert.prompt(
-      'How did that set feel?',
-      `Target RPE ${ex.rpeTarget}. Enter what you actually hit (6-10).`,
-      (text) => {
-        const rpe = Number(text);
-        if (!Number.isFinite(rpe) || ex.rpeTarget == null) return;
-        const result = checkRpeDeviation(rpe, ex.rpeTarget);
-        if (result.shouldReduce) {
-          setLiveWeightAdjustKg((kg) => kg + result.reduceByKg);
-          Alert.alert('Drop the weight', result.message);
-        }
-      },
-      'plain-text',
-      '',
-      'number-pad'
-    );
   };
 
   // Mirrors Swift's undoLastSet() (DailyCardView.swift:1393-1398). No return
@@ -278,13 +234,10 @@ export function ExerciseRow({
   const descAnimatedStyle = useAnimatedStyle(() => ({ opacity: descOpacity.value }));
 
   const showRight = !isTicked;
-
-  // Live-adjusted for display AND for whatever gets pre-filled if the
-  // user taps through to actually log the weight — the whole point of the
-  // RPE prompt above is that this number visibly moves for the remaining
-  // sets, not just that an alert briefly flashed one.
-  const displayWeightKg = ex.weightKg != null ? ex.weightKg - liveWeightAdjustKg : ex.weightKg;
-  const displayEx: RenderedExercise = liveWeightAdjustKg > 0 ? { ...ex, weightKg: displayWeightKg } : ex;
+  // A plain local (not ex.weightKg accessed inline) so the `!= null` check
+  // below narrows it inside the onPressIncreaseArrow closure too — TS
+  // doesn't carry a prop-property narrowing across a closure boundary.
+  const weightKg = ex.weightKg;
 
   return (
     <Animated.View style={[styles.row, rowAnimatedStyle]}>
@@ -351,46 +304,34 @@ export function ExerciseRow({
               >
                 {clarifySets(ex.prescription)}
               </Text>
-              {displayWeightKg != null ? (
+              {weightKg != null ? (
                 <WeightBadge
                   ref={weightRef}
-                  label={formatWeightKg(displayWeightKg)}
+                  label={formatWeightKg(weightKg)}
                   // Both a real progression bump and a weight carried over
                   // from an earlier phase (see RenderedExercise.weightIsCarriedOver's
                   // own doc comment) get the same accent highlight — the
                   // point of the colour is "look at this number," which is
                   // true either way, even though the two mean different
-                  // things underneath. An RPE-triggered live drop gets the
-                  // same treatment for the same reason: look at this number.
-                  colour={ex.weightIsBump || ex.weightIsCarriedOver || liveWeightAdjustKg > 0 ? accent : Colours.dim}
-                  // hasWeightTracking, not just weightKg != null, gates
-                  // whether this is tappable at all — Isaac's Explosive
-                  // Pull-Ups have a real, displayed weightKg (the fixed
-                  // +20kg baseline) but hasWeightTracking:false on purpose
-                  // (see isaacEngine.ts's own comment on that): the doc's
-                  // "never prompt an increase" rule is simplest to
-                  // guarantee by making it not editable at all, rather
-                  // than editable-but-hoping every future code path
-                  // remembers not to suggest a bump on it.
-                  onPress={onTapWeight && ex.hasWeightTracking ? () => onTapWeight(displayEx) : undefined}
-                  accessibilityLabel={`Edit recorded weight for ${ex.title}, currently ${formatWeightKg(displayWeightKg)}`}
+                  // things underneath.
+                  colour={ex.weightIsBump || ex.weightIsCarriedOver ? accent : Colours.dim}
+                  onPress={onTapWeight && ex.hasWeightTracking ? () => onTapWeight(ex) : undefined}
+                  accessibilityLabel={`Edit recorded weight for ${ex.title}, currently ${formatWeightKg(weightKg)}`}
                   // Gold alone didn't explain itself — direct feedback.
                   // Only a real same-phase bump gets the arrow: NOT
                   // weightIsCarriedOver (a different claim — "not yet
-                  // re-tested this phase," not "go up") and NOT while a
-                  // live RPE drop is showing (accent already means
-                  // something else entirely there: a lowered set, the
-                  // opposite direction). engine-core.js's target() always
-                  // returns the ALREADY-bumped kg when bump is true (last
-                  // logged + step), so the previous weight the badge is
-                  // suggesting a step up FROM is displayWeightKg - ex.step.
-                  showIncreaseArrow={ex.weightIsBump && liveWeightAdjustKg === 0}
+                  // re-tested this phase," not "go up"). engine-core.js's
+                  // target() always returns the ALREADY-bumped kg when
+                  // bump is true (last logged + step), so the previous
+                  // weight the badge is suggesting a step up FROM is
+                  // weightKg - ex.step.
+                  showIncreaseArrow={ex.weightIsBump}
                   onPressIncreaseArrow={
-                    ex.weightIsBump && liveWeightAdjustKg === 0
+                    ex.weightIsBump
                       ? () =>
                           Alert.alert(
                             'Weight increase suggested',
-                            `You held ${formatWeightKg(displayWeightKg - ex.step)} for two sessions running, so ${formatWeightKg(displayWeightKg)} is today's suggested step up. Log what you actually lift — it's a cue, not a requirement.`
+                            `You held ${formatWeightKg(weightKg - ex.step)} for two sessions running, so ${formatWeightKg(weightKg)} is today's suggested step up. Log what you actually lift — it's a cue, not a requirement.`
                           )
                       : undefined
                   }
@@ -412,15 +353,7 @@ export function ExerciseRow({
           </Animated.View>
         )}
 
-        {/* Real bug: for an RPE-tracked exercise (Isaac's program only —
-            rpeTarget is always undefined for climbing) the tally isn't a
-            convenience UI, it's the ONLY thing that calls promptRpe() below
-            (once per completed set, matching the doc's per-set RPE check) —
-            gating it behind the general, device-local, off-by-default
-            setsCounterEnabled preference meant his whole autoregulation
-            feature was invisible until he happened to dig into Settings
-            and enable a toggle with no indication it mattered to him. */}
-        {showRight && (setsCounterEnabled || ex.rpeTarget != null) && totalSets != null && (
+        {showRight && setsCounterEnabled && totalSets != null && (
           <SetsTally
             totalSets={totalSets}
             completedSets={completedSets}

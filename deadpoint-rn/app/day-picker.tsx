@@ -20,8 +20,6 @@ import { useStore } from '../src/data/useStore';
 import { useProfile } from '../src/data/useProfile';
 import { createEngine, SESSION_ORDER } from '../src/engine';
 import { resolveUserProgram } from '../src/engine/resolveUserProgram';
-import { isIsaac, createIsaacEngine } from '../src/engine/isaac/isaacEngine';
-import { ISAAC_START_DATE, ISAAC_SESSION_ORDER } from '../src/engine/isaac/isaacProgram';
 
 /** Swift's `"EEEE d MMM"` via en_GB (e.g. "Tuesday 1 Sep"). Parsed at LOCAL
     NOON, never `new Date(dateString)` directly — matching this project's
@@ -44,27 +42,13 @@ export default function DayPicker() {
   // See src/engine/resolveUserProgram.ts's own doc comment: this used to
   // be `PROGRAMS[email] ?? PROGRAMS.default` unconditionally, so a real
   // customer's actual quiz-assigned template/modifiers were never read.
-  // Isaac (phillipsisaac14@gmail.com) bypasses this entirely, same as
-  // card.tsx — `program`/`climbingEngine` below still get computed for
-  // him (an unconditional hook can't branch), but the result is discarded
-  // in favour of `isaacEngine`. Real bug, fixed here: before this, this
-  // screen fed Isaac's REAL sessionLog (real entries like 'pushHeavy')
-  // into a plain climbing engine and iterated the climbing SESSION_ORDER
-  // below, showing him a pick-list of climbing session names
-  // (Max Fingers, Hangboard, ...) that have nothing to do with his
-  // program — and, before the engine-core.js decide() guard, walking
-  // that same real log through the climbing engine anywhere near this
-  // one could crash outright.
-  const isaac = isIsaac(email);
   const program = useMemo(() => resolveUserProgram(email, profile.row), [email, profile.row]);
 
   const [today] = useState(() => createEngine(program, { sessionLog: {}, loadLog: {} }).today());
-  const startDate = isaac ? ISAAC_START_DATE : (profile.row?.programStartDate ?? program.startDate ?? null);
+  const startDate = profile.row?.programStartDate ?? program.startDate ?? null;
   const store = useStore(startDate, today, userId);
-  const climbingEngine = useMemo(() => createEngine(program, { sessionLog: store.days, loadLog: {} }), [program, store.days]);
-  const isaacEngine = useMemo(() => createIsaacEngine(ISAAC_START_DATE, { sessionLog: store.days, loadLog: {} }), [store.days]);
-  const engine = isaac ? isaacEngine : climbingEngine;
-  const sessionOrder: readonly string[] = isaac ? ISAAC_SESSION_ORDER : SESSION_ORDER;
+  const engine = useMemo(() => createEngine(program, { sessionLog: store.days, loadLog: {} }), [program, store.days]);
+  const sessionOrder: readonly string[] = SESSION_ORDER;
 
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
