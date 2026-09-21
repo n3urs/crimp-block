@@ -17,7 +17,7 @@ const KEY = 'lastFatalJsError';
 
 const errorUtils = (global as { ErrorUtils?: { setGlobalHandler: (h: (e: unknown, isFatal?: boolean) => void) => void; getGlobalHandler: () => (e: unknown, isFatal?: boolean) => void } }).ErrorUtils;
 
-if (errorUtils) {
+if (__DEV__ && errorUtils) {
   const original = errorUtils.getGlobalHandler();
   errorUtils.setGlobalHandler((error, isFatal) => {
     if (isFatal) {
@@ -29,10 +29,12 @@ if (errorUtils) {
   });
 }
 
-AsyncStorage.getItem(KEY)
-  .then((text) => {
-    if (!text) return;
-    AsyncStorage.removeItem(KEY).catch(() => {});
-    Alert.alert('Last crash (debug)', text);
-  })
-  .catch(() => {});
+if (__DEV__) {
+  AsyncStorage.getItem(KEY)
+    .then((text) => {
+      if (!text) return;
+      AsyncStorage.removeItem(KEY).catch(() => {});
+      Alert.alert('Last crash (debug)', text);
+    })
+    .catch(() => {});
+}
