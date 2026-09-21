@@ -51,5 +51,9 @@ const StyleSheet = {
 // 'ios' is an arbitrary default — no test in this repo currently asserts
 // against Platform.OS's mocked value, only that the import doesn't throw.
 const Platform = { OS: 'ios' };
+// Added for useStore.ts's flush-on-foreground listener (offline support).
+// __tests__/store.test.ts imports that module for its pure helpers, so
+// this only needs to make module evaluation and the effect body succeed.
+const AppState = { addEventListener: () => ({ remove: () => {} }) };
 
-module.exports = { View, Text, Pressable, ScrollView, Alert, StyleSheet, Platform };
+module.exports = { View, Text, Pressable, ScrollView, Alert, StyleSheet, Platform, AppState };

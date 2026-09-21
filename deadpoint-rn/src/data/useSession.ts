@@ -3,6 +3,8 @@ import type { Session } from '@supabase/supabase-js';
 import { supabase, SUPABASE_URL, SUPABASE_ANON } from './supabase';
 import { callDeleteAccount } from './deleteAccount';
 import { syncRevenueCatIdentity } from './subscription';
+import { clearUserCache } from './offlineCache';
+import { clearOutbox } from './outbox';
 
 /** Google Play's app reviewer signs in through this address with a fixed
     code instead of a real emailed one-time code — see
@@ -106,7 +108,20 @@ export function useSession() {
         instead of the account silently appearing to still be there. */
     deleteAccount: async () => {
       if (!session?.access_token) throw new Error('Not signed in — cannot delete account.');
+      const deletedUserId = session.user?.id ?? '';
       await callDeleteAccount(SUPABASE_URL, SUPABASE_ANON, session.access_token, fetch);
+      // Offline support (offlineCache.ts/outbox.ts) keeps a copy of this
+      // user's profile, session log and weights on the device, plus any
+      // writes still waiting for signal. Deleting the account has to take
+      // those too: leaving a readable copy of someone's training history
+      // behind would quietly contradict the deletion they just asked for,
+      // and every queued write now targets rows that no longer exist.
+      // Same best-effort, never-throw stance as the signOut below — the
+      // server-side deletion has already succeeded by this point.
+      await Promise.all([
+        clearUserCache(deletedUserId),
+        clearOutbox(deletedUserId),
+      ]);
       // Best-effort local cleanup only, deliberately not thrown on failure:
       // the account is ALREADY deleted server-side by the time we get here
       // (the line above either succeeded or threw), so a hiccup clearing

@@ -1,6 +1,7 @@
 // src/data/useProfile.ts
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from './supabase';
+import { readCache, writeCache } from './offlineCache';
 
 /** Mirrors NativeProfile.Row field-for-field (see NativeProfile.swift's
     CodingKeys for the camelCase<->snake_case mapping this hook performs
@@ -220,19 +221,57 @@ export function useProfile(userId: string) {
       // See the ref-guard note above `reload` — skip the write if a newer
       // userId has taken over while this fetch was in flight, rather than
       // clobbering that newer attempt's own state.
+      const fetched = data ? fromDbRow(data as ProfileDbRow) : null;
       if (currentUserIdRef.current === forUserId) {
-        setState({ status: 'ready', forUserId, row: data ? fromDbRow(data as ProfileDbRow) : null });
+        setState({ status: 'ready', forUserId, row: fetched });
       }
+      // Cached unconditionally, not just when the guard above passes —
+      // this row is genuinely this user's, whoever is current now.
+      writeCache('profile', forUserId, fetched);
     } catch (e) {
+      // THE offline lockout fix. Before this, any failed profile fetch
+      // settled `error`, and app/index.tsx's routing gate turned that
+      // into a full-screen "Couldn't load your account" retry — locking
+      // the user out of an app whose entire point is working at a crag
+      // with no signal, even though the engine, templates and program
+      // resolution are all on-device and needed nothing from the network.
+      //
+      // A cached row is a real answer to "who is this user and what plan
+      // are they on", so serve it and settle `ready`. Note this can only
+      // ever route someone INTO the app: a null/absent cache still falls
+      // through to `error` exactly as before, so the destructive case
+      // this file's own doc comment warns about — routing a real user to
+      // /quiz and risking an overwriting create() — stays unreachable.
+      const cached = await readCache<ProfileRow>('profile', forUserId);
       if (currentUserIdRef.current === forUserId) {
-        setState({ status: 'error', forUserId });
+        setState(cached ? { status: 'ready', forUserId, row: cached } : { status: 'error', forUserId });
       }
+      // Recovered from cache: this call genuinely produced a usable
+      // state, so it must not also reject — the retry button awaiting it
+      // would otherwise report a failure the user can plainly see didn't
+      // happen. Only a genuine dead end still propagates.
+      if (cached) return;
       // Always propagates, independent of the guard above — a caller
       // awaiting reload() (the manual retry button) must see the failure
       // even in the vanishingly unlikely case its own userId was already
       // superseded by the time this rejects.
       throw e;
     }
+  }, [userId]);
+
+  // Serve a cached row immediately rather than waiting on the fetch. Not
+  // just a cold-launch nicety: supabase.ts sets a 90s request timeout, so
+  // on a flaky connection (a crag with one bar, not none) the catch above
+  // could be 90 seconds away, and without this the app would sit on a
+  // spinner for all of it. Never downgrades a `ready` state already
+  // settled for this same user, so a fast fetch always wins.
+  useEffect(() => {
+    let cancelled = false;
+    readCache<ProfileRow>('profile', userId).then((cached) => {
+      if (!cached || cancelled) return;
+      setState((s) => (s.status === 'ready' && s.forUserId === userId ? s : { status: 'ready', forUserId: userId, row: cached }));
+    });
+    return () => { cancelled = true; };
   }, [userId]);
 
   // A genuine failure (once signed in) can still throw here — reload() is

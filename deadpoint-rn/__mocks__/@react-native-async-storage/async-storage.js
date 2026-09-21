@@ -8,5 +8,7 @@ module.exports = {
   getItem: async (key) => (store.has(key) ? store.get(key) : null),
   setItem: async (key, value) => { store.set(key, value); },
   removeItem: async (key) => { store.delete(key); },
+  // Added for offlineCache.ts's clearUserCache (account deletion).
+  multiRemove: async (keys) => { keys.forEach((k) => store.delete(k)); },
   clear: async () => { store.clear(); },
 };

@@ -16,6 +16,7 @@
     Verified live on device instead. */
 import { useCallback, useEffect, useState } from 'react';
 import { Platform } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import Purchases, { type CustomerInfo, type PurchasesPackage } from 'react-native-purchases';
 
 /** The single switch that turns the paywall gate on. */
@@ -100,6 +101,11 @@ try {
   console.error('configureRevenueCat failed:', e);
 }
 
+/** Whether the last SUCCESSFUL entitlement check said this device's user
+    was subscribed. Read only when a later check fails outright — see the
+    catch in refresh() below. */
+const LAST_KNOWN_ENTITLEMENT_KEY = 'entitlement:lastKnown';
+
 export function useEntitlement() {
   const [hasActiveSubscription, setHasActiveSubscription] = useState(false);
   const [loaded, setLoaded] = useState(false);
@@ -116,14 +122,34 @@ export function useEntitlement() {
   const refresh = useCallback(async () => {
     try {
       const customerInfo = await Purchases.getCustomerInfo();
-      setHasActiveSubscription(hasEntitlement(customerInfo, ENTITLEMENT_ID));
+      const entitled = hasEntitlement(customerInfo, ENTITLEMENT_ID);
+      setHasActiveSubscription(entitled);
       setFailed(false);
+      AsyncStorage.setItem(LAST_KNOWN_ENTITLEMENT_KEY, entitled ? 'true' : 'false')
+        .catch((e) => console.error('useEntitlement: caching last-known entitlement failed:', e));
     } catch (e) {
-      // Never trust a stale cache as a fallback here: a failed check
-      // must deny access, not silently keep whatever was there before.
+      // This deliberately REVERSES an earlier rule here ("never trust a
+      // stale cache as a fallback — a failed check must deny access").
+      // Oscar's call, and the right one: that rule was written against
+      // transient failures, but the real case is a paying subscriber
+      // opening the app at a crag with no signal. Denying them the app
+      // they pay for, in exactly the place it exists to be used, is a far
+      // worse outcome than the abuse it was guarding against — which
+      // needs a previously-successful subscribed check on this device to
+      // work at all, and which RevenueCat's own cached CustomerInfo
+      // already permits regardless of what this branch does.
+      //
+      // Only ever upgrades a previously-confirmed subscriber: a cached
+      // `false` (or no cache) still denies and still surfaces the retry
+      // screen, so this can't let a non-subscriber in. Account switching
+      // can't launder it either — signing in needs an emailed code, hence
+      // a network, hence a fresh check that overwrites this value.
       console.error('useEntitlement.refresh failed:', e);
-      setHasActiveSubscription(false);
-      setFailed(true);
+      const lastKnown = await AsyncStorage.getItem(LAST_KNOWN_ENTITLEMENT_KEY)
+        .catch(() => null);
+      const grantFromCache = lastKnown === 'true';
+      setHasActiveSubscription(grantFromCache);
+      setFailed(!grantFromCache);
     } finally {
       setLoaded(true);
     }
