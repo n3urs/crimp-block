@@ -49,13 +49,33 @@ function ensureLoaded(): Record<Cue, AudioPlayer> {
   return players;
 }
 
+/** Creates every player now, rather than on the first beep. Lazy creation
+    meant the first cue after launch was silent: with `downloadFirst` the
+    real source is only attached once the async download resolves, so a
+    `play()` in that window hits a player with nothing loaded. Called from
+    the app root (app/_layout.tsx), seconds before any timer can start. */
+export function preloadTones(): void {
+  ensureLoaded();
+}
+
 /** Replays a cue from the start even if it's already mid-playback — a
     rapid double-tap (or the interval timer's own fast phase changes)
     should always restart the cue cleanly, matching
     IntervalTonePlayer.swift's own scheduleBuffer/play() pair, which never
-    leaves a stale half-played buffer blocking a new one. */
+    leaves a stale half-played buffer blocking a new one.
+
+    Must wait for the rewind before playing. A finished clip stays parked
+    at its end (expo-audio never rewinds it), and `play()` there makes no
+    sound. `play()` is a synchronous native call but `seekTo()` is async,
+    so the old fire-both-at-once `seekTo(0); play()` ran `play()` FIRST on
+    a finished player and only rewound it afterwards — reproduced on
+    device as every second beep on each cue being silent, strictly
+    alternating, which read as random because the rest timer and the
+    repeaters share the `go` player. */
 export function play(cue: Cue): void {
   const player = ensureLoaded()[cue];
-  player.seekTo(0);
-  player.play();
+  player
+    .seekTo(0)
+    .then(() => player.play())
+    .catch((e) => console.error(`tones.play(${cue}) failed:`, e));
 }

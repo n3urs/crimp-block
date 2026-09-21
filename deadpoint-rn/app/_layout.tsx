@@ -18,7 +18,10 @@ import '../src/data/subscription';
 // audioMode.ts's own doc comment for why this must run before any timer
 // chime plays, not inside a screen's effect.
 import '../src/components/timers/audioMode';
+import { preloadTones } from '../src/components/timers/tones';
 import '../src/debug/lastCrash';
+
+preloadTones();
 
 export default function RootLayout() {
   const [loaded] = useFonts({
