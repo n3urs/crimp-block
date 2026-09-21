@@ -133,7 +133,12 @@ export function CardHeader({
   onTapCalendar,
 }: CardHeaderProps) {
   const isDeload = weekNumber === 4;
-  const badgeLabel = `${phaseName.toUpperCase()} · WK ${weekNumber}${isDeload ? ' · DELOAD' : ''}`;
+  // No separator before DELOAD, unlike between phase and week: on a
+  // deload week the badge sits right up against the date (reported
+  // live), and the row genuinely runs out of width on a 402pt screen
+  // once the date and both icon buttons have taken their share. Dropping
+  // the middle "·" buys back the space without losing a word.
+  const badgeLabel = `${phaseName.toUpperCase()} · WK ${weekNumber}${isDeload ? ' DELOAD' : ''}`;
   const phaseBadgeRef = useTutorialTarget('phaseBadge');
   const settingsRef = useTutorialTarget('settingsGear');
 
@@ -146,7 +151,21 @@ export function CardHeader({
         accessibilityRole="button"
         accessibilityLabel={`View training plan details, ${badgeLabel}`}
       >
-        <Text style={[styles.badgeText, { color: accent }]}>{badgeLabel}</Text>
+        {/* Shrink-to-fit rather than truncate. A deload week's label is
+            genuinely wider than the space left once the date and both
+            icon buttons have taken theirs, and "WK 4 DEL…" hides the one
+            word that matters most that week. adjustsFontSizeToFit gives
+            back those few points by dropping at most 15% of the size,
+            and only on the weeks that need it — every other week still
+            renders at the full 12pt. */}
+        <Text
+          style={[styles.badgeText, { color: accent }]}
+          numberOfLines={1}
+          adjustsFontSizeToFit
+          minimumFontScale={0.85}
+        >
+          {badgeLabel}
+        </Text>
         <ChevronDownIcon color={accent} />
       </Pressable>
 
@@ -183,8 +202,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    // A deload week appends " · DELOAD" to the badge, which on a phase
+    // name like "Max Strength" leaves it all but touching the date —
+    // reported live. space-between alone guarantees nothing once the two
+    // sides are wide enough to meet, so this reserves the gap outright.
+    gap: 8,
   },
   badge: {
+    // Shrink the badge, never the date or the icon buttons: with a long
+    // phase name AND a deload suffix the row can genuinely run out of
+    // width, and truncating the label (numberOfLines={1} above) is much
+    // better than shoving the gear off the edge of the screen.
+    flexShrink: 1,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
@@ -205,6 +234,7 @@ const styles = StyleSheet.create({
   rightGroup: {
     flexDirection: 'row',
     alignItems: 'center',
+    flexShrink: 0,
   },
   date: {
     ...Fonts.mono(10.5, 'medium'),
