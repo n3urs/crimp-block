@@ -32,8 +32,12 @@ export default function Paywall() {
   // Opened from Settings to view plans (not as the post-onboarding gate):
   // offer a way back instead of SIGN OUT.
   const dismissible = useLocalSearchParams<{ from?: string }>().from === 'settings';
-  // Defaults to monthly — matches the trial-focused heading copy below.
-  const [selectedTier, setSelectedTier] = useState<Tier>('monthly');
+  // null until the customer taps a row. Until then the tier that carries
+  // a free trial is preselected (the annual plan), falling back to
+  // monthly when neither — or only monthly — has one; derived rather
+  // than stored so it settles correctly once the offerings finish loading.
+  const [pickedTier, setPickedTier] = useState<Tier | null>(null);
+  const selectedTier: Tier = pickedTier ?? (trialLabel(annual) ? 'annual' : 'monthly');
   const [subscribing, setSubscribing] = useState(false);
   const [restoring, setRestoring] = useState(false);
 
@@ -142,7 +146,7 @@ export default function Paywall() {
           return (
             <Pressable
               key={tier}
-              onPress={() => pkg && setSelectedTier(tier)}
+              onPress={() => pkg && setPickedTier(tier)}
               disabled={isDisabled}
               style={[styles.tierRow, isSelected && styles.tierRowSelected, isDisabled && styles.tierRowDisabled]}
               accessibilityRole="radio"

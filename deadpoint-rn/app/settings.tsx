@@ -119,7 +119,7 @@ export default function Settings() {
   // the copy says so plainly and there is no "default" button a mis-tap
   // could land on: Cancel and Delete Account are the only two options,
   // and only the destructive one calls deleteAccount().
-  const onDeleteAccount = () => {
+  const confirmDeleteAccount = () => {
     Alert.alert(
       'Delete Account?',
       'This permanently deletes your account and all training history. This cannot be undone.',
@@ -150,6 +150,27 @@ export default function Settings() {
             }
           },
         },
+      ],
+    );
+  };
+
+  // Deleting the account doesn't touch the Apple/Google subscription —
+  // neither store lets an app cancel one — so anyone still renewing is
+  // told, and sent to the store's cancel screen, before the delete
+  // confirmation. Reuses onSubscription (declared below; only called on press).
+  const onDeleteAccount = () => {
+    if (!entitlement.willRenew) {
+      confirmDeleteAccount();
+      return;
+    }
+    const store = Platform.OS === 'ios' ? 'Apple' : 'Google Play';
+    Alert.alert(
+      'Your subscription will keep renewing',
+      `Deleting your account doesn't cancel your subscription — ${store} bills you separately, so you'd keep being charged. Cancel it first, at least 24 hours before it renews.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Manage subscription', onPress: onSubscription },
+        { text: 'Delete anyway', style: 'destructive', onPress: confirmDeleteAccount },
       ],
     );
   };

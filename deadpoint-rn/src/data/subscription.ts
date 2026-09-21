@@ -69,6 +69,18 @@ export function hasEntitlement(customerInfo: CustomerInfo | null | undefined, en
   return Boolean(customerInfo?.entitlements?.active?.[entitlementId]);
 }
 
+/** True when the entitlement is active AND set to renew — i.e. the store
+    will keep billing. False once the customer has cancelled (they keep
+    access to the end of the period, but nothing more is charged). Same
+    deny-on-malformed shape as hasEntitlement. Drives the warning before
+    account deletion: deleting the account does NOT cancel an Apple/Google
+    subscription (neither exposes an API for an app to do that), so
+    someone still renewing has to be sent to the store's own cancel
+    screen first. */
+export function willRenewEntitlement(customerInfo: CustomerInfo | null | undefined, entitlementId: string): boolean {
+  return Boolean(customerInfo?.entitlements?.active?.[entitlementId]?.willRenew);
+}
+
 /** Both platforms configure the SDK now that both have a real key (see
     REVENUECAT_API_KEY_ANDROID's own doc comment for why Android's is
     still inert in practice). No `else return` for a third platform: this
@@ -108,6 +120,7 @@ const LAST_KNOWN_ENTITLEMENT_KEY = 'entitlement:lastKnown';
 
 export function useEntitlement() {
   const [hasActiveSubscription, setHasActiveSubscription] = useState(false);
+  const [willRenew, setWillRenew] = useState(false);
   const [loaded, setLoaded] = useState(false);
   // Distinct from hasActiveSubscription=false: that value alone can't
   // tell "checked and genuinely not subscribed" apart from "the check
@@ -124,6 +137,7 @@ export function useEntitlement() {
       const customerInfo = await Purchases.getCustomerInfo();
       const entitled = hasEntitlement(customerInfo, ENTITLEMENT_ID);
       setHasActiveSubscription(entitled);
+      setWillRenew(willRenewEntitlement(customerInfo, ENTITLEMENT_ID));
       setFailed(false);
       AsyncStorage.setItem(LAST_KNOWN_ENTITLEMENT_KEY, entitled ? 'true' : 'false')
         .catch((e) => console.error('useEntitlement: caching last-known entitlement failed:', e));
@@ -149,6 +163,9 @@ export function useEntitlement() {
         .catch(() => null);
       const grantFromCache = lastKnown === 'true';
       setHasActiveSubscription(grantFromCache);
+      // Can't tell offline, so assume a remembered subscriber still
+      // renews: the delete-account warning should err towards showing.
+      setWillRenew(grantFromCache);
       setFailed(!grantFromCache);
     } finally {
       setLoaded(true);
@@ -159,11 +176,11 @@ export function useEntitlement() {
     refresh();
   }, [refresh]);
 
-  return { hasActiveSubscription, loaded, failed, refresh };
+  return { hasActiveSubscription, willRenew, loaded, failed, refresh };
 }
 
-/** Task 3.5: the two configured packages (£0.99/month with a 7-day trial,
-    £9.99/year, both granting ENTITLEMENT_ID) — fetched once so the
+/** Task 3.5: the two configured packages (£0.99/month, and £9.99/year
+    with a 7-day trial, both granting ENTITLEMENT_ID) — fetched once so the
     paywall can offer a choice instead of assuming a single package.
     `.monthly`/`.annual` are RevenueCat's own typed shortcuts on the
     current Offering (confirmed against
@@ -273,7 +290,7 @@ export async function syncRevenueCatIdentity(userId: string | null, email: strin
   }
 }
 
-/** Was hardcoded to "7-DAY FREE TRIAL" on the paywall for the monthly
+/** Was hardcoded to "7-DAY FREE TRIAL" on the paywall for one fixed
     tier regardless of whether RevenueCat actually had a trial configured
     — meaning a user could be told "start free trial" and then get
     charged immediately, since the claim never read real data at all.
