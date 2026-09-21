@@ -14,9 +14,7 @@
    that belongs to Oscar's coaching judgement, not something to
    generate wholesale. Every template below is a first, reviewable
    draft, checked against real published sources (cited inline per
-   template, not just generic "coaching literature" hand-waving —
-   boulderingAdvanced's own correction note below is an example of a
-   draft claim getting checked and fixed on a later pass) and the same
+   template, not just generic "coaching literature" hand-waving) and the same
    structural shape as Oscar's and Joe's own programs, NOT copied from
    any specific paid program's proprietary content. Treat every number
    and exercise choice as a starting point to correct, not a finished
@@ -138,15 +136,13 @@ return {
        - A peer-reviewed RCT (Mundry et al., Scientific Reports, 2021,
          DOI 10.1038/s41598-021-92898-2) found added-weight hangboard
          training significantly improved grip strength over 8 weeks.
-         CORRECTION (caught on a verification pass): the earlier
-         version of this comment claimed the study population was
-         exclusively advanced climbers, "unlike beginners/
-         intermediates" — it wasn't. The trial's 30 subjects were UIAA
-         VI-VIII (roughly French 6a-7c+), i.e. intermediate-through-
-         advanced, and both this template and boulderingIntermediate
-         already prescribe max hangs — so this RCT is real support for
-         max-hang training generally at this ability range, not
-         specific proof that it's an advanced-only method.
+         The trial's 30 subjects were UIAA VI-VIII (roughly French
+         6a-7c+), i.e. intermediate-through-advanced, and both this
+         template and boulderingIntermediate already prescribe max
+         hangs. So this RCT supports max-hang training generally
+         across that ability range — it is NOT evidence that max hangs
+         are an advanced-only method, and must not be restated as
+         such.
        - Campus board training has real prerequisites before it's
          appropriate even at this level - commonly cited gate: a
          one-arm hang around 20mm for ~20s, and 10 strict pull-ups
@@ -317,14 +313,12 @@ return {
          for its own trip examples — reflected here as this template's
          built-in version of what template-resolver.js's tripDate
          modifier does automatically when a real date is set via the
-         quiz. CORRECTION (caught on a verification pass, not present
-         when first drafted): an earlier version of this comment cited
-         a specific "6wk/6wk/4wk, 60%->41% volume cut" figure as if it
-         came from that source — it doesn't; that source's own two
-         examples use different block lengths (4/4/2/2 for a sport
-         trip, 6/6/4 for a trad/big-wall one) and gives no taper
-         percentage at all. The 8/4/4 split actually used below is
-         this template's own choice, not a sourced number — the 4-week
+         quiz. Note what is and isn't sourced here, so no future pass
+         over-claims it: that source gives no taper percentage at all,
+         and its own two examples use different block lengths (4/4/2/2
+         for a sport trip, 6/6/4 for a trad/big-wall one). The 8/4/4
+         split actually used below is this template's own choice, not
+         a sourced number — the 4-week
          Power Endurance cap is what's genuinely sourced (see the
          overtraining citation above), and "volume down, intensity
          held" below is the general, widely-established taper
