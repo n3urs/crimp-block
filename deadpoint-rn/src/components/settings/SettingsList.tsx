@@ -12,7 +12,7 @@ import { Fonts } from '../../design/fonts';
 
 export type IconName =
   | 'target' | 'sliders' | 'restore' | 'hash' | 'clock' | 'activity' | 'hangboard'
-  | 'play' | 'shield' | 'file' | 'mail' | 'logout' | 'trash' | 'chevron' | 'external' | 'card';
+  | 'play' | 'shield' | 'file' | 'mail' | 'message' | 'logout' | 'trash' | 'chevron' | 'external' | 'card';
 
 function Glyph({ name }: { name: IconName }) {
   switch (name) {
@@ -55,6 +55,8 @@ function Glyph({ name }: { name: IconName }) {
       );
     case 'mail':
       return (<><Path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" /><Polyline points="22,6 12,13 2,6" /></>);
+    case 'message':
+      return <Path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />;
     case 'logout':
       return (<><Path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><Polyline points="16 17 21 12 16 7" /><Line x1={21} y1={12} x2={9} y2={12} /></>);
     case 'trash':

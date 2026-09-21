@@ -35,6 +35,8 @@ import { TEMPLATE_META, REHAB_META, DISCIPLINE_LABELS, EXPERIENCE_LABELS, parseT
 // Swift hardcodes this same array inline (SettingsView.swift:240) rather
 // than sharing a constant elsewhere in the codebase — matched here rather
 // than inventing a new shared export for one caller.
+const FEEDBACK_URL = 'https://getdeadpoint.co.uk/support';
+
 const PHASE_NAMES = ['Tissue Unload', 'Mobility', 'Strength', 'Return to Climbing'];
 
 /** Port of SettingsView.swift's `trackSummaryText` computed property
@@ -339,6 +341,15 @@ export default function Settings() {
             subtitle="The daily card walkthrough, from the start"
             trailing="chevron"
             onPress={onReplayTutorial}
+          />
+          <SettingsRow
+            icon="message"
+            tint={Colours.dim}
+            title="Send feedback"
+            subtitle="Request a feature or report a bug"
+            trailing="external"
+            accessibilityRole="link"
+            onPress={() => Linking.openURL(FEEDBACK_URL).catch((e) => console.error('settings: opening feedback page failed:', e))}
           />
           <SettingsRow
             icon="shield"
