@@ -73,6 +73,10 @@
       </ul>
       <p>We do not collect your name, location, contacts, browsing history, device advertising
       identifiers, or any data through analytics or crash-reporting SDKs. None are included in the app.</p>
+      <p>If the app closes unexpectedly, the next time you open it it asks whether you'd like to email us
+      the details (the error message, the app version and your phone's OS version). Nothing is sent
+      unless you tap <strong>Send details</strong> and then send the pre-filled email yourself, from your
+      own mail app.</p>
 
       <h2>Why we collect it</h2>
       <p>Solely to run the app: to know who you are when you sign in, and to compute your next recommended
@@ -88,9 +92,12 @@
       row-level security, so your training data is visible only to your own signed-in account — not to
       other users, and not readable by us without deliberately querying the database as the operator.
       Supabase project region: West EU (Ireland), eu-west-1 — your data is stored within the EEA.</p>
-      <p>A small on-device cache of your upcoming week is also stored locally on your phone (in the app's
-      private storage and, if you use it, the home-screen widget's shared container), purely so the widget
-      can show something before the app has had a chance to refresh it. This never leaves your device.</p>
+      <p>The app also keeps a copy of your profile, session log and weight log on your phone, in its
+      private storage, so it opens and works without a signal. Anything you log while offline waits there
+      until it can sync, and the copy is cleared if you delete your account. A small cache of your
+      upcoming week is stored locally too (and, if you use it, in the home-screen widget's shared
+      container) so the widget can show something before the app has had a chance to refresh it. None of
+      this leaves your device except through the normal sync to Supabase described above.</p>
 
       <h2>Who else touches it</h2>
       <ul>
