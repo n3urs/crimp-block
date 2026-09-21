@@ -250,8 +250,6 @@ body[data-menu="open"] .burger span::after{opacity:0}
 .ref:first-of-type{border-top:0;padding-top:0}
 .ref .cite{font-family:var(--mono);font-size:12px;color:var(--gorse);margin:7px 0 11px;letter-spacing:.01em}
 .ref p:last-child{color:var(--dim);font-size:15px}
-.correction{background:var(--s1);border:1px solid var(--s3);border-radius:var(--r-md);padding:22px;margin-top:30px}
-.correction .boxh{color:var(--gorse)}
 .warnbox{background:rgba(214,56,61,.07);border:1px solid rgba(214,56,61,.3);border-radius:var(--r-md);padding:22px}
 .warnbox .boxh{color:var(--restText)}
 .warnbox p{color:var(--dim);font-size:14.5px}

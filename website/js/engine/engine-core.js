@@ -114,6 +114,21 @@ function createEngine(program, data){
      them. Take a fortnight off and you resume exactly where you left off. */
   function isTraining(t){ return load(t,'finger')+load(t,'pull')>0; }
 
+  /* Training genuinely never plateaus into permanent maintenance — once the
+     last phase (Performance, by convention) would start, wrap back to its
+     `loopBlock` instead, so the plan keeps repeating Max Strength -> Power
+     -> Max Strength forever rather than holding at "Performance" for good.
+     A raw block number (uncapped, growing forever as `b` in block() below,
+     or a hypothetical future block computed elsewhere) is wrapped through
+     here so every caller — block()'s own `b`, and phaseIndexAt() for any
+     projected/future block number — agrees on where you actually are.
+     Absent `loopBlock` means "no repeat", matching the old behaviour. */
+  function wrapBlock(b){
+    var last = PHASES[PHASES.length-1];
+    if(last.loopBlock==null || b<last.from) return b;
+    var cycleLen = last.from - last.loopBlock;
+    return last.loopBlock + ((b-last.loopBlock) % cycleLen);
+  }
   function block(date){
     date = date || today();
     var all=StoreFacade.all(), n=0;
@@ -122,22 +137,18 @@ function createEngine(program, data){
     }
     var per=PER_WEEK, wIdx=Math.floor(n/per);
     return {
-      b: Math.min(6, Math.floor(wIdx/4)+1),
+      b: wrapBlock(Math.floor(wIdx/4)+1),
       w: (wIdx%4)+1,
       done: n%per,        // sessions banked into the current week
       per: per,
-      total: n,           // total training days since the block started
-      wIdx: wIdx,          // training weeks completed, uncapped
-      /* Six blocks is the whole structured plan. Once wIdx passes 24 there is
-         no block 7 — you hold in block 6 (Performance/maintenance) and just
-         keep cycling its 4-week deload rhythm indefinitely. `over` marks that
-         so the UI can say so instead of quietly repeating "Block 6" forever. */
-      over: wIdx>=24
+      total: n,           // cumulative training days since START_DATE (NOT reset per block — use w/done for block-local counts)
+      wIdx: wIdx          // training weeks completed, uncapped
     };
   }
   /* Index, not the object — a plan may repeat a phase name (e.g. two separate
      Max Strength blocks), and "you are here" has to mark the right one. */
   function phaseIndexAt(b){
+    b = wrapBlock(b);
     var out=0;
     for(var i=0;i<PHASES.length;i++) if(b>=PHASES[i].from) out=i;
     return out;
@@ -280,21 +291,15 @@ function createEngine(program, data){
     return LoadsFacade.history(id).filter(function(r){ return r.date<date && phaseNameAt(r.date)===ph; });
   }
 
-  /* What to put on the bar today, for exercises carrying an `id`.
-
-     This is the last hand-administered rule in the plan: "add 1–2.5kg once
-     all five feel solid two sessions running" used to sit in the exercise
-     description, which meant YOU had to remember what you lifted and how
-     many times. The app has the history, so it does the arithmetic.
+  /* What to put on the bar today, for exercises carrying an `id`: the last
+     weight you logged. Deciding when to go up is left to the lifter: a fixed
+     "+step after two sessions at the same weight" rule was too rigid to be
+     right often enough, so nothing currently returns bump:true.
 
      Returns null when there is no history at all — the app cannot invent a
-     starting weight, so the first one is always typed in by hand.
-
-     Deload weeks never bump: the whole point of the week is holding the load
-     while volume drops, so suggesting a PB in one would be backwards. */
+     starting weight, so the first one is always typed in by hand. */
   function target(e, date){
     date = date || today();
-    var step = e.step || 2.5;
     var set = LoadsFacade.on(e.id, date);
     if(set) return {kg:set.kg, bump:false, set:true};
 
@@ -323,10 +328,7 @@ function createEngine(program, data){
     var last = past[0];
     if(isDeload(date)) return {kg:last.kg, bump:false};
     if(isReturning(date)) return {kg:+(last.kg*RETURN_CUT).toFixed(2), bump:false, eased:true};
-    /* Two sessions at the same weight = it has stopped being hard. One is
-       not enough — a single good session is as likely to be a good day. */
-    var held = past.length>=2 && past[1].kg===last.kg;
-    return held ? {kg:+(last.kg+step).toFixed(2), bump:true} : {kg:last.kg, bump:false};
+    return {kg:last.kg, bump:false};
   }
 
   /* Every load-tracked exercise in a session, already resolved for rotation
@@ -451,7 +453,17 @@ function createEngine(program, data){
   function decide(date, hOverride){
     var h=hOverride || history(date);
     var yf=load(h[0].type,'finger');
-    var yName=h[0].type?T[h[0].type].n:null;
+    // Guarded against an unrecognized type, not just a falsy one: real bug
+    // hit live when a foreign session-key vocabulary (a non-climbing
+    // built-in account, resolved through a wholly different engine) logged
+    // a session type that reached this climbing engine on a screen that
+    // hadn't yet learned to route it elsewhere (e.g. the calendar's
+    // all-time-stats streak walk, which calls decide() for every un-logged
+    // day and can land within 7 days of a real logged entry). `T[h[0].type]`
+    // was assumed to always exist once `h[0].type` was truthy — true for
+    // every real climbing session key, false for a foreign one — and
+    // indexing `.n` off `undefined` crashed the whole screen.
+    var yName=(h[0].type && T[h[0].type])?T[h[0].type].n:null;
     var run=streak(h);
 
     /* The caps below mean "no more than N in any SEVEN CONSECUTIVE DAYS", and
