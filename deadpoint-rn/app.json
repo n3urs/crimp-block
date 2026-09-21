@@ -10,7 +10,7 @@
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "uk.co.sullivanltd.crimpblock",
-      "buildNumber": "31",
+      "buildNumber": "32",
       "appleTeamId": "87F48SV42Q",
       "entitlements": {
         "com.apple.security.application-groups": [
