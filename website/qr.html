@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<title>Deadpoint</title>
+<meta name="robots" content="noindex">
+<!-- Exists purely so a QR scan is a distinct hit Cloudflare Web Analytics can
+     count on its own — getdeadpoint.co.uk/qr in the URL breakdown is scans,
+     nothing else links here. The redirect has to happen in the BROWSER, not
+     at Cloudflare's edge (a _redirects rule would 30x before this HTML — and
+     the analytics beacon it carries — ever loads, so nothing would be
+     counted). This page really loads first, then sends the visitor on. -->
+<meta http-equiv="refresh" content="0; url=/">
+<script>location.replace('/');</script>
+</head>
+<body></body>
+</html>
