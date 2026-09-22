@@ -1,6 +1,6 @@
 // src/screens/quiz/StandardSteps.tsx
 import React, { useState } from 'react';
-import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import DateTimePicker, { type DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { Colours } from '../../design/colours';
 import { Fonts } from '../../design/fonts';
@@ -204,7 +204,46 @@ function summaryRow(label: string, value: string) {
   );
 }
 
-export function StandardSummaryStep({ answers }: StepProps) {
+/** Optional, deliberately quiet — sits below the summary someone is
+    already reading, not its own step nobody can skip past unanswered.
+    Placed here (the last quiz screen) rather than in Settings because
+    Settings is only reachable AFTER the paywall (computeRoute.ts sends
+    every non-built-in account through /paywall before /card, and
+    Settings only opens from card.tsx's gear icon) — reported directly:
+    someone would have to pay first and then go dig for it, which is
+    backwards for a friend who downloaded specifically because of a
+    code. This runs before create() ever does, so it is the one
+    genuinely first-time moment for a real new account. Settings' own
+    referral-code screen stays as the fallback for anyone who skips this
+    or already had an account before this existed. */
+function ReferralCodeField({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  return (
+    <View style={styles.referralField}>
+      <Text style={styles.referralLabel}>HAVE A REFERRAL CODE? (OPTIONAL)</Text>
+      <TextInput
+        value={value}
+        onChangeText={onChange}
+        placeholder="e.g. joe"
+        placeholderTextColor={Colours.faint}
+        autoCapitalize="none"
+        autoCorrect={false}
+        style={styles.referralInput}
+      />
+    </View>
+  );
+}
+
+/** referralCode/onReferralCodeChange are omitted, not just falsy, when
+    this renders inside app/preferences-edit.tsx — that screen reuses
+    every standard step as a plain review list for an EXISTING account
+    changing its answers, where a referral field makes no sense (the
+    account already resolved its one-time referral, or skipped it, back
+    when it first went through /quiz). Rendering the field only when
+    both callback props are actually supplied keeps that call site from
+    needing to pass dummy no-ops just to satisfy the type. */
+export function StandardSummaryStep({
+  answers, referralCode, onReferralCodeChange,
+}: StepProps & { referralCode?: string; onReferralCodeChange?: (v: string) => void }) {
   const id = templateId(answers.discipline, answers.experienceLevel);
   const meta = TEMPLATE_META[id];
   return (
@@ -219,6 +258,7 @@ export function StandardSummaryStep({ answers }: StepProps) {
         {answers.injuryFlags.length > 0 && summaryRow('Flagged', answers.injuryFlags.map((f) => INJURY_FLAG_LABELS[f]).join(', '))}
         {answers.tripDate != null && summaryRow('Trip date', answers.tripDate)}
       </View>
+      {onReferralCodeChange != null && <ReferralCodeField value={referralCode ?? ''} onChange={onReferralCodeChange} />}
     </StepScaffold>
   );
 }
@@ -237,4 +277,10 @@ const styles = StyleSheet.create({
   summaryRow: { flexDirection: 'row', gap: 8 },
   summaryLabel: { ...Fonts.mono(10, 'bold'), color: Colours.faint, width: 100 },
   summaryValue: { fontSize: 13, color: Colours.fg, flex: 1 },
+  referralField: { marginTop: 20, gap: 8 },
+  referralLabel: { ...Fonts.mono(10, 'bold'), color: Colours.faint, letterSpacing: 0.6 },
+  referralInput: {
+    ...Fonts.mono(14, 'medium'), color: '#FFFFFF',
+    padding: 12, borderRadius: 8, backgroundColor: Colours.s1,
+  },
 });

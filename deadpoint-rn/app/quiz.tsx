@@ -40,6 +40,12 @@ export default function Quiz() {
   const profile = useProfile(userId);
 
   const [answers, setAnswers] = useState<QuizAnswers>(DEFAULT_ANSWERS);
+  // Held here, not in QuizAnswers/modifiersPayload — this isn't a training
+  // preference, it's a one-time account-creation field with its own
+  // dedicated profiles column (see useProfile.ts's create()). Kept
+  // separate so it can't accidentally round-trip through Preferences
+  // later, which edits `answers`-derived modifiers only.
+  const [referralCode, setReferralCode] = useState('');
   const [rehabArea, setRehabArea] = useState<RehabInjuryArea | null>(null);
   const [rehabStartingPoint, setRehabStartingPoint] = useState<RehabStartingPoint | null>(null);
   const [step, setStep] = useState(0);
@@ -71,7 +77,7 @@ export default function Quiz() {
         const id = templateId(result.answers.discipline, result.answers.experienceLevel);
         const start = new Date();
         const startDate = `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, '0')}-${String(start.getDate()).padStart(2, '0')}`;
-        await profile.create(id, startDate, modifiersPayload(result.answers));
+        await profile.create(id, startDate, modifiersPayload(result.answers), referralCode);
       } else {
         await profile.assignRehab(result.area, result.startingPhase);
       }
@@ -115,7 +121,7 @@ export default function Quiz() {
       : step === 4 ? <InjuryStep {...stepProps} />
       : step === 5 ? <DaysPerWeekStep {...stepProps} />
       : step === 6 ? <TripDateStep {...stepProps} />
-      : <StandardSummaryStep {...stepProps} />;
+      : <StandardSummaryStep {...stepProps} referralCode={referralCode} onReferralCodeChange={setReferralCode} />;
   }
 
   return (

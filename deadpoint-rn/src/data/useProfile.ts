@@ -300,8 +300,20 @@ export function useProfile(userId: string) {
       re-creates, for someone switching back into standard who's never had
       a standard assignment before) the profile that makes this a
       template-assigned Standard-tier user from then on. */
-  const create = useCallback(async (templateId: string, startDate: string, modifiers: Record<string, unknown>) => {
+  /** `referralCode` is the quiz's own optional field (StandardSummaryStep,
+      the one genuinely-first-time screen every new account passes
+      through before the paywall ever gates Settings — see
+      ReferralCodeField's own doc comment for why it lives there and not
+      only in Settings). Reuses normaliseReferralCode so quiz-time and
+      Settings-time entry can never disagree about what counts as
+      "already set" or how a code gets normalised — one rule, two call
+      sites. Blank/omitted, or a code already set on this account (the
+      re-create path, e.g. switching a rehab-only account to standard for
+      the first time), both fall through to whatever referredBy already
+      exists rather than clearing it. */
+  const create = useCallback(async (templateId: string, startDate: string, modifiers: Record<string, unknown>, referralCode?: string) => {
     const quizCompletedAt = new Date().toISOString();
+    const referredBy = normaliseReferralCode(referralCode ?? '', row?.referredBy ?? null) ?? row?.referredBy ?? null;
     const { error } = await supabase.from('profiles').upsert({
       user_id: userId,
       assigned_template_id: templateId,
@@ -310,6 +322,7 @@ export function useProfile(userId: string) {
       tier: 'standard',
       track_type: 'standard',
       quiz_completed_at: quizCompletedAt,
+      referred_by: referredBy,
     }, { onConflict: 'user_id' });
     if (error) throw error;
     // Optimistic write lands directly as a `ready` state for the current
@@ -327,11 +340,11 @@ export function useProfile(userId: string) {
           assignedTemplateId: templateId, programStartDate: startDate, modifiers,
           tier: 'standard', quizCompletedAt, tutorialCompletedAt: prevRow?.tutorialCompletedAt ?? null,
           trackType: 'standard', rehabInjuryArea: null, rehabPhaseIndex: null,
-          referredBy: prevRow?.referredBy ?? null,
+          referredBy: referredBy ?? prevRow?.referredBy ?? null,
         },
       };
     });
-  }, [userId]);
+  }, [row, userId]);
 
   /** Assigns (or first-assigns) the rehab track. Deliberately omits
       assigned_template_id/program_start_date/modifiers from the write
