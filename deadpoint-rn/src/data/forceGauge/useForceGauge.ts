@@ -143,8 +143,13 @@ export function useForceGauge() {
   }, []);
 
   const onNotification = useCallback((base64Value: string) => {
-    const { samples } = parseNotification(base64ToBytes(base64Value));
-    if (samples.length === 0) return;
+    const { samples: raw } = parseNotification(base64ToBytes(base64Value));
+    if (raw.length === 0) return;
+    // The gauge reads a hair below zero at rest (sensor noise around the
+    // tare point, not a real negative pull) — floor it here, the one
+    // place a sample turns into app state, so the stat and the graph
+    // never dip below 0 rather than clamping each display separately.
+    const samples = raw.map((s) => ({ ...s, kg: Math.max(0, s.kg) }));
     setCurrent(samples[samples.length - 1].kg);
     setPeak((p) => Math.max(p, ...samples.map((s) => s.kg)));
     setPoints((prev) => {
