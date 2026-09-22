@@ -421,3 +421,81 @@ actually paying. The admin page shows "Built-in" for Oscar/Joe (accurate
 — `isBuiltInProgram` skips the paywall entirely) and leaves it blank for
 anyone else rather than guessing. Real subscriber numbers live in App
 Store Connect until/unless a server-side receipt sync gets built.
+
+## Referral codes (2026-09-22)
+
+Friend-referral tracking (Settings → Referral code in the app; "Referrals"
+section on the admin dashboard). One nullable free-text column — no
+`referral_codes` table, no foreign key, no validation of what gets typed
+in. There is no canonical list of real codes anywhere: a friend just
+tells someone a word, they type it into Settings once, and the admin
+page groups accounts by whatever text actually landed. Right at
+friends-referring-friends scale; add a real codes table (and validate
+against it) only if typos become a genuine problem.
+
+```sql
+alter table public.profiles add column if not exists referred_by text;
+
+-- admin_user_summary() gains one column (referred_by) — everything else
+-- about the function is unchanged from the original definition above.
+create or replace function public.admin_user_summary()
+returns table (
+  user_id uuid,
+  email text,
+  signed_up_at timestamptz,
+  last_sign_in_at timestamptz,
+  tier text,
+  assigned_template_id text,
+  sessions_logged bigint,
+  last_session_date date,
+  last_session_type text,
+  referred_by text
+)
+language plpgsql
+security definer
+set search_path = public, auth
+as $$
+begin
+  if not public.is_admin() then
+    raise exception 'not authorized';
+  end if;
+
+  return query
+  select
+    u.id::uuid,
+    u.email::text,
+    u.created_at::timestamptz,
+    u.last_sign_in_at::timestamptz,
+    p.tier::text,
+    p.assigned_template_id::text,
+    coalesce(s.cnt, 0)::bigint,
+    s.last_date::date,
+    s.last_type::text,
+    p.referred_by::text
+  from auth.users u
+  left join public.profiles p on p.user_id = u.id
+  left join (
+    select
+      sess.user_id as uid,
+      count(*) filter (where sess.type != 'rest') as cnt,
+      max(sess.date) as last_date,
+      (array_agg(sess.type order by sess.date desc))[1] as last_type
+    from public.sessions sess
+    group by sess.user_id
+  ) s on s.uid = u.id
+  order by u.created_at desc;
+end;
+$$;
+grant execute on function public.admin_user_summary() to authenticated;
+```
+
+No RLS change needed — `profiles`' existing "own row" policy already lets
+a signed-in user write their own `referred_by`, same as every other
+profile field.
+
+**Not built, on purpose**: automated payouts, and anything that reads
+RevenueCat. The admin dashboard tells Oscar who came in on which code;
+whether they're actually paying is a manual RevenueCat lookup, and
+paying referrers is a manual transfer he does himself — genuinely
+correct scope for a handful of friends, not a gap to fill in later
+unless the numbers grow enough to make it worth automating.
