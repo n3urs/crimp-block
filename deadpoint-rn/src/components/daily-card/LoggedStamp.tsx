@@ -23,9 +23,10 @@ import Animated, {
   useSharedValue,
   withTiming,
 } from 'react-native-reanimated';
-import { Colours } from '../../design/colours';
+import { Colours, resolveColour } from '../../design/colours';
 import { Fonts } from '../../design/fonts';
 import { Motion } from '../../design/motion';
+import { QUOTES, pickQuoteIndex } from '../../data/quotes';
 
 const easeInOut = Easing.inOut(Easing.ease);
 
@@ -127,6 +128,19 @@ function useLoggedStampVisible(trigger: number): boolean {
 
 export function LoggedStamp({ trigger, accent, nextUp }: LoggedStampProps) {
   const visible = useLoggedStampVisible(trigger);
+  // One quote per celebration, chosen when the card is triggered rather
+  // than on every render (a re-render mid-fade would otherwise swap the
+  // text under the reader). Never the one just shown — see pickQuoteIndex.
+  const [quoteIndex, setQuoteIndex] = useState(() => pickQuoteIndex(-1));
+  const isFirstTrigger = useRef(true);
+  useEffect(() => {
+    if (isFirstTrigger.current) {
+      isFirstTrigger.current = false;
+      return;
+    }
+    setQuoteIndex((previous) => pickQuoteIndex(previous));
+  }, [trigger]);
+  const quote = QUOTES[quoteIndex] ?? QUOTES[0];
   // Kept mounted for the duration of the fade-out so it can actually
   // animate away instead of vanishing instantly — Swift's conditional `if
   // showLoggedStamp { loggedStamp(...) }` (DailyCardView.swift:557) gets
@@ -166,7 +180,10 @@ export function LoggedStamp({ trigger, accent, nextUp }: LoggedStampProps) {
       style={[styles.card, { borderColor: withAlpha(accent, 0.45) }, animatedStyle]}
     >
       <Text style={styles.logged}>LOGGED</Text>
-      <Text style={styles.subtitle}>Nice work today.</Text>
+      {/* Replaces a fixed "Nice work today." — same congratulation, but
+          with something to read on the tenth session as well as the first. */}
+      <Text style={styles.quote}>{`“${quote.text}”`}</Text>
+      <Text style={styles.quoteWho}>{quote.who.toUpperCase()}</Text>
       {nextUp != null && (
         <>
           <View style={styles.divider} />
@@ -207,12 +224,20 @@ const styles = StyleSheet.create({
     // as ExerciseRow's title.
     color: '#FFFFFF',
   },
-  subtitle: {
-    // Swift uses `.system(size: 14)` plain here, not AppFonts — matching
-    // SessionDots' nextUpName precedent of a bare fontSize when the Swift
-    // source itself skips AppFonts.
+  quote: {
+    // Swift used `.system(size: 14)` plain for the line this replaces, not
+    // AppFonts — matching SessionDots' nextUpName precedent of a bare
+    // fontSize when the Swift source itself skips AppFonts.
     fontSize: 14,
+    lineHeight: 20,
     color: Colours.dim,
+    fontStyle: 'italic',
+    textAlign: 'center',
+  },
+  quoteWho: {
+    ...Fonts.mono(10, 'bold'),
+    color: resolveColour('--gorse'),
+    letterSpacing: 0.8,
   },
   divider: {
     alignSelf: 'stretch',

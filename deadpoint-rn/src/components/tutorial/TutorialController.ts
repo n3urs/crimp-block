@@ -8,6 +8,13 @@ export interface TutorialStep {
   targetID: string;
   title: string;
   body: string;
+  /** What the spotlighted control IS, in two or three words ('the
+      checkbox', 'the gear'), for the instruction line: "TAP THE CHECKBOX"
+      lands where "tap the highlighted area" did not. Every person who has
+      been through this tutorial sat waiting instead of tapping, which is
+      the whole reason this field exists. Falls back to "THE HIGHLIGHTED
+      AREA" when a step has no natural short name. */
+  targetLabel?: string;
   /** Small bouncing "‹ SWIPE ›" badge above the spotlighted target — for
       a step whose real control is a gesture rather than a tap target. */
   showsSwipeHint?: boolean;

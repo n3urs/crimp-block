@@ -52,16 +52,16 @@ const PROGRAMS = require('../src/engine/programs.js');
 // Verbatim from TutorialDemoCardView.swift — copy, order, and targetIDs
 // are the spec, not a judgment call.
 const STEPS: TutorialStep[] = [
-  { targetID: 'weekStrip', title: 'Your last seven days', body: 'Each bar is one day, coloured by what you logged. Tap any of them to fill in a session you forgot — or to fix one you got wrong.' },
-  { targetID: 'phaseBadge', title: 'The bigger picture', body: "This badge shows where you are in your training block. Tap it any time to see the full plan — phases, deload weeks, and what changes when. Close it with the button in the top left to carry on." },
-  { targetID: 'exerciseInfo', title: 'Detail, out of the way', body: "Every exercise keeps the essentials up front. Tap the arrow to unfold the full reasoning behind it. And when an exercise's sets and reps are written in gold, it means those numbers have been tuned for the phase you're in right now — they'll change as you move through the plan." },
-  { targetID: 'exerciseTick', title: 'Tick them off', body: "Check exercises off as you finish them. Ticked ones collapse out of the way, so what's left is always what's in front of you." },
-  { targetID: 'weightBadge', title: 'Track your numbers', body: "Tap a weight to log what you actually lifted today. When that number turns gold, it means you've held the same weight two sessions running — the app is telling you it's time to go up." },
-  { targetID: 'restTimerButton', title: 'Built-in timers', body: 'Every timed exercise has a rest timer wired in — tap to start it, right from here. It keeps running while you rest, so you can put the phone down.' },
-  { targetID: 'restTimerStop', title: 'Stop anytime', body: "Rest timers count down on their own, but you're never stuck waiting — tap STOP whenever you're ready to move on." },
+  { targetID: 'weekStrip', targetLabel: 'ANY DAY BAR', title: 'Your last seven days', body: 'Each bar is one day, coloured by what you logged. Tap any of them to fill in a session you forgot — or to fix one you got wrong.' },
+  { targetID: 'phaseBadge', targetLabel: 'THE BADGE', title: 'The bigger picture', body: "This badge shows where you are in your training block. Tap it any time to see the full plan — phases, deload weeks, and what changes when. Close it with the button in the top left to carry on." },
+  { targetID: 'exerciseInfo', targetLabel: 'THE ARROW', title: 'Detail, out of the way', body: "Every exercise keeps the essentials up front. Tap the arrow to unfold the full reasoning behind it. And when an exercise's sets and reps are written in gold, it means those numbers have been tuned for the phase you're in right now — they'll change as you move through the plan." },
+  { targetID: 'exerciseTick', targetLabel: 'THE CHECKBOX', title: 'Tick them off', body: "Check exercises off as you finish them. Ticked ones collapse out of the way, so what's left is always what's in front of you." },
+  { targetID: 'weightBadge', targetLabel: 'THE WEIGHT', title: 'Track your numbers', body: "Tap a weight to log what you actually lifted today. When that number turns gold, it means you've held the same weight two sessions running — the app is telling you it's time to go up." },
+  { targetID: 'restTimerButton', targetLabel: 'THE REST BUTTON', title: 'Built-in timers', body: 'Every timed exercise has a rest timer wired in — tap to start it, right from here. It keeps running while you rest, so you can put the phone down.' },
+  { targetID: 'restTimerStop', targetLabel: 'STOP', title: 'Stop anytime', body: "Rest timers count down on their own, but you're never stuck waiting — tap STOP whenever you're ready to move on." },
   { targetID: 'sessionDots', title: 'Reading the dots', body: 'One dot per session type. The filled one is what you’re looking at right now — not what you’ve done. The dot with a ring around it is what the app reckons you should do today, and it stays put even while you look around. Swipe left or right anywhere on the card to move between sessions, or tap a dot to jump straight to one.', fullScreenSwipeDemo: true },
-  { targetID: 'doneButton', title: 'Then log the session', body: "When you're finished, mark the whole session done with the big button at the bottom. This is the bit that actually matters — logging is what the app reads to decide what you do next." },
-  { targetID: 'settingsGear', title: 'Your settings', body: 'A sets counter that lets you tap through sets one at a time, an auto-start rest timer, and your account, all behind this gear icon.' },
+  { targetID: 'doneButton', targetLabel: 'THE DONE BUTTON', title: 'Then log the session', body: "When you're finished, mark the whole session done with the big button at the bottom. This is the bit that actually matters — logging is what the app reads to decide what you do next." },
+  { targetID: 'settingsGear', targetLabel: 'THE GEAR', title: 'Your settings', body: 'A sets counter that lets you tap through sets one at a time, an auto-start rest timer, and your account, all behind this gear icon.' },
 ];
 
 // Derived, not a hardcoded literal — Fix 3 (step 4's tick must not collapse
@@ -376,7 +376,11 @@ function MessageCard({ title, body, buttonLabel, onSkip, onPress }: { title: str
         <Text style={styles.messageTitle}>{title}</Text>
         <Text style={styles.messageBody}>{body}</Text>
         <Pressable onPress={onPress} style={styles.messageButton}><Text style={styles.messageButtonText}>{buttonLabel}</Text></Pressable>
-        {onSkip != null && <Pressable onPress={onSkip}><Text style={styles.messageSkip}>SKIP</Text></Pressable>}
+        {onSkip != null && (
+          <Pressable onPress={onSkip} hitSlop={12} style={styles.messageSkipButton} accessibilityRole="button" accessibilityLabel="Skip the tutorial">
+            <Text style={styles.messageSkip}>SKIP</Text>
+          </Pressable>
+        )}
       </View>
     </View>
   );
@@ -390,5 +394,8 @@ const styles = StyleSheet.create({
   messageBody: { fontSize: 14, color: Colours.dim },
   messageButton: { paddingVertical: 14, borderRadius: 10, alignItems: 'center', backgroundColor: Colours.fg },
   messageButtonText: { ...Fonts.mono(13, 'bold'), color: Colours.bg },
+  // Negative margin cancels the padding's effect on layout: the word sits
+  // exactly where it did, on a touch box more than twice the size.
+  messageSkipButton: { paddingVertical: 12, marginVertical: -6, alignItems: 'center' },
   messageSkip: { ...Fonts.mono(11, 'bold'), color: Colours.faint, textAlign: 'center' },
 });

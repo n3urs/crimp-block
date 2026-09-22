@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { Dimensions, Pressable, StyleSheet, Text, View } from 'react-native';
-import Svg, { Path } from 'react-native-svg';
-import { Colours } from '../../design/colours';
+import Animated, { Easing, useAnimatedStyle, useSharedValue, withRepeat, withTiming } from 'react-native-reanimated';
+import Svg, { Path, Polyline } from 'react-native-svg';
+import { Colours, resolveColour } from '../../design/colours';
 import { Fonts } from '../../design/fonts';
 import type { TutorialTargetMap } from './TutorialTargetContext';
 import type { useTutorialController } from './TutorialController';
@@ -9,6 +10,9 @@ import type { useTutorialController } from './TutorialController';
 interface Rect { x: number; y: number; width: number; height: number; }
 
 const CORNER_RADIUS = 14;
+// The brand amber, used for every "this is the bit to act on" mark in the
+// overlay. resolveColour rather than a literal so it tracks the palette.
+const ACCENT = resolveColour('--gorse');
 const HOLE_PADDING_X = 8;
 const HOLE_PADDING_Y = 10;
 
@@ -87,6 +91,7 @@ export function TutorialOverlay({
         <Path d={roundedRectPath(rect, CORNER_RADIUS)} stroke="rgba(0,0,0,0.55)" strokeWidth={6} fill="none" />
         <Path d={roundedRectPath(rect, CORNER_RADIUS)} stroke={Colours.fg} strokeWidth={2.5} fill="none" />
       </Svg>
+      <PulseRing rect={rect} />
       {step.showsSwipeHint && <SwipeHintBadge x={rect.x + rect.width / 2} y={Math.max(30, rect.y - 30)} />}
       {/* Four absorbing rectangles around the hole — a real tap only
           reaches the actual control underneath through the hole itself. */}
@@ -99,6 +104,57 @@ export function TutorialOverlay({
   );
 }
 
+/** A ring that breathes outwards from the spotlight. The static white
+    ring the SVG already draws is legible but sits still, and on a screen
+    where everything else is dimmed that read as decoration rather than as
+    the thing to press: every person who has been through this tutorial
+    waited for it to advance by itself. Movement is what the eye lands on
+    first, so the target gets some. */
+function PulseRing({ rect }: { rect: Rect }) {
+  const pulse = useSharedValue(0);
+  useEffect(() => {
+    pulse.value = 0;
+    pulse.value = withRepeat(withTiming(1, { duration: 1300, easing: Easing.out(Easing.ease) }), -1, false);
+  }, [pulse, rect.x, rect.y]);
+  const style = useAnimatedStyle(() => ({
+    opacity: 0.55 * (1 - pulse.value),
+    transform: [{ scale: 1 + pulse.value * 0.12 }],
+  }));
+  return (
+    <Animated.View
+      pointerEvents="none"
+      style={[
+        {
+          position: 'absolute',
+          left: rect.x, top: rect.y, width: rect.width, height: rect.height,
+          borderRadius: CORNER_RADIUS, borderWidth: 2.5, borderColor: Colours.fg,
+        },
+        style,
+      ]}
+    />
+  );
+}
+
+/** Points from the caption card at the spotlight, and bounces towards it.
+    `direction` is which way the hole is from the card. */
+function PointerArrow({ direction }: { direction: 'up' | 'down' }) {
+  const bounce = useSharedValue(0);
+  useEffect(() => {
+    bounce.value = withRepeat(withTiming(1, { duration: 620, easing: Easing.inOut(Easing.ease) }), -1, true);
+  }, [bounce]);
+  const style = useAnimatedStyle(() => ({
+    transform: [{ translateY: (direction === 'up' ? -1 : 1) * bounce.value * 7 }],
+  }));
+  return (
+    <Animated.View pointerEvents="none" style={[styles.pointerArrow, direction === 'up' ? styles.pointerArrowUp : styles.pointerArrowDown, style]}>
+      <Svg width={34} height={34} viewBox="0 0 24 24" style={{ transform: [{ rotate: direction === 'up' ? '180deg' : '0deg' }] }}>
+        <Polyline points="6 9 12 15 18 9" fill="none" stroke={ACCENT} strokeWidth={3.5} strokeLinecap="round" strokeLinejoin="round" />
+        <Path d="M12 3 V14" stroke={ACCENT} strokeWidth={3.5} strokeLinecap="round" />
+      </Svg>
+    </Animated.View>
+  );
+}
+
 function roundedRectPath(r: Rect, radius: number): string {
   const x = r.x, y = r.y, w = r.width, h = r.height, rad = Math.min(radius, w / 2, h / 2);
   return `M${x + rad},${y} H${x + w - rad} A${rad},${rad} 0 0 1 ${x + w},${y + rad} V${y + h - rad} A${rad},${rad} 0 0 1 ${x + w - rad},${y + h} H${x + rad} A${rad},${rad} 0 0 1 ${x},${y + h - rad} V${y + rad} A${rad},${rad} 0 0 1 ${x + rad},${y} Z`;
@@ -107,7 +163,7 @@ function roundedRectPath(r: Rect, radius: number): string {
 function CaptionCard({
   step, stepIndex, totalSteps, onSkip, screen, anchorRect, footerOverride,
 }: {
-  step: { title: string; body: string; fullScreenSwipeDemo?: boolean };
+  step: { title: string; body: string; targetLabel?: string; fullScreenSwipeDemo?: boolean };
   stepIndex: number; totalSteps: number; onSkip: () => void; screen: { width: number; height: number };
   anchorRect: Rect; footerOverride?: string;
 }) {
@@ -116,19 +172,37 @@ function CaptionCard({
   const gap = 12;
   const fitsBelow = anchorRect.y + anchorRect.height + gap + height < screen.height;
   const top = fitsBelow ? anchorRect.y + anchorRect.height + gap : Math.max(20, anchorRect.y - gap - height);
+  // The hole is above the card when the card sits below it, and vice versa.
+  const arrowDirection: 'up' | 'down' = fitsBelow ? 'up' : 'down';
+  const instruction = footerOverride ?? (step.fullScreenSwipeDemo
+    ? 'SWIPE THE CARD'
+    : `TAP ${step.targetLabel ?? 'THE HIGHLIGHTED AREA'}`);
+  // The swipe-demo and measure-failed steps have no single spot to point
+  // at — their instruction is about the whole screen.
+  const pointsAtSomething = !step.fullScreenSwipeDemo && footerOverride == null;
 
   return (
     <View
       style={[styles.caption, { width: cardWidth, top: Math.min(top, screen.height - height - 20), left: (screen.width - cardWidth) / 2 }]}
       onLayout={(e) => setHeight(e.nativeEvent.layout.height)}
     >
+      {pointsAtSomething && <PointerArrow direction={arrowDirection} />}
       <View style={styles.captionHeader}>
         <Text style={styles.captionCounter}>{stepIndex + 1} OF {totalSteps}</Text>
-        <Pressable onPress={onSkip}><Text style={styles.captionSkip}>SKIP</Text></Pressable>
+        {/* Was a bare 10px word with no padding — Oscar reported it as hard
+            to hit. Same look, but the negative margin lets the padding grow
+            the real touch box without moving the label or the card. */}
+        <Pressable onPress={onSkip} hitSlop={12} style={styles.captionSkipButton} accessibilityRole="button" accessibilityLabel="Skip the tutorial">
+          <Text style={styles.captionSkip}>SKIP</Text>
+        </Pressable>
       </View>
       <Text style={styles.captionTitle}>{step.title}</Text>
       <Text style={styles.captionBody}>{step.body}</Text>
-      <Text style={styles.captionFooter}>{footerOverride ?? (step.fullScreenSwipeDemo ? 'Swipe the card to continue' : 'Tap the highlighted area to continue')}</Text>
+      {/* Was 10px grey type on the last line, which read as a caption
+          rather than an instruction. */}
+      <View style={styles.captionInstruction}>
+        <Text style={styles.captionInstructionText}>{instruction}</Text>
+      </View>
     </View>
   );
 }
@@ -159,12 +233,20 @@ const styles = StyleSheet.create({
     position: 'absolute', padding: 16, borderRadius: 14,
     backgroundColor: Colours.s1, borderWidth: 1, borderColor: Colours.s3,
   },
-  captionHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
+  captionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
+  captionSkipButton: { paddingVertical: 10, paddingHorizontal: 14, marginVertical: -10, marginRight: -14 },
   captionCounter: { ...Fonts.mono(10, 'bold'), color: Colours.faint },
   captionSkip: { ...Fonts.mono(10, 'bold'), color: Colours.faint },
   captionTitle: { fontSize: 19, fontWeight: '800', color: Colours.fg, marginBottom: 8 },
   captionBody: { fontSize: 13.5, color: Colours.dim, marginBottom: 8 },
-  captionFooter: { ...Fonts.mono(10, 'semibold'), color: Colours.faint },
+  captionInstruction: {
+    marginTop: 4, paddingVertical: 10, borderRadius: 10, alignItems: 'center',
+    backgroundColor: 'rgba(242,177,52,0.14)', borderWidth: 1, borderColor: 'rgba(242,177,52,0.4)',
+  },
+  captionInstructionText: { ...Fonts.mono(12, 'bold'), color: ACCENT, letterSpacing: 0.8 },
+  pointerArrow: { position: 'absolute', alignSelf: 'center' },
+  pointerArrowUp: { top: -40 },
+  pointerArrowDown: { bottom: -40 },
   arrowRow: { position: 'absolute', flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 20, height: 90 },
   arrowGlyph: { fontSize: 46, fontWeight: '700', color: Colours.fg },
   arrowLabel: { ...Fonts.mono(13, 'bold'), color: Colours.fg, letterSpacing: 3 },
