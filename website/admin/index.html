@@ -635,6 +635,31 @@ function retention(real){
     '</div>';
 }
 
+/* Groups accounts by whatever they typed into Settings → Referral code
+   (app's `profiles.referred_by`, free text, no canonical list — see
+   SUPABASE.md's "Referral codes" section for why). Most-referred code
+   first. Who's actually paying isn't here — that's a manual RevenueCat
+   lookup by design, same note the page already gives for subscriptions
+   generally. */
+function referrals(real){
+  var byCode = {};
+  real.forEach(function(u){
+    if (!u.referred_by) return;
+    (byCode[u.referred_by] = byCode[u.referred_by] || []).push(u);
+  });
+  var codes = Object.keys(byCode).sort(function(a,b){ return byCode[b].length - byCode[a].length; });
+  if (!codes.length) return '<div class="empty">Nobody has entered a referral code yet.</div>';
+
+  return '<div class="deadlist">' + codes.map(function(code){
+    var people = byCode[code].sort(function(a,b){ return b.signed_up_at < a.signed_up_at ? -1 : 1; });
+    return '<div class="deadrow" style="align-items:flex-start">' +
+      '<span><b>' + esc(code) + '</b><br><span class="mono" style="font-size:11.5px">' +
+        people.map(function(u){ return esc(u.email); }).join('<br>') + '</span></span>' +
+      '<span class="mono">' + plural(people.length, 'signup') + '</span>' +
+    '</div>';
+  }).join('') + '</div>';
+}
+
 /* A person's own last 8 weeks, dense enough to read as a shape at a glance
    rather than needing the drill-down open. */
 function signature(rows, days){
@@ -773,6 +798,13 @@ function renderDashboard(users, sessions, whoami){
         '<p class="sec-note">Counts, not rates — at this size a percentage would read as ' +
         'precision the numbers do not have.</p></div>' +
       retention(s.real) +
+    '</section>' +
+
+    '<section class="sec">' +
+      '<div class="sec-head"><h2>Referrals</h2>' +
+        '<p class="sec-note">Grouped by whatever they typed into Settings — no list of real codes exists to check ' +
+        'against, so a typo shows up as its own row. Who is actually paying is a RevenueCat lookup, not here.</p></div>' +
+      referrals(s.real) +
     '</section>' +
 
     '<section class="sec">' +
