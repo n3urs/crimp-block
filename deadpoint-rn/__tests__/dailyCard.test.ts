@@ -57,6 +57,7 @@ const baseProps = {
   messageEmphasis: false,
   messageExpanded: false,
   onToggleMessage: () => {},
+  cautionSummary: '',
   footerNote: 'test footer',
   exercisesInteractive: true,
   exercisesOpacity: 1,
@@ -184,4 +185,45 @@ test('the Done-button spacer height is exactly whatever doneClearance the caller
 
   expect(findSpacerHeight(small)).toBe(64);
   expect(findSpacerHeight(large)).toBe(140);
+});
+
+// A quiz answer set with injury flags stacks several hundred characters of
+// caution onto the session note (applyInjuryFlags in template-resolver.js).
+// Collapsed, the card shows the one-sentence versions INSTEAD of the first
+// two lines of that note — the safety line used to be the part you had to
+// expand to reach, while the two lines on screen were the general note.
+describe('CardBody caution summary', () => {
+  const LONG_NOTE = 'Deliberately not campus board work. '.repeat(8);
+  const SUMMARY = 'Bicep tendon history flagged — swap to a pain-free static hold.';
+
+  function texts(tree: unknown): string[] {
+    return collect(tree, Text)
+      .map((n) => (n as { props: { children?: unknown } }).props.children)
+      .filter((c): c is string => typeof c === 'string');
+  }
+
+  test('collapsed, the summary is shown and the long note is not', () => {
+    const tree = CardBody({ ...baseProps, exercises: [], message: LONG_NOTE, cautionSummary: SUMMARY });
+    const shown = texts(tree);
+    expect(shown).toContain(SUMMARY);
+    expect(shown).not.toContain(LONG_NOTE);
+  });
+
+  test('expanded, the full note is shown instead of the summary', () => {
+    const tree = CardBody({ ...baseProps, exercises: [], message: LONG_NOTE, cautionSummary: SUMMARY, messageExpanded: true });
+    const shown = texts(tree);
+    expect(shown).toContain(LONG_NOTE);
+    expect(shown).not.toContain(SUMMARY);
+  });
+
+  test('a SHORT note still gets a toggle when it carries a caution — without one the summary would be unexpandable', () => {
+    const shortNote = 'Board before climbing.';
+    const tree = CardBody({ ...baseProps, exercises: [], message: shortNote, cautionSummary: SUMMARY });
+    expect(texts(tree)).toContain('SHOW MORE');
+  });
+
+  test('no caution, short note: unchanged — no toggle at all', () => {
+    const tree = CardBody({ ...baseProps, exercises: [], message: 'Board before climbing.', cautionSummary: '' });
+    expect(texts(tree)).not.toContain('SHOW MORE');
+  });
 });

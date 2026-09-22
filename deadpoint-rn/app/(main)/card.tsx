@@ -323,6 +323,7 @@ export default function Card() {
       onToggleTick={onToggleTick}
       isLogged={isLogged}
       cardMessage={message}
+      cautionSummary={(info?.cautionShorts ?? []).join(' ')}
       weekDays={weekDays}
       // Settings and plan screens still aren't built by any task through
       // Phase 4 — safe no-ops so the strip/icon/badge still render

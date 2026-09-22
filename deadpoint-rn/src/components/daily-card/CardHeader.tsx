@@ -6,6 +6,7 @@
     are not-yet-built screens (see the task brief). */
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import Svg, { Circle, Path, Polyline, Rect } from 'react-native-svg';
 import { Colours } from '../../design/colours';
 import { Fonts } from '../../design/fonts';
 import { useTutorialTarget } from '../tutorial/TutorialTargetContext';
@@ -49,79 +50,54 @@ export function formatHeaderDate(dateStr: string): string {
   return `${get('weekday')}, ${get('day')} ${get('month')}`;
 }
 
-/** Dependency-free stand-in for SF Symbol "chevron.down" — no icon font
-    is part of this codebase (checked, same finding as ExerciseRow's
-    InfoIcon: no @expo/vector-icons, no other icon usage anywhere under
-    src/). U+2304 DOWN ARROWHEAD is not an emoji-presentation character,
-    so it renders as a plain, tintable glyph rather than a colour emoji. */
-function ChevronDownIcon({ color }: { color: string }) {
-  return <Text style={[styles.chevron, { color }]}>⌄</Text>;
-}
+/** The three header icons, drawn as strokes with react-native-svg
+    (already a dependency — the tutorial overlay and the force gauge both
+    use it) rather than the Unicode glyphs and hand-stacked Views they
+    replace.
 
-/** Dependency-free stand-in for SF Symbol "gearshape". U+2699 GEAR is
-    also not emoji-presentation by default, so `color` is respected —
-    same reasoning as ChevronDownIcon above. */
-function GearIcon({ color, size }: { color: string; size: number }) {
-  return <Text style={{ fontSize: size, color }}>⚙</Text>;
-}
-
-/** Dependency-free stand-in for SF Symbol "calendar". Unlike the two
-    glyphs above, there is no non-emoji Unicode calendar character
-    (U+1F4C5 CALENDAR is emoji-presentation and ignores `color` entirely
-    on iOS), so this one is built from plain Views instead: a bordered
-    body, a header rule, and two short "binding" ticks. */
-function CalendarIcon({ color, size }: { color: string; size: number }) {
-  const stroke = Math.max(1, size * 0.09);
-  const headerHeight = size * 0.22;
+    The old versions were "dependency-free stand-ins": U+2304 for the
+    chevron, U+2699 GEAR for settings, and a calendar assembled from four
+    absolutely-positioned Views because no non-emoji calendar character
+    exists. The gear in particular renders at whatever weight the
+    platform's fallback font draws it — visibly lighter and smaller than
+    everything around it, and Oscar reported both as too small to see or
+    hit. Drawn paths share one stroke weight with each other and with the
+    exercise rows' own chevron. */
+function ChevronDownIcon({ color, size = 9 }: { color: string; size?: number }) {
   return (
-    <View style={{ width: size, height: size }}>
-      <View
-        style={{
-          position: 'absolute',
-          top: headerHeight,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          borderWidth: stroke,
-          borderColor: color,
-          borderRadius: size * 0.12,
-        }}
-      />
-      <View
-        style={{
-          position: 'absolute',
-          top: headerHeight,
-          left: 0,
-          right: 0,
-          height: stroke,
-          backgroundColor: color,
-        }}
-      />
-      <View
-        style={{
-          position: 'absolute',
-          top: 0,
-          left: size * 0.24,
-          width: stroke,
-          height: headerHeight + size * 0.12,
-          backgroundColor: color,
-        }}
-      />
-      <View
-        style={{
-          position: 'absolute',
-          top: 0,
-          right: size * 0.24,
-          width: stroke,
-          height: headerHeight + size * 0.12,
-          backgroundColor: color,
-        }}
-      />
-    </View>
+    <Svg width={size} height={size} viewBox="0 0 24 24">
+      <Polyline points="6 9 12 15 18 9" fill="none" stroke={color} strokeWidth={4} strokeLinecap="round" strokeLinejoin="round" />
+    </Svg>
   );
 }
 
-const RIGHT_ICON_SIZE = 17;
+function GearIcon({ color, size }: { color: string; size: number }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24">
+      <Circle cx={12} cy={12} r={3.2} fill="none" stroke={color} strokeWidth={2} />
+      <Path
+        d="M19.4 14.5a1.6 1.6 0 0 0 .33 1.77l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.6 1.6 0 0 0-1.77-.33 1.6 1.6 0 0 0-1 1.47V21a2 2 0 1 1-4 0v-.12a1.6 1.6 0 0 0-1.05-1.47 1.6 1.6 0 0 0-1.77.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.6 1.6 0 0 0 .33-1.77 1.6 1.6 0 0 0-1.47-1H3a2 2 0 1 1 0-4h.12a1.6 1.6 0 0 0 1.47-1.05 1.6 1.6 0 0 0-.33-1.77l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.6 1.6 0 0 0 1.77.33H9a1.6 1.6 0 0 0 1-1.47V3a2 2 0 1 1 4 0v.12a1.6 1.6 0 0 0 1 1.47 1.6 1.6 0 0 0 1.77-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.6 1.6 0 0 0-.33 1.77V9a1.6 1.6 0 0 0 1.47 1H21a2 2 0 1 1 0 4h-.12a1.6 1.6 0 0 0-1.47 1z"
+        fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"
+      />
+    </Svg>
+  );
+}
+
+function CalendarIcon({ color, size }: { color: string; size: number }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24">
+      <Rect x={3} y={5} width={18} height={16} rx={2.5} fill="none" stroke={color} strokeWidth={2} />
+      <Path d="M3 10h18" stroke={color} strokeWidth={2} strokeLinecap="round" />
+      <Path d="M8 3v4" stroke={color} strokeWidth={2} strokeLinecap="round" />
+      <Path d="M16 3v4" stroke={color} strokeWidth={2} strokeLinecap="round" />
+    </Svg>
+  );
+}
+
+// 17 was the icon's whole tap target once (see iconButton below). Now
+// both the drawing and the box around it are sized to be seen and hit:
+// 21 + 2*11 padding = 43pt, plus hitSlop 8.
+const RIGHT_ICON_SIZE = 21;
 
 export function CardHeader({
   phaseName,
@@ -227,10 +203,6 @@ const styles = StyleSheet.create({
   badgeText: {
     ...Fonts.mono(12, 'bold'),
   },
-  chevron: {
-    fontSize: 8,
-    fontWeight: '700',
-  },
   rightGroup: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -249,6 +221,6 @@ const styles = StyleSheet.create({
   // adjacent icon buttons would otherwise steal from each other); the
   // hitSlop={8} on each Pressable above tops it up further.
   iconButton: {
-    padding: 10,
+    padding: 11,
   },
 });

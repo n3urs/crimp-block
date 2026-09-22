@@ -86,6 +86,10 @@ export interface DailyCardProps {
       note, in priority order) — rendered here, not computed here; see the
       brief's "Explicitly out of scope" list. */
   cardMessage: string;
+  /** One-sentence injury cautions for this session — see CardBodyProps'
+      own `cautionSummary`. Optional so the tutorial's demo card and the
+      tests don't have to supply one. */
+  cautionSummary?: string;
   weekDays: WeekDay[];
   onTapDay?: (date: string) => void;
   onTapCalendar?: () => void;
@@ -188,6 +192,12 @@ interface CardBodyProps {
       matching how short/empty messages behaved before this existed. */
   messageExpanded: boolean;
   onToggleMessage: () => void;
+  /** The one-sentence version of each injury caution that applies to this
+      session (engine: `session.cautionShorts`), joined. Empty when the
+      quiz set no injury flags. While collapsed this REPLACES the message
+      rather than sitting above it: the full cautions are already inside
+      `message`, so showing both would print each warning twice. */
+  cautionSummary: string;
   footerNote: string;
   /** false disables (pointerEvents 'none') just the exercise list, NOT
       the whole body — matches Swift's `.allowsHitTesting(!isLogged)`
@@ -242,7 +252,7 @@ export function CardBody({
   session, guide, onTapGuide, isRecommended, accent, accentVarName, exercises, ticks,
   onToggleTick, onTapWeight, onTapWeightGroup, onTapRest, onStartInterval, onTapInfo,
   tutorialSpotlightExerciseId,
-  message, messageEmphasis, messageExpanded, onToggleMessage, footerNote, exercisesInteractive, exercisesOpacity,
+  message, messageEmphasis, messageExpanded, onToggleMessage, cautionSummary, footerNote, exercisesInteractive, exercisesOpacity,
   isLogged, doneClearance, scrollEnabled, scrollRef,
 }: CardBodyProps) {
   // Below this, a message always fits comfortably in 2 lines on a real
@@ -251,6 +261,14 @@ export function CardBody({
   // applyInjuryFlags), default to a 2-line preview plus a toggle rather
   // than pushing the whole exercise list off the first screen.
   const isLongMessage = message.length > 110;
+  // A session carrying injury cautions collapses to their one-sentence
+  // versions instead of the first two lines of the note. Dylan's real pull
+  // day is 1,097 characters, of which the caution is the last 844 — the
+  // safety line was the part you had to expand to reach, while the two
+  // lines you did see were the general session note. Showing the summary
+  // first inverts that; SHOW MORE still opens `message` in full.
+  const showCautionSummary = cautionSummary.length > 0 && !messageExpanded;
+  const collapsible = isLongMessage || cautionSummary.length > 0;
   return (
     <View style={styles.contentColumn}>
       <View style={styles.titleBlock}>
@@ -285,16 +303,20 @@ export function CardBody({
       >
         {message.length > 0 && (
           <View style={styles.messageBlock}>
-            <Text
-              numberOfLines={isLongMessage && !messageExpanded ? 2 : undefined}
-              style={[
-                styles.message,
-                { color: messageEmphasis ? accent : Colours.dim, fontWeight: messageEmphasis ? '600' : '400' },
-              ]}
-            >
-              {message}
-            </Text>
-            {isLongMessage && (
+            {showCautionSummary ? (
+              <Text style={[styles.message, styles.messageCaution]}>{cautionSummary}</Text>
+            ) : (
+              <Text
+                numberOfLines={isLongMessage && !messageExpanded ? 2 : undefined}
+                style={[
+                  styles.message,
+                  { color: messageEmphasis ? accent : Colours.dim, fontWeight: messageEmphasis ? '600' : '400' },
+                ]}
+              >
+                {message}
+              </Text>
+            )}
+            {collapsible && (
               <Pressable
                 onPress={onToggleMessage}
                 hitSlop={8}
@@ -344,7 +366,7 @@ export function DailyCard(props: DailyCardProps) {
   const {
     session, accent, accentVarName, exercises, ticks, onToggleTick,
     onTapWeight, onTapWeightGroup, onTapRest, onStartInterval, onTapInfo, tutorialSpotlightExerciseId,
-    isLogged, cardMessage,
+    isLogged, cardMessage, cautionSummary,
     weekDays, onTapDay, onTapCalendar, onTapSettings, onTapPhaseBadge,
     onTapGuide, phaseName, weekNumber, today, recommendedKey, nextUp,
     celebrationTrigger, footerNote, doneFlow, panGesture, contentOpacity,
@@ -506,6 +528,7 @@ export function DailyCard(props: DailyCardProps) {
                 messageEmphasis={isLogged}
                 messageExpanded={messageExpanded}
                 onToggleMessage={() => setMessageExpanded((v) => !v)}
+                cautionSummary={cautionSummary ?? ''}
                 footerNote={footerNote ?? ''}
                 exercisesInteractive={!isLogged}
                 exercisesOpacity={1}
@@ -584,6 +607,10 @@ const styles = StyleSheet.create({
   scrollContent: { gap: 18 },
   messageBlock: { gap: 6 },
   message: { fontSize: 14, lineHeight: 19 },
+  // Amber rather than the session accent: the accent is whatever colour
+  // today's session happens to be (teal on a pull day), which reads as
+  // decoration, not as a warning. readyC is the palette's existing amber.
+  messageCaution: { color: Colours.readyC, fontWeight: '600' },
   messageToggle: { ...Fonts.mono(11, 'bold'), color: Colours.faint, letterSpacing: 0.5 },
   divider: { height: 1, backgroundColor: Colours.s2 },
   footer: {

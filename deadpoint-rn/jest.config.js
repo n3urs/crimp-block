@@ -30,6 +30,10 @@ module.exports = {
       react-native-purchases (added for Task 2's subscription.ts) pulls in
       @revenuecat/purchases-js-hybrid-mappings, an ESM-only entry that
       throws the same "Must use import" error.
+      react-native-svg (added when the card header and exercise rows swapped
+      their Unicode-glyph icons for drawn paths) reaches into react-native's
+      own `Touchable`, which the react-native mock above does not provide,
+      and throws "Cannot destructure property 'Mixin'".
       See the mock files in __mocks__/ for what each stands in for and why
       a no-op/stub is sufficient for the tests that need them. */
   moduleNameMapper: {
@@ -40,6 +44,7 @@ module.exports = {
     '^react-native-reanimated$': '<rootDir>/__mocks__/react-native-reanimated.js',
     '^react-native-safe-area-context$': '<rootDir>/__mocks__/react-native-safe-area-context.js',
     '^react-native-purchases$': '<rootDir>/__mocks__/react-native-purchases.js',
+    '^react-native-svg$': '<rootDir>/__mocks__/react-native-svg.js',
     '^@react-native-async-storage/async-storage$': '<rootDir>/__mocks__/@react-native-async-storage/async-storage.js',
     '^@bacons/apple-targets$': '<rootDir>/__mocks__/@bacons/apple-targets.js',
   },

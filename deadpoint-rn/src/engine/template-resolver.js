@@ -98,6 +98,7 @@ var INJURY_MODULES = {
   fingerPulley: {
     label: 'Finger / pulley history',
     caution: 'You flagged a finger or pulley injury history — ease into any new edge size over 2–3 sessions rather than loading it maximally on day one, and stop an exercise immediately if you feel anything sharp or localized (as opposed to general muscular fatigue). If this is currently active or still flares up day-to-day — not just something from your history — get assessed by a physio before training through it. What’s below is general prevention work, not treatment.',
+    short: 'Pulley history flagged — ease into a new edge over a few sessions and stop for anything sharp rather than plain fatigue; this is prevention work, not treatment.',
     appliesToSessions: ['maxFingers','hangboard'],
     mandatoryInsert: {
       sessionKey: 'hangboard',
@@ -107,6 +108,7 @@ var INJURY_MODULES = {
   bicepTendon: {
     label: 'Bicep tendon history',
     caution: 'You flagged bicep tendon history — in climbers this is most often the long head of biceps tendon at the front of the shoulder (not the elbow), commonly linked to gaston and compression moves. Research on this tendon specifically is clear it’s rarely an isolated problem — prevention leans on scapular and rotator cuff coordination as much as the bicep itself — so flag Shoulder above too if that sounds familiar; the two mandatory exercises are meant to work together, not as alternatives. If anything below reproduces the original pain rather than plain working fatigue, swap to a static hold at a pain-free angle instead of full reps. If this is currently active or still flares up day-to-day — not just something from your history — get assessed by a physio before training through it. What’s below is general prevention work, not treatment.',
+    short: 'Bicep tendon history flagged — swap to a pain-free static hold if anything below reproduces the old pain; this is prevention work, not treatment.',
     appliesToSessions: ['pull'],
     mandatoryInsert: {
       sessionKey: 'pull',
@@ -116,6 +118,7 @@ var INJURY_MODULES = {
   shoulder: {
     label: 'Shoulder history',
     caution: 'You flagged shoulder injury history — climbing loads the shoulder hardest on compression and gaston moves (reaching across or behind the body under load), so build into steep or compression-heavy sessions gradually rather than jumping straight in, and stop immediately for anything sharp or catching, as opposed to general fatigue. If this is currently active or still flares up day-to-day — not just something from your history — get assessed by a physio before training through it. What’s below is general prevention work, not treatment.',
+    short: 'Shoulder history flagged — build into compression and gaston work gradually and stop for anything sharp or catching; this is prevention work, not treatment.',
     appliesToSessions: ['pull'],
     mandatoryInsert: {
       sessionKey: 'pull',
@@ -125,6 +128,7 @@ var INJURY_MODULES = {
   elbow: {
     label: 'Elbow history',
     caution: 'You flagged elbow injury history — “climber’s elbow” (pain on the inside of the elbow) comes from the same gripping and pulling load everything in this program is built around, so ease into any jump in grip intensity over several sessions rather than all at once, and stop immediately for anything sharp or localized on the inside of the elbow, as opposed to general forearm fatigue. If this is currently active or still flares up day-to-day — not just something from your history — get assessed by a physio before training through it. What’s below is general prevention work, not treatment.',
+    short: 'Elbow history flagged — ease into any jump in grip intensity and stop for anything sharp on the inside of the elbow; this is prevention work, not treatment.',
     appliesToSessions: ['maxFingers','hangboard','pull'],
     mandatoryInsert: {
       sessionKey: 'hangboard',
@@ -274,6 +278,15 @@ function applyInjuryFlags(program, flags){
       // next begins, on top of DailyCard's own screen-space problem with
       // the combined length (see CardBody's messageExpanded handling).
       s.note = s.note ? (s.note + '\n\n' + mod.caution) : mod.caution;
+      /* The one-sentence version of the same caution, kept alongside the
+         full text rather than replacing it. The card shows these while the
+         message is collapsed — a real quiz answer set stacks 800+ characters
+         of caution above the exercises, and the safety line was the part you
+         had to scroll past three paragraphs to reach. SHOW MORE still opens
+         `note` word for word. */
+      if(mod.short){
+        s.cautionShorts = (s.cautionShorts || []).concat([mod.short]);
+      }
     });
     if(mod.mandatoryInsert){
       insertExerciseOnce(program.sessions[mod.mandatoryInsert.sessionKey], mod.mandatoryInsert.exercise);

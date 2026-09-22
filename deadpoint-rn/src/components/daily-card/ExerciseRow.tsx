@@ -8,6 +8,7 @@
       · tutorial-target signalling (not yet built) */
 import React, { useEffect, useState } from 'react';
 import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import Svg, { Polyline } from 'react-native-svg';
 import Animated, {
   Easing,
   useAnimatedStyle,
@@ -92,26 +93,20 @@ function formatRestLabel(seconds: number): string {
   return `Rest ${mins}:${String(secs).padStart(2, '0')}`;
 }
 
-/** Dependency-free stand-in for SF Symbols' "info.circle" — no icon font is
-    part of this codebase yet (checked: no @expo/vector-icons, no other icon
-    usage anywhere under src/). A bordered circle with a lowercase "i" reads
-    the same at this size without introducing a new dependency mid-port. */
-function InfoIcon({ color, size = 12 }: { color: string; size?: number }) {
+/** Replaces a bordered circled "i". A circled i is the platform symbol for
+    "about / credits", so it read as information about the app rather than
+    as text that unfolds in place — reported directly ("the eye just
+    normally isn't used in that context"). A chevron that rotates to point
+    up while open is the standard disclosure affordance, and says where the
+    text is going to appear. Drawn with react-native-svg (already a
+    dependency, used by the tutorial overlay and the force gauge) rather
+    than a Unicode arrowhead, whose weight varies by platform font. */
+function ExpandChevron({ color, open, size = 14 }: { color: string; open: boolean; size?: number }) {
   return (
-    <View
-      style={{
-        width: size,
-        height: size,
-        borderRadius: size / 2,
-        borderWidth: 1,
-        borderColor: color,
-        alignItems: 'center',
-        justifyContent: 'center',
-      }}
-    >
-      <Text style={{ fontSize: size * 0.75, lineHeight: size * 0.85, color, fontWeight: '700' }}>
-        i
-      </Text>
+    <View style={{ width: size, height: size, transform: [{ rotate: open ? '180deg' : '0deg' }] }}>
+      <Svg width={size} height={size} viewBox="0 0 24 24">
+        <Polyline points="6 9 12 15 18 9" fill="none" stroke={color} strokeWidth={3} strokeLinecap="round" strokeLinejoin="round" />
+      </Svg>
     </View>
   );
 }
@@ -278,7 +273,7 @@ export function ExerciseRow({
                 accessibilityState={{ expanded: showDetail }}
                 accessibilityLabel={showDetail ? `Hide description for ${ex.title}` : `Show description for ${ex.title}`}
               >
-                <InfoIcon color={Colours.faint} />
+                <ExpandChevron color={showDetail ? accent : Colours.faint} open={showDetail} />
               </Pressable>
             )}
             {showRight && ex.weightGroup != null && ex.weightGroup.length > 0 && (
