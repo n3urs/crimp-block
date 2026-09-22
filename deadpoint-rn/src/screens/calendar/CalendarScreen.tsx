@@ -11,7 +11,7 @@ import { resolveColour } from '../../design/colours';
 import type { Phase } from '../../engine/types';
 import { SESSION_ORDER } from '../../engine';
 import type { Days } from '../../data/useStore';
-import { daysInMonthGrid, monthTitle, shiftMonth, startOfMonth } from './calendarMath';
+import { daysInMonthGrid, monthTitle, shiftMonth, shortMonthLabel, startOfMonth } from './calendarMath';
 import { computeTrendForecast, isProjectedDeload, type TrendForecastEngine } from './trendForecast';
 import { computeCycleBar } from '../plan/overallBar';
 import { computeAllTimeStats, type AllTimeStatsEngine } from './allTimeStats';
@@ -19,7 +19,7 @@ import { computePlanProgress, type PlanProgressEngine } from './planProgress';
 import { MonthGrid } from './MonthGrid';
 import type { DayCellData } from './DayCell';
 import { PlanProgressBar } from './PlanProgressBar';
-import { StatsPanel } from './StatsPanel';
+import { StatsPanel, type StatsScope } from './StatsPanel';
 import { Legend } from './Legend';
 
 /** The narrow slice of a real engine (createEngine()'s return value) this
@@ -89,6 +89,10 @@ export function CalendarScreen({ engine, history, today, onDismiss }: CalendarSc
   const insets = useSafeAreaInsets();
   const { width: containerWidth } = useWindowDimensions();
   const [visibleMonth, setVisibleMonth] = useState(() => startOfMonth(today));
+  // All-time by default — it is what this panel has always shown, and the
+  // month view is the extra answer, not the replacement. The choice is per
+  // visit rather than remembered: it is a glance, not a setting.
+  const [statsScope, setStatsScope] = useState<StatsScope>('allTime');
 
   const goToMonth = useCallback((direction: -1 | 1) => {
     setVisibleMonth((m) => shiftMonth(m, direction));
@@ -119,9 +123,13 @@ export function CalendarScreen({ engine, history, today, onDismiss }: CalendarSc
     });
 
   const forecast = useMemo(() => computeTrendForecast(engine, history, today), [engine, history, today]);
-  const allTimeStats = useMemo(
-    () => computeAllTimeStats(engine, history, today, resolveColour, SESSION_ORDER),
-    [engine, history, today]
+  const visibleMonthPrefix = visibleMonth.slice(0, 7);
+  const stats = useMemo(
+    () => computeAllTimeStats(
+      engine, history, today, resolveColour, SESSION_ORDER,
+      statsScope === 'month' ? visibleMonthPrefix : undefined
+    ),
+    [engine, history, today, statsScope, visibleMonthPrefix]
   );
   const planProgress = useMemo(() => computePlanProgress(engine, today), [engine, today]);
 
@@ -218,7 +226,12 @@ export function CalendarScreen({ engine, history, today, onDismiss }: CalendarSc
 
         <Legend phases={legendPhases} deload={forecast.deload} isDeloadOngoing={isDeloadOngoing} resolveColour={resolveColour} />
 
-        <StatsPanel stats={allTimeStats} />
+        <StatsPanel
+          stats={stats}
+          scope={statsScope}
+          monthLabel={shortMonthLabel(visibleMonth)}
+          onChangeScope={setStatsScope}
+        />
       </ScrollView>
     </View>
   );

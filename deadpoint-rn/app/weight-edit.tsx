@@ -7,11 +7,13 @@
     (exerciseId, title, step, weightKg, date) is passed explicitly as a
     route param by the caller (card.tsx's onTapWeight), per the task
     brief's interface contract. */
-import React, { useMemo, useState } from 'react';
+import React, { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colours } from '../src/design/colours';
+import { StepperButton } from '../src/components/stepper/StepperButton';
+import { WEIGHT_STEP_KG } from '../src/components/stepper/holdRepeat';
 import { Fonts } from '../src/design/fonts';
 import { resolveColour } from '../src/design/colours';
 import { useSession } from '../src/data/useSession';
@@ -35,7 +37,12 @@ export default function WeightEdit() {
   const userId = session?.user?.id ?? '';
   const loads = useLoads(userId);
 
-  const step = useMemo(() => Number(params.step) || 2.5, [params.step]);
+  // Was the exercise's own progression step (usually 2.5 kg). Manual
+  // adjustment now moves in 1.25 kg regardless — see WEIGHT_STEP_KG. The
+  // engine still suggests the next session's jump using `params.step`,
+  // which is why it stays a route param; this screen just no longer uses
+  // it as the button size.
+  const step = WEIGHT_STEP_KG;
   // No floor at 0: a negative value is a real, meaningful state here —
   // it represents assistance taken OFF the exercise (e.g. a band or
   // pulley), matching WeightEditView.swift's own explicit reasoning, not
@@ -68,24 +75,20 @@ export default function WeightEdit() {
       <Text style={styles.title}>{params.title}</Text>
 
       <View style={styles.stepperRow}>
-        <Pressable
-          onPress={() => setValue((v) => v - step)}
-          style={styles.stepperButton}
-          accessibilityRole="button"
+        <StepperButton
+          glyph="−"
+          onStep={() => setValue((v) => v - step)}
           accessibilityLabel={`Decrease by ${step}kg`}
-        >
-          <Text style={styles.stepperGlyph}>−</Text>
-        </Pressable>
+        />
         <Text style={styles.value}>{formatValue(value)}kg</Text>
-        <Pressable
-          onPress={() => setValue((v) => v + step)}
-          style={styles.stepperButton}
-          accessibilityRole="button"
+        <StepperButton
+          glyph="+"
+          onStep={() => setValue((v) => v + step)}
           accessibilityLabel={`Increase by ${step}kg`}
-        >
-          <Text style={styles.stepperGlyph}>+</Text>
-        </Pressable>
+        />
       </View>
+
+      <Text style={styles.stepperHint}>{`${step} kg a tap · hold to run`}</Text>
 
       {error != null && <Text style={styles.error}>{error}</Text>}
 
@@ -110,11 +113,7 @@ const styles = StyleSheet.create({
   cancel: { ...Fonts.mono(12, 'bold'), color: Colours.faint },
   title: { fontSize: 22, fontWeight: '800', color: Colours.fg, marginBottom: 20 },
   stepperRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 14 },
-  stepperButton: {
-    width: 52, height: 52, borderRadius: 26, backgroundColor: Colours.s2,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  stepperGlyph: { fontSize: 28, fontWeight: '700', color: Colours.fg },
+  stepperHint: { ...Fonts.mono(10.5, 'medium'), color: Colours.faint, textAlign: 'center', marginTop: 12 },
   value: { ...Fonts.mono(34, 'bold'), color: Colours.fg, minWidth: 140, textAlign: 'center' },
   error: { fontSize: 12, color: Colours.restC, textAlign: 'center', marginTop: 16 },
   saveButton: { paddingVertical: 14, borderRadius: 8, alignItems: 'center', backgroundColor: resolveColour('--gorse') },

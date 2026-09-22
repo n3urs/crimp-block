@@ -98,3 +98,55 @@ test('streak is bounded at programStartDate, never counts pre-account history', 
   const stats = computeAllTimeStats(engine, history, '2026-08-15', colour, ORDER);
   expect(stats.streak).toBe(1); // just the 14th; the 13th is before startDate, stops there regardless of its own logged entry
 });
+
+// The panel's MONTH / ALL TIME switch. All time stays the default; passing
+// a month prefix scopes every number to that month, and the streak tile
+// changes meaning (a CURRENT streak is a fact about today — reporting it
+// while looking at last March would be nonsense, so month scope reports
+// that month's longest run instead).
+describe('month scope', () => {
+  const history: Days = {
+    '2026-08-28': { t: 'pull', l: null, sub: null },
+    '2026-09-01': { t: 'pull', l: null, sub: null },
+    '2026-09-02': { t: 'push', l: null, sub: null },
+    '2026-09-03': { t: 'rest', l: null, sub: null },
+    '2026-09-10': { t: 'pull', l: null, sub: null },
+    '2026-10-02': { t: 'pull', l: null, sub: null }, // later month, out of scope
+  };
+
+  test('counts only that month, where all-time counts everything up to today', () => {
+    const allTime = computeAllTimeStats(makeEngine(), history, '2026-09-15', colour, ORDER);
+    const september = computeAllTimeStats(makeEngine(), history, '2026-09-15', colour, ORDER, '2026-09');
+
+    expect(allTime.loggedCount).toBe(4); // 28 Aug + 1, 2, 10 Sep; rest never counts; October is future
+    expect(september.loggedCount).toBe(3);
+  });
+
+  test('the breakdown is scoped too', () => {
+    const september = computeAllTimeStats(makeEngine(), history, '2026-09-15', colour, ORDER, '2026-09');
+    const pull = september.breakdown.find((r) => r.key === 'pull');
+    expect(pull?.count).toBe(2); // not the 28 Aug one
+  });
+
+  test('best streak is the longest run inside the month, not the run ending today', () => {
+    // 1, 2, 3 Sep are consecutive (rest counts as a logged day); decide()
+    // returns 'pull' for every other day, so gaps genuinely break it.
+    const september = computeAllTimeStats(makeEngine(), history, '2026-09-15', colour, ORDER, '2026-09');
+    expect(september.streak).toBe(3);
+  });
+
+  test('consistency measures the elapsed part of the month, not the whole month', () => {
+    const engine = makeEngine({ programStartDate: () => '2026-01-01' });
+    // 15 days elapsed of September at 3/wk -> expected 6, logged 3.
+    const september = computeAllTimeStats(engine, history, '2026-09-15', colour, ORDER, '2026-09');
+    expect(september.consistencyFraction).toBe('3/6');
+    expect(september.consistencyPercent).toBe(50);
+  });
+
+  test('a month entirely in the future reports nothing rather than 0%', () => {
+    const engine = makeEngine({ programStartDate: () => '2026-01-01' });
+    const december = computeAllTimeStats(engine, history, '2026-09-15', colour, ORDER, '2026-12');
+    expect(december.loggedCount).toBe(0);
+    expect(december.consistencyPercent).toBeNull();
+  });
+});

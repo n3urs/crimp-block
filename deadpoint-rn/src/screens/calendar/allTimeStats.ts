@@ -34,14 +34,24 @@ export interface AllTimeStatsEngine {
 /** SESSION_ORDER is the app's fixed session order (swipe order, week
     dots) - imported by the caller from src/engine/index.ts and passed in
     here, so this file has no dependency on the engine facade's module
-    shape beyond the narrow AllTimeStatsEngine interface above. */
+    shape beyond the narrow AllTimeStatsEngine interface above.
+
+    `monthPrefix` ('2026-09') scopes every number to that one month, for
+    the panel's MONTH / ALL TIME switch. All-time is still the default and
+    still what the switch opens on - the original all-time-only behaviour
+    came from direct feedback ("i want all the stats to be all time
+    stats... so when u go to other months it shows how many climbs and
+    stuff ever") and that reading of the DEFAULT has not changed; the
+    switch only adds the other answer for anyone who wants it. */
 export function computeAllTimeStats(
   engine: AllTimeStatsEngine,
   history: Days,
   today: string,
   resolveColour: (varName: string) => string,
-  sessionOrder: readonly string[]
+  sessionOrder: readonly string[],
+  monthPrefix?: string
 ): AllTimeStats {
+  const inScope = (date: string) => date <= today && (monthPrefix == null || date.startsWith(monthPrefix));
   let loggedCount = 0;
   const counts: Record<string, number> = {};
   // Board gets its own count rather than joining `counts`' single-key-
@@ -51,7 +61,7 @@ export function computeAllTimeStats(
   // its day on the grid, it just isn't a board session.
   let boardCount = 0;
   for (const [date, entry] of Object.entries(history)) {
-    if (date > today) continue;
+    if (!inScope(date)) continue;
     counts[entry.t] = (counts[entry.t] ?? 0) + 1;
     if (entry.t !== 'rest') loggedCount += 1;
     if (entry.t === 'climbHard' && entry.sub === 'board') boardCount += 1;
@@ -81,10 +91,20 @@ export function computeAllTimeStats(
   const startDate = engine.programStartDate();
   const b = engine.block(today);
   if (b.per > 0 && startDate) {
-    const daysElapsed = daysBetween(startDate, today) + 1;
-    const expected = Math.max(1, Math.round((b.per * daysElapsed) / 7));
-    consistencyPercent = Math.round((b.total / expected) * 100);
-    consistencyFraction = `${b.total}/${expected}`;
+    // Month scope can't use block().total (all-time by definition), so it
+    // counts the month's own logged sessions against what the program asks
+    // for over the part of that month which has actually happened. A month
+    // entirely in the future has no elapsed days and no expectation.
+    const window = monthPrefix == null
+      ? { from: startDate, to: today }
+      : { from: laterOf(`${monthPrefix}-01`, startDate), to: earlierOf(lastDayOfMonth(monthPrefix), today) };
+    const daysElapsed = daysBetween(window.from, window.to) + 1;
+    if (daysElapsed > 0) {
+      const expected = Math.max(1, Math.round((b.per * daysElapsed) / 7));
+      const actual = monthPrefix == null ? b.total : loggedCount;
+      consistencyPercent = Math.round((actual / expected) * 100);
+      consistencyFraction = `${actual}/${expected}`;
+    }
   }
 
   // Streak: consecutive days with something logged, walking back from
@@ -96,18 +116,37 @@ export function computeAllTimeStats(
   // history and count a run of correctly-skipped-but-not-really-rest
   // days as an unbroken streak.
   let streak = 0;
-  let d = today;
-  if (!history[d]) d = engine.addDays(d, -1);
-  for (let i = 0; i < 3650; i++) {
-    if (startDate && d < startDate) break;
-    if (history[d]) {
-      streak += 1;
-    } else if (engine.decide(d).k === 'rest') {
-      streak += 1;
-    } else {
-      break;
+  if (monthPrefix == null) {
+    let d = today;
+    if (!history[d]) d = engine.addDays(d, -1);
+    for (let i = 0; i < 3650; i++) {
+      if (startDate && d < startDate) break;
+      if (history[d]) {
+        streak += 1;
+      } else if (engine.decide(d).k === 'rest') {
+        streak += 1;
+      } else {
+        break;
+      }
+      d = engine.addDays(d, -1);
     }
-    d = engine.addDays(d, -1);
+  } else {
+    // In month scope the tile reads BEST STREAK instead: a *current*
+    // streak is a fact about today, and reporting today's run while
+    // looking at last March would be nonsense. Same day-by-day rule as
+    // above (logged, or correctly skipped because rest was due), walked
+    // forwards over the elapsed part of the month, keeping the longest run.
+    let run = 0;
+    const last = earlierOf(lastDayOfMonth(monthPrefix), today);
+    for (let d = `${monthPrefix}-01`; d <= last; d = engine.addDays(d, 1)) {
+      if (startDate && d < startDate) continue;
+      if (history[d] || engine.decide(d).k === 'rest') {
+        run += 1;
+        if (run > streak) streak = run;
+      } else {
+        run = 0;
+      }
+    }
   }
 
   return { loggedCount, consistencyPercent, consistencyFraction, streak, breakdown };
@@ -124,4 +163,16 @@ function daysBetween(aISO: string, bISO: string): number {
   const a = Date.UTC(ay, am - 1, ad);
   const b = Date.UTC(by, bm - 1, bd);
   return Math.round((b - a) / 86400000);
+}
+
+function laterOf(a: string, b: string): string { return a > b ? a : b; }
+function earlierOf(a: string, b: string): string { return a < b ? a : b; }
+
+/** '2026-09' -> '2026-09-30'. Day 0 of the NEXT month is the last day of
+    this one, which avoids a leap-year table. Local-time Date parts, same
+    reasoning as calendarMath.ts. */
+function lastDayOfMonth(monthPrefix: string): string {
+  const [y, m] = monthPrefix.split('-').map(Number);
+  const d = new Date(y, m, 0);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }

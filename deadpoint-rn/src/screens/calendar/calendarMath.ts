@@ -29,6 +29,15 @@ export function shiftMonth(monthISO: string, delta: number): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`;
 }
 
+/** 'SEP' — the stats switch is a pill barely wider than its label, so it
+    can't carry monthTitle's 'SEPTEMBER 2026'. Year is dropped too: the
+    grid above already says which one. */
+export function shortMonthLabel(monthISO: string): string {
+  const { y, m } = parseMonth(monthISO);
+  const date = new Date(y, m - 1, 1, 12);
+  return new Intl.DateTimeFormat('en-GB', { month: 'short' }).format(date).toUpperCase();
+}
+
 export function monthTitle(monthISO: string): string {
   const { y, m } = parseMonth(monthISO);
   const date = new Date(y, m - 1, 1, 12);

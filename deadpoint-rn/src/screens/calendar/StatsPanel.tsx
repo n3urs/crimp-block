@@ -1,6 +1,6 @@
 // src/screens/calendar/StatsPanel.tsx
 import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Colours } from '../../design/colours';
 import { Fonts } from '../../design/fonts';
 import type { AllTimeStats } from './allTimeStats';
@@ -14,18 +14,61 @@ function StatTile({ value, label }: { value: string; label: string }) {
   );
 }
 
-export function StatsPanel({ stats }: { stats: AllTimeStats | null }) {
+export type StatsScope = 'month' | 'allTime';
+
+/** The MONTH / ALL TIME switch. All time is the default and the right-hand
+    option, so the panel opens showing what it always showed; MONTH scopes
+    everything below to whichever month the grid is on. */
+function ScopeSwitch({ scope, monthLabel, onChange }: { scope: StatsScope; monthLabel: string; onChange: (s: StatsScope) => void }) {
+  return (
+    <View style={styles.switchTrack}>
+      {([['month', monthLabel], ['allTime', 'ALL TIME']] as const).map(([value, label]) => {
+        const selected = scope === value;
+        return (
+          <Pressable
+            key={value}
+            onPress={() => onChange(value)}
+            hitSlop={8}
+            style={[styles.switchOption, selected && styles.switchOptionSelected]}
+            accessibilityRole="radio"
+            accessibilityState={{ selected }}
+            accessibilityLabel={value === 'month' ? `Show stats for ${monthLabel} only` : 'Show all-time stats'}
+          >
+            <Text style={[styles.switchLabel, selected && styles.switchLabelSelected]}>{label}</Text>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}
+
+export function StatsPanel({
+  stats, scope, monthLabel, onChangeScope,
+}: {
+  stats: AllTimeStats | null;
+  scope: StatsScope;
+  /** Short form of the visible month, e.g. 'SEPT' — the switch is narrow. */
+  monthLabel: string;
+  onChangeScope: (scope: StatsScope) => void;
+}) {
+  const isMonth = scope === 'month';
   return (
     <View style={{ gap: 10 }}>
       <View style={styles.divider} />
-      <Text style={styles.heading}>STATS</Text>
+      <View style={styles.headingRow}>
+        <Text style={styles.heading}>STATS</Text>
+        <ScopeSwitch scope={scope} monthLabel={monthLabel} onChange={onChangeScope} />
+      </View>
       <View style={styles.tileRow}>
         <StatTile value={stats ? `${stats.loggedCount}` : '—'} label="SESSIONS LOGGED" />
         <StatTile
           value={stats?.consistencyPercent != null ? `${stats.consistencyPercent}%` : '—'}
           label={stats?.consistencyFraction ? `CONSISTENCY · ${stats.consistencyFraction}` : 'CONSISTENCY'}
         />
-        <StatTile value={stats ? `${stats.streak}` : '—'} label="DAY STREAK" />
+        {/* A *current* streak is a fact about today, so browsing to last
+            March and reading "6 DAY STREAK" would be nonsense — month
+            scope reports that month's longest run instead. */}
+        <StatTile value={stats ? `${stats.streak}` : '—'} label={isMonth ? 'BEST STREAK' : 'DAY STREAK'} />
       </View>
       {stats != null && stats.breakdown.length > 0 && (
         <View style={styles.breakdownGrid}>
@@ -43,6 +86,12 @@ export function StatsPanel({ stats }: { stats: AllTimeStats | null }) {
 
 const styles = StyleSheet.create({
   divider: { height: 1, backgroundColor: Colours.s2 },
+  headingRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
+  switchTrack: { flexDirection: 'row', padding: 2, borderRadius: 999, backgroundColor: Colours.s2 },
+  switchOption: { paddingHorizontal: 12, paddingVertical: 5, borderRadius: 999 },
+  switchOptionSelected: { backgroundColor: Colours.fg },
+  switchLabel: { ...Fonts.mono(9.5, 'bold'), color: Colours.dim, letterSpacing: 0.5 },
+  switchLabelSelected: { color: Colours.bg },
   heading: { ...Fonts.mono(11, 'bold'), color: Colours.faint },
   tileRow: { flexDirection: 'row' },
   tile: { flex: 1, gap: 2 },

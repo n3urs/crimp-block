@@ -12,6 +12,8 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colours } from '../src/design/colours';
+import { StepperButton } from '../src/components/stepper/StepperButton';
+import { WEIGHT_STEP_KG } from '../src/components/stepper/holdRepeat';
 import { Fonts } from '../src/design/fonts';
 import { resolveColour } from '../src/design/colours';
 import { useSession } from '../src/data/useSession';
@@ -69,6 +71,7 @@ export default function WeightsEdit() {
       </View>
 
       <Text style={styles.title}>{params.groupTitle}</Text>
+      <Text style={styles.stepperHint}>{`${WEIGHT_STEP_KG} kg a tap · hold to run`}</Text>
 
       <View style={styles.list}>
         {items.map((item, i) => (
@@ -78,23 +81,19 @@ export default function WeightsEdit() {
               {item.weightIsBump && <Text style={styles.increaseArrow}>▲ suggested</Text>}
             </View>
             <View style={styles.stepperRow}>
-              <Pressable
-                onPress={() => bump(i, -item.step)}
-                style={styles.stepperButton}
-                accessibilityRole="button"
-                accessibilityLabel={`Decrease ${item.title} by ${item.step}kg`}
-              >
-                <Text style={styles.stepperGlyph}>−</Text>
-              </Pressable>
+              <StepperButton
+                glyph="−"
+                size={48}
+                onStep={() => bump(i, -WEIGHT_STEP_KG)}
+                accessibilityLabel={`Decrease ${item.title} by ${WEIGHT_STEP_KG}kg`}
+              />
               <Text style={styles.value}>{formatValue(values[i])}kg</Text>
-              <Pressable
-                onPress={() => bump(i, item.step)}
-                style={styles.stepperButton}
-                accessibilityRole="button"
-                accessibilityLabel={`Increase ${item.title} by ${item.step}kg`}
-              >
-                <Text style={styles.stepperGlyph}>+</Text>
-              </Pressable>
+              <StepperButton
+                glyph="+"
+                size={48}
+                onStep={() => bump(i, WEIGHT_STEP_KG)}
+                accessibilityLabel={`Increase ${item.title} by ${WEIGHT_STEP_KG}kg`}
+              />
             </View>
           </View>
         ))}
@@ -121,18 +120,15 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: Colours.bg, padding: 24 },
   header: { flexDirection: 'row', justifyContent: 'flex-end', marginBottom: 12 },
   cancel: { ...Fonts.mono(12, 'bold'), color: Colours.faint },
-  title: { fontSize: 22, fontWeight: '800', color: Colours.fg, marginBottom: 20 },
+  title: { fontSize: 22, fontWeight: '800', color: Colours.fg },
+  stepperHint: { ...Fonts.mono(10.5, 'medium'), color: Colours.faint, marginTop: 6, marginBottom: 20 },
   list: { gap: 22 },
   itemRow: { alignItems: 'center' },
   itemHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 },
   itemTitle: { fontSize: 15, fontWeight: '700', color: Colours.fg },
   increaseArrow: { ...Fonts.mono(10, 'bold'), color: resolveColour('--gorse') },
   stepperRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 14 },
-  stepperButton: {
-    width: 44, height: 44, borderRadius: 22, backgroundColor: Colours.s2,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  stepperGlyph: { fontSize: 24, fontWeight: '700', color: Colours.fg },
+
   value: { ...Fonts.mono(26, 'bold'), color: Colours.fg, minWidth: 110, textAlign: 'center' },
   error: { fontSize: 12, color: Colours.restC, textAlign: 'center', marginTop: 16 },
   saveButton: { paddingVertical: 14, borderRadius: 8, alignItems: 'center', backgroundColor: resolveColour('--gorse') },
