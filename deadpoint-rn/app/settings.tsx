@@ -396,6 +396,21 @@ export default function Settings() {
             footer={deleteError != null ? <Text style={styles.error}>{deleteError}</Text> : undefined}
           >
             <SettingsRow icon="mail" tint={Colours.dim} title={email} subtitle="Signed in" />
+            {row != null && (
+              row.referredBy != null ? (
+                <SettingsRow icon="gift" tint={gorse} title="Referral code" subtitle={`Referred by ${row.referredBy}`} />
+              ) : (
+                <SettingsRow
+                  icon="gift"
+                  tint={gorse}
+                  title="Referral code"
+                  subtitle="Have a code? Tap to enter it"
+                  trailing="chevron"
+                  onPress={() => router.push('/referral-code')}
+                  accessibilityLabel="Enter a referral code"
+                />
+              )
+            )}
             <SettingsRow icon="logout" tint={Colours.restC} title="Sign out" destructive onPress={onSignOut} />
             <SettingsRow
               icon="trash"

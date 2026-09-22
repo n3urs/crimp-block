@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from './supabase';
 import { readCache, writeCache } from './offlineCache';
+import { normaliseReferralCode } from './referralCode';
 
 /** Mirrors NativeProfile.Row field-for-field (see NativeProfile.swift's
     CodingKeys for the camelCase<->snake_case mapping this hook performs
@@ -20,6 +21,14 @@ export interface ProfileRow {
   trackType: string;
   rehabInjuryArea: string | null;
   rehabPhaseIndex: number | null;
+  /** Free-text word a friend told them to use (Settings → Referral code) —
+      null until they enter one, set once and never changed after (see
+      setReferredBy below). No canonical list of real codes exists
+      anywhere: this is read by eye on the admin dashboard, grouped by
+      whatever text people actually typed. Fine at friends-referring-
+      friends scale; add validation against a real `referral_codes` table
+      if typos ever become a real problem. */
+  referredBy: string | null;
 }
 
 interface ProfileDbRow {
@@ -32,6 +41,7 @@ interface ProfileDbRow {
   track_type: string;
   rehab_injury_area: string | null;
   rehab_phase_index: number | null;
+  referred_by: string | null;
 }
 
 function fromDbRow(r: ProfileDbRow): ProfileRow {
@@ -45,11 +55,12 @@ function fromDbRow(r: ProfileDbRow): ProfileRow {
     trackType: r.track_type,
     rehabInjuryArea: r.rehab_injury_area,
     rehabPhaseIndex: r.rehab_phase_index,
+    referredBy: r.referred_by,
   };
 }
 
 const PROFILE_COLUMNS =
-  'assigned_template_id,program_start_date,modifiers,tier,quiz_completed_at,tutorial_completed_at,track_type,rehab_injury_area,rehab_phase_index';
+  'assigned_template_id,program_start_date,modifiers,tier,quiz_completed_at,tutorial_completed_at,track_type,rehab_injury_area,rehab_phase_index,referred_by';
 
 /** Task 11 bug-fix round 4 — STRUCTURAL rewrite, not another patch.
 
@@ -316,6 +327,7 @@ export function useProfile(userId: string) {
           assignedTemplateId: templateId, programStartDate: startDate, modifiers,
           tier: 'standard', quizCompletedAt, tutorialCompletedAt: prevRow?.tutorialCompletedAt ?? null,
           trackType: 'standard', rehabInjuryArea: null, rehabPhaseIndex: null,
+          referredBy: prevRow?.referredBy ?? null,
         },
       };
     });
@@ -353,6 +365,10 @@ export function useProfile(userId: string) {
             assignedTemplateId: null, programStartDate: payload.program_start_date as string,
             modifiers: {}, tier: 'standard', quizCompletedAt, tutorialCompletedAt: null,
             trackType: 'rehab', rehabInjuryArea: injuryArea, rehabPhaseIndex: startingPhaseIndex,
+            // This branch only runs when `existing` is already falsy (the
+            // ternary's other branch spreads it), so there is no prior row
+            // to have carried a referral from — always null here.
+            referredBy: null,
           },
     });
   }, [row, userId]);
@@ -425,5 +441,21 @@ export function useProfile(userId: string) {
       : s));
   }, [userId]);
 
-  return { row, loaded, isLoading, hasError, reload, create, assignRehab, switchToStandard, advanceRehabPhase, updatePreferences, markTutorialCompleted };
+  /** Settings' referral-code screen. normaliseReferralCode (referralCode.ts)
+      owns the actual decision — refuse once already set, trim/lowercase,
+      refuse blank — this is the wiring around it: a no-op write is simply
+      skipped rather than sent. PATCH, matching every other single-field
+      profile write in this file — an account reaching Settings always
+      already has a row. */
+  const setReferredBy = useCallback(async (code: string) => {
+    const normalised = normaliseReferralCode(code, row?.referredBy ?? null);
+    if (normalised == null) return;
+    const { error } = await supabase.from('profiles').update({ referred_by: normalised }).eq('user_id', userId);
+    if (error) throw error;
+    setState((s) => (s.status === 'ready' && s.forUserId === userId && s.row
+      ? { ...s, row: { ...s.row, referredBy: normalised } }
+      : s));
+  }, [row, userId]);
+
+  return { row, loaded, isLoading, hasError, reload, create, assignRehab, switchToStandard, advanceRehabPhase, updatePreferences, markTutorialCompleted, setReferredBy };
 }

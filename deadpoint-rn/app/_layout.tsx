@@ -93,6 +93,10 @@ export default function RootLayout() {
               weight-edit above: app/weights-edit.tsx lives directly under
               app/, so its route name is just "weights-edit". */}
           <Stack.Screen name="weights-edit" options={{ presentation: 'modal' }} />
+          {/* Referral code entry (Settings → ACCOUNT) — same
+              not-group-qualified naming as weight-edit/weights-edit above:
+              app/referral-code.tsx lives directly under app/. */}
+          <Stack.Screen name="referral-code" options={{ presentation: 'modal' }} />
           {/* Force gauge live viewer — same not-group-qualified reasoning
               as weight-edit/weights-edit above: app/force-gauge.tsx lives
               directly under app/, so its route name is just
