@@ -29,3 +29,9 @@ export function repeatIntervalMs(heldMs: number): number {
   if (heldMs < HOLD_START_MS + 2000) return 80;
   return 40;
 }
+
+/** Shortest gap between haptic ticks while a hold runs. The fastest tier
+    steps every 40ms; ticking that often reads as one continuous buzz
+    rather than a count, and iOS coalesces them anyway. 90ms keeps them
+    distinct at roughly eleven a second. */
+export const HAPTIC_MIN_GAP_MS = 90;

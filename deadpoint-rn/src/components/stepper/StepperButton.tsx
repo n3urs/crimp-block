@@ -9,8 +9,9 @@
     releasing (or the component unmounting mid-hold) clears it. */
 import React, { useCallback, useEffect, useRef } from 'react';
 import { Pressable, StyleSheet, Text } from 'react-native';
+import * as Haptics from 'expo-haptics';
 import { Colours } from '../../design/colours';
-import { HOLD_START_MS, repeatIntervalMs } from './holdRepeat';
+import { HAPTIC_MIN_GAP_MS, HOLD_START_MS, repeatIntervalMs } from './holdRepeat';
 
 export function StepperButton({
   glyph,
@@ -29,12 +30,27 @@ export function StepperButton({
 }) {
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const startedAtRef = useRef(0);
+  const lastHapticRef = useRef(0);
   // The latest onStep, read at fire time. Without this the timer chain
   // would keep calling the closure it was created with, whose captured
   // setState updater is fine, but whose `item`/`index` bindings in
   // weights-edit.tsx would go stale across a re-render mid-hold.
   const onStepRef = useRef(onStep);
   onStepRef.current = onStep;
+
+  /** A tick per step, but not at the top speed's 24 a second — that is a
+      buzz, not a count. Throttled to HAPTIC_MIN_GAP_MS so the feel stays a
+      run of distinct taps however fast the number is moving. Fire and
+      forget: the engine is unavailable on a simulator and on some Android
+      hardware, and a missing tick must never interrupt the count. */
+  const step = useCallback(() => {
+    onStepRef.current();
+    const now = Date.now();
+    if (now - lastHapticRef.current >= HAPTIC_MIN_GAP_MS) {
+      lastHapticRef.current = now;
+      Haptics.selectionAsync().catch(() => {});
+    }
+  }, []);
 
   const clear = useCallback(() => {
     if (timerRef.current != null) clearTimeout(timerRef.current);
@@ -48,21 +64,24 @@ export function StepperButton({
   const scheduleNext = useCallback(() => {
     const held = Date.now() - startedAtRef.current;
     timerRef.current = setTimeout(() => {
-      onStepRef.current();
+      step();
       scheduleNext();
     }, repeatIntervalMs(held));
-  }, []);
+  }, [step]);
 
   const onPressIn = useCallback(() => {
     clear();
     startedAtRef.current = Date.now();
     // The first step lands immediately, so a tap still feels like a tap.
-    onStepRef.current();
+    // Its tick is unconditional — a deliberate press always answers, even
+    // if the last one was moments ago.
+    lastHapticRef.current = 0;
+    step();
     timerRef.current = setTimeout(() => {
-      onStepRef.current();
+      step();
       scheduleNext();
     }, HOLD_START_MS);
-  }, [clear, scheduleNext]);
+  }, [clear, scheduleNext, step]);
 
   return (
     <Pressable
