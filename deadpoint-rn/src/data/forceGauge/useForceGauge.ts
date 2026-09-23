@@ -18,6 +18,7 @@ import {
   encodeCommand,
   bytesToBase64,
   base64ToBytes,
+  isNewMeasurementEpoch,
 } from './protocol';
 
 // One shared manager for the app's lifetime — a BleManager owns real
@@ -99,6 +100,11 @@ export function useForceGauge() {
   const deviceIdRef = useRef<string | null>(null);
   const busyRef = useRef(false);
   const streamStartSecRef = useRef<number | null>(null);
+  // The raw (un-offset) seconds of the most recent sample plotted — kept
+  // separately from streamStartSecRef purely to detect a measurement-
+  // epoch boundary (see isNewMeasurementEpoch in protocol.ts); the
+  // points array itself only ever stores the already-offset tSec.
+  const lastRawSecRef = useRef<number | null>(null);
   const scanTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const stateSubRef = useRef<Subscription | null>(null);
   const monitorSubRef = useRef<Subscription | null>(null);
@@ -152,10 +158,23 @@ export function useForceGauge() {
     const samples = raw.map((s) => ({ ...s, kg: Math.max(0, s.kg) }));
     setCurrent(samples[samples.length - 1].kg);
     setPeak((p) => Math.max(p, ...samples.map((s) => s.kg)));
+
+    // See isNewMeasurementEpoch's own doc comment: the device's elapsed-
+    // time counter can drop back on its own (a ~71.6-minute uint32
+    // wraparound, or a fresh restart), with no tare/reset from here.
+    // Detected BEFORE touching streamStartSecRef, and only current/peak
+    // above are allowed to keep going through it unaffected — those
+    // readings stay physically valid across the boundary; only the
+    // graph's time axis needs a fresh baseline.
+    const newEpoch = isNewMeasurementEpoch(samples[0].usSinceStart / 1e6, lastRawSecRef.current);
+    if (newEpoch) streamStartSecRef.current = null;
+    lastRawSecRef.current = samples[samples.length - 1].usSinceStart / 1e6;
+
     setPoints((prev) => {
       if (streamStartSecRef.current == null) streamStartSecRef.current = samples[0].usSinceStart / 1e6;
       const startSec = streamStartSecRef.current;
-      const merged = [...prev, ...samples.map((s) => ({ tSec: s.usSinceStart / 1e6 - startSec, kg: s.kg }))];
+      const base = newEpoch ? [] : prev;
+      const merged = [...base, ...samples.map((s) => ({ tSec: s.usSinceStart / 1e6 - startSec, kg: s.kg }))];
       const cutoff = merged[merged.length - 1].tSec - GRAPH_WINDOW_SEC;
       return merged.filter((p) => p.tSec >= cutoff);
     });

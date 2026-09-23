@@ -67,6 +67,28 @@ export function parseNotification(bytes: Uint8Array): ParsedNotification {
   return { type, samples };
 }
 
+/** True when a newly-arrived sample's own elapsed-time counter has
+    dropped back below what's already been plotted, meaning it belongs
+    to a NEW measurement epoch, not late/out-of-order data from the
+    current one. `usSinceStart` (WeightSample, above) is a uint32
+    microsecond count "since this measurement started" — it wraps
+    roughly every 71.6 minutes (2^32 µs) of one continuous connection,
+    and the device can also hand back a fresh, lower count of its own
+    accord with no explicit tare/reset from the app. Plotting such a
+    sample against the OLD baseline, rather than re-baselining, is what
+    produced a real bug: the old high-x points and the new near-zero-x
+    ones both stayed on the graph together, and the line connecting the
+    last old point to the first new one drew one long, meaningless
+    diagonal across the whole trace (Oscar's own report: "it shoots a
+    line up to wherever the graph is").
+
+    `toleranceSec` absorbs ordinary BLE reordering of samples that are
+    genuinely close together in time — only a real discontinuity, not
+    routine jitter, should trip this. */
+export function isNewMeasurementEpoch(newRawSec: number, lastRawSec: number | null, toleranceSec = 1): boolean {
+  return lastRawSec != null && newRawSec < lastRawSec - toleranceSec;
+}
+
 /** Every command this app sends is a single opcode byte, no payload —
     matches ctrlWriteCB()'s own `switch (d[0])` reading just the first
     byte for every case used here. */

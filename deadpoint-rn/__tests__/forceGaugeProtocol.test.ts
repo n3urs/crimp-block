@@ -3,6 +3,7 @@ import {
   encodeCommand,
   bytesToBase64,
   base64ToBytes,
+  isNewMeasurementEpoch,
   CMD,
   RES,
 } from '../src/data/forceGauge/protocol';
@@ -56,6 +57,48 @@ test('non-WEIGHT_MEAS frames report their type with no samples, not a mis-parse'
 test('encodeCommand is a single opcode byte, matching ctrlWriteCB reading only d[0]', () => {
   expect(Array.from(encodeCommand(CMD.START_WEIGHT_MEAS))).toEqual([101]);
   expect(Array.from(encodeCommand(CMD.TARE_SCALE))).toEqual([100]);
+});
+
+describe('isNewMeasurementEpoch', () => {
+  // Regression coverage for a real bug: a fresh sample whose own elapsed-
+  // time counter has dropped back (a ~71.6-minute uint32 wraparound of
+  // usSinceStart, or a device-side restart) was being plotted against
+  // the OLD graph baseline instead of a new one — the old and new points
+  // shared one graph at wildly different x-positions, and the line
+  // connecting them drew one long diagonal across the whole trace
+  // (Oscar's own report: "it shoots a line up to wherever the graph
+  // is"). This is the exact decision useForceGauge.ts's onNotification
+  // makes with it.
+  test('nothing to compare against yet — never a new epoch', () => {
+    expect(isNewMeasurementEpoch(5, null)).toBe(false);
+  });
+
+  test('normal forward progress is not a new epoch', () => {
+    expect(isNewMeasurementEpoch(10.5, 10.0)).toBe(false);
+  });
+
+  test('a real 71.6-minute uint32 wraparound is a new epoch', () => {
+    const justBeforeWrap = 0xffffffff / 1e6; // ~4294.97s
+    expect(isNewMeasurementEpoch(0.1, justBeforeWrap)).toBe(true);
+  });
+
+  test('a device restart handing back a fresh low count is a new epoch', () => {
+    expect(isNewMeasurementEpoch(0.2, 900)).toBe(true);
+  });
+
+  test('ordinary BLE reordering within the tolerance is NOT a new epoch', () => {
+    expect(isNewMeasurementEpoch(9.8, 10.0)).toBe(false); // 0.2s back, well under the 1s default tolerance
+  });
+
+  test('exactly at the tolerance boundary is not (yet) a new epoch', () => {
+    expect(isNewMeasurementEpoch(9.0, 10.0)).toBe(false); // exactly 1s back
+    expect(isNewMeasurementEpoch(8.999, 10.0)).toBe(true); // a hair past it
+  });
+
+  test('a custom tolerance is respected', () => {
+    expect(isNewMeasurementEpoch(7, 10, 5)).toBe(false); // 3s back, under a 5s tolerance
+    expect(isNewMeasurementEpoch(4, 10, 5)).toBe(true); // 6s back, past it
+  });
 });
 
 describe('base64 codec (hand-rolled, no atob/btoa dependency)', () => {
