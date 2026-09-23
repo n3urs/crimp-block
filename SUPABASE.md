@@ -499,3 +499,17 @@ whether they're actually paying is a manual RevenueCat lookup, and
 paying referrers is a manual transfer he does himself — genuinely
 correct scope for a handful of friends, not a gap to fill in later
 unless the numbers grow enough to make it worth automating.
+
+## Flappy Bird high score (2026-09-23)
+
+Force gauge's Flappy Bird mode (`app/force-gauge.tsx`). One integer
+column, a ratchet rather than a lock — `setFlappyHighScore` in
+`useProfile.ts` only ever writes a value that beats what's already
+stored, so it only ever goes up.
+
+```sql
+alter table public.profiles add column if not exists flappy_high_score integer not null default 0;
+```
+
+No RLS change needed — same "own row" policy as `referred_by` above
+already covers it.

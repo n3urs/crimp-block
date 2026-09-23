@@ -29,6 +29,12 @@ export interface ProfileRow {
       friends scale; add validation against a real `referral_codes` table
       if typos ever become a real problem. */
   referredBy: string | null;
+  /** Force-gauge Flappy Bird mode's best score — a ratchet, not a lock
+      (see setFlappyHighScore below): only ever increases. 0 for an
+      account that's never played, same as every other profile field
+      that reads as a plain default rather than null (see the migration
+      in SUPABASE.md). */
+  flappyHighScore: number;
 }
 
 interface ProfileDbRow {
@@ -42,6 +48,7 @@ interface ProfileDbRow {
   rehab_injury_area: string | null;
   rehab_phase_index: number | null;
   referred_by: string | null;
+  flappy_high_score: number;
 }
 
 function fromDbRow(r: ProfileDbRow): ProfileRow {
@@ -56,11 +63,12 @@ function fromDbRow(r: ProfileDbRow): ProfileRow {
     rehabInjuryArea: r.rehab_injury_area,
     rehabPhaseIndex: r.rehab_phase_index,
     referredBy: r.referred_by,
+    flappyHighScore: r.flappy_high_score,
   };
 }
 
 const PROFILE_COLUMNS =
-  'assigned_template_id,program_start_date,modifiers,tier,quiz_completed_at,tutorial_completed_at,track_type,rehab_injury_area,rehab_phase_index,referred_by';
+  'assigned_template_id,program_start_date,modifiers,tier,quiz_completed_at,tutorial_completed_at,track_type,rehab_injury_area,rehab_phase_index,referred_by,flappy_high_score';
 
 /** Task 11 bug-fix round 4 — STRUCTURAL rewrite, not another patch.
 
@@ -341,6 +349,7 @@ export function useProfile(userId: string) {
           tier: 'standard', quizCompletedAt, tutorialCompletedAt: prevRow?.tutorialCompletedAt ?? null,
           trackType: 'standard', rehabInjuryArea: null, rehabPhaseIndex: null,
           referredBy: referredBy ?? prevRow?.referredBy ?? null,
+          flappyHighScore: prevRow?.flappyHighScore ?? 0,
         },
       };
     });
@@ -380,8 +389,10 @@ export function useProfile(userId: string) {
             trackType: 'rehab', rehabInjuryArea: injuryArea, rehabPhaseIndex: startingPhaseIndex,
             // This branch only runs when `existing` is already falsy (the
             // ternary's other branch spreads it), so there is no prior row
-            // to have carried a referral from — always null here.
+            // to have carried a referral or a high score from — both
+            // start at their real defaults here.
             referredBy: null,
+            flappyHighScore: 0,
           },
     });
   }, [row, userId]);
@@ -470,5 +481,18 @@ export function useProfile(userId: string) {
       : s));
   }, [row, userId]);
 
-  return { row, loaded, isLoading, hasError, reload, create, assignRehab, switchToStandard, advanceRehabPhase, updatePreferences, markTutorialCompleted, setReferredBy };
+  /** Force gauge's Flappy Bird mode. A ratchet: only writes when the new
+      score beats what's stored, so a lower score from a later, worse
+      round can never overwrite a real best. PATCH, same as every other
+      single-field profile write in this file. */
+  const setFlappyHighScore = useCallback(async (score: number) => {
+    if (score <= (row?.flappyHighScore ?? 0)) return;
+    const { error } = await supabase.from('profiles').update({ flappy_high_score: score }).eq('user_id', userId);
+    if (error) throw error;
+    setState((s) => (s.status === 'ready' && s.forUserId === userId && s.row
+      ? { ...s, row: { ...s.row, flappyHighScore: score } }
+      : s));
+  }, [row, userId]);
+
+  return { row, loaded, isLoading, hasError, reload, create, assignRehab, switchToStandard, advanceRehabPhase, updatePreferences, markTutorialCompleted, setReferredBy, setFlappyHighScore };
 }
