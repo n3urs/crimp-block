@@ -7,6 +7,7 @@
     exercised without a live gauge or a running app. */
 import {
   DEFAULT_CONFIG,
+  gapCenterForSpawnIndex,
   startGame,
   stepGame,
   type GameState,
@@ -71,6 +72,20 @@ test('a passed pipe scores exactly once, not once per overlapping frame', () => 
 test('a non-playing state is a frozen no-op', () => {
   const over = { ...playing(), status: 'over' as const };
   expect(stepGame(over, 10, 1 / 60, DEFAULT_CONFIG)).toBe(over); // same reference, not just equal
+});
+
+test('consecutive pipes land at genuinely different heights, not nearly the same one', () => {
+  // Regression test for a real bug: an earlier "LCG" barely moved for
+  // small sequential spawn indices, so every real pipe in a session
+  // landed within a hair of the same height (Oscar's own report:
+  // "you can just sit at the same height and go forever"). A handful
+  // of consecutive gaps should span a real chunk of the usable range,
+  // not cluster in a sliver of it.
+  const centers = Array.from({ length: 8 }, (_, i) => gapCenterForSpawnIndex(i, DEFAULT_CONFIG));
+  const spread = Math.max(...centers) - Math.min(...centers);
+  const margin = DEFAULT_CONFIG.pipeGapHeight / 2 + 6;
+  const usableRange = DEFAULT_CONFIG.worldHeight - margin * 2;
+  expect(spread).toBeGreaterThan(usableRange * 0.5);
 });
 
 test('pipe placement is deterministic, not random', () => {

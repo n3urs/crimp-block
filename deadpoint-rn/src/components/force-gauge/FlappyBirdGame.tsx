@@ -2,10 +2,15 @@
 /** The force gauge's Flappy Bird mode — pull the gauge to climb, ease off
     to fall, dodge scrolling pipe gaps. Mounted by app/force-gauge.tsx in
     place of the live stat/graph/action rows while a round is in progress.
-    Design: docs/superpowers/specs/2026-09-23-flappy-force-gauge-design.md. */
+    Design: docs/superpowers/specs/2026-09-23-flappy-force-gauge-design.md.
+
+    Visual style, per Oscar's own follow-up request after trying the first
+    build: the classic Flappy Bird palette (sky, green pipes, yellow bird),
+    not Deadpoint's own dark/mono look — the play area is deliberately its
+    own little world, separate from the rest of the app's chrome. */
 import React, { useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import Svg, { Circle, Defs, G, LinearGradient, Path, RadialGradient, Rect, Stop } from 'react-native-svg';
+import Svg, { Circle, Defs, Ellipse, G, LinearGradient, Path, Rect, Stop, Text as SvgText } from 'react-native-svg';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -19,6 +24,28 @@ import { useFlappyBird } from '../../data/forceGauge/useFlappyBird';
 import { DEFAULT_CONFIG } from '../../data/forceGauge/flappyPhysics';
 
 const ACCENT = resolveColour('--gorse');
+
+// Classic Flappy Bird palette — a colour-scheme homage (colours aren't
+// copyrightable), not a trace of the original's actual sprite art.
+const SKY_TOP = '#4EC0CA';
+const SKY_BOTTOM = '#8AD9E0';
+const CLOUD = '#FFFFFF';
+const GRASS = '#6FC344';
+const GRASS_EDGE = '#4A9528';
+const DIRT = '#DED895';
+const PIPE_BODY = '#74BF2E';
+const PIPE_CAP = '#8FD84A';
+const PIPE_STROKE = '#4F8C1F';
+const BIRD_BODY = '#FFDA44';
+const BIRD_BELLY = '#FFF3C4';
+const BIRD_WING = '#F5A623';
+const BIRD_BEAK = '#F2542D';
+const BIRD_OUTLINE = '#5B3A1A';
+
+// Ground reserves the bottom slice of the world; collision already
+// happens at worldHeight (see flappyPhysics.ts), so this just needs to
+// look right under that line, not change it.
+const GRASS_TOP = 90;
 
 interface Props {
   points: GraphPoint[];
@@ -119,7 +146,7 @@ export function FlappyBirdGame({ points, highScore, onNewHighScore, onExit }: Pr
       accessibilityLabel={state.status === 'playing' ? 'Playing' : 'Tap to start'}
     >
       <View style={styles.headerRow}>
-        <Text style={styles.headerLabel}>SCORE</Text>
+        <Text style={styles.headerLabel}>BEST {displayHighScore}</Text>
         <Pressable onPress={onExit} hitSlop={12} accessibilityRole="button" accessibilityLabel="Exit game">
           <Text style={styles.exit}>EXIT</Text>
         </Pressable>
@@ -130,41 +157,88 @@ export function FlappyBirdGame({ points, highScore, onNewHighScore, onExit }: Pr
         onLayout={(e) => setSize({ width: e.nativeEvent.layout.width, height: e.nativeEvent.layout.height })}
       >
         {width > 0 && height > 0 && (
-          <Svg width={width} height={height}>
-            <Defs>
-              <LinearGradient id="flappyBg" x1="0" y1="0" x2="0" y2="1">
-                <Stop offset="0" stopColor={Colours.bg} />
-                <Stop offset="1" stopColor={Colours.s1} />
-              </LinearGradient>
-              <RadialGradient id="flappyBird" cx="35%" cy="35%" r="65%">
-                <Stop offset="0" stopColor={ACCENT} stopOpacity={1} />
-                <Stop offset="1" stopColor={ACCENT} stopOpacity={0.55} />
-              </RadialGradient>
-            </Defs>
+          <>
+            {/* Background layer: sky, clouds, ground — none of it depends
+                on game state, so it never needs to re-render per frame. */}
+            <Svg width={width} height={height} style={StyleSheet.absoluteFill}>
+              <Defs>
+                <LinearGradient id="flappySky" x1="0" y1="0" x2="0" y2="1">
+                  <Stop offset="0" stopColor={SKY_TOP} />
+                  <Stop offset="1" stopColor={SKY_BOTTOM} />
+                </LinearGradient>
+              </Defs>
+              <Rect x={0} y={0} width={width} height={height} fill="url(#flappySky)" />
 
-            <Rect x={0} y={0} width={width} height={height} fill="url(#flappyBg)" />
-            <Rect x={0} y={0} width={width} height={2} fill={Colours.s4} />
-            <Rect x={0} y={height - 2} width={width} height={2} fill={Colours.s4} />
+              {[[18, 16, 7], [62, 11, 9], [82, 26, 6]].map(([cx, cy, r], i) => (
+                <G key={i} opacity={0.9}>
+                  <Ellipse cx={px(cx)} cy={py(cy)} rx={px(r)} ry={py(r * 0.6)} fill={CLOUD} />
+                  <Ellipse cx={px(cx + r * 0.8)} cy={py(cy + r * 0.15)} rx={px(r * 0.7)} ry={py(r * 0.5)} fill={CLOUD} />
+                  <Ellipse cx={px(cx - r * 0.7)} cy={py(cy + r * 0.2)} rx={px(r * 0.6)} ry={py(r * 0.42)} fill={CLOUD} />
+                </G>
+              ))}
 
-            {state.pipes.map((pipe, i) => {
-              const gapTop = pipe.gapCenterY - DEFAULT_CONFIG.pipeGapHeight / 2;
-              const gapBottom = pipe.gapCenterY + DEFAULT_CONFIG.pipeGapHeight / 2;
-              return (
-                <React.Fragment key={i}>
-                  <Rect x={px(pipe.x)} y={0} width={px(DEFAULT_CONFIG.pipeWidth)} height={py(gapTop)} rx={6} fill={Colours.s3} />
-                  <Rect x={px(pipe.x)} y={py(gapBottom)} width={px(DEFAULT_CONFIG.pipeWidth)} height={height - py(gapBottom)} rx={6} fill={Colours.s3} />
-                </React.Fragment>
-              );
-            })}
+              <Rect x={0} y={py(GRASS_TOP)} width={width} height={height - py(GRASS_TOP)} fill={DIRT} />
+              <Rect x={0} y={py(GRASS_TOP)} width={width} height={py(3)} fill={GRASS} />
+              <Rect x={0} y={py(GRASS_TOP)} width={width} height={2} fill={GRASS_EDGE} />
+            </Svg>
 
-            <G transform={`rotate(${tilt} ${birdCx} ${birdCy})`}>
-              <Circle cx={birdCx} cy={birdCy} r={birdR} fill="url(#flappyBird)" />
-              <Path
-                d={`M ${birdCx + birdR * 0.9} ${birdCy - birdR * 0.35} L ${birdCx + birdR * 1.6} ${birdCy} L ${birdCx + birdR * 0.9} ${birdCy + birdR * 0.35} Z`}
-                fill={ACCENT}
-              />
-            </G>
-          </Svg>
+            {/* Score layer: big, bold, behind the pipes and bird — same
+                idea as the original's floating background numerals. Its
+                own Animated.View so the pop-on-score animation doesn't
+                have to touch the sky/ground layer at all. */}
+            <Animated.View style={[StyleSheet.absoluteFill, scoreStyle]} pointerEvents="none">
+              <Svg width={width} height={height} style={StyleSheet.absoluteFill}>
+                <SvgText
+                  x={width / 2}
+                  y={height * 0.26}
+                  textAnchor="middle"
+                  fontFamily="SpaceMono-Bold"
+                  fontSize={height * 0.2}
+                  fill="#FFFFFF"
+                  stroke="#4A3B1B"
+                  strokeWidth={height * 0.006}
+                >
+                  {state.score}
+                </SvgText>
+              </Svg>
+            </Animated.View>
+
+            {/* Foreground layer: pipes and the bird, on top of the score. */}
+            <Svg width={width} height={height} style={StyleSheet.absoluteFill}>
+              {state.pipes.map((pipe, i) => {
+                const gapTop = pipe.gapCenterY - DEFAULT_CONFIG.pipeGapHeight / 2;
+                const gapBottom = pipe.gapCenterY + DEFAULT_CONFIG.pipeGapHeight / 2;
+                const bodyX = px(pipe.x);
+                const bodyW = px(DEFAULT_CONFIG.pipeWidth);
+                const capOverhang = px(2);
+                const capH = py(4);
+                return (
+                  <G key={i}>
+                    {/* Top pipe: body down to the gap, cap lipped at the gap edge. */}
+                    <Rect x={bodyX} y={0} width={bodyW} height={py(gapTop)} fill={PIPE_BODY} stroke={PIPE_STROKE} strokeWidth={2} />
+                    <Rect x={bodyX - capOverhang} y={py(gapTop) - capH} width={bodyW + capOverhang * 2} height={capH} rx={3} fill={PIPE_CAP} stroke={PIPE_STROKE} strokeWidth={2.5} />
+                    {/* Bottom pipe: cap first, then body to the ground. */}
+                    <Rect x={bodyX - capOverhang} y={py(gapBottom)} width={bodyW + capOverhang * 2} height={capH} rx={3} fill={PIPE_CAP} stroke={PIPE_STROKE} strokeWidth={2.5} />
+                    <Rect x={bodyX} y={py(gapBottom) + capH} width={bodyW} height={height - (py(gapBottom) + capH)} fill={PIPE_BODY} stroke={PIPE_STROKE} strokeWidth={2} />
+                  </G>
+                );
+              })}
+
+              <G transform={`rotate(${tilt} ${birdCx} ${birdCy})`}>
+                <Ellipse cx={birdCx - birdR * 0.1} cy={birdCy + birdR * 0.1} rx={birdR * 0.6} ry={birdR * 0.42} fill={BIRD_WING} stroke={BIRD_OUTLINE} strokeWidth={1.5} />
+                <Circle cx={birdCx} cy={birdCy} r={birdR} fill={BIRD_BODY} stroke={BIRD_OUTLINE} strokeWidth={2} />
+                <Ellipse cx={birdCx + birdR * 0.1} cy={birdCy + birdR * 0.3} rx={birdR * 0.55} ry={birdR * 0.4} fill={BIRD_BELLY} />
+                <Circle cx={birdCx + birdR * 0.35} cy={birdCy - birdR * 0.3} r={birdR * 0.3} fill="#FFFFFF" stroke={BIRD_OUTLINE} strokeWidth={1} />
+                <Circle cx={birdCx + birdR * 0.45} cy={birdCy - birdR * 0.3} r={birdR * 0.13} fill="#1A1A1A" />
+                <Path
+                  d={`M ${birdCx + birdR * 0.85} ${birdCy - birdR * 0.05} L ${birdCx + birdR * 1.55} ${birdCy + birdR * 0.12} L ${birdCx + birdR * 0.85} ${birdCy + birdR * 0.32} Z`}
+                  fill={BIRD_BEAK}
+                  stroke={BIRD_OUTLINE}
+                  strokeWidth={1}
+                />
+              </G>
+            </Svg>
+          </>
         )}
 
         <Animated.View style={[styles.flash, flashStyle]} pointerEvents="none" />
@@ -182,8 +256,6 @@ export function FlappyBirdGame({ points, highScore, onNewHighScore, onExit }: Pr
           <Text style={styles.overHint}>TAP TO PLAY AGAIN</Text>
         </Animated.View>
       </View>
-
-      <Animated.Text style={[styles.scoreValue, scoreStyle]}>{state.score}</Animated.Text>
     </Pressable>
   );
 }
@@ -193,13 +265,16 @@ const styles = StyleSheet.create({
   headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
   headerLabel: { ...Fonts.mono(10, 'bold'), color: Colours.dim, letterSpacing: 1 },
   exit: { ...Fonts.mono(12, 'bold'), color: Colours.faint },
-  playArea: { flex: 1, borderRadius: 8, overflow: 'hidden', backgroundColor: Colours.bg },
+  playArea: { flex: 1, borderRadius: 8, overflow: 'hidden', backgroundColor: SKY_TOP },
   flash: { ...StyleSheet.absoluteFill, backgroundColor: Colours.restC },
-  centerPanel: { ...StyleSheet.absoluteFill, alignItems: 'center', justifyContent: 'center', gap: 6 },
-  readyText: { ...Fonts.mono(13, 'bold'), color: Colours.fg, letterSpacing: 1 },
+  // A full-area dim rather than a small card behind the text — the sky/
+  // clouds/ground are busy enough now that floating text needs it, and
+  // dimming the whole scene while "tap to start"/"game over" is up is a
+  // familiar game-UI beat in its own right, not just a legibility fix.
+  centerPanel: { ...StyleSheet.absoluteFill, alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: 'rgba(0,0,0,0.4)' },
+  readyText: { ...Fonts.mono(13, 'bold'), color: '#FFFFFF', letterSpacing: 1, textShadowColor: '#00000080', textShadowRadius: 4, textShadowOffset: { width: 0, height: 1 } },
   overTitle: { ...Fonts.mono(13, 'bold'), color: Colours.fg, letterSpacing: 1 },
   overScore: { ...Fonts.timerDigits(48), color: ACCENT },
   overHighScore: { ...Fonts.mono(12, 'bold'), color: Colours.dim, letterSpacing: 0.6 },
   overHint: { ...Fonts.mono(10, 'medium'), color: Colours.faint, marginTop: 8 },
-  scoreValue: { ...Fonts.timerDigits(28), color: Colours.fg, textAlign: 'center', marginTop: 10 },
 });

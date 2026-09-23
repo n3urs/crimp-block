@@ -84,20 +84,25 @@ export function startGame(config: PhysicsConfig = DEFAULT_CONFIG): GameState {
 /** Deterministic pseudo-random gap placement, keyed on the pipe's own
     spawn index rather than wall-clock time or Math.random — the same
     spawnIndex always produces the same gapCenterY, so a run is
-    reproducible and tests can assert exact placement. A standard 32-bit
-    LCG (Numerical Recipes constants), mapped to a fraction in [0, 1). */
-function pipeGapFraction(spawnIndex: number): number {
-  const a = 1664525;
-  const c = 1013904223;
-  const m = 2 ** 32;
-  const seed = (a * (spawnIndex + 1) + c) % m;
-  return seed / m;
-}
+    reproducible and tests can assert exact placement.
 
-function gapCenterFor(spawnIndex: number, config: PhysicsConfig): number {
+    NOT a textbook LCG (an earlier version here was, and that was the
+    bug — a plain `seed = (a * x + c) % m` barely moves for small
+    sequential x: with x running 0, 1, 2, 3..., `a * x` stays tiny next
+    to the modulus for a LONG time, so the output only crawls, and every
+    real pipe in a session landed at nearly the same height. This is a
+    32-bit integer mix (Murmur3's own finalizer, `fmix32`) instead —
+    built specifically to avalanche even between adjacent integers, so
+    consecutive spawn indices land nowhere near each other. */
+export function gapCenterForSpawnIndex(spawnIndex: number, config: PhysicsConfig = DEFAULT_CONFIG): number {
+  let x = spawnIndex | 0;
+  x = Math.imul(x ^ (x >>> 16), 0x45d9f3b);
+  x = Math.imul(x ^ (x >>> 16), 0x45d9f3b);
+  x = (x ^ (x >>> 16)) >>> 0;
+  const fraction = x / 0x100000000; // [0, 1)
   const margin = config.pipeGapHeight / 2 + 6; // keeps the gap off the very top/bottom
   const usable = config.worldHeight - margin * 2;
-  return margin + pipeGapFraction(spawnIndex) * usable;
+  return margin + fraction * usable;
 }
 
 function collides(bird: BirdState, pipes: Pipe[], config: PhysicsConfig): boolean {
@@ -138,7 +143,7 @@ export function stepGame(state: GameState, pulledKg: number, dtSec: number, conf
   while (spawnedCount < due) {
     pipes = [...pipes, {
       x: config.worldWidth + config.pipeWidth,
-      gapCenterY: gapCenterFor(spawnedCount, config),
+      gapCenterY: gapCenterForSpawnIndex(spawnedCount, config),
       passed: false,
     }];
     spawnedCount += 1;
