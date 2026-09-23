@@ -19,6 +19,9 @@ import {
   type ForceGaugeStatus,
   type GraphPoint,
 } from '../src/data/forceGauge/useForceGauge';
+import { useSession } from '../src/data/useSession';
+import { useProfile } from '../src/data/useProfile';
+import { FlappyBirdGame } from '../src/components/force-gauge/FlappyBirdGame';
 
 const ACCENT = resolveColour('--gorse');
 const Y_LABEL_WIDTH = 30;
@@ -157,6 +160,11 @@ export default function ForceGauge() {
   const insets = useSafeAreaInsets();
   const { status, errorMessage, devices, deviceName, current, peak, points, taring, scan, connect, reset, tare } = useForceGauge();
   const [graphSize, setGraphSize] = useState({ width: 0, height: 0 });
+  const { session } = useSession();
+  const profile = useProfile(session?.user?.id ?? '');
+  // Leaving the live graph to play (and back) shouldn't disconnect the
+  // gauge — this is purely a display-mode toggle, same connection.
+  const [playing, setPlaying] = useState(false);
 
   const isLive = status === 'connected';
   const isBusy = status === 'scanning' || status === 'connecting';
@@ -180,48 +188,68 @@ export default function ForceGauge() {
       </View>
 
       {isLive ? (
-        <>
-          <View style={styles.statRow}>
-            <Stat label="CURRENT" kg={current} colour={Colours.fg} />
-            <Stat label="PEAK" kg={peak} colour={ACCENT} />
-          </View>
-
-          <View style={styles.graphCard}>
-            <View style={styles.graphCaptionRow}>
-              <Text style={styles.graphCaption}>KG</Text>
-              <Text style={styles.graphCaption}>LAST {GRAPH_WINDOW_SEC} SEC</Text>
+        playing ? (
+          <FlappyBirdGame
+            points={points}
+            highScore={profile.row?.flappyHighScore ?? 0}
+            onNewHighScore={(score) => {
+              profile.setFlappyHighScore(score).catch((e) => console.error('setFlappyHighScore failed:', e));
+            }}
+            onExit={() => setPlaying(false)}
+          />
+        ) : (
+          <>
+            <View style={styles.statRow}>
+              <Stat label="CURRENT" kg={current} colour={Colours.fg} />
+              <Stat label="PEAK" kg={peak} colour={ACCENT} />
             </View>
-            <View
-              style={styles.graphArea}
-              onLayout={(e) => setGraphSize({ width: e.nativeEvent.layout.width, height: e.nativeEvent.layout.height })}
-            >
-              {graphSize.height > 0 && <ForceGraph points={points} peak={peak} width={graphSize.width} height={graphSize.height} />}
-            </View>
-          </View>
 
-          <View style={styles.actionRow}>
+            <View style={styles.graphCard}>
+              <View style={styles.graphCaptionRow}>
+                <Text style={styles.graphCaption}>KG</Text>
+                <Text style={styles.graphCaption}>LAST {GRAPH_WINDOW_SEC} SEC</Text>
+              </View>
+              <View
+                style={styles.graphArea}
+                onLayout={(e) => setGraphSize({ width: e.nativeEvent.layout.width, height: e.nativeEvent.layout.height })}
+              >
+                {graphSize.height > 0 && <ForceGraph points={points} peak={peak} width={graphSize.width} height={graphSize.height} />}
+              </View>
+            </View>
+
+            <View style={styles.actionRow}>
+              <Pressable
+                onPress={tare}
+                disabled={taring}
+                style={({ pressed }) => [styles.actionButton, pressed && styles.actionButtonPressed]}
+                accessibilityRole="button"
+                accessibilityLabel="Tare"
+                accessibilityHint="Zeroes the gauge. Take your hands off it first."
+                accessibilityState={{ disabled: taring, busy: taring }}
+              >
+                <Text style={[styles.actionText, taring && styles.actionTextBusy]}>{taring ? 'ZEROING…' : 'TARE'}</Text>
+              </Pressable>
+              <Pressable
+                onPress={reset}
+                style={({ pressed }) => [styles.actionButton, pressed && styles.actionButtonPressed]}
+                accessibilityRole="button"
+                accessibilityLabel="Reset"
+                accessibilityHint="Clears the peak and the graph."
+              >
+                <Text style={styles.actionText}>RESET</Text>
+              </Pressable>
+            </View>
+
             <Pressable
-              onPress={tare}
-              disabled={taring}
-              style={({ pressed }) => [styles.actionButton, pressed && styles.actionButtonPressed]}
+              onPress={() => setPlaying(true)}
+              style={styles.scanButton}
               accessibilityRole="button"
-              accessibilityLabel="Tare"
-              accessibilityHint="Zeroes the gauge. Take your hands off it first."
-              accessibilityState={{ disabled: taring, busy: taring }}
+              accessibilityLabel="Play Flappy Bird"
             >
-              <Text style={[styles.actionText, taring && styles.actionTextBusy]}>{taring ? 'ZEROING…' : 'TARE'}</Text>
+              <Text style={styles.scanButtonText}>PLAY FLAPPY BIRD</Text>
             </Pressable>
-            <Pressable
-              onPress={reset}
-              style={({ pressed }) => [styles.actionButton, pressed && styles.actionButtonPressed]}
-              accessibilityRole="button"
-              accessibilityLabel="Reset"
-              accessibilityHint="Clears the peak and the graph."
-            >
-              <Text style={styles.actionText}>RESET</Text>
-            </Pressable>
-          </View>
-        </>
+          </>
+        )
       ) : (
         <>
           <View style={styles.scanState}>
