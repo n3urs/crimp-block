@@ -102,11 +102,33 @@ test('consecutive pipes land at genuinely different heights, not nearly the same
   // "you can just sit at the same height and go forever"). A handful
   // of consecutive gaps should span a real chunk of the usable range,
   // not cluster in a sliver of it.
-  const centers = Array.from({ length: 8 }, (_, i) => gapCenterForSpawnIndex(i, DEFAULT_CONFIG.pipeGapHeight, DEFAULT_CONFIG));
+  const centers = Array.from({ length: 8 }, (_, i) => gapCenterForSpawnIndex(i, 42, DEFAULT_CONFIG.pipeGapHeight, DEFAULT_CONFIG));
   const spread = Math.max(...centers) - Math.min(...centers);
   const margin = DEFAULT_CONFIG.pipeGapHeight / 2 + 6;
   const usableRange = DEFAULT_CONFIG.worldHeight - margin * 2;
   expect(spread).toBeGreaterThan(usableRange * 0.5);
+});
+
+test('two different runs land on genuinely different pipe layouts', () => {
+  // Regression test for a real bug: gap placement was keyed ONLY on
+  // spawnIndex, which always restarts at 0 every run — so every run
+  // replayed the identical sequence of gaps (Oscar's own report: "the
+  // pipes aren't changing between deaths"). Same spawn index, two
+  // different run seeds, should land nowhere near each other.
+  const seedA = gapCenterForSpawnIndex(0, 111, DEFAULT_CONFIG.pipeGapHeight, DEFAULT_CONFIG);
+  const seedB = gapCenterForSpawnIndex(0, 999, DEFAULT_CONFIG.pipeGapHeight, DEFAULT_CONFIG);
+  const margin = DEFAULT_CONFIG.pipeGapHeight / 2 + 6;
+  const usableRange = DEFAULT_CONFIG.worldHeight - margin * 2;
+  expect(Math.abs(seedA - seedB)).toBeGreaterThan(usableRange * 0.2);
+});
+
+test('the same run seed still reproduces the exact same layout', () => {
+  // The flip side of the above — within one run (one seed), placement
+  // must stay exactly reproducible, or the earlier "deterministic, not
+  // random" and "consecutive pipes differ" tests would be meaningless.
+  const first = gapCenterForSpawnIndex(3, 555, DEFAULT_CONFIG.pipeGapHeight, DEFAULT_CONFIG);
+  const second = gapCenterForSpawnIndex(3, 555, DEFAULT_CONFIG.pipeGapHeight, DEFAULT_CONFIG);
+  expect(first).toBe(second);
 });
 
 test('pipe placement is deterministic, not random', () => {
@@ -122,6 +144,21 @@ test('pipe placement is deterministic, not random', () => {
   }
   expect(a.pipes).toEqual(b.pipes);
   expect(a.spawnedCount).toBeGreaterThan(0);
+});
+
+test('a real run with a different seed spawns a different first pipe', () => {
+  // End-to-end companion to the "different runs land on different
+  // layouts" test above — this exercises stepGame's actual spawn call,
+  // not just gapCenterForSpawnIndex in isolation, so it would have
+  // caught the real bug even if the wiring between state.runSeed and
+  // the spawn call itself had been wrong.
+  let a = startGame(DEFAULT_CONFIG, 111);
+  let b = startGame(DEFAULT_CONFIG, 999);
+  for (let i = 0; i < 300 && (a.pipes.length === 0 || b.pipes.length === 0); i++) {
+    a = stepGame(a, 6.43, 1 / 60, DEFAULT_CONFIG);
+    b = stepGame(b, 6.43, 1 / 60, DEFAULT_CONFIG);
+  }
+  expect(a.pipes[0].gapCenterY).not.toBe(b.pipes[0].gapCenterY);
 });
 
 test('pipe spacing starts wider than base and tightens to it as score climbs', () => {

@@ -48,6 +48,12 @@ export interface GameState {
       state, advanced by whatever the CURRENT difficulty's spacing is
       each time a pipe actually spawns. */
   nextSpawnAtSec: number;
+  /** This run's random seed, folded into gapCenterForSpawnIndex's hash
+      alongside spawnIndex so different runs land on different pipe
+      layouts — chosen once by startGame's caller and fixed for the
+      whole run. See startGame's own doc comment for why it isn't
+      generated here. */
+  runSeed: number;
 }
 
 export interface PhysicsConfig {
@@ -109,7 +115,7 @@ export function pipeGapHeightForScore(score: number, config: PhysicsConfig = DEF
   return config.pipeGapHeight * (1 - (1 - GAP_MIN_FRACTION) * t);
 }
 
-export function initialGameState(config: PhysicsConfig = DEFAULT_CONFIG): GameState {
+export function initialGameState(config: PhysicsConfig = DEFAULT_CONFIG, runSeed: number = 0): GameState {
   return {
     status: 'ready',
     bird: { y: config.worldHeight / 2, vy: 0 },
@@ -118,32 +124,49 @@ export function initialGameState(config: PhysicsConfig = DEFAULT_CONFIG): GameSt
     elapsedSec: 0,
     spawnedCount: 0,
     nextSpawnAtSec: pipeSpacingForScore(0, config),
+    runSeed,
   };
 }
 
-export function startGame(config: PhysicsConfig = DEFAULT_CONFIG): GameState {
-  return { ...initialGameState(config), status: 'playing' };
+/** `runSeed` is the ONE piece of real randomness anywhere in this
+    feature, and deliberately isn't generated here — this file stays a
+    pure function of its inputs, same as everywhere else in it. The
+    caller (useFlappyBird.ts, the one place allowed to be
+    non-deterministic) rolls a fresh random seed each time it starts a
+    round and passes it in; omit it (as every existing test does) and
+    you get the same reproducible layout every time, which is exactly
+    what made a real bug possible here — see gapCenterForSpawnIndex. */
+export function startGame(config: PhysicsConfig = DEFAULT_CONFIG, runSeed: number = 0): GameState {
+  return { ...initialGameState(config, runSeed), status: 'playing' };
 }
 
-/** Deterministic pseudo-random gap placement, keyed on the pipe's own
-    spawn index rather than wall-clock time or Math.random — the same
-    spawnIndex always produces the same gapCenterY, so a run is
-    reproducible and tests can assert exact placement. `gapHeight` is
-    the SPECIFIC gap size this one pipe was given (see
-    pipeGapHeightForScore) — margin has to shrink along with a tighter
-    gap, or a late-game small gap could still get placed hard against
-    the very top/bottom edge.
+/** Deterministic pseudo-random gap placement, keyed on the pipe's spawn
+    index WITHIN this run and the run's own seed — the same (spawnIndex,
+    runSeed) pair always produces the same gapCenterY (reproducible,
+    testable), but two different runSeeds scramble to completely
+    different layouts. `gapHeight` is the SPECIFIC gap size this one
+    pipe was given (see pipeGapHeightForScore) — margin has to shrink
+    along with a tighter gap, or a late-game small gap could still get
+    placed hard against the very top/bottom edge.
 
-    NOT a textbook LCG (an earlier version here was, and that was the
-    bug — a plain `seed = (a * x + c) % m` barely moves for small
-    sequential x: with x running 0, 1, 2, 3..., `a * x` stays tiny next
-    to the modulus for a LONG time, so the output only crawls, and every
-    real pipe in a session landed at nearly the same height. This is a
-    32-bit integer mix (Murmur3's own finalizer, `fmix32`) instead —
-    built specifically to avalanche even between adjacent integers, so
-    consecutive spawn indices land nowhere near each other. */
-export function gapCenterForSpawnIndex(spawnIndex: number, gapHeight: number, config: PhysicsConfig = DEFAULT_CONFIG): number {
-  let x = spawnIndex | 0;
+    Real bug this once had: an earlier version hashed spawnIndex ALONE,
+    with no seed at all. spawnedCount always restarts at 0 each run, so
+    every run replayed the identical sequence of gaps — Oscar's own
+    report: "the pipes aren't changing between deaths." Folding runSeed
+    in before hashing is the fix; the hash itself (see below) was
+    already fine.
+
+    NOT a textbook LCG (an even earlier version here was, and that was
+    a DIFFERENT bug — a plain `seed = (a * x + c) % m` barely moves for
+    small sequential x: with x running 0, 1, 2, 3..., `a * x` stays tiny
+    next to the modulus for a LONG time, so the output only crawls, and
+    every real pipe in a single session landed at nearly the same
+    height. This is a 32-bit integer mix (Murmur3's own finalizer,
+    `fmix32`) instead — built specifically to avalanche even between
+    adjacent/related integers, whether that's consecutive spawn indices
+    or two seeds a stone's throw apart. */
+export function gapCenterForSpawnIndex(spawnIndex: number, runSeed: number, gapHeight: number, config: PhysicsConfig = DEFAULT_CONFIG): number {
+  let x = (spawnIndex ^ runSeed) | 0;
   x = Math.imul(x ^ (x >>> 16), 0x45d9f3b);
   x = Math.imul(x ^ (x >>> 16), 0x45d9f3b);
   x = (x ^ (x >>> 16)) >>> 0;
@@ -192,7 +215,7 @@ export function stepGame(state: GameState, pulledKg: number, dtSec: number, conf
     const gapHeight = pipeGapHeightForScore(state.score, config);
     pipes = [...pipes, {
       x: config.worldWidth + config.pipeWidth,
-      gapCenterY: gapCenterForSpawnIndex(spawnedCount, gapHeight, config),
+      gapCenterY: gapCenterForSpawnIndex(spawnedCount, state.runSeed, gapHeight, config),
       gapHeight,
       passed: false,
     }];
@@ -211,5 +234,5 @@ export function stepGame(state: GameState, pulledKg: number, dtSec: number, conf
 
   const status: GameStatus = collides(bird, pipes, config) ? 'over' : 'playing';
 
-  return { status, bird, pipes, score, elapsedSec, spawnedCount, nextSpawnAtSec };
+  return { status, bird, pipes, score, elapsedSec, spawnedCount, nextSpawnAtSec, runSeed: state.runSeed };
 }

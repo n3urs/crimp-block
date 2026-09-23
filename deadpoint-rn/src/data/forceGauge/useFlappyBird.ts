@@ -78,7 +78,11 @@ export function useFlappyBird(points: GraphPoint[], config: PhysicsConfig = DEFA
         if (kg <= RELEASE_KG) armedRef.current = true;
         return s;
       }
-      return kg >= START_PULL_KG ? startGame(config) : s;
+      // A fresh random seed every round — flappyPhysics.ts stays pure
+      // (no Math.random inside it), so this is the one place that
+      // actually rolls it, matching how DEFAULT_CONFIG's own physics
+      // constants get supplied from outside too.
+      return kg >= START_PULL_KG ? startGame(config, Math.floor(Math.random() * 0x100000000)) : s;
     });
   }, [points, config]);
 
