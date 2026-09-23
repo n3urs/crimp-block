@@ -123,7 +123,7 @@ test('pipe placement is deterministic, not random', () => {
 
 - [ ] **Step 2: Run the tests to confirm they fail**
 
-Run: `npx jest flappyPhysics -v`
+Run: `npx jest flappyPhysics --verbose`
 Expected: FAIL — `Cannot find module '../src/data/forceGauge/flappyPhysics'`
 
 - [ ] **Step 3: Implement `flappyPhysics.ts`**
@@ -294,7 +294,7 @@ export function stepGame(state: GameState, pulledKg: number, dtSec: number, conf
 
 - [ ] **Step 4: Run the tests to confirm they pass**
 
-Run: `npx jest flappyPhysics -v`
+Run: `npx jest flappyPhysics --verbose`
 Expected: PASS — all 9 tests green.
 
 - [ ] **Step 5: Typecheck**
@@ -774,8 +774,8 @@ const styles = StyleSheet.create({
   headerLabel: { ...Fonts.mono(10, 'bold'), color: Colours.dim, letterSpacing: 1 },
   exit: { ...Fonts.mono(12, 'bold'), color: Colours.faint },
   playArea: { flex: 1, borderRadius: 8, overflow: 'hidden', backgroundColor: Colours.bg },
-  flash: { ...StyleSheet.absoluteFillObject, backgroundColor: Colours.restC },
-  centerPanel: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center', gap: 6 },
+  flash: { ...StyleSheet.absoluteFill, backgroundColor: Colours.restC },
+  centerPanel: { ...StyleSheet.absoluteFill, alignItems: 'center', justifyContent: 'center', gap: 6 },
   readyText: { ...Fonts.mono(13, 'bold'), color: Colours.fg, letterSpacing: 1 },
   overTitle: { ...Fonts.mono(13, 'bold'), color: Colours.fg, letterSpacing: 1 },
   overScore: { ...Fonts.timerDigits(48), color: ACCENT },
