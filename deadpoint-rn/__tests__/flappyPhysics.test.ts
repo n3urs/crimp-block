@@ -2,12 +2,15 @@
     Flappy Bird mode (see src/data/forceGauge/flappyPhysics.ts and the
     design spec at docs/superpowers/specs/2026-09-23-flappy-force-gauge-design.md).
     useFlappyBird.ts (untested wiring, same convention as useForceGauge.ts
-    itself) owns smoothing the raw BLE reading and the requestAnimationFrame
-    loop; every actual game rule lives here instead, where it can be
-    exercised without a live gauge or a running app. */
+    itself) owns smoothing the raw BLE reading, the requestAnimationFrame
+    loop, and the pull-to-(re)start gating; every actual game rule lives
+    here instead, where it can be exercised without a live gauge or a
+    running app. */
 import {
   DEFAULT_CONFIG,
   gapCenterForSpawnIndex,
+  pipeGapHeightForScore,
+  pipeSpacingForScore,
   startGame,
   stepGame,
   type GameState,
@@ -16,6 +19,10 @@ import {
 
 function playing(overrides: Partial<GameState> = {}): GameState {
   return { ...startGame(DEFAULT_CONFIG), ...overrides };
+}
+
+function pipeAt(x: number, gapCenterY: number, overrides: Partial<Pipe> = {}): Pipe {
+  return { x, gapCenterY, gapHeight: DEFAULT_CONFIG.pipeGapHeight, passed: false, ...overrides };
 }
 
 test('zero pull: gravity wins and the bird sinks', () => {
@@ -49,21 +56,35 @@ test('hitting the floor ends the game', () => {
 });
 
 test('missing a pipe gap ends the game', () => {
-  const pipe: Pipe = { x: DEFAULT_CONFIG.birdX, gapCenterY: 90, passed: false }; // gap far below the bird
+  const pipe = pipeAt(DEFAULT_CONFIG.birdX, 90); // gap far below the bird
   const state = playing({ bird: { y: 50, vy: 0 }, pipes: [pipe] });
   const next = stepGame(state, 6.4, 0.001, DEFAULT_CONFIG); // near-zero dt: test overlap, not fall
   expect(next.status).toBe('over');
 });
 
 test('flying through a pipe gap does not end the game', () => {
-  const pipe: Pipe = { x: DEFAULT_CONFIG.birdX, gapCenterY: 50, passed: false }; // gap centred on the bird
+  const pipe = pipeAt(DEFAULT_CONFIG.birdX, 50); // gap centred on the bird
   const state = playing({ bird: { y: 50, vy: 0 }, pipes: [pipe] });
   const next = stepGame(state, 6.4, 0.001, DEFAULT_CONFIG);
   expect(next.status).toBe('playing');
 });
 
+test('a smaller late-game gap still ends the game if missed, even when the base gap would have been safe', () => {
+  // A pipe placed with a TIGHTENED gap (as pipeGapHeightForScore gives
+  // past score 30) — the bird sits just past that smaller gap's edge,
+  // which the ORIGINAL base gap would have comfortably covered. Proves
+  // collision reads the pipe's own stored gapHeight, not the config's
+  // static one.
+  const tightGap = DEFAULT_CONFIG.pipeGapHeight * 0.7; // the floor pipeGapHeightForScore ramps to
+  const pipe = pipeAt(DEFAULT_CONFIG.birdX, 50, { gapHeight: tightGap });
+  const justOutside = 50 + tightGap / 2 + DEFAULT_CONFIG.birdRadius + 1;
+  const state = playing({ bird: { y: justOutside, vy: 0 }, pipes: [pipe] });
+  const next = stepGame(state, 6.4, 0.001, DEFAULT_CONFIG);
+  expect(next.status).toBe('over');
+});
+
 test('a passed pipe scores exactly once, not once per overlapping frame', () => {
-  const pipe: Pipe = { x: DEFAULT_CONFIG.birdX - DEFAULT_CONFIG.pipeWidth - 0.01, gapCenterY: 50, passed: false };
+  const pipe = pipeAt(DEFAULT_CONFIG.birdX - DEFAULT_CONFIG.pipeWidth - 0.01, 50);
   let state = playing({ bird: { y: 50, vy: 0 }, pipes: [pipe], score: 0 });
   for (let i = 0; i < 10; i++) state = stepGame(state, 6.4, 0.001, DEFAULT_CONFIG);
   expect(state.score).toBe(1);
@@ -81,7 +102,7 @@ test('consecutive pipes land at genuinely different heights, not nearly the same
   // "you can just sit at the same height and go forever"). A handful
   // of consecutive gaps should span a real chunk of the usable range,
   // not cluster in a sliver of it.
-  const centers = Array.from({ length: 8 }, (_, i) => gapCenterForSpawnIndex(i, DEFAULT_CONFIG));
+  const centers = Array.from({ length: 8 }, (_, i) => gapCenterForSpawnIndex(i, DEFAULT_CONFIG.pipeGapHeight, DEFAULT_CONFIG));
   const spread = Math.max(...centers) - Math.min(...centers);
   const margin = DEFAULT_CONFIG.pipeGapHeight / 2 + 6;
   const usableRange = DEFAULT_CONFIG.worldHeight - margin * 2;
@@ -101,4 +122,53 @@ test('pipe placement is deterministic, not random', () => {
   }
   expect(a.pipes).toEqual(b.pipes);
   expect(a.spawnedCount).toBeGreaterThan(0);
+});
+
+test('pipe spacing starts wider than base and tightens to it as score climbs', () => {
+  const start = pipeSpacingForScore(0, DEFAULT_CONFIG);
+  const mid = pipeSpacingForScore(7, DEFAULT_CONFIG);
+  const ramped = pipeSpacingForScore(15, DEFAULT_CONFIG);
+  const beyond = pipeSpacingForScore(50, DEFAULT_CONFIG);
+  expect(start).toBeGreaterThan(DEFAULT_CONFIG.pipeSpacingSec);
+  expect(mid).toBeLessThan(start);
+  expect(mid).toBeGreaterThan(ramped);
+  expect(ramped).toBeCloseTo(DEFAULT_CONFIG.pipeSpacingSec, 5);
+  expect(beyond).toBeCloseTo(DEFAULT_CONFIG.pipeSpacingSec, 5); // holds, doesn't keep shrinking
+});
+
+test('pipe gap stays full size until score 30, then tightens toward a floor', () => {
+  expect(pipeGapHeightForScore(0, DEFAULT_CONFIG)).toBe(DEFAULT_CONFIG.pipeGapHeight);
+  expect(pipeGapHeightForScore(29, DEFAULT_CONFIG)).toBe(DEFAULT_CONFIG.pipeGapHeight);
+  const atForty = pipeGapHeightForScore(40, DEFAULT_CONFIG);
+  const atSixty = pipeGapHeightForScore(60, DEFAULT_CONFIG);
+  const atHundred = pipeGapHeightForScore(100, DEFAULT_CONFIG);
+  expect(atForty).toBeLessThan(DEFAULT_CONFIG.pipeGapHeight);
+  expect(atSixty).toBeLessThan(atForty);
+  expect(atSixty).toBeCloseTo(DEFAULT_CONFIG.pipeGapHeight * 0.7, 5); // the floor
+  expect(atHundred).toBeCloseTo(atSixty, 5); // holds at the floor, never fully closes
+});
+
+test('a real run actually spawns tighter-spaced, smaller-gap pipes once the score climbs', () => {
+  // End-to-end check that stepGame's spawn loop actually USES the two
+  // difficulty functions above, not just that the functions themselves
+  // work in isolation. Hover (no net climb/fall) so the run survives
+  // long enough, and starts already past score 30 so gap-tightening is
+  // active from the first spawn too.
+  let state = playing({ score: 35 });
+  const gapsSeen: number[] = [];
+  const spawnTimes: number[] = [];
+  let lastPipeCount = 0;
+  for (let i = 0; i < 600; i++) {
+    state = stepGame(state, 6.43, 1 / 60, DEFAULT_CONFIG);
+    if (state.pipes.length > lastPipeCount) {
+      const newest = state.pipes[state.pipes.length - 1];
+      gapsSeen.push(newest.gapHeight);
+      spawnTimes.push(state.elapsedSec);
+    }
+    lastPipeCount = state.pipes.length;
+  }
+  expect(gapsSeen.length).toBeGreaterThan(1);
+  for (const g of gapsSeen) expect(g).toBeLessThan(DEFAULT_CONFIG.pipeGapHeight);
+  const firstSpacing = spawnTimes[1] - spawnTimes[0];
+  expect(firstSpacing).toBeCloseTo(DEFAULT_CONFIG.pipeSpacingSec, 1); // already ramped past score 15
 });

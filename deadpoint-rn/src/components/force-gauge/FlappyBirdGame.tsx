@@ -56,24 +56,20 @@ interface Props {
 
 export function FlappyBirdGame({ points, highScore, onNewHighScore, onExit }: Props) {
   const [size, setSize] = useState({ width: 0, height: 0 });
-  // false while 'ready' or 'over', true only while a round is actually
-  // in progress — useFlappyBird's RAF loop runs only when this is true.
-  const [running, setRunning] = useState(false);
-  const { state, start } = useFlappyBird(points, running);
+  // Starting (and restarting) is entirely internal to the hook now — a
+  // real pull on the gauge, not a tap on the screen (Oscar: hands are
+  // already on the gauge, reaching for the phone too is the wrong
+  // mechanic) — so there's nothing left for this component to trigger.
+  const { state } = useFlappyBird(points);
   const reportedRef = useRef(false);
 
   useEffect(() => {
     if (state.status === 'over' && !reportedRef.current) {
       reportedRef.current = true;
-      setRunning(false);
       if (state.score > highScore) onNewHighScore(state.score);
     }
     if (state.status === 'playing') reportedRef.current = false;
   }, [state.status, state.score, highScore, onNewHighScore]);
-
-  const handlePress = () => {
-    if (state.status !== 'playing') { start(); setRunning(true); }
-  };
 
   const isNewHighScore = state.status === 'over' && state.score > highScore && state.score > 0;
   const displayHighScore = Math.max(highScore, state.score);
@@ -139,12 +135,7 @@ export function FlappyBirdGame({ points, highScore, onNewHighScore, onExit }: Pr
   const birdR = px(DEFAULT_CONFIG.birdRadius);
 
   return (
-    <Pressable
-      style={styles.root}
-      onPress={handlePress}
-      accessibilityRole="button"
-      accessibilityLabel={state.status === 'playing' ? 'Playing' : 'Tap to start'}
-    >
+    <View style={styles.root}>
       <View style={styles.headerRow}>
         <Text style={styles.headerLabel}>BEST {displayHighScore}</Text>
         <Pressable onPress={onExit} hitSlop={12} accessibilityRole="button" accessibilityLabel="Exit game">
@@ -206,8 +197,8 @@ export function FlappyBirdGame({ points, highScore, onNewHighScore, onExit }: Pr
             {/* Foreground layer: pipes and the bird, on top of the score. */}
             <Svg width={width} height={height} style={StyleSheet.absoluteFill}>
               {state.pipes.map((pipe, i) => {
-                const gapTop = pipe.gapCenterY - DEFAULT_CONFIG.pipeGapHeight / 2;
-                const gapBottom = pipe.gapCenterY + DEFAULT_CONFIG.pipeGapHeight / 2;
+                const gapTop = pipe.gapCenterY - pipe.gapHeight / 2;
+                const gapBottom = pipe.gapCenterY + pipe.gapHeight / 2;
                 const bodyX = px(pipe.x);
                 const bodyW = px(DEFAULT_CONFIG.pipeWidth);
                 const capOverhang = px(2);
@@ -253,10 +244,10 @@ export function FlappyBirdGame({ points, highScore, onNewHighScore, onExit }: Pr
           <Text style={[styles.overHighScore, isNewHighScore && { color: Colours.go }]}>
             {isNewHighScore ? 'NEW HIGH SCORE' : `BEST ${displayHighScore}`}
           </Text>
-          <Text style={styles.overHint}>TAP TO PLAY AGAIN</Text>
+          <Text style={styles.overHint}>PULL TO PLAY AGAIN</Text>
         </Animated.View>
       </View>
-    </Pressable>
+    </View>
   );
 }
 

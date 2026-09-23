@@ -5,10 +5,10 @@
     argument, so this is fully unit tested (flappyPhysics.test.ts) the
     same way protocol.ts is the tested core beneath the untested
     useForceGauge.ts wiring. The caller (useFlappyBird.ts) owns smoothing
-    the raw force reading and the requestAnimationFrame loop; this file
-    only turns an already-smoothed kg value into motion. Screen-space
-    convention throughout: increasing y is DOWN (matches SVG), so
-    "climbing" means vy going negative. */
+    the raw force reading, the requestAnimationFrame loop, and the pull-
+    to-(re)start gating; this file only turns an already-smoothed kg
+    value into motion. Screen-space convention throughout: increasing y
+    is DOWN (matches SVG), so "climbing" means vy going negative. */
 
 export interface BirdState {
   y: number;
@@ -18,6 +18,12 @@ export interface BirdState {
 export interface Pipe {
   x: number;
   gapCenterY: number;
+  /** This pipe's own gap size, fixed at spawn time — difficulty (see
+      pipeGapHeightForScore below) changes the gap for NEW pipes only,
+      so an already-on-screen pipe's collision box can't retroactively
+      change under you. Rendering reads this too, so what's drawn always
+      matches what you actually collide with. */
+  gapHeight: number;
   passed: boolean;
 }
 
@@ -31,11 +37,17 @@ export interface GameState {
   elapsedSec: number;
   /** Total pipes ever spawned this run, including ones already dropped
       off-screen — pipes.length alone can't drive spawn timing since it
-      shrinks as pipes leave the world. Spawning compares this against
-      floor(elapsedSec / pipeSpacingSec) each frame: a pure function of
-      elapsed time, so it can't drift or double-spawn regardless of
-      frame rate. */
+      shrinks as pipes leave the world. Also seeds gapCenterForSpawnIndex,
+      so it has to keep counting even though nextSpawnAtSec (below) is
+      what actually decides timing now. */
   spawnedCount: number;
+  /** When (in elapsedSec terms) the next pipe should appear. Spacing
+      itself varies with score (see pipeSpacingForScore), so — unlike a
+      constant spacing — "next spawn" can't be recovered from elapsedSec
+      alone each frame; it has to be carried forward as its own piece of
+      state, advanced by whatever the CURRENT difficulty's spacing is
+      each time a pipe actually spawns. */
+  nextSpawnAtSec: number;
 }
 
 export interface PhysicsConfig {
@@ -44,9 +56,9 @@ export interface PhysicsConfig {
   maxKg: number;          // pulls above this clamp, they don't help further
   worldWidth: number;     // logical width; pipes spawn just past this edge
   worldHeight: number;    // logical height
-  pipeGapHeight: number;  // logical units
+  pipeGapHeight: number;  // logical units — the BASE gap; see pipeGapHeightForScore
   pipeSpeed: number;      // logical units / s, leftward
-  pipeSpacingSec: number; // seconds between pipe spawns
+  pipeSpacingSec: number; // seconds between pipe spawns — the BASE spacing; see pipeSpacingForScore
   birdX: number;          // fixed logical x of the bird (pipes move, bird doesn't)
   birdRadius: number;
   pipeWidth: number;
@@ -66,6 +78,37 @@ export const DEFAULT_CONFIG: PhysicsConfig = {
   pipeWidth: 10,
 };
 
+// Difficulty ramp — Oscar's own framing: "space out the pipes...a little
+// bit [at first]. But then as you progress, the pipes can get closer
+// together to make it harder." Spacing starts wide (an easy warm-up) and
+// tightens down to the config's own base spacing by SPACING_RAMP_SCORE,
+// then holds steady — the base spacing IS the target difficulty, not a
+// floor to keep shrinking past.
+const SPACING_RAMP_SCORE = 15;
+const SPACING_START_MULTIPLIER = 1.4;
+
+export function pipeSpacingForScore(score: number, config: PhysicsConfig = DEFAULT_CONFIG): number {
+  const t = Math.min(1, Math.max(0, score) / SPACING_RAMP_SCORE);
+  const startSpacing = config.pipeSpacingSec * SPACING_START_MULTIPLIER;
+  return startSpacing + (config.pipeSpacingSec - startSpacing) * t;
+}
+
+// "And then if you get really far, make the gaps between the pipes
+// closer. But that's not until you get to like 30 points." — a second,
+// later difficulty spike on top of the spacing squeeze above: the gap
+// itself stays at the full base size through the whole early-to-mid
+// game, only tightening from GAP_TIGHTEN_START_SCORE, and never past a
+// floor (GAP_MIN_FRACTION) so it stays physically possible.
+const GAP_TIGHTEN_START_SCORE = 30;
+const GAP_TIGHTEN_FULL_SCORE = 60;
+const GAP_MIN_FRACTION = 0.7;
+
+export function pipeGapHeightForScore(score: number, config: PhysicsConfig = DEFAULT_CONFIG): number {
+  if (score < GAP_TIGHTEN_START_SCORE) return config.pipeGapHeight;
+  const t = Math.min(1, (score - GAP_TIGHTEN_START_SCORE) / (GAP_TIGHTEN_FULL_SCORE - GAP_TIGHTEN_START_SCORE));
+  return config.pipeGapHeight * (1 - (1 - GAP_MIN_FRACTION) * t);
+}
+
 export function initialGameState(config: PhysicsConfig = DEFAULT_CONFIG): GameState {
   return {
     status: 'ready',
@@ -74,6 +117,7 @@ export function initialGameState(config: PhysicsConfig = DEFAULT_CONFIG): GameSt
     score: 0,
     elapsedSec: 0,
     spawnedCount: 0,
+    nextSpawnAtSec: pipeSpacingForScore(0, config),
   };
 }
 
@@ -84,7 +128,11 @@ export function startGame(config: PhysicsConfig = DEFAULT_CONFIG): GameState {
 /** Deterministic pseudo-random gap placement, keyed on the pipe's own
     spawn index rather than wall-clock time or Math.random — the same
     spawnIndex always produces the same gapCenterY, so a run is
-    reproducible and tests can assert exact placement.
+    reproducible and tests can assert exact placement. `gapHeight` is
+    the SPECIFIC gap size this one pipe was given (see
+    pipeGapHeightForScore) — margin has to shrink along with a tighter
+    gap, or a late-game small gap could still get placed hard against
+    the very top/bottom edge.
 
     NOT a textbook LCG (an earlier version here was, and that was the
     bug — a plain `seed = (a * x + c) % m` barely moves for small
@@ -94,13 +142,13 @@ export function startGame(config: PhysicsConfig = DEFAULT_CONFIG): GameState {
     32-bit integer mix (Murmur3's own finalizer, `fmix32`) instead —
     built specifically to avalanche even between adjacent integers, so
     consecutive spawn indices land nowhere near each other. */
-export function gapCenterForSpawnIndex(spawnIndex: number, config: PhysicsConfig = DEFAULT_CONFIG): number {
+export function gapCenterForSpawnIndex(spawnIndex: number, gapHeight: number, config: PhysicsConfig = DEFAULT_CONFIG): number {
   let x = spawnIndex | 0;
   x = Math.imul(x ^ (x >>> 16), 0x45d9f3b);
   x = Math.imul(x ^ (x >>> 16), 0x45d9f3b);
   x = (x ^ (x >>> 16)) >>> 0;
   const fraction = x / 0x100000000; // [0, 1)
-  const margin = config.pipeGapHeight / 2 + 6; // keeps the gap off the very top/bottom
+  const margin = gapHeight / 2 + 6; // keeps the gap off the very top/bottom
   const usable = config.worldHeight - margin * 2;
   return margin + fraction * usable;
 }
@@ -113,8 +161,8 @@ function collides(bird: BirdState, pipes: Pipe[], config: PhysicsConfig): boolea
     const pipeLeft = pipe.x;
     const pipeRight = pipe.x + config.pipeWidth;
     if (birdRight < pipeLeft || birdLeft > pipeRight) continue; // no x-overlap
-    const gapTop = pipe.gapCenterY - config.pipeGapHeight / 2;
-    const gapBottom = pipe.gapCenterY + config.pipeGapHeight / 2;
+    const gapTop = pipe.gapCenterY - pipe.gapHeight / 2;
+    const gapBottom = pipe.gapCenterY + pipe.gapHeight / 2;
     if (bird.y - config.birdRadius < gapTop || bird.y + config.birdRadius > gapBottom) return true;
   }
   return false;
@@ -139,14 +187,17 @@ export function stepGame(state: GameState, pulledKg: number, dtSec: number, conf
     .filter((p) => p.x > -config.pipeWidth);
 
   let spawnedCount = state.spawnedCount;
-  const due = Math.floor(elapsedSec / config.pipeSpacingSec);
-  while (spawnedCount < due) {
+  let nextSpawnAtSec = state.nextSpawnAtSec;
+  while (elapsedSec >= nextSpawnAtSec) {
+    const gapHeight = pipeGapHeightForScore(state.score, config);
     pipes = [...pipes, {
       x: config.worldWidth + config.pipeWidth,
-      gapCenterY: gapCenterForSpawnIndex(spawnedCount, config),
+      gapCenterY: gapCenterForSpawnIndex(spawnedCount, gapHeight, config),
+      gapHeight,
       passed: false,
     }];
     spawnedCount += 1;
+    nextSpawnAtSec += pipeSpacingForScore(state.score, config);
   }
 
   let score = state.score;
@@ -160,5 +211,5 @@ export function stepGame(state: GameState, pulledKg: number, dtSec: number, conf
 
   const status: GameStatus = collides(bird, pipes, config) ? 'over' : 'playing';
 
-  return { status, bird, pipes, score, elapsedSec, spawnedCount };
+  return { status, bird, pipes, score, elapsedSec, spawnedCount, nextSpawnAtSec };
 }
