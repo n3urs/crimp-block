@@ -6,7 +6,7 @@
     pure live viewer — nothing here is logged into the app's own data yet.
     Reached via router.push('/force-gauge') from settings.tsx; registered
     in app/_layout.tsx with `presentation: 'modal'`. */
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import Svg, { Circle, Defs, Line, LinearGradient, Path, Stop, Text as SvgText } from 'react-native-svg';
 import { useRouter } from 'expo-router';
@@ -19,6 +19,7 @@ import {
   type ForceGaugeStatus,
   type GraphPoint,
 } from '../src/data/forceGauge/useForceGauge';
+import { loadLocalHighScore, saveLocalHighScore } from '../src/data/forceGauge/flappyHighScore';
 import { useSession } from '../src/data/useSession';
 import { useProfile } from '../src/data/useProfile';
 import { FlappyBirdGame } from '../src/components/force-gauge/FlappyBirdGame';
@@ -161,10 +162,29 @@ export default function ForceGauge() {
   const { status, errorMessage, devices, deviceName, current, peak, points, taring, scan, connect, reset, tare } = useForceGauge();
   const [graphSize, setGraphSize] = useState({ width: 0, height: 0 });
   const { session } = useSession();
-  const profile = useProfile(session?.user?.id ?? '');
+  const userId = session?.user?.id ?? '';
+  const profile = useProfile(userId);
   // Leaving the live graph to play (and back) shouldn't disconnect the
   // gauge — this is purely a display-mode toggle, same connection.
   const [playing, setPlaying] = useState(false);
+
+  // The Flappy Bird best lives here on the device FIRST, with the
+  // account-synced copy as an extra — built-in accounts (no profiles row)
+  // had nowhere to save a score at all, so it vanished the moment the game
+  // closed. See flappyHighScore.ts. max() of the two so whichever is
+  // higher wins; the load merges in rather than overwrites so a slow read
+  // can't clobber a score set in the meantime.
+  const [localBest, setLocalBest] = useState(0);
+  useEffect(() => {
+    if (!userId) return;
+    loadLocalHighScore(userId).then((stored) => setLocalBest((b) => Math.max(b, stored)));
+  }, [userId]);
+  const flappyHighScore = Math.max(profile.row?.flappyHighScore ?? 0, localBest);
+  const recordFlappyHighScore = (score: number) => {
+    setLocalBest((b) => Math.max(b, score));
+    saveLocalHighScore(userId, score);
+    profile.setFlappyHighScore(score).catch((e) => console.error('setFlappyHighScore failed:', e));
+  };
 
   const isLive = status === 'connected';
   const isBusy = status === 'scanning' || status === 'connecting';
@@ -191,10 +211,8 @@ export default function ForceGauge() {
         playing ? (
           <FlappyBirdGame
             points={points}
-            highScore={profile.row?.flappyHighScore ?? 0}
-            onNewHighScore={(score) => {
-              profile.setFlappyHighScore(score).catch((e) => console.error('setFlappyHighScore failed:', e));
-            }}
+            highScore={flappyHighScore}
+            onNewHighScore={recordFlappyHighScore}
             onExit={() => setPlaying(false)}
           />
         ) : (

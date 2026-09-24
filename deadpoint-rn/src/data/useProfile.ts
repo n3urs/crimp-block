@@ -481,16 +481,32 @@ export function useProfile(userId: string) {
       : s));
   }, [row, userId]);
 
-  /** Force gauge's Flappy Bird mode. A ratchet: only writes when the new
-      score beats what's stored, so a lower score from a later, worse
-      round can never overwrite a real best. PATCH, same as every other
-      single-field profile write in this file. */
+  /** Force gauge's Flappy Bird mode — the ACCOUNT-synced copy of the high
+      score (the device-local copy in forceGauge/flappyHighScore.ts is the
+      one the game actually trusts).
+
+      Two things this once got wrong, both found from Oscar's own reports:
+      1. Accounts with no `profiles` row (built-in ones — Oscar, Joe) match
+         ZERO rows here. PostgREST treats that as success, so nothing
+         threw, nothing was written and the local state update below was
+         skipped too — the score just vanished ("it resets every time you
+         die"). That's why the device-local copy exists; this write is a
+         best-effort extra for accounts that do have a row.
+      2. The ratchet only lived in the client (`score <= row.flappyHighScore`),
+         so a stale or not-yet-loaded local row could send a LOWER score and
+         overwrite a real best. `.lt()` makes the database itself refuse to
+         go down: the UPDATE only matches while the stored value is below the
+         new one. PATCH, same as every other single-field profile write. */
   const setFlappyHighScore = useCallback(async (score: number) => {
     if (score <= (row?.flappyHighScore ?? 0)) return;
-    const { error } = await supabase.from('profiles').update({ flappy_high_score: score }).eq('user_id', userId);
+    const { error } = await supabase
+      .from('profiles')
+      .update({ flappy_high_score: score })
+      .eq('user_id', userId)
+      .lt('flappy_high_score', score);
     if (error) throw error;
     setState((s) => (s.status === 'ready' && s.forUserId === userId && s.row
-      ? { ...s, row: { ...s.row, flappyHighScore: score } }
+      ? { ...s, row: { ...s.row, flappyHighScore: Math.max(s.row.flappyHighScore, score) } }
       : s));
   }, [row, userId]);
 
