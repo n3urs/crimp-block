@@ -1,5 +1,8 @@
 // src/components/timers/tones.ts
-/** Plays the 4 pre-rendered timer tone cues (see scripts/generate-tones.mjs
+/** Plays the pre-rendered tone cues — the 4 timer cues plus Flappy Bird
+    mode's 3 soft game cues (pipe / best / death; see
+    scripts/generate-tones.mjs for how each is synthesised and why the game
+    ones are much quieter). Originally just the timers (see scripts/generate-tones.mjs
     and the Phase 3 design spec's Decision 1 for why these are pre-rendered
     files rather than live RN synthesis). One shared player per cue,
     created lazily on first use and reused for the app's whole lifetime —
@@ -11,13 +14,16 @@
     a real device (Task 6), not under Jest. */
 import { createAudioPlayer, type AudioPlayer } from 'expo-audio';
 
-export type Cue = 'ready' | 'go' | 'stop' | 'done';
+export type Cue = 'ready' | 'go' | 'stop' | 'done' | 'pipe' | 'best' | 'death';
 
 const SOURCES: Record<Cue, number> = {
   ready: require('../../../assets/audio/tone-ready.wav'),
   go: require('../../../assets/audio/tone-go.wav'),
   stop: require('../../../assets/audio/tone-stop.wav'),
   done: require('../../../assets/audio/tone-done.wav'),
+  pipe: require('../../../assets/audio/game-pipe.wav'),
+  best: require('../../../assets/audio/game-best.wav'),
+  death: require('../../../assets/audio/game-death.wav'),
 };
 
 let players: Record<Cue, AudioPlayer> | null = null;
@@ -44,6 +50,9 @@ function ensureLoaded(): Record<Cue, AudioPlayer> {
       go: createAudioPlayer(SOURCES.go, { downloadFirst: true }),
       stop: createAudioPlayer(SOURCES.stop, { downloadFirst: true }),
       done: createAudioPlayer(SOURCES.done, { downloadFirst: true }),
+      pipe: createAudioPlayer(SOURCES.pipe, { downloadFirst: true }),
+      best: createAudioPlayer(SOURCES.best, { downloadFirst: true }),
+      death: createAudioPlayer(SOURCES.death, { downloadFirst: true }),
     };
   }
   return players;

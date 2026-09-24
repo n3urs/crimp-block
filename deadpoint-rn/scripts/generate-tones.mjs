@@ -40,7 +40,7 @@ function noteDuration(cue) {
     approximation of a struck, piano/bell-like note. Returns one note's
     samples as plain numbers in [-1, 1] (well under that in practice; see
     the 0.45 gain comment below), not yet quantized to any bit depth. */
-function pianoish(frequency, duration) {
+function pianoish(frequency, duration, gain = 0.45) {
   const frameCount = Math.floor(duration * SAMPLE_RATE);
   const samples = new Float64Array(frameCount);
   const attack = 0.008;
@@ -56,7 +56,7 @@ function pianoish(frequency, duration) {
     // too soft to hear over a real gym at the original 0.3, and the
     // worst-case constructive peak across all three harmonic layers
     // (~1.4) still leaves real headroom before clipping at 1.0 even here.
-    samples[frame] = (fundamental + secondHarmonic + thirdHarmonic) * envelope * 0.45;
+    samples[frame] = (fundamental + secondHarmonic + thirdHarmonic) * envelope * gain;
   }
   return samples;
 }
@@ -67,20 +67,60 @@ function pianoish(frequency, duration) {
     single pre-rendered file has to do the same mixing up front. `done`'s
     4 notes genuinely overlap this way: note 2 starts at 0.11s while note
     1 (0.3s long) is still decaying. */
-function renderMelody(cue) {
-  const duration = noteDuration(cue);
-  const notes = MELODIES[cue];
+function renderNotes(notes, duration, gain) {
   const totalSeconds = Math.max(...notes.map(([, at]) => at + duration));
   const totalFrames = Math.ceil(totalSeconds * SAMPLE_RATE);
   const mix = new Float64Array(totalFrames);
   for (const [frequency, at] of notes) {
-    const note = pianoish(frequency, duration);
+    const note = pianoish(frequency, duration, gain);
     const startFrame = Math.round(at * SAMPLE_RATE);
     for (let i = 0; i < note.length; i++) {
       mix[startFrame + i] += note[i];
     }
   }
   return mix;
+}
+
+function renderMelody(cue) {
+  return renderNotes(MELODIES[cue], noteDuration(cue), 0.45);
+}
+
+/** Flappy Bird mode's cues (added 24 Sep 2026). Not ports of anything in the
+    Swift app — written to Oscar's own brief: "subtle, not too jarring, nice
+    beeps when you go through the pipes and a nice ding when you get above
+    your high score, maybe a death sound. Make them all kind of nice and
+    soft." Same struck-bell timbre as the timer cues (pianoish) so they read
+    as the same app, at well under half their gain: the timers have to carry
+    over a real gym, these play every second or two in someone's hands and
+    must never startle. */
+const GAME_CUES = {
+  // One short, quiet bell note per pipe — a tick, not a jingle.
+  pipe: () => renderNotes([[784, 0]], 0.14, 0.2),
+  // A soft two-note "ding-ding" upwards, only when a run passes the player's own best.
+  best: () => renderNotes([[1319, 0], [1760, 0.09]], 0.5, 0.26),
+  // A gentle falling glide, A4 -> A3: reads as "oh well", not as an alarm.
+  death: () => glide(440, 220, 0.45, 0.3),
+};
+
+/** A sine that sweeps exponentially (i.e. evenly in pitch) from one
+    frequency to another, with a quick attack and a decay to ~5%. The phase is
+    ACCUMULATED per sample rather than computed as sin(2*pi*f(t)*t), which
+    would chirp far faster than intended because the frequency itself is
+    changing. A quiet second harmonic keeps it audible on a phone speaker,
+    which barely reproduces the low fundamental. */
+function glide(fromHz, toHz, duration, gain) {
+  const frameCount = Math.floor(duration * SAMPLE_RATE);
+  const samples = new Float64Array(frameCount);
+  const attack = 0.01;
+  let phase = 0;
+  for (let frame = 0; frame < frameCount; frame++) {
+    const t = frame / SAMPLE_RATE;
+    const hz = fromHz * Math.pow(toHz / fromHz, t / duration);
+    phase += (2 * Math.PI * hz) / SAMPLE_RATE;
+    const envelope = t < attack ? t / attack : Math.pow(0.05, (t - attack) / (duration - attack));
+    samples[frame] = (Math.sin(phase) + Math.sin(phase * 2) * 0.3) * envelope * gain;
+  }
+  return samples;
 }
 
 /** Minimal mono 16-bit PCM WAV writer. No dependency needed for a format
@@ -120,6 +160,12 @@ mkdirSync(new URL('../assets/audio/', import.meta.url), { recursive: true });
 for (const cue of Object.keys(MELODIES)) {
   const wav = toWavBuffer(renderMelody(cue));
   const outPath = new URL(`../assets/audio/tone-${cue}.wav`, import.meta.url);
+  writeFileSync(outPath, wav);
+  console.log(`wrote ${outPath.pathname} (${wav.length} bytes)`);
+}
+for (const [name, render] of Object.entries(GAME_CUES)) {
+  const wav = toWavBuffer(render());
+  const outPath = new URL(`../assets/audio/game-${name}.wav`, import.meta.url);
   writeFileSync(outPath, wav);
   console.log(`wrote ${outPath.pathname} (${wav.length} bytes)`);
 }

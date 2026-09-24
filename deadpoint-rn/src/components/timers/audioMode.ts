@@ -29,9 +29,20 @@
     silently reopen exactly what that fix closed. */
 import { setAudioModeAsync } from 'expo-audio';
 
-setAudioModeAsync({
+export const DEFAULT_AUDIO_MODE = {
   playsInSilentMode: true,
   interruptionMode: 'duckOthers',
   shouldPlayInBackground: false,
   allowsRecording: false,
-}).catch((e) => console.error('audioMode setup failed:', e));
+} as const;
+
+/** Flappy Bird mode's own session setting, applied while its screen is up
+    and undone on the way out (see FlappyBirdGame.tsx). The game plays a
+    quiet blip every second or two, and under 'duckOthers' each one would
+    dip the user's music and let it back up again — a pumping effect that
+    is exactly the "jarring" the sounds are meant to avoid. Mixing lets
+    them sit softly over whatever's playing instead. Silent-mode behaviour
+    is deliberately unchanged, matching the timers. */
+export const GAME_AUDIO_MODE = { ...DEFAULT_AUDIO_MODE, interruptionMode: 'mixWithOthers' } as const;
+
+setAudioModeAsync(DEFAULT_AUDIO_MODE).catch((e) => console.error('audioMode setup failed:', e));

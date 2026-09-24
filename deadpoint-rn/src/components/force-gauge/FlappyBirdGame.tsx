@@ -22,6 +22,9 @@ import { Fonts } from '../../design/fonts';
 import type { GraphPoint } from '../../data/forceGauge/useForceGauge';
 import { useFlappyBird } from '../../data/forceGauge/useFlappyBird';
 import { DEFAULT_CONFIG } from '../../data/forceGauge/flappyPhysics';
+import { setAudioModeAsync } from 'expo-audio';
+import { DEFAULT_AUDIO_MODE, GAME_AUDIO_MODE } from '../timers/audioMode';
+import { play as playCue } from '../timers/tones';
 
 const ACCENT = resolveColour('--gorse');
 
@@ -38,7 +41,12 @@ const PIPE_CAP = '#8FD84A';
 const PIPE_STROKE = '#4F8C1F';
 const BIRD_BODY = '#FFDA44';
 const BIRD_BELLY = '#FFF3C4';
-const BIRD_WING = '#F5A623';
+// Front wing pale against the yellow body, back wing a deeper orange: the
+// first cut used one near-body orange at a fraction of the body's size and
+// read as a plain circle ("give the bird some wings. Right now it's just a
+// circle" — Oscar). Contrast + size are what make a wing register at ~25px.
+const BIRD_WING = '#FFFDF2';
+const BIRD_WING_BACK = '#F0961A';
 const BIRD_BEAK = '#F2542D';
 const BIRD_OUTLINE = '#5B3A1A';
 
@@ -98,15 +106,33 @@ export function FlappyBirdGame({ points, highScore, onNewHighScore, onExit }: Pr
 
   const scoreScale = useSharedValue(1);
   const lastScoreRef = useRef(0);
+  const dingedRef = useRef(false);
   useEffect(() => {
+    // A restart goes 'over' -> 'playing' with the score back at 0 (never via
+    // 'ready'), so a score BELOW the last one seen means a new run began.
+    // Without this the second run's first points did nothing until they
+    // passed the previous run's score.
+    if (state.score < lastScoreRef.current) {
+      lastScoreRef.current = 0;
+      dingedRef.current = false;
+    }
     if (state.score > lastScoreRef.current) {
       lastScoreRef.current = state.score;
       scoreScale.value = withSpring(1.25, { damping: 6 }, () => {
         scoreScale.value = withSpring(1);
       });
+      // A soft blip per pipe; one "ding" — instead of, not on top of, that
+      // pipe's blip — the first time a run passes the player's own best. No
+      // ding when there's no best yet (highScore 0): the first run would
+      // otherwise ding on its very first pipe.
+      if (highScore > 0 && state.score > highScore && !dingedRef.current) {
+        dingedRef.current = true;
+        playCue('best');
+      } else {
+        playCue('pipe');
+      }
     }
-    if (state.status === 'ready') lastScoreRef.current = 0;
-  }, [state.score, state.status, scoreScale]);
+  }, [state.score, highScore, scoreScale]);
   const scoreStyle = useAnimatedStyle(() => ({ transform: [{ scale: scoreScale.value }] }));
 
   const flashOpacity = useSharedValue(0);
@@ -114,12 +140,23 @@ export function FlappyBirdGame({ points, highScore, onNewHighScore, onExit }: Pr
   useEffect(() => {
     if (state.status === 'over' && !flashedRef.current) {
       flashedRef.current = true;
+      playCue('death');
       flashOpacity.value = 0.35;
       flashOpacity.value = withTiming(0, { duration: 350 });
     }
     if (state.status !== 'over') flashedRef.current = false;
   }, [state.status, flashOpacity]);
   const flashStyle = useAnimatedStyle(() => ({ opacity: flashOpacity.value }));
+
+  // The game's blips mix over whatever the user is playing rather than
+  // ducking it on every pipe (see GAME_AUDIO_MODE); put the app's normal
+  // mode back on the way out so the timers behave exactly as before.
+  useEffect(() => {
+    setAudioModeAsync(GAME_AUDIO_MODE).catch((e) => console.error('game audio mode failed:', e));
+    return () => {
+      setAudioModeAsync(DEFAULT_AUDIO_MODE).catch((e) => console.error('audio mode restore failed:', e));
+    };
+  }, []);
 
   const { width, height } = size;
   const scaleX = width / DEFAULT_CONFIG.worldWidth;
@@ -132,7 +169,26 @@ export function FlappyBirdGame({ points, highScore, onNewHighScore, onExit }: Pr
   const tilt = Math.max(-30, Math.min(50, state.bird.vy * 2.2));
   const birdCx = px(DEFAULT_CONFIG.birdX);
   const birdCy = py(state.bird.y);
-  const birdR = px(DEFAULT_CONFIG.birdRadius);
+  // The sprite is drawn ~30% larger than the physics hitbox (the usual
+  // forgiving-hitbox convention) so the wings, eye and beak actually read on
+  // a phone; collision in flappyPhysics.ts is unchanged.
+  const birdR = px(DEFAULT_CONFIG.birdRadius) * 1.3;
+  const outlineW = Math.max(1.5, birdR * 0.09);
+  // Flap: a steady wing-beat while playing, bigger strokes while the pull is
+  // actually lifting the bird, drooped after a crash, relaxed before start.
+  const wingAngle = state.status === 'playing'
+    ? Math.sin(state.elapsedSec * 2 * Math.PI * 7) * (state.bird.vy < 0 ? 38 : 16)
+    : state.status === 'over' ? -32 : -8;
+  // A leaf-shaped wing hinged at its shoulder (x0, y0), sweeping back and
+  // slightly down; `k` scales it. Rotating the group about the shoulder is
+  // what makes it flap.
+  const wingPath = (x0: number, y0: number, k: number) =>
+    `M ${x0} ${y0} C ${x0 - 0.5 * k} ${y0 - 0.75 * k}, ${x0 - 1.45 * k} ${y0 - 0.55 * k}, ${x0 - 1.6 * k} ${y0 + 0.15 * k} ` +
+    `C ${x0 - 1.35 * k} ${y0 + 0.55 * k}, ${x0 - 0.7 * k} ${y0 + 0.7 * k}, ${x0} ${y0 + 0.35 * k} Z`;
+  const fwx = birdCx - birdR * 0.05;
+  const fwy = birdCy + birdR * 0.1;
+  const bwx = birdCx - birdR * 0.15;
+  const bwy = birdCy - birdR * 0.2;
 
   return (
     <View style={styles.root}>
@@ -216,17 +272,37 @@ export function FlappyBirdGame({ points, highScore, onNewHighScore, onExit }: Pr
               })}
 
               <G transform={`rotate(${tilt} ${birdCx} ${birdCy})`}>
-                <Ellipse cx={birdCx - birdR * 0.1} cy={birdCy + birdR * 0.1} rx={birdR * 0.6} ry={birdR * 0.42} fill={BIRD_WING} stroke={BIRD_OUTLINE} strokeWidth={1.5} />
-                <Circle cx={birdCx} cy={birdCy} r={birdR} fill={BIRD_BODY} stroke={BIRD_OUTLINE} strokeWidth={2} />
-                <Ellipse cx={birdCx + birdR * 0.1} cy={birdCy + birdR * 0.3} rx={birdR * 0.55} ry={birdR * 0.4} fill={BIRD_BELLY} />
-                <Circle cx={birdCx + birdR * 0.35} cy={birdCy - birdR * 0.3} r={birdR * 0.3} fill="#FFFFFF" stroke={BIRD_OUTLINE} strokeWidth={1} />
-                <Circle cx={birdCx + birdR * 0.45} cy={birdCy - birdR * 0.3} r={birdR * 0.13} fill="#1A1A1A" />
+                {/* Back wing: behind the body, peeking out above/behind it. */}
+                <G transform={`rotate(${wingAngle * 0.8 + 14} ${bwx} ${bwy})`}>
+                  <Path d={wingPath(bwx, bwy, birdR * 0.85)} fill={BIRD_WING_BACK} stroke={BIRD_OUTLINE} strokeWidth={outlineW} strokeLinejoin="round" />
+                </G>
+                <Circle cx={birdCx} cy={birdCy} r={birdR} fill={BIRD_BODY} stroke={BIRD_OUTLINE} strokeWidth={outlineW * 1.2} />
+                <Ellipse cx={birdCx + birdR * 0.1} cy={birdCy + birdR * 0.32} rx={birdR * 0.55} ry={birdR * 0.4} fill={BIRD_BELLY} />
+                {/* The eye is deliberately huge — the original's giant eyeball is
+                    half its charm — with the pupil pushed to the front edge
+                    for a permanent wide-eyed stare, and a tiny glint. */}
+                <Circle cx={birdCx + birdR * 0.34} cy={birdCy - birdR * 0.26} r={birdR * 0.52} fill="#FFFFFF" stroke={BIRD_OUTLINE} strokeWidth={outlineW} />
+                <Circle cx={birdCx + birdR * 0.5} cy={birdCy - birdR * 0.22} r={birdR * 0.24} fill="#1A1A1A" />
+                <Circle cx={birdCx + birdR * 0.57} cy={birdCy - birdR * 0.31} r={birdR * 0.07} fill="#FFFFFF" />
                 <Path
                   d={`M ${birdCx + birdR * 0.85} ${birdCy - birdR * 0.05} L ${birdCx + birdR * 1.55} ${birdCy + birdR * 0.12} L ${birdCx + birdR * 0.85} ${birdCy + birdR * 0.32} Z`}
                   fill={BIRD_BEAK}
                   stroke={BIRD_OUTLINE}
-                  strokeWidth={1}
+                  strokeWidth={outlineW * 0.7}
+                  strokeLinejoin="round"
                 />
+                {/* Front wing: over the body, the one you actually see flap. */}
+                <G transform={`rotate(${wingAngle} ${fwx} ${fwy})`}>
+                  <Path d={wingPath(fwx, fwy, birdR)} fill={BIRD_WING} stroke={BIRD_OUTLINE} strokeWidth={outlineW} strokeLinejoin="round" />
+                  <Path
+                    d={`M ${fwx - birdR * 0.45} ${fwy + birdR * 0.12} L ${fwx - birdR * 1.15} ${fwy + birdR * 0.05} M ${fwx - birdR * 0.4} ${fwy + birdR * 0.28} L ${fwx - birdR * 0.95} ${fwy + birdR * 0.3}`}
+                    stroke={BIRD_OUTLINE}
+                    strokeWidth={outlineW * 0.6}
+                    strokeLinecap="round"
+                    fill="none"
+                    opacity={0.55}
+                  />
+                </G>
               </G>
             </Svg>
           </>
