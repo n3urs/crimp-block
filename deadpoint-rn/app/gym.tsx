@@ -124,7 +124,7 @@ export default function Gym() {
           <Text style={styles.title}>GYM STATION</Text>
         </Pressable>
         {!kiosk && (
-          <Pressable onPress={() => router.back()} hitSlop={16} accessibilityRole="button" accessibilityLabel="Exit gym station">
+          <Pressable onPress={() => router.back()} hitSlop={16} style={styles.exitButton} accessibilityRole="button" accessibilityLabel="Exit gym station">
             <Text style={styles.exit}>EXIT</Text>
           </Pressable>
         )}
@@ -200,8 +200,11 @@ export default function Gym() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: Colours.bg, paddingHorizontal: 16 },
-  headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
+  // Title centred, not left: iPadOS windowed mode draws its window-control
+  // dots over the top-left corner.
+  headerRow: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginBottom: 10 },
   title: { ...Fonts.mono(13, 'bold'), color: Colours.fg, letterSpacing: 1.5 },
+  exitButton: { position: 'absolute', right: 0 },
   exit: { ...Fonts.mono(11, 'bold'), color: Colours.faint },
   body: { flex: 1 },
   bodyLandscape: { flexDirection: 'row', gap: 12 },
