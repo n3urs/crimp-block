@@ -27,6 +27,7 @@ import { leadingInt } from '../../src/components/timers/intervalTimerLogic';
 import { getStoredTicks, setStoredTicks } from '../../src/data/tickStorage';
 import { cardMessage } from '../../src/components/daily-card/cardMessage';
 import { syncForecast } from '../../src/widget/syncForecast';
+import { maybeAskForReview } from '../../src/data/reviewPrompt';
 
 /** Port of NativeAppView.dayLetter(_:) — a single-letter weekday
     abbreviation ("M", "T", "W"...) for WeekStrip's tiles. */
@@ -252,6 +253,7 @@ export default function Card() {
       }
       await store.set(today, displayKey, sub ?? null);
       setCelebrationTrigger((t) => t + 1); // fires on logging TODAY, never on undo
+      void maybeAskForReview(Object.keys(store.days).length + 1);
     }
     setBrowsedKey(null); // logging/undoing TODAY resets browsing
   }, [isLogged, store, loads, today, displayKey, exercises, ticks]);
