@@ -15,7 +15,7 @@
     the one place the station advertises; edit PROMO_LINE when the launch
     code changes. */
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, BackHandler, KeyboardAvoidingView, Modal, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Alert, BackHandler, KeyboardAvoidingView, Modal, Platform, Pressable, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useKeepAwake } from 'expo-keep-awake';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -40,6 +40,10 @@ export default function Gym() {
   useKeepAwake();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  // A tablet on a stand is often landscape: put the board beside the game
+  // there instead of squashing the game between header and board.
+  const { width, height } = useWindowDimensions();
+  const landscape = width > height * 1.1;
   const { session, signOut } = useSession();
   // The kiosk account (src/data/kiosk.ts) can't leave this screen: no EXIT,
   // no Android back. Staff sign out by holding the title for 3 seconds.
@@ -126,36 +130,40 @@ export default function Gym() {
         )}
       </View>
 
-      {isLive ? (
-        <View style={styles.game}>
-          <FlappyBirdGame points={points} highScore={weekBest} onNewHighScore={noop} onGameOver={onGameOver} />
-        </View>
-      ) : (
-        <View style={styles.connecting}>
-          <ActivityIndicator color={ACCENT} />
-          <Text style={styles.connectingText}>
-            {status === 'connecting' ? 'Connecting to the force gauge…' : 'Looking for the force gauge…'}
-          </Text>
-          <Text style={styles.connectingHint}>Switch the gauge on and keep it close to this device.</Text>
-        </View>
-      )}
-
-      <View style={styles.board} accessible accessibilityLabel="This week's top scores">
-        <Text style={styles.boardTitle}>THIS WEEK</Text>
-        {board.length === 0 ? (
-          <Text style={styles.boardEmpty}>No scores yet. Be the first.</Text>
-        ) : (
-          board.map((entry, i) => (
-            <View key={`${entry.at}-${i}`} style={styles.boardRow}>
-              <Text style={[styles.rank, i === 0 && { color: ACCENT }]}>{i + 1}</Text>
-              <Text style={[styles.boardName, i === 0 && { color: ACCENT }]} numberOfLines={1}>{entry.name}</Text>
-              <Text style={[styles.boardScore, i === 0 && { color: ACCENT }]}>{entry.score}</Text>
+      <View style={[styles.body, landscape && styles.bodyLandscape]}>
+        <View style={styles.main}>
+          {isLive ? (
+            <FlappyBirdGame points={points} highScore={weekBest} onNewHighScore={noop} onGameOver={onGameOver} />
+          ) : (
+            <View style={styles.connecting}>
+              <ActivityIndicator color={ACCENT} />
+              <Text style={styles.connectingText}>
+                {status === 'connecting' ? 'Connecting to the force gauge…' : 'Looking for the force gauge…'}
+              </Text>
+              <Text style={styles.connectingHint}>Switch the gauge on and keep it close to this device.</Text>
             </View>
-          ))
-        )}
-      </View>
+          )}
+        </View>
 
-      <Text style={styles.promo} numberOfLines={2}>{PROMO_LINE}</Text>
+        <View style={landscape ? styles.sideLandscape : undefined}>
+          <View style={styles.board} accessible accessibilityLabel="This week's top scores">
+            <Text style={styles.boardTitle}>THIS WEEK</Text>
+            {board.length === 0 ? (
+              <Text style={styles.boardEmpty}>No scores yet. Be the first.</Text>
+            ) : (
+              board.map((entry, i) => (
+                <View key={`${entry.at}-${i}`} style={styles.boardRow}>
+                  <Text style={[styles.rank, i === 0 && { color: ACCENT }]}>{i + 1}</Text>
+                  <Text style={[styles.boardName, i === 0 && { color: ACCENT }]} numberOfLines={1}>{entry.name}</Text>
+                  <Text style={[styles.boardScore, i === 0 && { color: ACCENT }]}>{entry.score}</Text>
+                </View>
+              ))
+            )}
+          </View>
+
+          <Text style={styles.promo} numberOfLines={3}>{PROMO_LINE}</Text>
+        </View>
+      </View>
 
       <Modal visible={pending != null} transparent animationType="fade" onRequestClose={() => pending != null && commit(pending, name)}>
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.modalBackdrop}>
@@ -195,7 +203,10 @@ const styles = StyleSheet.create({
   headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
   title: { ...Fonts.mono(13, 'bold'), color: Colours.fg, letterSpacing: 1.5 },
   exit: { ...Fonts.mono(11, 'bold'), color: Colours.faint },
-  game: { flex: 1 },
+  body: { flex: 1 },
+  bodyLandscape: { flexDirection: 'row', gap: 12 },
+  main: { flex: 1 },
+  sideLandscape: { width: 300, justifyContent: 'space-between' },
   connecting: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 10 },
   connectingText: { fontSize: 16, color: Colours.fg, textAlign: 'center' },
   connectingHint: { fontSize: 13, color: Colours.dim, textAlign: 'center', paddingHorizontal: 24 },
