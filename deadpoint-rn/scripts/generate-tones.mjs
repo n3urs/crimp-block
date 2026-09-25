@@ -94,13 +94,29 @@ function renderMelody(cue) {
     over a real gym, these play every second or two in someone's hands and
     must never startle. */
 const GAME_CUES = {
-  // One short, quiet bell note per pipe — a tick, not a jingle.
-  pipe: () => renderNotes([[784, 0]], 0.14, 0.2),
+  // One short, quiet bell note per pipe — a tick, not a jingle. Slightly
+  // longer than the first cut (0.14s) with a fade to zero: Oscar liked the
+  // sound but said it "cuts off very sharply at the end and almost clips".
+  pipe: () => fadeOut(renderNotes([[784, 0]], 0.22, 0.2), 110),
   // A soft two-note "ding-ding" upwards, only when a run passes the player's own best.
-  best: () => renderNotes([[1319, 0], [1760, 0.09]], 0.5, 0.26),
+  best: () => fadeOut(renderNotes([[1319, 0], [1760, 0.09]], 0.5, 0.26), 180),
   // A gentle falling glide, A4 -> A3: reads as "oh well", not as an alarm.
-  death: () => glide(440, 220, 0.45, 0.3),
+  death: () => fadeOut(glide(440, 220, 0.45, 0.3), 140),
 };
+
+/** Smooths the end of a rendered cue: a raised-cosine fade to exactly zero
+    over the last `ms`. pianoish() and glide() decay to only ~10% / ~5% of
+    their peak by the final sample, so a buffer that simply ends there stops
+    a still-ringing note with an audible click. Applied to the GAME cues
+    only — the timer cues are deliberately left byte-identical. */
+function fadeOut(samples, ms) {
+  const n = Math.min(samples.length, Math.round((ms / 1000) * SAMPLE_RATE));
+  const start = samples.length - n;
+  for (let i = 0; i < n; i++) {
+    samples[start + i] *= 0.5 * (1 + Math.cos(Math.PI * (i / n)));
+  }
+  return samples;
+}
 
 /** A sine that sweeps exponentially (i.e. evenly in pitch) from one
     frequency to another, with a quick attack and a decay to ~5%. The phase is

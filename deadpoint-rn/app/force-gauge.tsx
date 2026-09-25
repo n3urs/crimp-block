@@ -214,6 +214,8 @@ export default function ForceGauge() {
             highScore={flappyHighScore}
             onNewHighScore={recordFlappyHighScore}
             onExit={() => setPlaying(false)}
+            onTare={tare}
+            taring={taring}
           />
         ) : (
           <>

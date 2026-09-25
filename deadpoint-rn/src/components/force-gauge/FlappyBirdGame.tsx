@@ -25,6 +25,8 @@ import { DEFAULT_CONFIG } from '../../data/forceGauge/flappyPhysics';
 import { setAudioModeAsync } from 'expo-audio';
 import { DEFAULT_AUDIO_MODE, GAME_AUDIO_MODE } from '../timers/audioMode';
 import { play as playCue } from '../timers/tones';
+import { GymLeaderboard, PullPrompt } from './GymLeaderboard';
+import type { BoardEntry } from '../../data/forceGauge/gymBoard';
 
 const ACCENT = resolveColour('--gorse');
 
@@ -64,9 +66,20 @@ interface Props {
   /** Fires once at the end of every round (the gym station's board needs
       every score, not just personal bests). */
   onGameOver?: (score: number) => void;
+  /** The gym station's top-5. When given, the waiting and game-over screens
+      show it big (and the game-over screen turns back into the waiting
+      screen after a few idle seconds). Omit for the personal game. */
+  leaderboard?: BoardEntry[];
+  /** Zero the gauge. Shown only between rounds, never mid-run. */
+  onTare?: () => void;
+  taring?: boolean;
 }
 
-export function FlappyBirdGame({ points, highScore, onNewHighScore, onExit, onGameOver }: Props) {
+/** After a game over, how long until the station goes back to its waiting
+    screen (leaderboard + "PULL TO START") for the next person. */
+const IDLE_AFTER_OVER_MS = 12000;
+
+export function FlappyBirdGame({ points, highScore, onNewHighScore, onExit, onGameOver, leaderboard, onTare, taring }: Props) {
   const [size, setSize] = useState({ width: 0, height: 0 });
   // Starting (and restarting) is entirely internal to the hook now — a
   // real pull on the gauge, not a tap on the screen (Oscar: hands are
@@ -87,17 +100,31 @@ export function FlappyBirdGame({ points, highScore, onNewHighScore, onExit, onGa
   const isNewHighScore = state.status === 'over' && state.score > highScore && state.score > 0;
   const displayHighScore = Math.max(highScore, state.score);
 
+  // Station mode only: a few seconds after a game over the last player's
+  // score steps aside for the waiting screen, so the next person walking up
+  // sees the board and "PULL TO START", not a stranger's result.
+  const station = leaderboard != null;
+  const [overIdle, setOverIdle] = useState(false);
+  useEffect(() => {
+    setOverIdle(false);
+    if (!station || state.status !== 'over') return;
+    const t = setTimeout(() => setOverIdle(true), IDLE_AFTER_OVER_MS);
+    return () => clearTimeout(t);
+  }, [station, state.status]);
+  const showWaiting = state.status === 'ready' || (station && state.status === 'over' && overIdle);
+  const showOver = state.status === 'over' && !(station && overIdle);
+
   const overOpacity = useSharedValue(0);
   const overScale = useSharedValue(0.9);
   useEffect(() => {
-    if (state.status === 'over') {
+    if (showOver) {
       overOpacity.value = withTiming(1, { duration: 200 });
       overScale.value = withSpring(1, { damping: 14 });
     } else {
       overOpacity.value = 0;
       overScale.value = 0.9;
     }
-  }, [state.status, overOpacity, overScale]);
+  }, [showOver, overOpacity, overScale]);
   const overStyle = useAnimatedStyle(() => ({
     opacity: overOpacity.value,
     transform: [{ scale: overScale.value }],
@@ -105,8 +132,8 @@ export function FlappyBirdGame({ points, highScore, onNewHighScore, onExit, onGa
 
   const readyOpacity = useSharedValue(1);
   useEffect(() => {
-    readyOpacity.value = withTiming(state.status === 'ready' ? 1 : 0, { duration: 200 });
-  }, [state.status, readyOpacity]);
+    readyOpacity.value = withTiming(showWaiting ? 1 : 0, { duration: 200 });
+  }, [showWaiting, readyOpacity]);
   const readyStyle = useAnimatedStyle(() => ({ opacity: readyOpacity.value }));
 
   const scoreScale = useSharedValue(1);
@@ -164,6 +191,11 @@ export function FlappyBirdGame({ points, highScore, onNewHighScore, onExit, onGa
   }, []);
 
   const { width, height } = size;
+  // Leaderboard sizing (station mode): rows scale with the play area, so it
+  // is big on a tablet and still fits a phone.
+  const boardWidth = Math.min(width * 0.92, 640);
+  const heroUnit = Math.max(30, Math.min(64, height / 11));
+  const overUnit = Math.max(24, Math.min(46, height / 16));
   const scaleX = width / DEFAULT_CONFIG.worldWidth;
   const scaleY = height / DEFAULT_CONFIG.worldHeight;
   const px = (x: number) => x * scaleX;
@@ -199,11 +231,26 @@ export function FlappyBirdGame({ points, highScore, onNewHighScore, onExit, onGa
     <View style={styles.root}>
       <View style={styles.headerRow}>
         <Text style={styles.headerLabel}>BEST {displayHighScore}</Text>
-        {onExit != null && (
-          <Pressable onPress={onExit} hitSlop={12} accessibilityRole="button" accessibilityLabel="Exit game">
-            <Text style={styles.exit}>EXIT</Text>
-          </Pressable>
-        )}
+        <View style={styles.headerActions}>
+          {onTare != null && state.status !== 'playing' && (
+            <Pressable
+              onPress={onTare}
+              disabled={taring}
+              hitSlop={12}
+              accessibilityRole="button"
+              accessibilityLabel="Zero the gauge"
+              accessibilityHint="Zeroes the gauge. Take your hands off it first."
+              accessibilityState={{ disabled: !!taring, busy: !!taring }}
+            >
+              <Text style={[styles.zero, taring && styles.zeroBusy]}>{taring ? 'ZEROING…' : 'ZERO'}</Text>
+            </Pressable>
+          )}
+          {onExit != null && (
+            <Pressable onPress={onExit} hitSlop={12} accessibilityRole="button" accessibilityLabel="Exit game">
+              <Text style={styles.exit}>EXIT</Text>
+            </Pressable>
+          )}
+        </View>
       </View>
 
       <View
@@ -318,15 +365,30 @@ export function FlappyBirdGame({ points, highScore, onNewHighScore, onExit, onGa
         <Animated.View style={[styles.flash, flashStyle]} pointerEvents="none" />
 
         <Animated.View style={[styles.centerPanel, readyStyle]} pointerEvents="none">
-          <Text style={styles.readyText}>PULL TO START</Text>
+          {station ? (
+            // Mounted only while showing, so the rows drop in afresh each time.
+            showWaiting && (
+              <View style={{ width: boardWidth, alignItems: 'center' }}>
+                <GymLeaderboard entries={leaderboard} unit={heroUnit} />
+                <PullPrompt label="PULL TO START" size={heroUnit * 0.5} />
+              </View>
+            )
+          ) : (
+            <Text style={styles.readyText}>PULL TO START</Text>
+          )}
         </Animated.View>
 
         <Animated.View style={[styles.centerPanel, overStyle]} pointerEvents="none">
           <Text style={styles.overTitle}>GAME OVER</Text>
           <Text style={styles.overScore}>{state.score}</Text>
           <Text style={[styles.overHighScore, isNewHighScore && { color: Colours.go }]}>
-            {isNewHighScore ? 'NEW HIGH SCORE' : `BEST ${displayHighScore}`}
+            {isNewHighScore ? (station ? 'NEW WEEK BEST' : 'NEW HIGH SCORE') : `BEST ${displayHighScore}`}
           </Text>
+          {station && showOver && (
+            <View style={{ width: boardWidth, marginTop: 10 }}>
+              <GymLeaderboard entries={leaderboard} unit={overUnit} />
+            </View>
+          )}
           <Text style={styles.overHint}>PULL TO PLAY AGAIN</Text>
         </Animated.View>
       </View>
@@ -338,6 +400,9 @@ const styles = StyleSheet.create({
   root: { flex: 1 },
   headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
   headerLabel: { ...Fonts.mono(10, 'bold'), color: Colours.dim, letterSpacing: 1 },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 18 },
+  zero: { ...Fonts.mono(12, 'bold'), color: ACCENT },
+  zeroBusy: { color: Colours.dim },
   exit: { ...Fonts.mono(12, 'bold'), color: Colours.faint },
   playArea: { flex: 1, borderRadius: 8, overflow: 'hidden', backgroundColor: SKY_TOP },
   flash: { ...StyleSheet.absoluteFill, backgroundColor: Colours.restC },

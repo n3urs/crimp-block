@@ -65,3 +65,30 @@ test('the board survives a save and load, and garbage in storage reads as empty'
   await AsyncStorage.setItem('gymBoard', JSON.stringify([{ name: 'X' }, e('OK', 3)]));
   expect(await loadBoard()).toEqual([e('OK', 3)]);
 });
+
+test('one entry per name: the best score wins, wherever it was set', () => {
+  const entries = [e('ISAAC', 4, FRI - 3000), e('ISAAC', 9, FRI - 2000), e('ISAAC', 6, FRI - 1000), e('OSCAR', 5)];
+  expect(thisWeeksBoard(entries, FRI).map((x) => `${x.name}:${x.score}`)).toEqual(['ISAAC:9', 'OSCAR:5']);
+});
+
+test('a name with several tries takes one place, not several', () => {
+  const entries = [e('A', 8), e('A', 7), e('A', 6), e('B', 5), e('C', 4), e('D', 3), e('E', 2), e('F', 1)];
+  expect(thisWeeksBoard(entries, FRI).map((x) => x.name)).toEqual(['A', 'B', 'C', 'D', 'E']);
+});
+
+test('a lower score under the same name changes nothing; a higher one replaces it', () => {
+  const start = [e('ISAAC', 9), e('OSCAR', 5)];
+  expect(addToBoard(start, e('ISAAC', 4), FRI)).toEqual([e('ISAAC', 9), e('OSCAR', 5)]);
+  const better = addToBoard(start, e('ISAAC', 12), FRI);
+  expect(better.map((x) => `${x.name}:${x.score}`)).toEqual(['ISAAC:12', 'OSCAR:5']);
+});
+
+test('a surname initial keeps two people with the same first name apart', () => {
+  const board = addToBoard([e('ISAAC', 9)], e('ISAAC P', 7), FRI);
+  expect(board.map((x) => x.name)).toEqual(['ISAAC', 'ISAAC P']);
+});
+
+test('extra spaces in a name are collapsed so "isaac   p" and "Isaac P" are one person', () => {
+  expect(cleanName('isaac    p')).toBe('ISAAC P');
+  expect(cleanName('  Isaac   P  ')).toBe('ISAAC P');
+});

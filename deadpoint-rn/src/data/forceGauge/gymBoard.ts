@@ -19,11 +19,19 @@ export function weekStartMs(nowMs: number): number {
   return new Date(d.getFullYear(), d.getMonth(), d.getDate() - daysSinceMonday).getTime();
 }
 
-/** This week's entries, best first (earlier wins a tie), top five. */
+/** This week's board: ONE entry per name (the best score under it wins, so
+    someone's repeat tries never stack up), best first, earlier wins a tie,
+    top five. Two people with the same first name tell themselves apart by
+    typing a surname initial ("ISAAC P"). */
 export function thisWeeksBoard(entries: BoardEntry[], nowMs: number): BoardEntry[] {
   const start = weekStartMs(nowMs);
-  return entries
-    .filter((x) => x.at >= start)
+  const best = new Map<string, BoardEntry>();
+  for (const x of entries) {
+    if (x.at < start) continue;
+    const prev = best.get(x.name);
+    if (!prev || x.score > prev.score || (x.score === prev.score && x.at < prev.at)) best.set(x.name, x);
+  }
+  return [...best.values()]
     .sort((a, b) => b.score - a.score || a.at - b.at)
     .slice(0, BOARD_SIZE);
 }
@@ -39,7 +47,7 @@ export function addToBoard(entries: BoardEntry[], entry: BoardEntry, nowMs: numb
 }
 
 export function cleanName(raw: string): string {
-  return raw.toUpperCase().replace(/[^A-Z0-9 ]/g, '').trim().slice(0, 10) || 'ANON';
+  return raw.toUpperCase().replace(/[^A-Z0-9 ]/g, '').replace(/\s+/g, ' ').trim().slice(0, 10) || 'ANON';
 }
 
 const isEntry = (x: any): x is BoardEntry =>
