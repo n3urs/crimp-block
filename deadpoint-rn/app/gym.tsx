@@ -29,6 +29,8 @@ import { useForceGauge } from '../src/data/forceGauge/useForceGauge';
 import { getKioskMode, setKioskMode } from '../src/data/deviceFlags';
 import { FlappyBirdGame } from '../src/components/force-gauge/FlappyBirdGame';
 import { GymLeaderboard } from '../src/components/force-gauge/GymLeaderboard';
+import { GaugeLostNotice } from '../src/components/force-gauge/GaugeLostNotice';
+import { gymConnectionNotice } from '../src/data/forceGauge/gymConnection';
 import {
   addToBoard, cleanName, loadBoard, qualifiesForBoard, saveBoard, thisWeeksBoard, type BoardEntry,
 } from '../src/data/forceGauge/gymBoard';
@@ -126,6 +128,12 @@ export default function Gym() {
   }, [pending, name, commit]);
 
   const isLive = status === 'connected';
+  // Has the gauge ever been connected on this screen? After that, going
+  // quiet means it switched itself off (its battery saving) and needs
+  // power-cycling — a different message from the start-up search.
+  const [wasConnected, setWasConnected] = useState(false);
+  useEffect(() => { if (status === 'connected') setWasConnected(true); }, [status]);
+  const notice = gymConnectionNotice(status, wasConnected);
   const boardWidth = Math.min(width * 0.9, 560);
   const boardUnit = Math.max(30, Math.min(56, boardWidth / 9));
 
@@ -155,11 +163,15 @@ export default function Gym() {
           />
         ) : (
           <View style={styles.connecting}>
-            <ActivityIndicator color={ACCENT} />
-            <Text style={styles.connectingText}>
-              {status === 'connecting' ? 'Connecting to the force gauge…' : 'Looking for the force gauge…'}
-            </Text>
-            <Text style={styles.connectingHint}>Switch the gauge on and keep it close to this device.</Text>
+            {notice?.lost ? (
+              <GaugeLostNotice headline={notice.headline} hint={notice.hint} width={boardWidth} />
+            ) : (
+              <>
+                <ActivityIndicator color={ACCENT} />
+                <Text style={styles.connectingText}>{notice?.headline}</Text>
+                <Text style={styles.connectingHint}>{notice?.hint}</Text>
+              </>
+            )}
             <View style={{ width: boardWidth, marginTop: 28 }}>
               <GymLeaderboard entries={board} unit={boardUnit} />
             </View>
