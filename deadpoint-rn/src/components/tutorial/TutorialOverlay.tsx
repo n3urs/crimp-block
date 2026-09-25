@@ -5,6 +5,7 @@ import Svg, { Path, Polyline } from 'react-native-svg';
 import { Colours, resolveColour } from '../../design/colours';
 import { Fonts } from '../../design/fonts';
 import type { TutorialTargetMap } from './TutorialTargetContext';
+import { ARROW_SIZE, computeCaptionLayout } from './captionLayout';
 import type { useTutorialController } from './TutorialController';
 
 interface Rect { x: number; y: number; width: number; height: number; }
@@ -135,9 +136,12 @@ function PulseRing({ rect }: { rect: Rect }) {
   );
 }
 
-/** Points from the caption card at the spotlight, and bounces towards it.
-    `direction` is which way the hole is from the card. */
-function PointerArrow({ direction }: { direction: 'up' | 'down' }) {
+/** Sits just outside the spotlight's edge, over the highlighted box itself
+    (position from captionLayout.ts), and bounces towards it. `direction` is
+    which way the box is from the arrow. Absolutely positioned in the
+    overlay's own coordinates — NOT inside the caption card, whose centre
+    has nothing to do with where the box is. */
+function PointerArrow({ direction, left, top }: { direction: 'up' | 'down'; left: number; top: number }) {
   const bounce = useSharedValue(0);
   useEffect(() => {
     bounce.value = withRepeat(withTiming(1, { duration: 620, easing: Easing.inOut(Easing.ease) }), -1, true);
@@ -146,8 +150,8 @@ function PointerArrow({ direction }: { direction: 'up' | 'down' }) {
     transform: [{ translateY: (direction === 'up' ? -1 : 1) * bounce.value * 7 }],
   }));
   return (
-    <Animated.View pointerEvents="none" style={[styles.pointerArrow, direction === 'up' ? styles.pointerArrowUp : styles.pointerArrowDown, style]}>
-      <Svg width={34} height={34} viewBox="0 0 24 24" style={{ transform: [{ rotate: direction === 'up' ? '180deg' : '0deg' }] }}>
+    <Animated.View pointerEvents="none" style={[{ position: 'absolute', left, top, width: ARROW_SIZE, height: ARROW_SIZE }, style]}>
+      <Svg width={ARROW_SIZE} height={ARROW_SIZE} viewBox="0 0 24 24" style={{ transform: [{ rotate: direction === 'up' ? '180deg' : '0deg' }] }}>
         <Polyline points="6 9 12 15 18 9" fill="none" stroke={ACCENT} strokeWidth={3.5} strokeLinecap="round" strokeLinejoin="round" />
         <Path d="M12 3 V14" stroke={ACCENT} strokeWidth={3.5} strokeLinecap="round" />
       </Svg>
@@ -169,24 +173,21 @@ function CaptionCard({
 }) {
   const [height, setHeight] = useState(200);
   const cardWidth = Math.min(320, screen.width - 40);
-  const gap = 12;
-  const fitsBelow = anchorRect.y + anchorRect.height + gap + height < screen.height;
-  const top = fitsBelow ? anchorRect.y + anchorRect.height + gap : Math.max(20, anchorRect.y - gap - height);
-  // The hole is above the card when the card sits below it, and vice versa.
-  const arrowDirection: 'up' | 'down' = fitsBelow ? 'up' : 'down';
   const instruction = footerOverride ?? (step.fullScreenSwipeDemo
     ? 'SWIPE THE CARD'
     : `TAP ${step.targetLabel ?? 'THE HIGHLIGHTED AREA'}`);
   // The swipe-demo and measure-failed steps have no single spot to point
   // at — their instruction is about the whole screen.
   const pointsAtSomething = !step.fullScreenSwipeDemo && footerOverride == null;
+  const layout = computeCaptionLayout({ hole: anchorRect, screen, cardHeight: height, showArrow: pointsAtSomething });
 
   return (
+    <>
+    {layout.arrow != null && <PointerArrow direction={layout.arrow.direction} left={layout.arrow.left} top={layout.arrow.top} />}
     <View
-      style={[styles.caption, { width: cardWidth, top: Math.min(top, screen.height - height - 20), left: (screen.width - cardWidth) / 2 }]}
+      style={[styles.caption, { width: cardWidth, top: layout.top, left: (screen.width - cardWidth) / 2 }]}
       onLayout={(e) => setHeight(e.nativeEvent.layout.height)}
     >
-      {pointsAtSomething && <PointerArrow direction={arrowDirection} />}
       <View style={styles.captionHeader}>
         <Text style={styles.captionCounter}>{stepIndex + 1} OF {totalSteps}</Text>
         {/* Was a bare 10px word with no padding — Oscar reported it as hard
@@ -204,6 +205,7 @@ function CaptionCard({
         <Text style={styles.captionInstructionText}>{instruction}</Text>
       </View>
     </View>
+    </>
   );
 }
 
@@ -244,9 +246,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(242,177,52,0.14)', borderWidth: 1, borderColor: 'rgba(242,177,52,0.4)',
   },
   captionInstructionText: { ...Fonts.mono(12, 'bold'), color: ACCENT, letterSpacing: 0.8 },
-  pointerArrow: { position: 'absolute', alignSelf: 'center' },
-  pointerArrowUp: { top: -40 },
-  pointerArrowDown: { bottom: -40 },
   arrowRow: { position: 'absolute', flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 20, height: 90 },
   arrowGlyph: { fontSize: 46, fontWeight: '700', color: Colours.fg },
   arrowLabel: { ...Fonts.mono(13, 'bold'), color: Colours.fg, letterSpacing: 3 },
