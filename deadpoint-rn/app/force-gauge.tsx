@@ -23,6 +23,7 @@ import { loadLocalHighScore, saveLocalHighScore } from '../src/data/forceGauge/f
 import { useSession } from '../src/data/useSession';
 import { useProfile } from '../src/data/useProfile';
 import { FlappyBirdGame } from '../src/components/force-gauge/FlappyBirdGame';
+import { useAwakeWhile } from '../src/components/timers/useAwakeWhile';
 
 const ACCENT = resolveColour('--gorse');
 const Y_LABEL_WIDTH = 30;
@@ -187,6 +188,8 @@ export default function ForceGauge() {
   };
 
   const isLive = status === 'connected';
+  // A hang on the gauge outlasts the screen timeout too: stay on while live.
+  useAwakeWhile(isLive, 'force-gauge');
   const isBusy = status === 'scanning' || status === 'connecting';
 
   return (

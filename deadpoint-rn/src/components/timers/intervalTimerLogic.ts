@@ -82,3 +82,10 @@ export function toneForPhase(phase: Phase): 'go' | 'stop' | null {
   if (phase === 'off' || phase === 'setrest') return 'stop';
   return null; // 'done' plays .done from finish(), not from a phase arrival
 }
+
+/** Whether the screen must stay on for the timer in this state: through
+    every running phase (ready, on, off, set-rest — paused included, the user
+    is still mid-session), but not once it's done or after it's cleared. */
+export function holdsScreenAwake(state: { phase: Phase } | null): boolean {
+  return state != null && state.phase !== 'done';
+}

@@ -1,4 +1,4 @@
-import { advancePhase, leadingInt, statusText, type PhaseState } from '../src/components/timers/intervalTimerLogic';
+import { advancePhase, holdsScreenAwake, leadingInt, statusText, type PhaseState } from '../src/components/timers/intervalTimerLogic';
 
 test('ready advances to on, set/rep unchanged', () => {
   const state: PhaseState = { phase: 'ready', set: 1, rep: 1 };
@@ -71,4 +71,19 @@ test('statusText for setrest', () => {
 
 test('statusText for done', () => {
   expect(statusText({ phase: 'done', set: 3, rep: 5 }, 3, 5)).toBe('DONE — ALL 3 SETS');
+});
+
+// A repeaters user on Android had the screen switch off mid-set: nothing kept
+// it on while the timer ran. The screen must stay on for every phase of a
+// running timer (including paused and set-rest) and release once it's done or
+// gone, so an idle finished timer doesn't drain the battery.
+test('the screen is held awake through every running phase, paused or not', () => {
+  for (const phase of ['ready', 'on', 'off', 'setrest'] as const) {
+    expect(holdsScreenAwake({ phase })).toBe(true);
+  }
+});
+
+test('the screen is released when the timer is done or no timer is running', () => {
+  expect(holdsScreenAwake({ phase: 'done' })).toBe(false);
+  expect(holdsScreenAwake(null)).toBe(false);
 });

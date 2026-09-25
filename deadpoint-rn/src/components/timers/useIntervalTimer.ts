@@ -7,7 +7,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { IntervalConfig } from '../../engine/types';
 import { Motion } from '../../design/motion';
 import { play } from './tones';
-import { advancePhase, leadingInt, statusText, toneForPhase, type Phase, type PhaseState } from './intervalTimerLogic';
+import { advancePhase, holdsScreenAwake, leadingInt, statusText, toneForPhase, type Phase, type PhaseState } from './intervalTimerLogic';
+import { useAwakeWhile } from './useAwakeWhile';
 
 export interface IntervalTimerState {
   phase: Phase;
@@ -38,6 +39,9 @@ function durationFor(phase: Phase, onSecs: number, offSecs: number, setRestSecs:
 
 export function useIntervalTimer() {
   const [state, setState] = useState<IntervalTimerState | null>(null);
+  // Repeaters outlast the phone's screen timeout: hold the screen on for as
+  // long as the timer is running (see useAwakeWhile.ts).
+  useAwakeWhile(holdsScreenAwake(state), 'interval-timer');
   // Mirrors `state` so runTick/finish/pause/resume/toggleMute can read the
   // CURRENT value synchronously without the setState-updater-function
   // form — avoids calling finish() (which itself calls setState) from

@@ -8,6 +8,7 @@ import { Platform } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import { Motion } from '../../design/motion';
 import { play } from './tones';
+import { useAwakeWhile } from './useAwakeWhile';
 import { startRestActivity, endRestActivity } from '../../../modules/rest-timer-activity';
 
 export interface RestTimerState {
@@ -58,6 +59,9 @@ async function cancelCompletionNotification(): Promise<void> {
 
 export function useRestTimer() {
   const [state, setState] = useState<RestTimerState | null>(null);
+  // Same reason as the interval timer: don't let the screen switch off
+  // mid-rest (see useAwakeWhile.ts).
+  useAwakeWhile(state != null, 'rest-timer');
   const endMsRef = useRef<number | null>(null);
   const tickRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
