@@ -287,7 +287,7 @@ export function FlappyBirdGame({ points, highScore, onNewHighScore, onExit, onGa
                 idea as the original's floating background numerals. Its
                 own Animated.View so the pop-on-score animation doesn't
                 have to touch the sky/ground layer at all. */}
-            <Animated.View style={[StyleSheet.absoluteFill, scoreStyle]} pointerEvents="none">
+            <Animated.View style={[StyleSheet.absoluteFill, scoreStyle, station && showWaiting && { opacity: 0 }]} pointerEvents="none">
               <Svg width={width} height={height} style={StyleSheet.absoluteFill}>
                 <SvgText
                   x={width / 2}
