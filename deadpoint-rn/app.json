@@ -3,14 +3,14 @@
     "name": "Deadpoint",
     "slug": "deadpoint",
     "scheme": "deadpointrn",
-    "version": "1.0.3",
+    "version": "1.0.4",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "uk.co.sullivanltd.crimpblock",
-      "buildNumber": "36",
+      "buildNumber": "37",
       "appleTeamId": "87F48SV42Q",
       "entitlements": {
         "com.apple.security.application-groups": [
