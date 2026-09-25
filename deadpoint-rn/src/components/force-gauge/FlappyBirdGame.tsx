@@ -59,10 +59,14 @@ interface Props {
   points: GraphPoint[];
   highScore: number;
   onNewHighScore: (score: number) => void;
-  onExit: () => void;
+  /** Omit to hide the EXIT control (the gym station has its own). */
+  onExit?: () => void;
+  /** Fires once at the end of every round (the gym station's board needs
+      every score, not just personal bests). */
+  onGameOver?: (score: number) => void;
 }
 
-export function FlappyBirdGame({ points, highScore, onNewHighScore, onExit }: Props) {
+export function FlappyBirdGame({ points, highScore, onNewHighScore, onExit, onGameOver }: Props) {
   const [size, setSize] = useState({ width: 0, height: 0 });
   // Starting (and restarting) is entirely internal to the hook now — a
   // real pull on the gauge, not a tap on the screen (Oscar: hands are
@@ -75,9 +79,10 @@ export function FlappyBirdGame({ points, highScore, onNewHighScore, onExit }: Pr
     if (state.status === 'over' && !reportedRef.current) {
       reportedRef.current = true;
       if (state.score > highScore) onNewHighScore(state.score);
+      onGameOver?.(state.score);
     }
     if (state.status === 'playing') reportedRef.current = false;
-  }, [state.status, state.score, highScore, onNewHighScore]);
+  }, [state.status, state.score, highScore, onNewHighScore, onGameOver]);
 
   const isNewHighScore = state.status === 'over' && state.score > highScore && state.score > 0;
   const displayHighScore = Math.max(highScore, state.score);
@@ -194,9 +199,11 @@ export function FlappyBirdGame({ points, highScore, onNewHighScore, onExit }: Pr
     <View style={styles.root}>
       <View style={styles.headerRow}>
         <Text style={styles.headerLabel}>BEST {displayHighScore}</Text>
-        <Pressable onPress={onExit} hitSlop={12} accessibilityRole="button" accessibilityLabel="Exit game">
-          <Text style={styles.exit}>EXIT</Text>
-        </Pressable>
+        {onExit != null && (
+          <Pressable onPress={onExit} hitSlop={12} accessibilityRole="button" accessibilityLabel="Exit game">
+            <Text style={styles.exit}>EXIT</Text>
+          </Pressable>
+        )}
       </View>
 
       <View

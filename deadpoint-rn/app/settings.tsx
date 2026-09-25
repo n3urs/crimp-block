@@ -345,6 +345,15 @@ export default function Settings() {
             accessibilityLabel="Connect to force gauge"
           />
           <SettingsRow
+            icon="play"
+            tint={gorse}
+            title="Gym station"
+            subtitle="Walk-up Flappy Bird with a weekly top 5"
+            trailing="chevron"
+            onPress={() => router.push('/gym')}
+            accessibilityLabel="Open the gym station"
+          />
+          <SettingsRow
             icon="hangboard"
             tint={gorse}
             title="No-hang routine"

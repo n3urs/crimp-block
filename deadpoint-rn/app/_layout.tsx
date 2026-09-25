@@ -102,6 +102,10 @@ export default function RootLayout() {
               directly under app/, so its route name is just
               "force-gauge". */}
           <Stack.Screen name="force-gauge" options={{ presentation: 'modal' }} />
+          {/* Gym station — full-screen kiosk (app/gym.tsx). Full-screen, not
+              a swipe-dismissable card: a phone left running at the gym
+              shouldn't be closed by a stray drag. */}
+          <Stack.Screen name="gym" options={{ presentation: 'fullScreenModal', gestureEnabled: false }} />
           {/* No-hang routine follow-along — app/no-hang.tsx, same
               not-group-qualified naming as force-gauge above. */}
           <Stack.Screen name="no-hang" options={{ presentation: 'modal' }} />
