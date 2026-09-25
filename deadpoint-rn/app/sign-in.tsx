@@ -6,6 +6,8 @@ import { Colours } from '../src/design/colours';
 import { Fonts } from '../src/design/fonts';
 import { resolveColour } from '../src/design/colours';
 import { useSession } from '../src/data/useSession';
+import { isKioskCode } from '../src/data/kiosk';
+import { setKioskMode } from '../src/data/deviceFlags';
 
 type Step = 'email' | 'code';
 const RESEND_COOLDOWN_SECONDS = 30;
@@ -86,6 +88,13 @@ export default function SignIn() {
   };
 
   const sendCode = async () => {
+    // The gym-station code word isn't an account: it turns this device into
+    // the walk-up game (src/data/kiosk.ts) with no email code and no login.
+    if (isKioskCode(email)) {
+      await setKioskMode(true);
+      router.replace('/');
+      return;
+    }
     setSending(true);
     setMessage(null);
     setIsError(false);
@@ -178,8 +187,8 @@ export default function SignIn() {
           />
           <Pressable
             onPress={sendCode}
-            disabled={!emailLooksValid(email) || sending || resendCooldown > 0}
-            style={[styles.button, (!emailLooksValid(email) || sending || resendCooldown > 0) && styles.buttonDisabled]}
+            disabled={!(emailLooksValid(email) || isKioskCode(email)) || sending || resendCooldown > 0}
+            style={[styles.button, (!(emailLooksValid(email) || isKioskCode(email)) || sending || resendCooldown > 0) && styles.buttonDisabled]}
             accessibilityRole="button"
             accessibilityLabel={sendButtonLabel}
           >

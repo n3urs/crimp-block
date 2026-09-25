@@ -22,15 +22,16 @@ export interface RouteInputs {
       Irrelevant (and never read) for a built-in account, whose branch
       above returns before this field is ever consulted. */
   hasActiveSubscription: boolean;
-  /** A gym-station kiosk account (src/data/kiosk.ts): goes straight to
-      /gym, skipping everything below. */
+  /** This device is a gym station (deviceFlags.getKioskMode): straight to
+      /gym, skipping sign-in and everything below. */
   isKiosk: boolean;
 }
 
 export function computeRoute(inputs: RouteInputs): Route {
   if (!inputs.hasSeenWelcome) return '/welcome';
-  if (!inputs.isSignedIn) return '/sign-in';
+  // A kiosk device is the gym station whether or not anyone is signed in.
   if (inputs.isKiosk) return '/gym';
+  if (!inputs.isSignedIn) return '/sign-in';
 
   if (inputs.isBuiltInProgram) {
     // No quiz (their program is hand-authored, nothing to ask) and no
@@ -165,20 +166,22 @@ export interface RouteReadinessInputs {
       entitlementLoaded above, and for the same reason: this must not add
       a stall — or a wrongful retry screen — to a shipped, flag-off build. */
   entitlementFetchFailed: boolean;
-  /** A gym-station kiosk account: its route reads no profile or
-      subscription data, so nothing else gates it. */
-  isKiosk: boolean;
+  /** deviceFlags.getKioskMode(); `null` until the read resolves. A kiosk
+      device's route reads no account, profile or subscription data, so
+      nothing else gates it. */
+  kioskMode: boolean | null;
 }
 
 export function isRouteReady(inputs: RouteReadinessInputs): boolean {
   if (!inputs.authReady) return false;
   if (inputs.hasSeenWelcome == null) return false;
+  if (inputs.kioskMode == null) return false;
+  if (inputs.kioskMode) return true;
   // computeRoute() returns '/sign-in' here without ever consulting a
   // profile or built-in field — so neither should this gate. This is the
   // exact branch that was missing before round 4's regression: nothing
   // else in this function may block readiness for a signed-out user.
   if (!inputs.isSignedIn) return true;
-  if (inputs.isKiosk) return true;
   if (inputs.isBuiltInProgram) return inputs.builtInSeen != null;
   if (inputs.profileFetchFailed) return false;
   if (!inputs.profileLoaded) return false;

@@ -22,8 +22,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colours, resolveColour } from '../src/design/colours';
 import { Fonts } from '../src/design/fonts';
 import { useForceGauge } from '../src/data/forceGauge/useForceGauge';
-import { useSession } from '../src/data/useSession';
-import { isKioskEmail } from '../src/data/kiosk';
+import { getKioskMode, setKioskMode } from '../src/data/deviceFlags';
 import { FlappyBirdGame } from '../src/components/force-gauge/FlappyBirdGame';
 import {
   addToBoard, cleanName, loadBoard, qualifiesForBoard, saveBoard, thisWeeksBoard, type BoardEntry,
@@ -44,23 +43,25 @@ export default function Gym() {
   // there instead of squashing the game between header and board.
   const { width, height } = useWindowDimensions();
   const landscape = width > height * 1.1;
-  const { session, signOut } = useSession();
-  // The kiosk account (src/data/kiosk.ts) can't leave this screen: no EXIT,
-  // no Android back. Staff sign out by holding the title for 3 seconds.
-  const kiosk = isKioskEmail(session?.user?.email);
+  // A kiosk device (typed the kiosk email at sign-in, see kiosk.ts) can't
+  // leave this screen: no EXIT, no Android back. Staff switch it off by
+  // holding the title for 3 seconds. `null` while the flag is being read, so
+  // EXIT never flashes up on a kiosk.
+  const [kiosk, setKiosk] = useState<boolean | null>(null);
+  useEffect(() => { getKioskMode().then(setKiosk).catch(() => setKiosk(false)); }, []);
   useEffect(() => {
-    if (!kiosk) return;
+    if (kiosk !== true) return;
     const sub = BackHandler.addEventListener('hardwareBackPress', () => true);
     return () => sub.remove();
   }, [kiosk]);
   const staffSignOut = () => {
-    Alert.alert('Sign out of the gym station?', 'The station will stop until someone signs in again.', [
+    Alert.alert('Leave the gym station?', 'This device goes back to the normal sign-in screen.', [
       { text: 'Cancel', style: 'cancel' },
       {
-        text: 'Sign out',
+        text: 'Leave',
         style: 'destructive',
         onPress: async () => {
-          try { await signOut(); } catch (e) { console.error('gym: sign out failed:', e); }
+          try { await setKioskMode(false); } catch (e) { console.error('gym: clearing kiosk mode failed:', e); }
           router.replace('/');
         },
       },
@@ -120,10 +121,10 @@ export default function Gym() {
   return (
     <View style={[styles.root, { paddingTop: 16 + insets.top, paddingBottom: 12 + insets.bottom }]}>
       <View style={styles.headerRow}>
-        <Pressable onLongPress={kiosk ? staffSignOut : undefined} delayLongPress={3000} accessible={false}>
+        <Pressable onLongPress={kiosk === true ? staffSignOut : undefined} delayLongPress={3000} accessible={false}>
           <Text style={styles.title}>GYM STATION</Text>
         </Pressable>
-        {!kiosk && (
+        {kiosk === false && (
           <Pressable onPress={() => router.back()} hitSlop={16} style={styles.exitButton} accessibilityRole="button" accessibilityLabel="Exit gym station">
             <Text style={styles.exit}>EXIT</Text>
           </Pressable>

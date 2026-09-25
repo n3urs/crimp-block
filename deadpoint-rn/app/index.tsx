@@ -112,11 +112,10 @@ import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, View } from '
 import { useRouter } from 'expo-router';
 import { useSession, REVIEWER_EMAIL } from '../src/data/useSession';
 import { useProfile } from '../src/data/useProfile';
-import { getHasSeenWelcome, hasSeenBuiltInTutorial } from '../src/data/deviceFlags';
+import { getHasSeenWelcome, getKioskMode, hasSeenBuiltInTutorial } from '../src/data/deviceFlags';
 import { supabase } from '../src/data/supabase';
 import { computeRoute, isBuiltInProgram, isRouteReady, passesPaywall, type Route } from '../src/routing/computeRoute';
 import { PAYWALL_ENABLED, useEntitlement } from '../src/data/subscription';
-import { isKioskEmail } from '../src/data/kiosk';
 import { Colours, resolveColour } from '../src/design/colours';
 import { Fonts } from '../src/design/fonts';
 
@@ -155,8 +154,13 @@ export default function Index() {
   }, []);
 
   const builtIn = isBuiltInProgram(email);
-  // Gym-station account: skips every profile/subscription check below.
-  const kiosk = isKioskEmail(email);
+  // Gym-station device (typed the kiosk email at sign-in): skips every
+  // account/profile/subscription check below.
+  const [kioskMode, setKioskModeState] = useState<boolean | null>(null);
+  useEffect(() => {
+    getKioskMode().then(setKioskModeState).catch(() => setKioskModeState(false));
+  }, []);
+  const kiosk = kioskMode === true;
 
   // See top doc comment (adaptation 2 / Fix 2a): keyed to the email it
   // was computed for, so a stale value left over from a previous email
@@ -224,7 +228,7 @@ export default function Index() {
       hasSeenWelcome,
       isSignedIn: session != null,
       isBuiltInProgram: builtIn,
-      isKiosk: kiosk,
+      kioskMode,
       builtInSeen,
       profileLoaded: profile.loaded,
       profileFetchFailed,

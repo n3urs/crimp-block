@@ -172,7 +172,7 @@ const readyBase: RouteReadinessInputs = {
   // just aren't reached this way in production anymore). Tests further
   // down cover paywallEnabled: true explicitly.
   paywallEnabled: false, entitlementLoaded: false, entitlementFetchFailed: false,
-  isKiosk: false,
+  kioskMode: false,
 };
 
 test('not ready: authReady still false', () => {
@@ -306,21 +306,26 @@ describe('passesPaywall', () => {
   });
 });
 
-// Gym-station kiosk account (src/data/kiosk.ts): signing in with it means
-// "this device is the walk-up game" — straight to /gym, never the quiz,
-// tutorial, paywall or daily card, and never waiting on any of their data.
-test('a kiosk account goes straight to the gym station, skipping quiz, tutorial and paywall', () => {
+// Gym-station kiosk device (src/data/kioskMode.ts): typing the kiosk email at
+// sign-in flips a device flag, after which this device is the walk-up game —
+// straight to /gym with no account, never the quiz, tutorial, paywall or
+// card, and never waiting on any profile or subscription data.
+test('a kiosk device goes straight to the gym station, signed in or not', () => {
+  expect(computeRoute({ ...base, isKiosk: true, isSignedIn: false })).toBe('/gym');
   expect(computeRoute({ ...base, isKiosk: true, hasActiveSubscription: false })).toBe('/gym');
 });
 
-test('welcome and sign-in still come before the kiosk route', () => {
+test('welcome still comes first on a kiosk device', () => {
   expect(computeRoute({ ...base, isKiosk: true, hasSeenWelcome: false })).toBe('/welcome');
-  expect(computeRoute({ ...base, isKiosk: true, isSignedIn: false })).toBe('/sign-in');
 });
 
-test('a kiosk account is ready to route without a profile or subscription check', () => {
+test('a kiosk device is ready to route without an account, profile or subscription check', () => {
   expect(isRouteReady({
-    ...readyBase, isKiosk: true, profileLoaded: false, profileFetchFailed: true,
+    ...readyBase, kioskMode: true, isSignedIn: false, profileLoaded: false, profileFetchFailed: true,
     paywallEnabled: true, entitlementLoaded: false, entitlementFetchFailed: true,
   })).toBe(true);
+});
+
+test('not ready while the kiosk flag is still being read', () => {
+  expect(isRouteReady({ ...readyBase, kioskMode: null })).toBe(false);
 });

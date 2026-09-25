@@ -1,16 +1,17 @@
 // src/data/kiosk.ts
-/** Accounts that turn a device into the gym station. Signing in with one
-    routes straight to app/gym.tsx (see computeRoute.ts) and the screen
-    locks itself down: no way back to the rest of the app, only a hidden
-    staff sign-out. The game shows no paid content, so this skips the
-    paywall without unlocking anything a subscriber pays for.
+/** The gym-station code word. It is NOT an account: typing it into the
+    sign-in screen's email box (app/sign-in.tsx) sets a device flag
+    (deviceFlags.setKioskMode) and jumps straight to app/gym.tsx, with no
+    code emailed and no login. From then on the device routes to the game
+    whether or not anyone is signed in, and the game screen locks itself
+    down (no EXIT, hidden staff exit). Nothing an account owns sits behind
+    it — the game reads no account data and the board is local — so anyone
+    who types the word only gets the game.
 
-    An exact-match list, not a pattern, so no ordinary sign-up can land in
-    it by accident. Changing it needs a new build. The sign-in code goes to
-    this address, so it must be a mailbox someone can read. */
-export const KIOSK_EMAILS = ['gym@getdeadpoint.co.uk'];
+    Exact match, ignoring case and spaces. Changing it needs a new build. */
+export const KIOSK_CODE_WORDS = ['flappybird'];
 
-export function isKioskEmail(email: string | null | undefined): boolean {
-  if (!email) return false;
-  return KIOSK_EMAILS.includes(email.trim().toLowerCase());
+export function isKioskCode(input: string | null | undefined): boolean {
+  if (!input) return false;
+  return KIOSK_CODE_WORDS.includes(input.trim().toLowerCase());
 }

@@ -35,3 +35,16 @@ export async function hasSeenBuiltInTutorial(email: string): Promise<boolean> {
 export async function markBuiltInTutorialSeen(email: string): Promise<void> {
   await AsyncStorage.setItem(builtInTutorialKey(email), 'true');
 }
+
+const KIOSK_MODE_KEY = 'kioskMode';
+
+/** Gym-station kiosk flag (see kiosk.ts). Device-level like hasSeenWelcome:
+    the device IS the station, no account involved. */
+export async function getKioskMode(): Promise<boolean> {
+  return (await AsyncStorage.getItem(KIOSK_MODE_KEY)) === 'true';
+}
+
+export async function setKioskMode(on: boolean): Promise<void> {
+  if (on) await AsyncStorage.setItem(KIOSK_MODE_KEY, 'true');
+  else await AsyncStorage.removeItem(KIOSK_MODE_KEY);
+}

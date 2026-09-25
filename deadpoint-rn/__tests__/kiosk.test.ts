@@ -1,23 +1,24 @@
-/** isKioskEmail — which accounts turn a device into the locked-down gym
-    station (see src/data/kiosk.ts). Exact match on a short list, so no
-    ordinary user can land in it by accident. */
-import { isKioskEmail, KIOSK_EMAILS } from '../src/data/kiosk';
+/** isKioskCode — the code word typed at sign-in that turns a device into the
+    gym station (see src/data/kiosk.ts). Exact match, so nothing an ordinary
+    user types can trigger it by accident. */
+import { isKioskCode, KIOSK_CODE_WORDS } from '../src/data/kiosk';
 
-test('the configured kiosk address is recognised, case and whitespace aside', () => {
-  const email = KIOSK_EMAILS[0];
-  expect(isKioskEmail(email)).toBe(true);
-  expect(isKioskEmail(email.toUpperCase())).toBe(true);
-  expect(isKioskEmail(`  ${email} `)).toBe(true);
+test('the code word is recognised, ignoring case and surrounding spaces', () => {
+  const word = KIOSK_CODE_WORDS[0];
+  expect(isKioskCode(word)).toBe(true);
+  expect(isKioskCode(word.toUpperCase())).toBe(true);
+  expect(isKioskCode(`  ${word} `)).toBe(true);
 });
 
-test('ordinary accounts and empty values are not kiosks', () => {
-  expect(isKioskEmail('someone@example.com')).toBe(false);
-  expect(isKioskEmail('oscar@sullivanltd.co.uk')).toBe(false);
-  expect(isKioskEmail(null)).toBe(false);
-  expect(isKioskEmail('')).toBe(false);
+test('ordinary emails and empty input are not the code word', () => {
+  expect(isKioskCode('someone@example.com')).toBe(false);
+  expect(isKioskCode('oscar@sullivanltd.co.uk')).toBe(false);
+  expect(isKioskCode(null)).toBe(false);
+  expect(isKioskCode('')).toBe(false);
 });
 
-test('no partial matches: a longer address containing the kiosk one is not a kiosk', () => {
-  expect(isKioskEmail(`x${KIOSK_EMAILS[0]}`)).toBe(false);
-  expect(isKioskEmail(`${KIOSK_EMAILS[0]}.evil.com`)).toBe(false);
+test('no partial matches: text merely containing the word is not the code word', () => {
+  expect(isKioskCode(`${KIOSK_CODE_WORDS[0]}@example.com`)).toBe(false);
+  expect(isKioskCode(`my ${KIOSK_CODE_WORDS[0]}`)).toBe(false);
+  expect(isKioskCode(KIOSK_CODE_WORDS[0].slice(0, -1))).toBe(false);
 });
