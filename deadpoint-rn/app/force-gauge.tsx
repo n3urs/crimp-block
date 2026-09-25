@@ -306,6 +306,11 @@ export default function ForceGauge() {
               {status === 'scanning' ? 'SCANNING…' : status === 'idle' ? 'SCAN' : 'SCAN AGAIN'}
             </Text>
           </Pressable>
+          {!isBusy && (
+            <Pressable onPress={() => router.push('/nearby-devices')} hitSlop={12} style={styles.helpLink} accessibilityRole="link">
+              <Text style={styles.helpLinkText}>GAUGE NOT SHOWING UP?</Text>
+            </Pressable>
+          )}
         </>
       )}
     </View>
@@ -349,5 +354,7 @@ const styles = StyleSheet.create({
   deviceAction: { ...Fonts.mono(11, 'bold') },
   scanButton: { paddingVertical: 16, borderRadius: 8, alignItems: 'center', backgroundColor: ACCENT, marginTop: 12 },
   scanButtonDisabled: { opacity: 0.6 },
+  helpLink: { alignItems: 'center', paddingVertical: 16 },
+  helpLinkText: { ...Fonts.mono(11, 'bold'), color: Colours.dim, letterSpacing: 1 },
   scanButtonText: { ...Fonts.mono(13, 'bold'), color: Colours.bg, letterSpacing: 1 },
 });

@@ -102,6 +102,9 @@ export default function RootLayout() {
               directly under app/, so its route name is just
               "force-gauge". */}
           <Stack.Screen name="force-gauge" options={{ presentation: 'modal' }} />
+          {/* "Gauge not showing up?" diagnostic — app/nearby-devices.tsx, same
+              not-group-qualified naming as force-gauge above. */}
+          <Stack.Screen name="nearby-devices" options={{ presentation: 'modal' }} />
           {/* Gym station — full-screen kiosk (app/gym.tsx). Full-screen, not
               a swipe-dismissable card: a phone left running at the gym
               shouldn't be closed by a stray drag. */}
