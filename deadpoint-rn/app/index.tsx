@@ -116,6 +116,7 @@ import { getHasSeenWelcome, hasSeenBuiltInTutorial } from '../src/data/deviceFla
 import { supabase } from '../src/data/supabase';
 import { computeRoute, isBuiltInProgram, isRouteReady, passesPaywall, type Route } from '../src/routing/computeRoute';
 import { PAYWALL_ENABLED, useEntitlement } from '../src/data/subscription';
+import { isKioskEmail } from '../src/data/kiosk';
 import { Colours, resolveColour } from '../src/design/colours';
 import { Fonts } from '../src/design/fonts';
 
@@ -154,6 +155,8 @@ export default function Index() {
   }, []);
 
   const builtIn = isBuiltInProgram(email);
+  // Gym-station account: skips every profile/subscription check below.
+  const kiosk = isKioskEmail(email);
 
   // See top doc comment (adaptation 2 / Fix 2a): keyed to the email it
   // was computed for, so a stale value left over from a previous email
@@ -188,7 +191,7 @@ export default function Index() {
   // something is wrong. A built-in account never needs this guard — its
   // route never reads any profile field at all (confirmed directly
   // against computeRoute.ts's isBuiltInProgram branch).
-  const profileFetchFailed = !builtIn && profile.hasError;
+  const profileFetchFailed = !builtIn && !kiosk && profile.hasError;
 
   // The one derivation both the readiness check and computeRoute() below
   // consume, so they can't disagree. See passesPaywall for why the
@@ -221,6 +224,7 @@ export default function Index() {
       hasSeenWelcome,
       isSignedIn: session != null,
       isBuiltInProgram: builtIn,
+      isKiosk: kiosk,
       builtInSeen,
       profileLoaded: profile.loaded,
       profileFetchFailed,
@@ -239,6 +243,7 @@ export default function Index() {
       isSignedIn: session != null,
       email,
       isBuiltInProgram: builtIn,
+      isKiosk: kiosk,
       hasSeenBuiltInTutorial: builtInSeen ?? false,
       quizCompletedAt: profile.row?.quizCompletedAt ?? null,
       tutorialCompletedAt: profile.row?.tutorialCompletedAt ?? null,
@@ -278,7 +283,7 @@ export default function Index() {
   // reach real servers), and showing this screen unconditionally would be
   // a real regression Task 4's whole "byte for byte identical while
   // PAYWALL_ENABLED is false" proof was built to rule out.
-  if (PAYWALL_ENABLED && entitlement.failed) {
+  if (PAYWALL_ENABLED && !kiosk && entitlement.failed) {
     return (
       <View style={styles.root}>
         <Text style={styles.title}>Couldn't check your subscription</Text>

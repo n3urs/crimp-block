@@ -6,7 +6,7 @@
     renders in place, this returns which single route the caller should
     router.replace() to. */
 
-export type Route = '/welcome' | '/sign-in' | '/quiz' | '/tutorial' | '/rehab-coming-soon' | '/paywall' | '/card';
+export type Route = '/welcome' | '/sign-in' | '/quiz' | '/tutorial' | '/rehab-coming-soon' | '/paywall' | '/card' | '/gym';
 
 export interface RouteInputs {
   hasSeenWelcome: boolean;
@@ -22,11 +22,15 @@ export interface RouteInputs {
       Irrelevant (and never read) for a built-in account, whose branch
       above returns before this field is ever consulted. */
   hasActiveSubscription: boolean;
+  /** A gym-station kiosk account (src/data/kiosk.ts): goes straight to
+      /gym, skipping everything below. */
+  isKiosk: boolean;
 }
 
 export function computeRoute(inputs: RouteInputs): Route {
   if (!inputs.hasSeenWelcome) return '/welcome';
   if (!inputs.isSignedIn) return '/sign-in';
+  if (inputs.isKiosk) return '/gym';
 
   if (inputs.isBuiltInProgram) {
     // No quiz (their program is hand-authored, nothing to ask) and no
@@ -161,6 +165,9 @@ export interface RouteReadinessInputs {
       entitlementLoaded above, and for the same reason: this must not add
       a stall — or a wrongful retry screen — to a shipped, flag-off build. */
   entitlementFetchFailed: boolean;
+  /** A gym-station kiosk account: its route reads no profile or
+      subscription data, so nothing else gates it. */
+  isKiosk: boolean;
 }
 
 export function isRouteReady(inputs: RouteReadinessInputs): boolean {
@@ -171,6 +178,7 @@ export function isRouteReady(inputs: RouteReadinessInputs): boolean {
   // exact branch that was missing before round 4's regression: nothing
   // else in this function may block readiness for a signed-out user.
   if (!inputs.isSignedIn) return true;
+  if (inputs.isKiosk) return true;
   if (inputs.isBuiltInProgram) return inputs.builtInSeen != null;
   if (inputs.profileFetchFailed) return false;
   if (!inputs.profileLoaded) return false;

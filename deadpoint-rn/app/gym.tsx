@@ -15,13 +15,15 @@
     the one place the station advertises; edit PROMO_LINE when the launch
     code changes. */
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, KeyboardAvoidingView, Modal, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Alert, BackHandler, KeyboardAvoidingView, Modal, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useKeepAwake } from 'expo-keep-awake';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colours, resolveColour } from '../src/design/colours';
 import { Fonts } from '../src/design/fonts';
 import { useForceGauge } from '../src/data/forceGauge/useForceGauge';
+import { useSession } from '../src/data/useSession';
+import { isKioskEmail } from '../src/data/kiosk';
 import { FlappyBirdGame } from '../src/components/force-gauge/FlappyBirdGame';
 import {
   addToBoard, cleanName, loadBoard, qualifiesForBoard, saveBoard, thisWeeksBoard, type BoardEntry,
@@ -38,6 +40,28 @@ export default function Gym() {
   useKeepAwake();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { session, signOut } = useSession();
+  // The kiosk account (src/data/kiosk.ts) can't leave this screen: no EXIT,
+  // no Android back. Staff sign out by holding the title for 3 seconds.
+  const kiosk = isKioskEmail(session?.user?.email);
+  useEffect(() => {
+    if (!kiosk) return;
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => true);
+    return () => sub.remove();
+  }, [kiosk]);
+  const staffSignOut = () => {
+    Alert.alert('Sign out of the gym station?', 'The station will stop until someone signs in again.', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Sign out',
+        style: 'destructive',
+        onPress: async () => {
+          try { await signOut(); } catch (e) { console.error('gym: sign out failed:', e); }
+          router.replace('/');
+        },
+      },
+    ]);
+  };
   const { status, devices, points, scan, connect } = useForceGauge();
 
   const [board, setBoard] = useState<BoardEntry[]>([]);
@@ -92,10 +116,14 @@ export default function Gym() {
   return (
     <View style={[styles.root, { paddingTop: 16 + insets.top, paddingBottom: 12 + insets.bottom }]}>
       <View style={styles.headerRow}>
-        <Text style={styles.title}>GYM STATION</Text>
-        <Pressable onPress={() => router.back()} hitSlop={16} accessibilityRole="button" accessibilityLabel="Exit gym station">
-          <Text style={styles.exit}>EXIT</Text>
+        <Pressable onLongPress={kiosk ? staffSignOut : undefined} delayLongPress={3000} accessible={false}>
+          <Text style={styles.title}>GYM STATION</Text>
         </Pressable>
+        {!kiosk && (
+          <Pressable onPress={() => router.back()} hitSlop={16} accessibilityRole="button" accessibilityLabel="Exit gym station">
+            <Text style={styles.exit}>EXIT</Text>
+          </Pressable>
+        )}
       </View>
 
       {isLive ? (

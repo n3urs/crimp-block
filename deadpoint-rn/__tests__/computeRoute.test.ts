@@ -7,6 +7,7 @@ const base: RouteInputs = {
   // is about the paywall) keeps exercising exactly the path it did before
   // this field existed — only the new tests further down override it.
   hasActiveSubscription: true,
+  isKiosk: false,
 };
 
 test('welcome comes first, before anything else', () => {
@@ -171,6 +172,7 @@ const readyBase: RouteReadinessInputs = {
   // just aren't reached this way in production anymore). Tests further
   // down cover paywallEnabled: true explicitly.
   paywallEnabled: false, entitlementLoaded: false, entitlementFetchFailed: false,
+  isKiosk: false,
 };
 
 test('not ready: authReady still false', () => {
@@ -302,4 +304,23 @@ describe('passesPaywall', () => {
   test('nobody is gated when the paywall is off', () => {
     expect(passesPaywall({ ...gate, paywallEnabled: false })).toBe(true);
   });
+});
+
+// Gym-station kiosk account (src/data/kiosk.ts): signing in with it means
+// "this device is the walk-up game" — straight to /gym, never the quiz,
+// tutorial, paywall or daily card, and never waiting on any of their data.
+test('a kiosk account goes straight to the gym station, skipping quiz, tutorial and paywall', () => {
+  expect(computeRoute({ ...base, isKiosk: true, hasActiveSubscription: false })).toBe('/gym');
+});
+
+test('welcome and sign-in still come before the kiosk route', () => {
+  expect(computeRoute({ ...base, isKiosk: true, hasSeenWelcome: false })).toBe('/welcome');
+  expect(computeRoute({ ...base, isKiosk: true, isSignedIn: false })).toBe('/sign-in');
+});
+
+test('a kiosk account is ready to route without a profile or subscription check', () => {
+  expect(isRouteReady({
+    ...readyBase, isKiosk: true, profileLoaded: false, profileFetchFailed: true,
+    paywallEnabled: true, entitlementLoaded: false, entitlementFetchFailed: true,
+  })).toBe(true);
 });
