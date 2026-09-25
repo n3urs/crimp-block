@@ -17,7 +17,7 @@
     required for App Store review, Guideline 5.1.1(v) (account creation
     without in-app account deletion is a guaranteed rejection). */
 import React, { useState } from 'react';
-import { Alert, Linking, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { Alert, Linking, Platform, Pressable, ScrollView, Share, StyleSheet, Switch, Text, View } from 'react-native';
 import Purchases from 'react-native-purchases';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -30,6 +30,7 @@ import { SettingsGroup, SettingsRow } from '../src/components/settings/SettingsL
 import { useEntitlement } from '../src/data/subscription';
 import { isBuiltInProgram } from '../src/routing/computeRoute';
 import { PRIVACY_POLICY_URL, TERMS_OF_USE_URL } from '../src/data/legal';
+import { inviteMessage, shareCodeForUser } from '../src/data/shareInvite';
 import { TEMPLATE_META, REHAB_META, DISCIPLINE_LABELS, EXPERIENCE_LABELS, parseTemplateId } from '../src/screens/quiz/quizModel';
 
 // Swift hardcodes this same array inline (SettingsView.swift:240) rather
@@ -396,6 +397,17 @@ export default function Settings() {
             footer={deleteError != null ? <Text style={styles.error}>{deleteError}</Text> : undefined}
           >
             <SettingsRow icon="mail" tint={Colours.dim} title={email} subtitle="Signed in" />
+            {userId !== '' && (
+              <SettingsRow
+                icon="share"
+                tint={gorse}
+                title="Invite a friend"
+                subtitle={`Share Deadpoint with your code ${shareCodeForUser(userId)}`}
+                trailing="chevron"
+                onPress={() => Share.share({ message: inviteMessage(shareCodeForUser(userId)) }).catch((e) => console.error('settings: share sheet failed:', e))}
+                accessibilityLabel="Invite a friend"
+              />
+            )}
             {row != null && (
               row.referredBy != null ? (
                 <SettingsRow icon="gift" tint={gorse} title="Referral code" subtitle={`Referred by ${row.referredBy}`} />

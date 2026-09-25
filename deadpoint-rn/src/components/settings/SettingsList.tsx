@@ -12,7 +12,7 @@ import { Fonts } from '../../design/fonts';
 
 export type IconName =
   | 'target' | 'sliders' | 'restore' | 'hash' | 'clock' | 'activity' | 'hangboard'
-  | 'play' | 'shield' | 'file' | 'mail' | 'message' | 'logout' | 'trash' | 'chevron' | 'external' | 'card' | 'gift';
+  | 'play' | 'shield' | 'file' | 'mail' | 'message' | 'logout' | 'trash' | 'chevron' | 'external' | 'card' | 'gift' | 'share';
 
 function Glyph({ name }: { name: IconName }) {
   switch (name) {
@@ -76,6 +76,8 @@ function Glyph({ name }: { name: IconName }) {
           <Path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z" /><Path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z" />
         </>
       );
+    case 'share':
+      return (<><Path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" /><Polyline points="16 6 12 2 8 6" /><Line x1={12} y1={2} x2={12} y2={15} /></>);
     case 'chevron':
       return <Polyline points="9 18 15 12 9 6" />;
     case 'external':
