@@ -34,6 +34,25 @@ Two existing RPCs, both defined in the root `SUPABASE.md` on the
 If the roster ever grows past a few dozen *active* accounts, replace that
 fan-out with a single all-sessions RPC rather than widening it.
 
+## Gym station section
+
+A separate panel at the bottom of the dashboard for the walk-up Flappy Bird
+game at the gym. It calls one more RPC, `admin_gym_stats()` (defined in
+`SUPABASE.md` under "Gym station stats"), **separately and after** the rest of
+the page has drawn, so it can never break anything else: if the SQL has not
+been run it just says "Not set up yet".
+
+It shows rounds played (today / 7 days / total), people on the board, best and
+average score, rounds per day for 30 days, busiest hours (UK time), how far
+people get, leaderboard names and the stations reporting in.
+
+**What "tries" and "people" mean**: every finished round is logged anonymously
+(`play`) whether or not it makes the board, so *tries* come from those. A
+*person* is a distinct name saved to the leaderboard (`name`), compared
+case-insensitively, with `ANON` counted separately. Someone who plays ten
+rounds and never makes the board is ten tries and zero people. The data comes
+from the app build of 26 Sep 2026 or later.
+
 ## Reading the funnel
 
 Every stage is a strict subset of the one above it:

@@ -291,6 +291,15 @@ details.dead[open] .chev{transform:rotate(45deg);border-color:var(--gorse)}
   .stage{grid-template-columns:3.6ch minmax(0,1fr);gap:5px 12px}
   .stage .track,.stage-d{grid-column:2/3}
 }
+
+/* ---------- gym station (the walk-up Flappy Bird at the gym) ---------- */
+.gym-cols{display:flex;align-items:flex-end;gap:3px;height:72px;border-bottom:1px solid var(--s3);padding-bottom:2px}
+.gym-cols .col{flex:1 1 0;min-width:0;display:flex;align-items:flex-end}
+.gym-cols .col i{display:block;width:100%;min-height:2px;border-radius:2px 2px 0 0;background:var(--gorse)}
+.gym-cols .col.zero i{background:var(--s3)}
+.gym-axis{display:flex;justify-content:space-between;gap:12px;margin-top:8px;font-size:11.5px;color:var(--faint);font-family:var(--mono)}
+.gym-sub{font-size:13px;font-weight:700;margin:26px 0 12px}
+.gym-note{font-size:12.5px;color:var(--faint);margin-top:14px;max-width:62ch}
 </style>
 </head>
 <body>
@@ -763,6 +772,112 @@ function detail(u){
 
 /* ---------------- dashboard ---------------- */
 
+
+/* ---------------- gym station ---------------- */
+
+/* Loaded on its own after the main dashboard is drawn, and fails soft: if the
+   gym_events SQL in SUPABASE.md has not been run yet, this section says so and
+   nothing else on the page is affected. Tries are counted from anonymous
+   'play' rows (every finished round); people are counted from 'name' rows
+   (scores saved to the leaderboard under a name), so someone who plays ten
+   rounds and never makes the board is ten tries and zero people. */
+function loadGym(){
+  var body = document.getElementById('gymBody');
+  if (!body) return;
+  sb.rpc('admin_gym_stats').then(function(r){
+    if (r.error){
+      var missing = /find the function|does not exist|schema cache/i.test(r.error.message || '');
+      body.className = 'empty';
+      body.innerHTML = missing
+        ? 'Not set up yet. Run the &ldquo;Gym station stats&rdquo; SQL from SUPABASE.md in the Supabase SQL editor, then refresh.'
+        : 'Could not load the gym stats: ' + esc(r.error.message || String(r.error));
+      return;
+    }
+    body.className = '';
+    body.innerHTML = gymStats(r.data || {});
+  });
+}
+
+function gymRow(n, title, detail, pct){
+  return '<div class="stage' + (!n ? ' zero' : '') + '">' +
+    '<div class="bar-n">' + esc(n) + '</div>' +
+    '<div class="stage-t">' + esc(title) + '</div>' +
+    '<div class="track">' + (pct == null ? '' : '<div class="fill" style="--w:' + pct.toFixed(1) + '%"></div>') + '</div>' +
+    '<div class="stage-d">' + esc(detail || '') + '</div>' +
+  '</div>';
+}
+
+function gymStats(d){
+  var rounds = d.rounds_total || 0;
+  if (!rounds && !d.named_entries){
+    return '<div class="empty">No rounds logged yet. The station reports each round as it is played ' +
+      '(stats need the app build from 26 Sep or later).</div>';
+  }
+
+  var headline = '<div class="funnel">' +
+    gymRow(rounds, 'Rounds played',
+      (d.rounds_today || 0) + ' today · ' + (d.rounds_7d || 0) + ' in the last 7 days') +
+    gymRow(d.people_total || 0, 'People on the board',
+      (d.named_entries || 0) + ' named scores' + (d.anon_entries ? ' · ' + d.anon_entries + ' with no name' : '')) +
+    gymRow(d.best_score == null ? 0 : d.best_score, 'Best score',
+      'average ' + (d.avg_score == null ? '—' : d.avg_score)) +
+    gymRow(d.zero_rounds || 0, 'Ended at the first pipe',
+      rounds ? Math.round((d.zero_rounds || 0) / rounds * 100) + '% of rounds' : '') +
+  '</div>';
+
+  var perDay = d.per_day || [];
+  var peak = perDay.reduce(function(m, x){ return Math.max(m, x.rounds); }, 0);
+  var days = '<div class="gym-sub">Rounds per day, last 30 days</div>' +
+    '<div class="gym-cols">' + perDay.map(function(x){
+      var h = peak ? Math.max(2, Math.round(x.rounds / peak * 68)) : 2;
+      return '<div class="col' + (x.rounds ? '' : ' zero') + '" title="' + esc(fmtFull(x.day) + ' · ' + plural(x.rounds, 'round')) + '"><i style="height:' + h + 'px"></i></div>';
+    }).join('') + '</div>' +
+    '<div class="gym-axis"><span>' + (perDay.length ? fmtFull(perDay[0].day) : '') + '</span>' +
+      '<span>' + (peak ? 'busiest day ' + plural(peak, 'round') : '') + '</span>' +
+      '<span>' + (perDay.length ? fmtFull(perDay[perDay.length - 1].day) : '') + '</span></div>';
+
+  var byHour = d.by_hour || [];
+  var hpeak = byHour.reduce(function(m, x){ return Math.max(m, x.rounds); }, 0);
+  var hours = '<div class="gym-sub">Busiest hours (UK time, all time)</div>' +
+    '<div class="gym-cols">' + byHour.map(function(x){
+      var h = hpeak ? Math.max(2, Math.round(x.rounds / hpeak * 68)) : 2;
+      return '<div class="col' + (x.rounds ? '' : ' zero') + '" title="' + esc(String(x.hour).padStart(2, '0') + ':00 · ' + plural(x.rounds, 'round')) + '"><i style="height:' + h + 'px"></i></div>';
+    }).join('') + '</div>' +
+    '<div class="gym-axis"><span>00:00</span><span>06:00</span><span>12:00</span><span>18:00</span><span>23:00</span></div>';
+
+  var b = d.score_buckets || {};
+  var buckets = [['0', 'Out at the first pipe'], ['1-4', 'Scored 1–4'], ['5-9', 'Scored 5–9'],
+                 ['10-19', 'Scored 10–19'], ['20-29', 'Scored 20–29'], ['30+', 'Scored 30 or more']];
+  var dist = '<div class="gym-sub">How far people get</div><div class="funnel">' +
+    buckets.map(function(k){
+      var n = b[k[0]] || 0;
+      return gymRow(n, k[1], rounds ? Math.round(n / rounds * 100) + '%' : '', rounds ? n / rounds * 100 : 0);
+    }).join('') + '</div>';
+
+  var names = d.top_names || [];
+  var top = '<div class="gym-sub">Leaderboard names, best first</div>' + (names.length
+    ? '<div class="deadlist">' + names.map(function(x){
+        return '<div class="deadrow"><span><b>' + esc(x.name) + '</b></span>' +
+          '<span class="mono">best ' + esc(x.best) + ' · ' + plural(x.entries, 'entry', 'entries') +
+          ' · last ' + fmtDate(x.last) + '</span></div>';
+      }).join('') + '</div>'
+    : '<div class="empty">Nobody has saved a score under a name yet.</div>');
+
+  var st = d.stations || [];
+  var stations = '<div class="gym-sub">Stations</div>' + (st.length
+    ? '<div class="deadlist">' + st.map(function(x){
+        return '<div class="deadrow"><span><b>' + esc(x.platform === 'ios' ? 'iPad / iPhone' : x.platform === 'android' ? 'Android' : x.platform) + '</b> ' +
+          '<span class="mono">' + esc(x.station) + '</span></span>' +
+          '<span class="mono">' + plural(x.rounds, 'round') + ' · last seen ' + fmtFull(x.last) + '</span></div>';
+      }).join('') + '</div>'
+    : '');
+
+  return headline + days + hours + dist + top + stations +
+    '<p class="gym-note">A round is counted when it ends, whether or not the score makes the board, and rounds are anonymous. ' +
+    'People are counted from names saved to the leaderboard, so someone who plays several rounds without making the board is several rounds and no people. ' +
+    'Each name is counted once, whatever its capitals. The station itself keeps only this week’s top five.</p>';
+}
+
 var state = { real: [], open: null };
 
 function renderDashboard(users, sessions, whoami){
@@ -808,6 +923,12 @@ function renderDashboard(users, sessions, whoami){
     '</section>' +
 
     '<section class="sec">' +
+      '<div class="sec-head"><h2>Gym station</h2>' +
+        '<p class="sec-note">The walk-up Flappy Bird game at the gym: how often it is played and by how many people.</p></div>' +
+      '<div id="gymBody" class="state">Loading…</div>' +
+    '</section>' +
+
+    '<section class="sec">' +
       '<div class="sec-head"><h2>People</h2>' +
         '<p class="sec-note">Most recently active first. Tap anyone for their full history.</p></div>' +
       (s.real.length
@@ -830,6 +951,7 @@ function renderDashboard(users, sessions, whoami){
 
   document.getElementById('signout').onclick = function(){ sb.auth.signOut().then(boot); };
   document.getElementById('refresh').onclick = function(){ boot(); };
+  loadGym();
 
   /* The strip is a time series ending today, and on a narrow screen most of
      it is off-canvas — opening it parked on the oldest, emptiest end shows a
