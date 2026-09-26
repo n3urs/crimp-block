@@ -15,7 +15,7 @@ import React, { memo, useCallback, useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 import Animated, {
-  Easing, FadeIn, FadeOut, ZoomIn, cancelAnimation, interpolate, interpolateColor, useAnimatedReaction,
+  Easing, FadeIn, ZoomIn, cancelAnimation, interpolate, interpolateColor, useAnimatedReaction,
   useAnimatedStyle, useDerivedValue, useSharedValue, withRepeat, withSequence, withTiming, type SharedValue,
 } from 'react-native-reanimated';
 import { scheduleOnRN } from 'react-native-worklets';
@@ -559,7 +559,7 @@ export function LaunchGame({ points, best, onNewBest, onExit, onGameOver, leader
 
         {phase === 'flying' && banner != null && (
           <View style={styles.bannerWrap} pointerEvents="none">
-            <Animated.View key={banner.key} entering={ZoomIn.springify().damping(12)} exiting={FadeOut.duration(200)} style={styles.banner}>
+            <Animated.View key={banner.key} entering={ZoomIn.springify().damping(12)} style={styles.banner}>
               <Text style={styles.bannerName}>{LANDMARKS[banner.idx].name}</Text>
               <Text style={styles.bannerAlt}>{formatAltitude(LANDMARKS[banner.idx].altitudeM)}</Text>
             </Animated.View>
