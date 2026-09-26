@@ -2,7 +2,7 @@
     Spec: docs/superpowers/specs/2026-09-26-launch-game-design.md. */
 import {
   CHARGE_SEC, LANDMARKS, MIN_RESULT_SEC,
-  altitudeForKg, flightDurationSec, flightLevel, formatAltitude, initialLaunchState, kgFromScore,
+  altitudeForKg, chuteLevel, flightDurationSec, flightLevel, flightSpeed, flightStage, flightTimes, formatAltitude, initialLaunchState, kgFromScore,
   launchScore, reachedIndex, reachedPhrase, stepLaunch, type LaunchState,
 } from '../src/data/forceGauge/launchPhysics';
 
@@ -84,30 +84,64 @@ describe('scores', () => {
 });
 
 describe('flight', () => {
-  test('starts on the ground, ends exactly at the target and never goes back down', () => {
-    const dur = flightDurationSec(60);
-    expect(flightLevel(0, 60, dur)).toBe(0);
-    expect(flightLevel(dur, 60, dur)).toBe(60);
-    expect(flightLevel(dur + 5, 60, dur)).toBe(60);
+  const T = flightTimes(60);
+
+  test('up to exactly the pull, a moment at the top, back down to the pad', () => {
+    expect(flightLevel(0, 60)).toBe(0);
+    expect(flightLevel(T.up, 60)).toBe(60);
+    expect(flightLevel((T.up + T.hangEnd) / 2, 60)).toBe(60);
+    expect(flightLevel(T.land, 60)).toBe(0);
+    expect(flightLevel(T.land + 5, 60)).toBe(0);
+    for (let t = 0; t <= T.land; t += 0.05) {
+      expect(flightLevel(t, 60)).toBeLessThanOrEqual(60);
+      expect(flightLevel(t, 60)).toBeGreaterThanOrEqual(0);
+    }
+  });
+
+  test('only ever climbs on the way up and only ever drops on the way down', () => {
     let prev = -1;
-    for (let t = 0; t <= dur; t += dur / 50) {
-      const lv = flightLevel(t, 60, dur);
-      expect(lv).toBeGreaterThanOrEqual(prev);
-      prev = lv;
+    for (let t = 0; t <= T.up; t += T.up / 60) {
+      expect(flightLevel(t, 60)).toBeGreaterThanOrEqual(prev);
+      prev = flightLevel(t, 60);
+    }
+    prev = Infinity;
+    for (let t = T.hangEnd; t <= T.land; t += 0.05) {
+      expect(flightLevel(t, 60)).toBeLessThanOrEqual(prev);
+      prev = flightLevel(t, 60);
     }
   });
 
   test('fast off the pad, slowing to a stop at the top', () => {
-    const dur = flightDurationSec(60);
-    const firstSecond = flightLevel(1, 60, dur);
-    const lastSecond = 60 - flightLevel(dur - 1, 60, dur);
+    const firstSecond = flightLevel(1, 60);
+    const lastSecond = 60 - flightLevel(T.up - 1, 60);
     expect(firstSecond).toBeGreaterThan(lastSecond * 3);
   });
 
-  test('bigger pulls fly for longer, within limits', () => {
+  test('the parachute slows him right down before he lands', () => {
+    const lastBeforeChute = flightLevel(T.fallEnd - 0.3, 60) - flightLevel(T.fallEnd, 60);
+    const lastBeforeLanding = flightLevel(T.land - 0.3, 60);
+    expect(lastBeforeLanding).toBeLessThan(lastBeforeChute / 5);
+    expect(flightLevel(T.fallEnd, 60)).toBeCloseTo(chuteLevel(60));
+  });
+
+  test('the freefall tops out at a watchable speed', () => {
+    let top = 0;
+    for (let t = T.hangEnd; t < T.land; t += 0.02) top = Math.max(top, -flightSpeed(t, 105));
+    expect(top).toBeLessThanOrEqual(37);
+    expect(flightSpeed(T.up / 4, 60)).toBeGreaterThan(0);
+  });
+
+  test('stages in order', () => {
+    expect([0.1, (T.up + T.hangEnd) / 2, T.hangEnd + 0.1, T.fallEnd + 0.1, T.land + 0.1].map((t) => flightStage(t, 60))).toEqual([0, 1, 2, 3, 4]);
+  });
+
+  test('bigger pulls fly for longer, within limits, and a tiny hop still works', () => {
     expect(flightDurationSec(80)).toBeGreaterThan(flightDurationSec(20));
     expect(flightDurationSec(0)).toBeGreaterThanOrEqual(1.5);
-    expect(flightDurationSec(500)).toBeLessThanOrEqual(11);
+    expect(flightDurationSec(500)).toBeLessThanOrEqual(20);
+    const t2 = flightTimes(2);
+    expect(flightLevel(t2.up, 2)).toBe(2);
+    expect(flightLevel(t2.land, 2)).toBe(0);
   });
 });
 

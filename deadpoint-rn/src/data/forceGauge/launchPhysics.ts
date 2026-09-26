@@ -105,18 +105,91 @@ export function formatAltitude(m: number, short = false): string {
 export const launchScore = (kg: number) => Math.max(0, Math.round(cleanKg(kg) * 10));
 export const kgFromScore = (score: number) => score / 10;
 
-/** Bigger pulls get a longer, grander flight. */
-export function flightDurationSec(kg: number): number {
-  return 1.6 + 0.07 * Math.min(TOP_LEVEL, cleanKg(kg));
+// ---- the flight: up, a moment at the top, a freefall, a parachute, touchdown.
+// Positions are in kg-levels. Everything here also runs on the UI thread
+// (LaunchGame's animation), hence the 'worklet' directives.
+
+/** How long he hangs at the top before falling. */
+export const HANG_SEC = 0.9;
+/** The parachute's share of the way down, from chuteLevel() to the pad. */
+export const CHUTE_SEC = 1.1;
+/** Top speed of the freefall, in levels per second (a touch faster than the climb: gravity). */
+const MAX_FALL_SPEED = 36;
+
+export interface FlightTimes {
+  /** Reaches the top. */
+  up: number;
+  /** Starts falling. */
+  hangEnd: number;
+  /** Parachute opens. */
+  fallEnd: number;
+  /** Touches down. */
+  land: number;
 }
 
-/** Where he is (in kg-levels) `t` seconds after lift-off: thrown straight
-    up — full speed off the pad, slowing evenly to a stop at the top, like
-    a real throw under gravity. Runs on the UI thread too, hence 'worklet'. */
-export function flightLevel(t: number, finalLevel: number, durSec: number): number {
+/** Bigger pulls get a longer, grander climb. */
+export function ascentSec(finalLevel: number): number {
   'worklet';
-  const u = Math.min(1, Math.max(0, t / durSec));
-  return finalLevel * (1 - (1 - u) * (1 - u));
+  return 1.6 + 0.07 * Math.min(TOP_LEVEL, Math.max(0, finalLevel));
+}
+
+/** Where the parachute opens: rooftop height, or halfway for a tiny hop. */
+export function chuteLevel(finalLevel: number): number {
+  'worklet';
+  return Math.min(4, Math.max(0, finalLevel) * 0.5);
+}
+
+export function flightTimes(finalLevel: number): FlightTimes {
+  'worklet';
+  const up = ascentSec(finalLevel);
+  const hangEnd = up + HANG_SEC;
+  const drop = Math.max(0, finalLevel) - chuteLevel(finalLevel);
+  const fallEnd = hangEnd + Math.max(0.8, (2 * drop) / MAX_FALL_SPEED);
+  return { up, hangEnd, fallEnd, land: fallEnd + CHUTE_SEC };
+}
+
+/** The whole flight, lift-off to touchdown. */
+export function flightDurationSec(kg: number): number {
+  return flightTimes(Math.min(TOP_LEVEL, cleanKg(kg))).land;
+}
+
+/** Where he is `t` seconds after lift-off. Up: thrown straight up, full
+    speed off the pad and slowing evenly to a stop (a real throw under
+    gravity). Down: a freefall that starts slow and speeds up, then the
+    parachute snaps him to a gentle stop on the pad. */
+export function flightLevel(t: number, finalLevel: number): number {
+  'worklet';
+  const f = Math.max(0, finalLevel);
+  const T = flightTimes(f);
+  if (t <= 0) return 0;
+  if (t < T.up) {
+    const u = t / T.up;
+    return f * (1 - (1 - u) * (1 - u));
+  }
+  if (t < T.hangEnd) return f;
+  const c = chuteLevel(f);
+  if (t < T.fallEnd) {
+    const s = (t - T.hangEnd) / (T.fallEnd - T.hangEnd);
+    return f - (f - c) * s * s;
+  }
+  if (t < T.land) {
+    const u = (t - T.fallEnd) / CHUTE_SEC;
+    return c * (1 - u) * (1 - u);
+  }
+  return 0;
+}
+
+/** Levels per second at `t` (positive = going up). */
+export function flightSpeed(t: number, finalLevel: number): number {
+  'worklet';
+  return (flightLevel(t + 0.02, finalLevel) - flightLevel(t - 0.02, finalLevel)) / 0.04;
+}
+
+/** 0 climbing, 1 at the top, 2 falling, 3 under the parachute, 4 landed. */
+export function flightStage(t: number, finalLevel: number): number {
+  'worklet';
+  const T = flightTimes(Math.max(0, finalLevel));
+  return t < T.up ? 0 : t < T.hangEnd ? 1 : t < T.fallEnd ? 2 : t < T.land ? 3 : 4;
 }
 
 export type LaunchPhase = 'ready' | 'charging' | 'flying' | 'result';

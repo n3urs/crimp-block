@@ -16,13 +16,24 @@ the harder the pull, the higher he goes.
 3. **Launch** — the moment you let go (under 1 kg), or when the 3 s run out.
 4. **Flight** — the camera follows him up; sky fades blue → navy → black,
    stars fade in, landmarks pass on the way (with a ding and a banner each),
-   speed lines and a smoke/fire trail while he's fast. Eases to a stop at
-   the height for the peak kg.
-5. **Result** — "TO THE MOON" (the highest landmark passed), altitude big,
-   kg under it ("58.2 KG · ONE ARM"), personal/week best. Gym station: name
-   prompt if it makes the board, back to the waiting screen after 12 s.
-   Another round needs a release and a fresh pull, and the result stays up
-   at least 1.5 s.
+   speed lines and a smoke/fire trail while he's fast. He eases to a stop at
+   the height for the peak kg: a gold ring, a fanfare, and a "TO THE MOON"
+   card pinned at the top.
+5. **The fall** (added the same day at Oscar's request) — after a moment at
+   the top he falls all the way back down, nose-first and flapping, past
+   everything again; a parachute pops open around rooftop height and he
+   drifts onto the pad with a puff of dust.
+6. **Result** — only once he's landed: "TO THE MOON" (the highest landmark
+   passed), altitude big, kg under it ("58.2 KG · ONE ARM"), personal/week
+   best. Gym station: name prompt if it makes the board, back to the waiting
+   screen after 12 s. Another round needs a release and a fresh pull, and
+   the result stays up at least 1.5 s.
+
+**Board lines.** Each person on this week's board (gym station) — or the
+player's own best (personal) — is a pink dashed line across the sky at the
+height their pull reached, name and kg on it. Passing one on the way up
+(strictly higher; a tie isn't a win) turns it green and pops a "YOU BEAT
+ISAAC!" banner.
 
 ## Height ladder (one arm, top at 100 kg, open-ended to 120)
 
