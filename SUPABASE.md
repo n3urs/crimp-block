@@ -644,3 +644,150 @@ end;
 $$;
 grant execute on function public.admin_gym_stats() to authenticated;
 ```
+
+## Launch game stats (2026-09-26)
+
+The gym station's second game, Launch (one max pull sends the bird up
+through the sky; see deadpoint-rn/docs/superpowers/specs/2026-09-26-launch-game-design.md).
+**Run this after "Gym station stats" above**; safe to re-run.
+
+- `gym_events.game`: `'flappy'` or `'launch'`. Existing rows, and rows from
+  app builds before the Launch game, default to `'flappy'`.
+- Launch scores are the peak pull in tenths of a kg (582 = 58.2 kg), so the
+  score limit is now per game: Flappy 0-999 as before, Launch 0-1500 (150 kg).
+- `admin_gym_stats()` keeps its old top-level shape for Flappy Bird and adds
+  a `launch` object with the same fields (kg buckets instead of pipe
+  buckets), and the station list now counts both games. The per-game numbers
+  come from `gym_stats_for(game)`, which the API cannot call (execute is
+  revoked); only `admin_gym_stats()` uses it, after its `is_admin()` check.
+- Until this is run, builds with the Launch game hold their stats in the
+  on-device queue (the insert names a column that doesn't exist yet, which
+  the app treats as "try again later"), then send them once it's in.
+- Tested locally (pglite) with the anon/authenticated roles: old rows become
+  Flappy, 1501 for Launch and 1000 for Flappy are refused, an unknown game is
+  refused, anon/authenticated can't call `gym_stats_for`, anon can't get
+  `admin_gym_stats`.
+
+```sql
+-- Launch game stats (26 Sep 2026). Run AFTER "Gym station stats" above. Safe to re-run.
+-- Every gym_events row now says which station game it came from. Rows from
+-- before this (and from older app builds) are Flappy Bird, via the default.
+-- Launch scores are the peak pull in tenths of a kg (582 = 58.2 kg), up to 150 kg.
+
+alter table public.gym_events add column if not exists game text not null default 'flappy';
+
+alter table public.gym_events drop constraint if exists gym_events_game_check;
+alter table public.gym_events add constraint gym_events_game_check check (game in ('flappy', 'launch'));
+
+alter table public.gym_events drop constraint if exists gym_events_score_check;
+alter table public.gym_events add constraint gym_events_score_check
+  check (score >= 0 and score <= case when game = 'launch' then 1500 else 999 end);
+
+create index if not exists gym_events_game_idx on public.gym_events (game, kind, created_at desc);
+
+-- One game's numbers. Not callable through the API: only admin_gym_stats()
+-- below (which checks is_admin() first) uses it.
+create or replace function public.gym_stats_for(g text)
+returns jsonb
+language plpgsql
+stable
+set search_path = public
+as $$
+declare
+  today date := (now() at time zone 'Europe/London')::date;
+  result jsonb;
+begin
+  select jsonb_build_object(
+    'rounds_total',  count(*) filter (where kind = 'play'),
+    'rounds_today',  count(*) filter (where kind = 'play' and (created_at at time zone 'Europe/London')::date = today),
+    'rounds_7d',     count(*) filter (where kind = 'play' and created_at >= now() - interval '7 days'),
+    'zero_rounds',   count(*) filter (where kind = 'play' and score = 0),
+    'best_score',    max(score) filter (where kind = 'play'),
+    'avg_score',     round(avg(score) filter (where kind = 'play'), 1),
+    'named_entries', count(*) filter (where kind = 'name'),
+    'people_total',  count(distinct upper(name)) filter (where kind = 'name' and upper(name) <> 'ANON'),
+    'anon_entries',  count(*) filter (where kind = 'name' and upper(name) = 'ANON'),
+    'first_event',   min(created_at),
+    'last_event',    max(created_at)
+  ) into result
+  from public.gym_events
+  where game = g;
+
+  result := result || jsonb_build_object(
+    'score_buckets', (
+      select case when g = 'launch' then jsonb_build_object(
+        '<10',   count(*) filter (where score < 100),
+        '10-19', count(*) filter (where score between 100 and 199),
+        '20-29', count(*) filter (where score between 200 and 299),
+        '30-39', count(*) filter (where score between 300 and 399),
+        '40-49', count(*) filter (where score between 400 and 499),
+        '50-59', count(*) filter (where score between 500 and 599),
+        '60+',   count(*) filter (where score >= 600))
+      else jsonb_build_object(
+        '0',     count(*) filter (where score = 0),
+        '1-4',   count(*) filter (where score between 1 and 4),
+        '5-9',   count(*) filter (where score between 5 and 9),
+        '10-19', count(*) filter (where score between 10 and 19),
+        '20-29', count(*) filter (where score between 20 and 29),
+        '30+',   count(*) filter (where score >= 30)) end
+      from public.gym_events where kind = 'play' and game = g),
+    'per_day', coalesce((
+      select jsonb_agg(jsonb_build_object('day', x.d, 'rounds', x.n) order by x.d)
+      from (
+        select (today - i) as d,
+               (select count(*) from public.gym_events e
+                 where e.game = g and e.kind = 'play' and (e.created_at at time zone 'Europe/London')::date = (today - i)) as n
+        from generate_series(0, 29) as i
+      ) x), '[]'::jsonb),
+    'by_hour', coalesce((
+      select jsonb_agg(jsonb_build_object('hour', h, 'rounds', coalesce(c.n, 0)) order by h)
+      from generate_series(0, 23) as h
+      left join (
+        select extract(hour from created_at at time zone 'Europe/London')::int as hr, count(*) as n
+        from public.gym_events where kind = 'play' and game = g group by 1) c on c.hr = h), '[]'::jsonb),
+    'top_names', coalesce((
+      select jsonb_agg(jsonb_build_object('name', t.nm, 'best', t.best, 'entries', t.entries, 'last', t.last_at) order by t.best desc, t.nm)
+      from (
+        select upper(name) as nm, max(score) as best, count(*) as entries, max(created_at) as last_at
+        from public.gym_events
+        where kind = 'name' and game = g and upper(name) <> 'ANON'
+        group by upper(name) order by max(score) desc, upper(name) limit 15) t), '[]'::jsonb)
+  );
+  return result;
+end;
+$$;
+revoke all on function public.gym_stats_for(text) from public;
+revoke all on function public.gym_stats_for(text) from anon, authenticated;
+
+-- Same shape as before for Flappy Bird (so the dashboard keeps working),
+-- plus a 'launch' object with the Launch game's numbers and one station
+-- list covering both games.
+drop function if exists public.admin_gym_stats();
+create or replace function public.admin_gym_stats()
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if not public.is_admin() then
+    raise exception 'not authorized';
+  end if;
+
+  return public.gym_stats_for('flappy') || jsonb_build_object(
+    'launch', public.gym_stats_for('launch'),
+    'stations', coalesce((
+      select jsonb_agg(jsonb_build_object('station', left(s.station_id, 6), 'platform', s.platform, 'rounds', s.rounds,
+                                          'flappy', s.flappy, 'launch', s.launch, 'last', s.last_at) order by s.last_at desc)
+      from (
+        select station_id, platform,
+               count(*) filter (where kind = 'play') as rounds,
+               count(*) filter (where kind = 'play' and game = 'flappy') as flappy,
+               count(*) filter (where kind = 'play' and game = 'launch') as launch,
+               max(created_at) as last_at
+        from public.gym_events group by station_id, platform) s), '[]'::jsonb)
+  );
+end;
+$$;
+grant execute on function public.admin_gym_stats() to authenticated;
+```
