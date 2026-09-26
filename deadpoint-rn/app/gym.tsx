@@ -31,6 +31,7 @@ import { FlappyBirdGame } from '../src/components/force-gauge/FlappyBirdGame';
 import { GymLeaderboard } from '../src/components/force-gauge/GymLeaderboard';
 import { GaugeLostNotice } from '../src/components/force-gauge/GaugeLostNotice';
 import { gymConnectionNotice } from '../src/data/forceGauge/gymConnection';
+import { flushGymStats, recordGymName, recordGymPlay } from '../src/data/forceGauge/gymStats';
 import {
   addToBoard, cleanName, clearBoard, loadBoard, qualifiesForBoard, saveBoard, thisWeeksBoard, type BoardEntry,
 } from '../src/data/forceGauge/gymBoard';
@@ -84,6 +85,8 @@ export default function Gym() {
 
   useEffect(() => {
     loadBoard().then((stored) => setBoard(thisWeeksBoard(stored, Date.now())));
+    // Send any usage events that were waiting for a connection (gymStats.ts).
+    void flushGymStats();
   }, []);
 
   // Find and hold the gauge without anyone touching the screen.
@@ -102,6 +105,8 @@ export default function Gym() {
   const weekBest = board.length > 0 ? board[0].score : 0;
 
   const onGameOver = useCallback((score: number) => {
+    // Every finished round counts as a try, whether or not it makes the board.
+    void recordGymPlay(score);
     if (qualifiesForBoard(boardRef.current, score, Date.now())) {
       setName('');
       setPending(score);
@@ -116,6 +121,7 @@ export default function Gym() {
     const next = addToBoard(boardRef.current, { name: cleaned, score, at: now }, now);
     setBoard(next);
     saveBoard(next);
+    void recordGymName(cleaned, score);
     if (rawName.trim().length > 0) setLastName(cleaned);
     setPending(null);
   }, []);
