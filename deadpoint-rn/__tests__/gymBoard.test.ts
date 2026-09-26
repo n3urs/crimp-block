@@ -2,7 +2,7 @@
     the station's own device: nothing here syncs to an account. */
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
-  addToBoard, cleanName, loadBoard, qualifiesForBoard, saveBoard, thisWeeksBoard, weekStartMs,
+  addToBoard, cleanName, clearBoard, loadBoard, qualifiesForBoard, saveBoard, thisWeeksBoard, weekStartMs,
   type BoardEntry,
 } from '../src/data/forceGauge/gymBoard';
 
@@ -91,4 +91,12 @@ test('a surname initial keeps two people with the same first name apart', () => 
 test('extra spaces in a name are collapsed so "isaac   p" and "Isaac P" are one person', () => {
   expect(cleanName('isaac    p')).toBe('ISAAC P');
   expect(cleanName('  Isaac   P  ')).toBe('ISAAC P');
+});
+
+test('clearing the board empties it for good, and it can be filled again afterwards', async () => {
+  await saveBoard([e('ISAAC', 9), e('OSCAR', 5)]);
+  await clearBoard();
+  expect(await loadBoard()).toEqual([]);
+  await saveBoard(addToBoard([], e('JOE', 3), FRI));
+  expect((await loadBoard()).map((x) => x.name)).toEqual(['JOE']);
 });

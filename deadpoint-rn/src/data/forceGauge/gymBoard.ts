@@ -71,3 +71,9 @@ export async function saveBoard(entries: BoardEntry[]): Promise<void> {
     // best effort: a broken cache must never break the station
   }
 }
+
+/** Wipes the board (the gym station's hidden staff menu: for when the
+    station has just been set up and its test scores shouldn't be on show). */
+export async function clearBoard(): Promise<void> {
+  await saveBoard([]);
+}

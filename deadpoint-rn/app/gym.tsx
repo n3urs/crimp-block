@@ -32,7 +32,7 @@ import { GymLeaderboard } from '../src/components/force-gauge/GymLeaderboard';
 import { GaugeLostNotice } from '../src/components/force-gauge/GaugeLostNotice';
 import { gymConnectionNotice } from '../src/data/forceGauge/gymConnection';
 import {
-  addToBoard, cleanName, loadBoard, qualifiesForBoard, saveBoard, thisWeeksBoard, type BoardEntry,
+  addToBoard, cleanName, clearBoard, loadBoard, qualifiesForBoard, saveBoard, thisWeeksBoard, type BoardEntry,
 } from '../src/data/forceGauge/gymBoard';
 
 const ACCENT = resolveColour('--gorse');
@@ -58,7 +58,7 @@ export default function Gym() {
     const sub = BackHandler.addEventListener('hardwareBackPress', () => true);
     return () => sub.remove();
   }, [kiosk]);
-  const staffSignOut = () => {
+  const leaveStation = () => {
     Alert.alert('Leave the gym station?', 'This device goes back to the normal sign-in screen.', [
       { text: 'Cancel', style: 'cancel' },
       {
@@ -127,6 +127,31 @@ export default function Gym() {
     return () => clearTimeout(t);
   }, [pending, name, commit]);
 
+  const resetBoard = () => {
+    Alert.alert('Reset the leaderboard?', "This clears this week's scores on this device.", [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Reset',
+        style: 'destructive',
+        onPress: async () => {
+          await clearBoard();
+          setBoard([]);
+          setLastName(null);
+        },
+      },
+    ]);
+  };
+  // Hidden staff menu (hold the title for 3 seconds): reset the board, and on
+  // a kiosk device leave the station. Not a visible button: this is a public
+  // screen and nobody walking past should be able to wipe the scores.
+  const staffMenu = () => {
+    Alert.alert('Gym station', 'Staff options', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Reset leaderboard', style: 'destructive', onPress: resetBoard },
+      ...(kiosk === true ? [{ text: 'Leave station', onPress: leaveStation }] : []),
+    ]);
+  };
+
   const isLive = status === 'connected';
   // Has the gauge ever been connected on this screen? After that, going
   // quiet means it switched itself off (its battery saving) and needs
@@ -140,7 +165,7 @@ export default function Gym() {
   return (
     <View style={[styles.root, { paddingTop: 16 + insets.top, paddingBottom: 12 + insets.bottom }]}>
       <View style={styles.headerRow}>
-        <Pressable onLongPress={kiosk === true ? staffSignOut : undefined} delayLongPress={3000} accessible={false}>
+        <Pressable onLongPress={staffMenu} delayLongPress={3000} accessible={false}>
           <Text style={styles.title}>GYM STATION</Text>
         </Pressable>
         {kiosk === false && (
