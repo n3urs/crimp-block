@@ -513,3 +513,134 @@ alter table public.profiles add column if not exists flappy_high_score integer n
 
 No RLS change needed — same "own row" policy as `referred_by` above
 already covers it.
+
+
+## Gym station stats (2026-09-26)
+
+Usage log for the gym station (`app/gym.tsx`), shown on the admin dashboard
+(`getdeadpoint.co.uk/admin` → "Gym station"). One table, one admin-only
+function. **Run this in the Supabase SQL editor**; it is safe to re-run.
+
+- `gym_events`: a `play` row for EVERY finished round (anonymous — just a
+  score, station id, platform) and a `name` row when a score is saved to the
+  leaderboard under a name. Tries are counted from plays; distinct people
+  from names (`ANON` is counted separately, and names are compared
+  case-insensitively).
+- The gym device has no account (a code word, not a sign-in), so the table
+  accepts **inserts from `anon` and `authenticated`, and nothing else**: no
+  one can select, update or delete through the API. Check constraints keep
+  rows sane (score 0-999, name up to 10 characters, a `name` row must have a
+  name and a `play` row must not) and the insert policy refuses timestamps
+  more than 60 days old or a day ahead.
+- The dashboard reads through `admin_gym_stats()`, `SECURITY DEFINER`, which
+  checks `is_admin()` as its first line, same as the other admin functions.
+- The app never depends on the table existing: it queues events on the
+  device and retries, so nothing breaks (or is lost) before this is run.
+- Names are free text typed by people at the gym (a first name plus a
+  surname initial, by convention). They already appear on the public
+  leaderboard on the device; this stores them centrally. Mention it in the
+  privacy policy if the station goes beyond TestFlight.
+
+```sql
+-- Gym station stats (26 Sep 2026). Safe to re-run.
+-- One row per finished round ('play', anonymous) and one per score saved to
+-- the leaderboard under a name ('name'). Nobody can read the table directly:
+-- the app (signed in or not) can only INSERT, and the admin dashboard reads
+-- through admin_gym_stats() below.
+
+create table if not exists public.gym_events (
+  id uuid primary key default gen_random_uuid(),
+  created_at timestamptz not null default now(),
+  station_id text not null check (char_length(station_id) between 8 and 64),
+  platform text not null check (platform in ('ios', 'android', 'web')),
+  kind text not null check (kind in ('play', 'name')),
+  score integer not null check (score between 0 and 999),
+  name text check (name is null or char_length(name) between 1 and 10),
+  check ((kind = 'name') = (name is not null))
+);
+
+create index if not exists gym_events_created_idx on public.gym_events (created_at desc);
+create index if not exists gym_events_kind_idx on public.gym_events (kind, created_at desc);
+
+alter table public.gym_events enable row level security;
+
+drop policy if exists "gym_events insert only" on public.gym_events;
+create policy "gym_events insert only" on public.gym_events
+  for insert to anon, authenticated
+  with check (created_at > now() - interval '60 days' and created_at < now() + interval '1 day');
+
+grant insert on public.gym_events to anon, authenticated;
+
+drop function if exists public.admin_gym_stats();
+create or replace function public.admin_gym_stats()
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  today date := (now() at time zone 'Europe/London')::date;
+  result jsonb;
+begin
+  if not public.is_admin() then
+    raise exception 'not authorized';
+  end if;
+
+  select jsonb_build_object(
+    'rounds_total',  count(*) filter (where kind = 'play'),
+    'rounds_today',  count(*) filter (where kind = 'play' and (created_at at time zone 'Europe/London')::date = today),
+    'rounds_7d',     count(*) filter (where kind = 'play' and created_at >= now() - interval '7 days'),
+    'zero_rounds',   count(*) filter (where kind = 'play' and score = 0),
+    'best_score',    max(score) filter (where kind = 'play'),
+    'avg_score',     round(avg(score) filter (where kind = 'play'), 1),
+    'named_entries', count(*) filter (where kind = 'name'),
+    'people_total',  count(distinct upper(name)) filter (where kind = 'name' and upper(name) <> 'ANON'),
+    'anon_entries',  count(*) filter (where kind = 'name' and upper(name) = 'ANON'),
+    'first_event',   min(created_at),
+    'last_event',    max(created_at)
+  ) into result
+  from public.gym_events;
+
+  result := result || jsonb_build_object(
+    'score_buckets', (
+      select jsonb_build_object(
+        '0',     count(*) filter (where score = 0),
+        '1-4',   count(*) filter (where score between 1 and 4),
+        '5-9',   count(*) filter (where score between 5 and 9),
+        '10-19', count(*) filter (where score between 10 and 19),
+        '20-29', count(*) filter (where score between 20 and 29),
+        '30+',   count(*) filter (where score >= 30))
+      from public.gym_events where kind = 'play'),
+    'per_day', coalesce((
+      select jsonb_agg(jsonb_build_object('day', x.d, 'rounds', x.n) order by x.d)
+      from (
+        select (today - i) as d,
+               (select count(*) from public.gym_events e
+                 where e.kind = 'play' and (e.created_at at time zone 'Europe/London')::date = (today - i)) as n
+        from generate_series(0, 29) as i
+      ) x), '[]'::jsonb),
+    'by_hour', coalesce((
+      select jsonb_agg(jsonb_build_object('hour', h, 'rounds', coalesce(c.n, 0)) order by h)
+      from generate_series(0, 23) as h
+      left join (
+        select extract(hour from created_at at time zone 'Europe/London')::int as hr, count(*) as n
+        from public.gym_events where kind = 'play' group by 1) c on c.hr = h), '[]'::jsonb),
+    'top_names', coalesce((
+      select jsonb_agg(jsonb_build_object('name', t.nm, 'best', t.best, 'entries', t.entries, 'last', t.last_at) order by t.best desc, t.nm)
+      from (
+        select upper(name) as nm, max(score) as best, count(*) as entries, max(created_at) as last_at
+        from public.gym_events
+        where kind = 'name' and upper(name) <> 'ANON'
+        group by upper(name) order by max(score) desc, upper(name) limit 15) t), '[]'::jsonb),
+    'stations', coalesce((
+      select jsonb_agg(jsonb_build_object('station', left(s.station_id, 6), 'platform', s.platform, 'rounds', s.rounds, 'last', s.last_at) order by s.last_at desc)
+      from (
+        select station_id, platform, count(*) filter (where kind = 'play') as rounds, max(created_at) as last_at
+        from public.gym_events group by station_id, platform) s), '[]'::jsonb)
+  );
+
+  return result;
+end;
+$$;
+grant execute on function public.admin_gym_stats() to authenticated;
+```
