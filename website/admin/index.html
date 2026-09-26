@@ -292,7 +292,7 @@ details.dead[open] .chev{transform:rotate(45deg);border-color:var(--gorse)}
   .stage .track,.stage-d{grid-column:2/3}
 }
 
-/* ---------- gym station (the walk-up Flappy Bird at the gym) ---------- */
+/* ---------- gym station (the walk-up Flappy Bird and Launch games at the gym) ---------- */
 .gym-cols{display:flex;align-items:flex-end;gap:3px;height:72px;border-bottom:1px solid var(--s3);padding-bottom:2px}
 .gym-cols .col{flex:1 1 0;min-width:0;display:flex;align-items:flex-end}
 .gym-cols .col i{display:block;width:100%;min-height:2px;border-radius:2px 2px 0 0;background:var(--gorse)}
@@ -300,6 +300,8 @@ details.dead[open] .chev{transform:rotate(45deg);border-color:var(--gorse)}
 .gym-axis{display:flex;justify-content:space-between;gap:12px;margin-top:8px;font-size:11.5px;color:var(--faint);font-family:var(--mono)}
 .gym-sub{font-size:13px;font-weight:700;margin:26px 0 12px}
 .gym-note{font-size:12.5px;color:var(--faint);margin-top:14px;max-width:62ch}
+.gym-game{font-size:15px;font-weight:800;letter-spacing:.02em;margin:34px 0 14px;padding-top:18px;border-top:1px solid var(--s3)}
+.gym-game:first-child{margin-top:0;padding-top:0;border-top:0}
 </style>
 </head>
 <body>
@@ -807,27 +809,11 @@ function gymRow(n, title, detail, pct){
   '</div>';
 }
 
-function gymStats(d){
-  var rounds = d.rounds_total || 0;
-  if (!rounds && !d.named_entries){
-    return '<div class="empty">No rounds logged yet. The station reports each round as it is played ' +
-      '(stats need the app build from 26 Sep or later).</div>';
-  }
-
-  var headline = '<div class="funnel">' +
-    gymRow(rounds, 'Rounds played',
-      (d.rounds_today || 0) + ' today · ' + (d.rounds_7d || 0) + ' in the last 7 days') +
-    gymRow(d.people_total || 0, 'People on the board',
-      (d.named_entries || 0) + ' named scores' + (d.anon_entries ? ' · ' + d.anon_entries + ' with no name' : '')) +
-    gymRow(d.best_score == null ? 0 : d.best_score, 'Best score',
-      'average ' + (d.avg_score == null ? '—' : d.avg_score)) +
-    gymRow(d.zero_rounds || 0, 'Ended at the first pipe',
-      rounds ? Math.round((d.zero_rounds || 0) / rounds * 100) + '% of rounds' : '') +
-  '</div>';
-
-  var perDay = d.per_day || [];
+/* Rounds-per-day and busiest-hours column charts, shared by both games. */
+function gymDays(perDay){
+  perDay = perDay || [];
   var peak = perDay.reduce(function(m, x){ return Math.max(m, x.rounds); }, 0);
-  var days = '<div class="gym-sub">Rounds per day, last 30 days</div>' +
+  return '<div class="gym-sub">Rounds per day, last 30 days</div>' +
     '<div class="gym-cols">' + perDay.map(function(x){
       var h = peak ? Math.max(2, Math.round(x.rounds / peak * 68)) : 2;
       return '<div class="col' + (x.rounds ? '' : ' zero') + '" title="' + esc(fmtFull(x.day) + ' · ' + plural(x.rounds, 'round')) + '"><i style="height:' + h + 'px"></i></div>';
@@ -835,47 +821,100 @@ function gymStats(d){
     '<div class="gym-axis"><span>' + (perDay.length ? fmtFull(perDay[0].day) : '') + '</span>' +
       '<span>' + (peak ? 'busiest day ' + plural(peak, 'round') : '') + '</span>' +
       '<span>' + (perDay.length ? fmtFull(perDay[perDay.length - 1].day) : '') + '</span></div>';
-
-  var byHour = d.by_hour || [];
+}
+function gymHours(byHour){
+  byHour = byHour || [];
   var hpeak = byHour.reduce(function(m, x){ return Math.max(m, x.rounds); }, 0);
-  var hours = '<div class="gym-sub">Busiest hours (UK time, all time)</div>' +
+  return '<div class="gym-sub">Busiest hours (UK time, all time)</div>' +
     '<div class="gym-cols">' + byHour.map(function(x){
       var h = hpeak ? Math.max(2, Math.round(x.rounds / hpeak * 68)) : 2;
       return '<div class="col' + (x.rounds ? '' : ' zero') + '" title="' + esc(String(x.hour).padStart(2, '0') + ':00 · ' + plural(x.rounds, 'round')) + '"><i style="height:' + h + 'px"></i></div>';
     }).join('') + '</div>' +
     '<div class="gym-axis"><span>00:00</span><span>06:00</span><span>12:00</span><span>18:00</span><span>23:00</span></div>';
-
-  var b = d.score_buckets || {};
-  var buckets = [['0', 'Out at the first pipe'], ['1-4', 'Scored 1–4'], ['5-9', 'Scored 5–9'],
-                 ['10-19', 'Scored 10–19'], ['20-29', 'Scored 20–29'], ['30+', 'Scored 30 or more']];
-  var dist = '<div class="gym-sub">How far people get</div><div class="funnel">' +
-    buckets.map(function(k){
+}
+function gymBuckets(title, b, keys, rounds){
+  b = b || {};
+  return '<div class="gym-sub">' + esc(title) + '</div><div class="funnel">' +
+    keys.map(function(k){
       var n = b[k[0]] || 0;
       return gymRow(n, k[1], rounds ? Math.round(n / rounds * 100) + '%' : '', rounds ? n / rounds * 100 : 0);
     }).join('') + '</div>';
-
-  var names = d.top_names || [];
-  var top = '<div class="gym-sub">Leaderboard names, best first</div>' + (names.length
+}
+function gymNames(names, fmt){
+  names = names || [];
+  return '<div class="gym-sub">Leaderboard names, best first</div>' + (names.length
     ? '<div class="deadlist">' + names.map(function(x){
         return '<div class="deadrow"><span><b>' + esc(x.name) + '</b></span>' +
-          '<span class="mono">best ' + esc(x.best) + ' · ' + plural(x.entries, 'entry', 'entries') +
+          '<span class="mono">best ' + esc(fmt(x.best)) + ' · ' + plural(x.entries, 'entry', 'entries') +
           ' · last ' + fmtDate(x.last) + '</span></div>';
       }).join('') + '</div>'
     : '<div class="empty">Nobody has saved a score under a name yet.</div>');
+}
+
+/* Launch scores are the peak pull in tenths of a kg. */
+function launchKg(score){ return score == null ? '—' : (score / 10).toFixed(1) + ' kg'; }
+
+function gymFlappy(d){
+  var rounds = d.rounds_total || 0;
+  if (!rounds && !d.named_entries) return '<div class="empty">No Flappy Bird rounds logged yet.</div>';
+  return '<div class="funnel">' +
+      gymRow(rounds, 'Rounds played',
+        (d.rounds_today || 0) + ' today · ' + (d.rounds_7d || 0) + ' in the last 7 days') +
+      gymRow(d.people_total || 0, 'People on the board',
+        (d.named_entries || 0) + ' named scores' + (d.anon_entries ? ' · ' + d.anon_entries + ' with no name' : '')) +
+      gymRow(d.best_score == null ? 0 : d.best_score, 'Best score',
+        'average ' + (d.avg_score == null ? '—' : d.avg_score)) +
+      gymRow(d.zero_rounds || 0, 'Ended at the first pipe',
+        rounds ? Math.round((d.zero_rounds || 0) / rounds * 100) + '% of rounds' : '') +
+    '</div>' +
+    gymDays(d.per_day) + gymHours(d.by_hour) +
+    gymBuckets('How far people get', d.score_buckets, [['0', 'Out at the first pipe'], ['1-4', 'Scored 1–4'], ['5-9', 'Scored 5–9'],
+      ['10-19', 'Scored 10–19'], ['20-29', 'Scored 20–29'], ['30+', 'Scored 30 or more']], rounds) +
+    gymNames(d.top_names, function(n){ return n; });
+}
+
+function gymLaunch(L){
+  if (!L) return '<div class="empty">Not set up yet. Run the &ldquo;Launch game stats&rdquo; SQL from SUPABASE.md, then refresh. ' +
+    'Until then the stations keep their Launch rounds and send them once it is in.</div>';
+  var rounds = L.rounds_total || 0;
+  if (!rounds && !L.named_entries) return '<div class="empty">No Launch rounds logged yet (needs the app build with the Launch game).</div>';
+  return '<div class="funnel">' +
+      gymRow(rounds, 'Rounds played',
+        (L.rounds_today || 0) + ' today · ' + (L.rounds_7d || 0) + ' in the last 7 days') +
+      gymRow(L.people_total || 0, 'People on the board',
+        (L.named_entries || 0) + ' named scores' + (L.anon_entries ? ' · ' + L.anon_entries + ' with no name' : '')) +
+      gymRow(launchKg(L.best_score), 'Hardest pull',
+        'average ' + launchKg(L.avg_score == null ? null : Number(L.avg_score))) +
+    '</div>' +
+    gymDays(L.per_day) +
+    gymBuckets('How hard people pull (one arm, 20 mm edge)', L.score_buckets, [['<10', 'Under 10 kg'], ['10-19', '10–19 kg'], ['20-29', '20–29 kg'],
+      ['30-39', '30–39 kg'], ['40-49', '40–49 kg (into space)'], ['50-59', '50–59 kg'], ['60+', '60 kg or more']], rounds) +
+    gymNames(L.top_names, launchKg);
+}
+
+function gymStats(d){
+  var L = d.launch;
+  if (!(d.rounds_total || d.named_entries || (L && (L.rounds_total || L.named_entries)))){
+    return '<div class="empty">No rounds logged yet. The station reports each round as it is played ' +
+      '(stats need the app build from 26 Sep or later).</div>';
+  }
 
   var st = d.stations || [];
   var stations = '<div class="gym-sub">Stations</div>' + (st.length
     ? '<div class="deadlist">' + st.map(function(x){
+        var split = x.launch == null ? '' : ' (' + (x.flappy || 0) + ' Flappy · ' + (x.launch || 0) + ' Launch)';
         return '<div class="deadrow"><span><b>' + esc(x.platform === 'ios' ? 'iPad / iPhone' : x.platform === 'android' ? 'Android' : x.platform) + '</b> ' +
           '<span class="mono">' + esc(x.station) + '</span></span>' +
-          '<span class="mono">' + plural(x.rounds, 'round') + ' · last seen ' + fmtFull(x.last) + '</span></div>';
+          '<span class="mono">' + plural(x.rounds, 'round') + esc(split) + ' · last seen ' + fmtFull(x.last) + '</span></div>';
       }).join('') + '</div>'
     : '');
 
-  return headline + days + hours + dist + top + stations +
+  return '<h3 class="gym-game">Flappy Bird</h3>' + gymFlappy(d) +
+    '<h3 class="gym-game">Launch</h3>' + gymLaunch(L) +
+    stations +
     '<p class="gym-note">A round is counted when it ends, whether or not the score makes the board, and rounds are anonymous. ' +
     'People are counted from names saved to the leaderboard, so someone who plays several rounds without making the board is several rounds and no people. ' +
-    'Each name is counted once, whatever its capitals. The station itself keeps only this week’s top five.</p>';
+    'Each name is counted once per game, whatever its capitals. The station itself keeps only this week’s top five for each game.</p>';
 }
 
 var state = { real: [], open: null };
@@ -924,7 +963,7 @@ function renderDashboard(users, sessions, whoami){
 
     '<section class="sec">' +
       '<div class="sec-head"><h2>Gym station</h2>' +
-        '<p class="sec-note">The walk-up Flappy Bird game at the gym: how often it is played and by how many people.</p></div>' +
+        '<p class="sec-note">The walk-up games at the gym, Flappy Bird and Launch: how often each is played and by how many people.</p></div>' +
       '<div id="gymBody" class="state">Loading…</div>' +
     '</section>' +
 
