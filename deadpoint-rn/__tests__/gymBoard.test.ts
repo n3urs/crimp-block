@@ -100,3 +100,15 @@ test('clearing the board empties it for good, and it can be filled again afterwa
   await saveBoard(addToBoard([], e('JOE', 3), FRI));
   expect((await loadBoard()).map((x) => x.name)).toEqual(['JOE']);
 });
+
+test('each game has its own board, and Flappy keeps its original storage', async () => {
+  await saveBoard([e('FLAP', 12)]);
+  await saveBoard([e('ROCKET', 582)], 'launch');
+  expect(await loadBoard()).toEqual([e('FLAP', 12)]);
+  expect(await loadBoard('flappy')).toEqual([e('FLAP', 12)]);
+  expect(await loadBoard('launch')).toEqual([e('ROCKET', 582)]);
+  expect(JSON.parse((await AsyncStorage.getItem('gymBoard'))!)).toEqual([e('FLAP', 12)]);
+  await clearBoard('launch');
+  expect(await loadBoard('launch')).toEqual([]);
+  expect(await loadBoard()).toEqual([e('FLAP', 12)]);
+});

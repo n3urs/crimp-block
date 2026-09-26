@@ -20,7 +20,11 @@
     game. */
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const key = (userId: string) => `flappyHighScore:${userId}`;
+/** The Launch game keeps its personal best (peak kg in tenths, see
+    launchPhysics.launchScore) the same way, under its own prefix. */
+export type HighScoreGame = 'flappy' | 'launch';
+const PREFIX: Record<HighScoreGame, string> = { flappy: 'flappyHighScore', launch: 'launchBest' };
+const key = (userId: string, game: HighScoreGame) => `${PREFIX[game]}:${userId}`;
 
 /** Corrupt or foreign stored text reads as 0 rather than letting NaN or
     a negative reach the game screen. */
@@ -29,9 +33,9 @@ function parseScore(raw: string | null): number {
   return Number.isFinite(n) && n > 0 ? n : 0;
 }
 
-export async function loadLocalHighScore(userId: string): Promise<number> {
+export async function loadLocalHighScore(userId: string, game: HighScoreGame = 'flappy'): Promise<number> {
   try {
-    return parseScore(await AsyncStorage.getItem(key(userId)));
+    return parseScore(await AsyncStorage.getItem(key(userId, game)));
   } catch {
     return 0;
   }
@@ -40,10 +44,10 @@ export async function loadLocalHighScore(userId: string): Promise<number> {
 /** A ratchet, not a plain write: only stores a score that beats what's
     already there, so a stale caller (say, one that hadn't finished
     loading the stored best yet) can't lower it. */
-export async function saveLocalHighScore(userId: string, score: number): Promise<void> {
+export async function saveLocalHighScore(userId: string, score: number, game: HighScoreGame = 'flappy'): Promise<void> {
   try {
-    const stored = parseScore(await AsyncStorage.getItem(key(userId)));
-    if (score > stored) await AsyncStorage.setItem(key(userId), String(score));
+    const stored = parseScore(await AsyncStorage.getItem(key(userId, game)));
+    if (score > stored) await AsyncStorage.setItem(key(userId, game), String(score));
   } catch {
     // best effort — see the header comment
   }

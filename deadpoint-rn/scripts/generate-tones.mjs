@@ -102,7 +102,47 @@ const GAME_CUES = {
   best: () => fadeOut(renderNotes([[1319, 0], [1760, 0.09]], 0.5, 0.26), 180),
   // A gentle falling glide, A4 -> A3: reads as "oh well", not as an alarm.
   death: () => fadeOut(glide(440, 220, 0.45, 0.3), 140),
+  // Launch game (26 Sep 2026). A soft tick per second of the 3 s charge.
+  tick: () => fadeOut(renderNotes([[1047, 0]], 0.12, 0.2), 60),
+  // Lift-off: a rushing whoosh with a low thump under it.
+  launch: () => fadeOut(mix(whoosh(1.1, 0.25), glide(120, 45, 0.5, 0.28)), 300),
+  // One bright ding per landmark passed (rooftops, clouds, the Moon...).
+  zone: () => fadeOut(renderNotes([[1568, 0]], 0.3, 0.16), 120),
+  // Coming to a stop at the top: a soft rising arpeggio.
+  landed: () => fadeOut(renderNotes([[523, 0], [659, 0.1], [784, 0.2], [1047, 0.32]], 0.5, 0.16), 200),
 };
+
+/** Adds two buffers, the shorter one padded with silence. */
+function mix(a, b) {
+  const out = new Float64Array(Math.max(a.length, b.length));
+  for (let i = 0; i < out.length; i++) out[i] = (a[i] ?? 0) + (b[i] ?? 0);
+  return out;
+}
+
+/** Filtered noise swelling up and away: white noise through a one-pole
+    low-pass whose cutoff sweeps up fast then back down, under a swell-and-
+    decay envelope. Seeded, so re-running the script gives the same file. */
+function whoosh(duration, gain) {
+  const frameCount = Math.floor(duration * SAMPLE_RATE);
+  const samples = new Float64Array(frameCount);
+  let seed = 0x9e3779b9;
+  const rand = () => {
+    seed = (seed + 0x6d2b79f5) | 0;
+    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+  let y = 0;
+  for (let frame = 0; frame < frameCount; frame++) {
+    const u = frame / frameCount;
+    const cutoffHz = 300 + 5200 * Math.sin(Math.PI * Math.min(1, u * 1.4)) ** 2;
+    const a = 1 - Math.exp((-2 * Math.PI * cutoffHz) / SAMPLE_RATE);
+    y += a * (rand() * 2 - 1 - y);
+    const envelope = u < 0.12 ? u / 0.12 : Math.pow(0.04, (u - 0.12) / 0.88);
+    samples[frame] = y * envelope * gain * 2.2;
+  }
+  return samples;
+}
 
 /** Smooths the end of a rendered cue: a raised-cosine fade to exactly zero
     over the last `ms`. pianoish() and glide() decay to only ~10% / ~5% of

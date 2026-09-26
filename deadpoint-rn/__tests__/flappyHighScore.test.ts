@@ -44,3 +44,10 @@ test('a corrupt stored value does not block saving a real score over it', async 
   await saveLocalHighScore('user-a', 3);
   expect(await loadLocalHighScore('user-a')).toBe(3);
 });
+
+test('the Launch game keeps its own best, separate from Flappy Bird', async () => {
+  await saveLocalHighScore('user-a', 12);
+  await saveLocalHighScore('user-a', 582, 'launch');
+  expect(await loadLocalHighScore('user-a')).toBe(12);
+  expect(await loadLocalHighScore('user-a', 'launch')).toBe(582);
+});

@@ -23,6 +23,7 @@ import { loadLocalHighScore, saveLocalHighScore } from '../src/data/forceGauge/f
 import { useSession } from '../src/data/useSession';
 import { useProfile } from '../src/data/useProfile';
 import { FlappyBirdGame } from '../src/components/force-gauge/FlappyBirdGame';
+import { LaunchGame } from '../src/components/force-gauge/LaunchGame';
 import { useAwakeWhile } from '../src/components/timers/useAwakeWhile';
 
 const ACCENT = resolveColour('--gorse');
@@ -167,7 +168,7 @@ export default function ForceGauge() {
   const profile = useProfile(userId);
   // Leaving the live graph to play (and back) shouldn't disconnect the
   // gauge — this is purely a display-mode toggle, same connection.
-  const [playing, setPlaying] = useState(false);
+  const [playing, setPlaying] = useState<null | 'flappy' | 'launch'>(null);
 
   // The Flappy Bird best lives here on the device FIRST, with the
   // account-synced copy as an extra — built-in accounts (no profiles row)
@@ -181,6 +182,16 @@ export default function ForceGauge() {
     loadLocalHighScore(userId).then((stored) => setLocalBest((b) => Math.max(b, stored)));
   }, [userId]);
   const flappyHighScore = Math.max(profile.row?.flappyHighScore ?? 0, localBest);
+  // The Launch game's best (peak kg in tenths) is kept on the device only.
+  const [launchBest, setLaunchBest] = useState(0);
+  useEffect(() => {
+    if (!userId) return;
+    loadLocalHighScore(userId, 'launch').then((stored) => setLaunchBest((b) => Math.max(b, stored)));
+  }, [userId]);
+  const recordLaunchBest = (score: number) => {
+    setLaunchBest((b) => Math.max(b, score));
+    saveLocalHighScore(userId, score, 'launch');
+  };
   const recordFlappyHighScore = (score: number) => {
     setLocalBest((b) => Math.max(b, score));
     saveLocalHighScore(userId, score);
@@ -211,12 +222,21 @@ export default function ForceGauge() {
       </View>
 
       {isLive ? (
-        playing ? (
+        playing === 'flappy' ? (
           <FlappyBirdGame
             points={points}
             highScore={flappyHighScore}
             onNewHighScore={recordFlappyHighScore}
-            onExit={() => setPlaying(false)}
+            onExit={() => setPlaying(null)}
+            onTare={tare}
+            taring={taring}
+          />
+        ) : playing === 'launch' ? (
+          <LaunchGame
+            points={points}
+            best={launchBest}
+            onNewBest={recordLaunchBest}
+            onExit={() => setPlaying(null)}
             onTare={tare}
             taring={taring}
           />
@@ -263,14 +283,25 @@ export default function ForceGauge() {
               </Pressable>
             </View>
 
-            <Pressable
-              onPress={() => setPlaying(true)}
-              style={styles.scanButton}
-              accessibilityRole="button"
-              accessibilityLabel="Play Flappy Bird"
-            >
-              <Text style={styles.scanButtonText}>PLAY FLAPPY BIRD</Text>
-            </Pressable>
+            <View style={styles.playRow}>
+              <Pressable
+                onPress={() => setPlaying('flappy')}
+                style={[styles.scanButton, styles.playButton]}
+                accessibilityRole="button"
+                accessibilityLabel="Play Flappy Bird"
+              >
+                <Text style={styles.scanButtonText}>FLAPPY BIRD</Text>
+              </Pressable>
+              <Pressable
+                onPress={() => setPlaying('launch')}
+                style={[styles.scanButton, styles.playButton]}
+                accessibilityRole="button"
+                accessibilityLabel="Play Launch"
+                accessibilityHint="One max pull fires the bird up through the sky"
+              >
+                <Text style={styles.scanButtonText}>LAUNCH</Text>
+              </Pressable>
+            </View>
           </>
         )
       ) : (
@@ -354,6 +385,8 @@ const styles = StyleSheet.create({
   deviceAction: { ...Fonts.mono(11, 'bold') },
   scanButton: { paddingVertical: 16, borderRadius: 8, alignItems: 'center', backgroundColor: ACCENT, marginTop: 12 },
   scanButtonDisabled: { opacity: 0.6 },
+  playRow: { flexDirection: 'row', gap: 12 },
+  playButton: { flex: 1 },
   helpLink: { alignItems: 'center', paddingVertical: 16 },
   helpLinkText: { ...Fonts.mono(11, 'bold'), color: Colours.dim, letterSpacing: 1 },
   scanButtonText: { ...Fonts.mono(13, 'bold'), color: Colours.bg, letterSpacing: 1 },

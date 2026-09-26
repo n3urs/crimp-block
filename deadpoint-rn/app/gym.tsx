@@ -14,13 +14,16 @@
     don't mean retyping, and it times out by itself so an abandoned prompt
     can't block the next person.
 
-    The board is per-device, one entry per name, best score wins (see
-    gymBoard.ts) — it's the station's scoreboard, not anyone's account
-    data. The promo line at the bottom is the one place the station
+    Two games, picked with the switch above the play area (hidden mid-round,
+    remembered on the device): Flappy Bird and Launch (one max pull). Each
+    has its own board. A board is per-device, one entry per name, best score
+    wins (see gymBoard.ts) — it's the station's scoreboard, not anyone's
+    account data. The promo line at the bottom is the one place the station
     advertises; edit PROMO_LINE when the launch code changes. */
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, BackHandler, KeyboardAvoidingView, Modal, Platform, Pressable, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native';
 import { useRouter } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useKeepAwake } from 'expo-keep-awake';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colours, resolveColour } from '../src/design/colours';
@@ -28,12 +31,13 @@ import { Fonts } from '../src/design/fonts';
 import { useForceGauge } from '../src/data/forceGauge/useForceGauge';
 import { getKioskMode, setKioskMode } from '../src/data/deviceFlags';
 import { FlappyBirdGame } from '../src/components/force-gauge/FlappyBirdGame';
-import { GymLeaderboard } from '../src/components/force-gauge/GymLeaderboard';
+import { LaunchGame, launchScoreFormat } from '../src/components/force-gauge/LaunchGame';
+import { GymLeaderboard, type ScoreFormat } from '../src/components/force-gauge/GymLeaderboard';
 import { GaugeLostNotice } from '../src/components/force-gauge/GaugeLostNotice';
 import { gymConnectionNotice } from '../src/data/forceGauge/gymConnection';
 import { flushGymStats, recordGymName, recordGymPlay } from '../src/data/forceGauge/gymStats';
 import {
-  addToBoard, cleanName, clearBoard, loadBoard, qualifiesForBoard, saveBoard, thisWeeksBoard, type BoardEntry,
+  addToBoard, cleanName, clearBoard, loadBoard, qualifiesForBoard, saveBoard, thisWeeksBoard, type BoardEntry, type BoardGame,
 } from '../src/data/forceGauge/gymBoard';
 
 const ACCENT = resolveColour('--gorse');
@@ -42,6 +46,10 @@ const NAME_TIMEOUT_MS = 25000;
 const PROMO_LINE = 'Deadpoint · smarter climbing training · getdeadpoint.co.uk · free week: DEADPOINTLAUNCH';
 
 const noop = () => {};
+const GAME_KEY = 'gymGame';
+const GAMES: Array<{ id: BoardGame; label: string }> = [{ id: 'flappy', label: 'FLAPPY BIRD' }, { id: 'launch', label: 'LAUNCH' }];
+const FORMAT: Record<BoardGame, ScoreFormat | undefined> = { flappy: undefined, launch: launchScoreFormat };
+const formatScore = (game: BoardGame, score: number) => (FORMAT[game] ?? ((n: number) => ({ main: String(n), sub: undefined })))(score);
 
 export default function Gym() {
   useKeepAwake();
@@ -74,17 +82,34 @@ export default function Gym() {
   };
   const { status, devices, points, taring, scan, connect, tare } = useForceGauge();
 
-  const [board, setBoard] = useState<BoardEntry[]>([]);
-  const [pending, setPending] = useState<number | null>(null); // a score waiting for a name
+  // Which game the station is running; remembered across relaunches.
+  const [game, setGame] = useState<BoardGame>('flappy');
+  useEffect(() => {
+    AsyncStorage.getItem(GAME_KEY).then((g) => { if (g === 'launch' || g === 'flappy') setGame(g); }).catch(() => {});
+  }, []);
+  const pickGame = (g: BoardGame) => {
+    setGame(g);
+    AsyncStorage.setItem(GAME_KEY, g).catch(() => {});
+  };
+  // A round in progress hides the switch, so a passer-by can't swap games mid-pull.
+  const [playing, setPlaying] = useState(false);
+  useEffect(() => { setPlaying(false); }, [game]);
+
+  const [boards, setBoards] = useState<Record<BoardGame, BoardEntry[]>>({ flappy: [], launch: [] });
+  const board = boards[game];
+  const [pending, setPending] = useState<{ game: BoardGame; score: number } | null>(null); // a score waiting for a name
   const [name, setName] = useState('');
   // The last name typed on this station, offered as one tap so a person's
   // repeat tries don't mean retyping it every time.
   const [lastName, setLastName] = useState<string | null>(null);
-  const boardRef = useRef<BoardEntry[]>([]);
-  boardRef.current = board;
+  const boardsRef = useRef(boards);
+  boardsRef.current = boards;
 
   useEffect(() => {
-    loadBoard().then((stored) => setBoard(thisWeeksBoard(stored, Date.now())));
+    Promise.all([loadBoard('flappy'), loadBoard('launch')]).then(([flappy, launch]) => {
+      const now = Date.now();
+      setBoards({ flappy: thisWeeksBoard(flappy, now), launch: thisWeeksBoard(launch, now) });
+    });
     // Send any usage events that were waiting for a connection (gymStats.ts).
     void flushGymStats();
   }, []);
@@ -104,24 +129,26 @@ export default function Gym() {
 
   const weekBest = board.length > 0 ? board[0].score : 0;
 
-  const onGameOver = useCallback((score: number) => {
+  const gameOver = useCallback((g: BoardGame, score: number) => {
     // Every finished round counts as a try, whether or not it makes the board.
-    void recordGymPlay(score);
-    if (qualifiesForBoard(boardRef.current, score, Date.now())) {
+    void recordGymPlay(score, g);
+    if (qualifiesForBoard(boardsRef.current[g], score, Date.now())) {
       setName('');
-      setPending(score);
+      setPending({ game: g, score });
     }
   }, []);
+  const onFlappyOver = useCallback((score: number) => gameOver('flappy', score), [gameOver]);
+  const onLaunchOver = useCallback((score: number) => gameOver('launch', score), [gameOver]);
 
-  const commit = useCallback((score: number, rawName: string) => {
+  const commit = useCallback((p: { game: BoardGame; score: number }, rawName: string) => {
     const now = Date.now();
     const cleaned = cleanName(rawName);
     // One entry per name, best score wins: a lower score under a name that
     // is already on the board changes nothing (see gymBoard.ts).
-    const next = addToBoard(boardRef.current, { name: cleaned, score, at: now }, now);
-    setBoard(next);
-    saveBoard(next);
-    void recordGymName(cleaned, score);
+    const next = addToBoard(boardsRef.current[p.game], { name: cleaned, score: p.score, at: now }, now);
+    setBoards((b) => ({ ...b, [p.game]: next }));
+    saveBoard(next, p.game);
+    void recordGymName(cleaned, p.score, p.game);
     if (rawName.trim().length > 0) setLastName(cleaned);
     setPending(null);
   }, []);
@@ -134,14 +161,14 @@ export default function Gym() {
   }, [pending, name, commit]);
 
   const resetBoard = () => {
-    Alert.alert('Reset the leaderboard?', "This clears this week's scores on this device.", [
+    Alert.alert('Reset the leaderboards?', "This clears this week's scores for both games on this device.", [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Reset',
         style: 'destructive',
         onPress: async () => {
-          await clearBoard();
-          setBoard([]);
+          await Promise.all([clearBoard('flappy'), clearBoard('launch')]);
+          setBoards({ flappy: [], launch: [] });
           setLastName(null);
         },
       },
@@ -153,7 +180,7 @@ export default function Gym() {
   const staffMenu = () => {
     Alert.alert('Gym station', 'Staff options', [
       { text: 'Cancel', style: 'cancel' },
-      { text: 'Reset leaderboard', style: 'destructive', onPress: resetBoard },
+      { text: 'Reset leaderboards', style: 'destructive', onPress: resetBoard },
       ...(kiosk === true ? [{ text: 'Leave station', onPress: leaveStation }] : []),
     ]);
   };
@@ -183,17 +210,48 @@ export default function Gym() {
         )}
       </View>
 
+      {!playing && (
+        <View style={styles.switchRow} accessibilityRole="tablist">
+          {GAMES.map((g) => (
+            <Pressable
+              key={g.id}
+              onPress={() => pickGame(g.id)}
+              style={[styles.switchTab, game === g.id && styles.switchTabOn]}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: game === g.id }}
+              accessibilityLabel={`Play ${g.label.toLowerCase()}`}
+            >
+              <Text style={[styles.switchText, game === g.id && styles.switchTextOn]}>{g.label}</Text>
+            </Pressable>
+          ))}
+        </View>
+      )}
+
       <View style={styles.body}>
         {isLive ? (
-          <FlappyBirdGame
-            points={points}
-            highScore={weekBest}
-            onNewHighScore={noop}
-            onGameOver={onGameOver}
-            leaderboard={board}
-            onTare={tare}
-            taring={taring}
-          />
+          game === 'launch' ? (
+            <LaunchGame
+              points={points}
+              best={weekBest}
+              onNewBest={noop}
+              onGameOver={onLaunchOver}
+              leaderboard={board}
+              onTare={tare}
+              taring={taring}
+              onPlayingChange={setPlaying}
+            />
+          ) : (
+            <FlappyBirdGame
+              points={points}
+              highScore={weekBest}
+              onNewHighScore={noop}
+              onGameOver={onFlappyOver}
+              leaderboard={board}
+              onTare={tare}
+              taring={taring}
+              onPlayingChange={setPlaying}
+            />
+          )
         ) : (
           <View style={styles.connecting}>
             {notice?.lost ? (
@@ -206,7 +264,7 @@ export default function Gym() {
               </>
             )}
             <View style={{ width: boardWidth, marginTop: 28 }}>
-              <GymLeaderboard entries={board} unit={boardUnit} />
+              <GymLeaderboard entries={board} unit={boardUnit} format={FORMAT[game]} />
             </View>
           </View>
         )}
@@ -218,7 +276,15 @@ export default function Gym() {
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.modalBackdrop}>
           <View style={styles.modalCard}>
             <Text style={styles.modalTitle}>MADE THE BOARD</Text>
-            <Text style={styles.modalScore}>{pending}</Text>
+            {pending != null && (() => {
+              const f = formatScore(pending.game, pending.score);
+              return (
+                <>
+                  <Text style={styles.modalScore} numberOfLines={1} adjustsFontSizeToFit>{f.main}</Text>
+                  {f.sub != null && <Text style={styles.modalSub}>{f.sub}</Text>}
+                </>
+              );
+            })()}
             {lastName != null && (
               <>
                 <Pressable
@@ -278,6 +344,12 @@ const styles = StyleSheet.create({
   modalCard: { width: '100%', maxWidth: 380, backgroundColor: Colours.s1, borderRadius: 12, padding: 20, alignItems: 'center', gap: 12 },
   modalTitle: { ...Fonts.mono(12, 'bold'), color: Colours.dim, letterSpacing: 1.2 },
   modalScore: { ...Fonts.timerDigits(56), color: ACCENT },
+  modalSub: { ...Fonts.mono(13, 'bold'), color: Colours.dim, letterSpacing: 1, marginTop: -8 },
+  switchRow: { flexDirection: 'row', alignSelf: 'center', gap: 8, marginBottom: 10, backgroundColor: Colours.s1, borderRadius: 12, padding: 5 },
+  switchTab: { paddingVertical: 12, paddingHorizontal: 22, borderRadius: 9 },
+  switchTabOn: { backgroundColor: ACCENT },
+  switchText: { ...Fonts.mono(14, 'bold'), color: Colours.dim, letterSpacing: 1.5 },
+  switchTextOn: { color: Colours.bg },
   modalSame: { backgroundColor: ACCENT, borderRadius: 8, paddingVertical: 18, alignItems: 'center', width: '100%' },
   modalSameText: { ...Fonts.mono(15, 'bold'), color: Colours.bg, letterSpacing: 1 },
   modalOr: { ...Fonts.mono(10, 'bold'), color: Colours.faint, letterSpacing: 1.2 },

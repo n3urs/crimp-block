@@ -24,6 +24,10 @@ jest.mock('../assets/audio/tone-done.wav', () => 4);
 jest.mock('../assets/audio/game-pipe.wav', () => 5);
 jest.mock('../assets/audio/game-best.wav', () => 6);
 jest.mock('../assets/audio/game-death.wav', () => 7);
+jest.mock('../assets/audio/game-tick.wav', () => 8);
+jest.mock('../assets/audio/game-launch.wav', () => 9);
+jest.mock('../assets/audio/game-zone.wav', () => 10);
+jest.mock('../assets/audio/game-landed.wav', () => 11);
 
 const flush = () => new Promise<void>((r) => setImmediate(r));
 
@@ -51,16 +55,17 @@ test('play() does not start playback until the rewind has finished', async () =>
   expect(mockEvents).toEqual(['seekTo', 'play']);
 });
 
-test('preloadTones() creates every player up front (4 timer cues + 3 Flappy Bird cues), and play() reuses them', () => {
+test('preloadTones() creates every player up front (4 timer cues + 3 Flappy Bird + 4 Launch cues), and play() reuses them', () => {
   const tones = freshTones();
   tones.preloadTones();
-  expect(mockCreate).toHaveBeenCalledTimes(7);
+  expect(mockCreate).toHaveBeenCalledTimes(11);
   expect(mockCreate.mock.calls.every((c: any[]) => c[1]?.downloadFirst === true)).toBe(true);
 
   tones.play('stop');
   tones.play('done');
   tones.play('pipe');
-  expect(mockCreate).toHaveBeenCalledTimes(7);
+  tones.play('launch');
+  expect(mockCreate).toHaveBeenCalledTimes(11);
 });
 
 test('a failed rewind is logged, not thrown as an unhandled rejection', async () => {

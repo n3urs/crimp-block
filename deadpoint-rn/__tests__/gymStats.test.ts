@@ -16,7 +16,7 @@ beforeEach(async () => { await AsyncStorage.clear(); });
 
 test('a play event carries the score and no name', () => {
   const e = buildPlayEvent(17, CTX);
-  expect(e).toEqual({ kind: 'play', score: 17, name: null, station_id: CTX.stationId, platform: 'ios', created_at: '2026-09-26T10:00:00.000Z' });
+  expect(e).toEqual({ kind: 'play', game: 'flappy', score: 17, name: null, station_id: CTX.stationId, platform: 'ios', created_at: '2026-09-26T10:00:00.000Z' });
 });
 
 test('a name event carries the name and score', () => {
@@ -67,4 +67,16 @@ test('a rejected-data error is dropped, but a network or missing-table error is 
   expect(isDataError({ code: '42501' })).toBe(false);  // permission - policy not applied yet
   expect(isDataError({ message: 'Network request failed' })).toBe(false);
   expect(isDataError(null)).toBe(false);
+});
+
+test('a Launch round is logged as its own game, with room for kg in tenths up to 150 kg', () => {
+  expect(buildPlayEvent(582, CTX, 'launch')).toMatchObject({ kind: 'play', game: 'launch', score: 582 });
+  expect(buildPlayEvent(4000, CTX, 'launch').score).toBe(1500);
+  expect(buildNameEvent('OSCAR', 612, CTX, 'launch')).toMatchObject({ kind: 'name', game: 'launch', score: 612 });
+});
+
+test('events queued by an older build (no game) load as Flappy Bird', async () => {
+  const { game, ...old } = buildPlayEvent(9, CTX);
+  await AsyncStorage.setItem('gymStatsQueue', JSON.stringify([old]));
+  expect(await loadQueue()).toEqual([buildPlayEvent(9, CTX)]);
 });

@@ -1,6 +1,7 @@
 // src/components/timers/tones.ts
 /** Plays the pre-rendered tone cues — the 4 timer cues plus Flappy Bird
-    mode's 3 soft game cues (pipe / best / death; see
+    mode's soft game cues (pipe / best / death, and the Launch game's tick /
+    launch / zone / landed; see
     scripts/generate-tones.mjs for how each is synthesised and why the game
     ones are much quieter). Originally just the timers (see scripts/generate-tones.mjs
     and the Phase 3 design spec's Decision 1 for why these are pre-rendered
@@ -14,7 +15,7 @@
     a real device (Task 6), not under Jest. */
 import { createAudioPlayer, type AudioPlayer } from 'expo-audio';
 
-export type Cue = 'ready' | 'go' | 'stop' | 'done' | 'pipe' | 'best' | 'death';
+export type Cue = 'ready' | 'go' | 'stop' | 'done' | 'pipe' | 'best' | 'death' | 'tick' | 'launch' | 'zone' | 'landed';
 
 const SOURCES: Record<Cue, number> = {
   ready: require('../../../assets/audio/tone-ready.wav'),
@@ -24,6 +25,10 @@ const SOURCES: Record<Cue, number> = {
   pipe: require('../../../assets/audio/game-pipe.wav'),
   best: require('../../../assets/audio/game-best.wav'),
   death: require('../../../assets/audio/game-death.wav'),
+  tick: require('../../../assets/audio/game-tick.wav'),
+  launch: require('../../../assets/audio/game-launch.wav'),
+  zone: require('../../../assets/audio/game-zone.wav'),
+  landed: require('../../../assets/audio/game-landed.wav'),
 };
 
 let players: Record<Cue, AudioPlayer> | null = null;
@@ -45,15 +50,9 @@ let players: Record<Cue, AudioPlayer> | null = null;
     skips entirely. */
 function ensureLoaded(): Record<Cue, AudioPlayer> {
   if (!players) {
-    players = {
-      ready: createAudioPlayer(SOURCES.ready, { downloadFirst: true }),
-      go: createAudioPlayer(SOURCES.go, { downloadFirst: true }),
-      stop: createAudioPlayer(SOURCES.stop, { downloadFirst: true }),
-      done: createAudioPlayer(SOURCES.done, { downloadFirst: true }),
-      pipe: createAudioPlayer(SOURCES.pipe, { downloadFirst: true }),
-      best: createAudioPlayer(SOURCES.best, { downloadFirst: true }),
-      death: createAudioPlayer(SOURCES.death, { downloadFirst: true }),
-    };
+    players = Object.fromEntries(
+      (Object.keys(SOURCES) as Cue[]).map((cue) => [cue, createAudioPlayer(SOURCES[cue], { downloadFirst: true })]),
+    ) as Record<Cue, AudioPlayer>;
   }
   return players;
 }

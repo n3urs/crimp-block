@@ -21,8 +21,12 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 import { supabase } from '../supabase';
 
+export type GymGame = 'flappy' | 'launch';
+
 export interface GymEvent {
   kind: 'play' | 'name';
+  /** Which station game. Launch scores are peak kg in tenths. */
+  game: GymGame;
   score: number;
   name: string | null;
   station_id: string;
@@ -51,17 +55,19 @@ export function newStationId(): string {
   return id;
 }
 
-const clampScore = (n: number) => (Number.isFinite(n) ? Math.min(999, Math.max(0, Math.floor(n))) : 0);
+/** The table's per-game limits: Flappy 0-999 pipes, Launch 0-1500 (150 kg). */
+const MAX_SCORE: Record<GymGame, number> = { flappy: 999, launch: 1500 };
+const clampScore = (n: number, game: GymGame) => (Number.isFinite(n) ? Math.min(MAX_SCORE[game], Math.max(0, Math.floor(n))) : 0);
 
-export function buildPlayEvent(score: number, ctx: Context): GymEvent {
-  return { kind: 'play', score: clampScore(score), name: null, station_id: ctx.stationId, platform: ctx.platform, created_at: new Date(ctx.at).toISOString() };
+export function buildPlayEvent(score: number, ctx: Context, game: GymGame = 'flappy'): GymEvent {
+  return { kind: 'play', game, score: clampScore(score, game), name: null, station_id: ctx.stationId, platform: ctx.platform, created_at: new Date(ctx.at).toISOString() };
 }
 
 /** Null for a blank name — nothing worth logging, and the table rejects it. */
-export function buildNameEvent(name: string, score: number, ctx: Context): GymEvent | null {
+export function buildNameEvent(name: string, score: number, ctx: Context, game: GymGame = 'flappy'): GymEvent | null {
   const trimmed = name.trim().slice(0, 10);
   if (trimmed.length === 0) return null;
-  return { kind: 'name', score: clampScore(score), name: trimmed, station_id: ctx.stationId, platform: ctx.platform, created_at: new Date(ctx.at).toISOString() };
+  return { kind: 'name', game, score: clampScore(score, game), name: trimmed, station_id: ctx.stationId, platform: ctx.platform, created_at: new Date(ctx.at).toISOString() };
 }
 
 /** Newest events win when the queue is full. */
@@ -88,7 +94,8 @@ const isEvent = (x: any): x is GymEvent =>
 export async function loadQueue(): Promise<GymEvent[]> {
   try {
     const parsed = JSON.parse((await AsyncStorage.getItem(QUEUE_KEY)) ?? '[]');
-    return Array.isArray(parsed) ? parsed.filter(isEvent) : [];
+    // Events queued by a build from before the Launch game have no `game`.
+    return Array.isArray(parsed) ? parsed.filter(isEvent).map((x) => ({ ...x, game: x.game === 'launch' ? 'launch' : 'flappy' })) : [];
   } catch {
     return [];
   }
@@ -153,11 +160,11 @@ async function record(build: (ctx: Context) => GymEvent | null): Promise<void> {
 }
 
 /** A round finished (any score, named or not). */
-export function recordGymPlay(score: number): Promise<void> {
-  return record((ctx) => buildPlayEvent(score, ctx));
+export function recordGymPlay(score: number, game: GymGame = 'flappy'): Promise<void> {
+  return record((ctx) => buildPlayEvent(score, ctx, game));
 }
 
 /** A score was saved to the board under a name. */
-export function recordGymName(name: string, score: number): Promise<void> {
-  return record((ctx) => buildNameEvent(name, score, ctx));
+export function recordGymName(name: string, score: number, game: GymGame = 'flappy'): Promise<void> {
+  return record((ctx) => buildNameEvent(name, score, ctx, game));
 }

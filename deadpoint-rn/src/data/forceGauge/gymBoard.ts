@@ -11,7 +11,10 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 export interface BoardEntry { name: string; score: number; at: number }
 
 export const BOARD_SIZE = 5;
-const KEY = 'gymBoard';
+/** One board per game. Flappy Bird keeps the original key so the board it
+    already has survives the update. */
+export type BoardGame = 'flappy' | 'launch';
+const KEYS: Record<BoardGame, string> = { flappy: 'gymBoard', launch: 'launchBoard' };
 
 export function weekStartMs(nowMs: number): number {
   const d = new Date(nowMs);
@@ -55,18 +58,18 @@ const isEntry = (x: any): x is BoardEntry =>
 
 /** Corrupt or foreign stored data reads as an empty board rather than
     breaking the station. */
-export async function loadBoard(): Promise<BoardEntry[]> {
+export async function loadBoard(game: BoardGame = 'flappy'): Promise<BoardEntry[]> {
   try {
-    const parsed = JSON.parse((await AsyncStorage.getItem(KEY)) ?? '[]');
+    const parsed = JSON.parse((await AsyncStorage.getItem(KEYS[game])) ?? '[]');
     return Array.isArray(parsed) ? parsed.filter(isEntry) : [];
   } catch {
     return [];
   }
 }
 
-export async function saveBoard(entries: BoardEntry[]): Promise<void> {
+export async function saveBoard(entries: BoardEntry[], game: BoardGame = 'flappy'): Promise<void> {
   try {
-    await AsyncStorage.setItem(KEY, JSON.stringify(entries));
+    await AsyncStorage.setItem(KEYS[game], JSON.stringify(entries));
   } catch {
     // best effort: a broken cache must never break the station
   }
@@ -74,6 +77,6 @@ export async function saveBoard(entries: BoardEntry[]): Promise<void> {
 
 /** Wipes the board (the gym station's hidden staff menu: for when the
     station has just been set up and its test scores shouldn't be on show). */
-export async function clearBoard(): Promise<void> {
-  await saveBoard([]);
+export async function clearBoard(game: BoardGame = 'flappy'): Promise<void> {
+  await saveBoard([], game);
 }

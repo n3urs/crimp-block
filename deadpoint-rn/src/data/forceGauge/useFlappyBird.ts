@@ -33,7 +33,9 @@ const START_PULL_KG = 1.5;
 // again", not one twitchy threshold.
 const RELEASE_KG = 0.5;
 
-function smoothedKg(points: GraphPoint[], maxKg: number): number {
+/** Trailing average over the last SMOOTH_WINDOW_SEC, clamped to [0, maxKg].
+    Shared with the Launch game (useLaunchGame.ts). */
+export function smoothedKg(points: GraphPoint[], maxKg: number): number {
   if (points.length === 0) return 0;
   const latestT = points[points.length - 1].tSec;
   const cutoff = latestT - SMOOTH_WINDOW_SEC;

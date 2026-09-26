@@ -38,7 +38,12 @@ function Crown({ size }: { size: number }) {
   );
 }
 
-export function GymLeaderboard({ entries, unit }: { entries: BoardEntry[]; unit: number }) {
+/** How a score reads on the board: the Launch game shows a height with the
+    kg under it; Flappy Bird just the number. */
+export type ScoreFormat = (score: number) => { main: string; sub?: string };
+const plain: ScoreFormat = (score) => ({ main: String(score) });
+
+export function GymLeaderboard({ entries, unit, format = plain }: { entries: BoardEntry[]; unit: number; format?: ScoreFormat }) {
   const rows = Array.from({ length: BOARD_SIZE }, (_, i) => entries[i] ?? null);
   return (
     <View style={[styles.card, { borderRadius: unit * 0.35, padding: unit * 0.3, gap: unit * 0.16 }]}>
@@ -71,9 +76,17 @@ export function GymLeaderboard({ entries, unit }: { entries: BoardEntry[]; unit:
             >
               {entry != null ? entry.name : 'OPEN'}
             </Text>
-            {entry != null && (
-              <Text style={[styles.score, { fontSize: h * (top ? 0.7 : 0.62) }, top && { color: GOLD }]}>{entry.score}</Text>
-            )}
+            {entry != null && (() => {
+              const f = format(entry.score);
+              return f.sub == null ? (
+                <Text style={[styles.score, { fontSize: h * (top ? 0.7 : 0.62) }, top && { color: GOLD }]}>{f.main}</Text>
+              ) : (
+                <View style={styles.scoreStack}>
+                  <Text style={[styles.score, { fontSize: h * (top ? 0.46 : 0.42) }, top && { color: GOLD }]} numberOfLines={1}>{f.main}</Text>
+                  <Text style={[styles.scoreSub, { fontSize: h * 0.24 }]} numberOfLines={1}>{f.sub}</Text>
+                </View>
+              );
+            })()}
           </Animated.View>
         );
       })}
@@ -114,5 +127,7 @@ const styles = StyleSheet.create({
   name: { ...Fonts.mono(14, 'bold'), color: '#FFFFFF', flex: 1, letterSpacing: 1 },
   dim: { color: 'rgba(255,255,255,0.28)' },
   score: { ...Fonts.timerDigits(28), color: '#FFFFFF' },
+  scoreStack: { alignItems: 'flex-end' },
+  scoreSub: { ...Fonts.mono(10, 'bold'), color: 'rgba(255,255,255,0.6)', letterSpacing: 0.5 },
   prompt: { ...Fonts.mono(14, 'bold'), color: '#FFFFFF', letterSpacing: 3, textShadowColor: 'rgba(0,0,0,0.6)', textShadowRadius: 6, textShadowOffset: { width: 0, height: 2 } },
 });
