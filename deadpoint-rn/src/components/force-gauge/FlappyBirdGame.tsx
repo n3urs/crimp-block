@@ -26,6 +26,7 @@ import { setAudioModeAsync } from 'expo-audio';
 import { DEFAULT_AUDIO_MODE, GAME_AUDIO_MODE } from '../timers/audioMode';
 import { play as playCue } from '../timers/tones';
 import { GymLeaderboard, PullPrompt } from './GymLeaderboard';
+import { HowToPlay } from './HowToPlay';
 import type { BoardEntry } from '../../data/forceGauge/gymBoard';
 
 const ACCENT = resolveColour('--gorse');
@@ -194,7 +195,7 @@ export function FlappyBirdGame({ points, highScore, onNewHighScore, onExit, onGa
   // Leaderboard sizing (station mode): rows scale with the play area, so it
   // is big on a tablet and still fits a phone.
   const boardWidth = Math.min(width * 0.92, 640);
-  const heroUnit = Math.max(30, Math.min(64, height / 11));
+  const heroUnit = Math.max(24, Math.min(56, height / 14.5));
   const overUnit = Math.max(24, Math.min(46, height / 16));
   const scaleX = width / DEFAULT_CONFIG.worldWidth;
   const scaleY = height / DEFAULT_CONFIG.worldHeight;
@@ -370,11 +371,17 @@ export function FlappyBirdGame({ points, highScore, onNewHighScore, onExit, onGa
             showWaiting && (
               <View style={{ width: boardWidth, alignItems: 'center' }}>
                 <GymLeaderboard entries={leaderboard} unit={heroUnit} />
+                <HowToPlay unit={heroUnit} />
                 <PullPrompt label="PULL TO START" size={heroUnit * 0.5} />
               </View>
             )
           ) : (
-            <Text style={styles.readyText}>PULL TO START</Text>
+            <>
+              <View style={{ width: Math.min(width * 0.86, 420) }}>
+                <HowToPlay unit={26} />
+              </View>
+              <Text style={[styles.readyText, { marginTop: 14 }]}>PULL TO START</Text>
+            </>
           )}
         </Animated.View>
 
