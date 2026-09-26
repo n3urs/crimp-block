@@ -165,7 +165,9 @@ export default function Gym() {
   return (
     <View style={[styles.root, { paddingTop: 16 + insets.top, paddingBottom: 12 + insets.bottom }]}>
       <View style={styles.headerRow}>
-        <Pressable onLongPress={staffMenu} delayLongPress={3000} accessible={false}>
+        {/* The hold target is a wide band, not just the words: a real finger easily
+            misses a 100pt-wide label held for 3 seconds. */}
+        <Pressable onLongPress={staffMenu} delayLongPress={3000} accessible={false} hitSlop={{ top: 24, bottom: 24, left: 90, right: 90 }}>
           <Text style={styles.title}>GYM STATION</Text>
         </Pressable>
         {kiosk === false && (
