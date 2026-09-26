@@ -392,14 +392,14 @@ export const CloudSeaFront = memo(function CloudSeaFront({ w, px, ground, upTo }
 
 const Everest = memo(function Everest({ w, px, ground }: WorldProps) {
   const width = Math.min(w * 0.62, px * 7.5);
-  const H = px * 6.4;
+  const H = px * 5.3;
   const peakX = width * 0.46;
   const pts: Array<[number, number]> = [[0, H], [width * 0.1, H * 0.62], [width * 0.18, H * 0.66], [width * 0.3, H * 0.34], [width * 0.38, H * 0.38], [peakX, 0], [width * 0.6, H * 0.3], [width * 0.66, H * 0.27], [width * 0.8, H * 0.55], [width * 0.9, H * 0.52], [width, H]];
   const ridge = pts.map(([x, y]) => `${x},${y}`).join(' ');
   const shadow = `${peakX},0 ${width * 0.6},${H * 0.3} ${width * 0.66},${H * 0.27} ${width * 0.8},${H * 0.55} ${width * 0.9},${H * 0.52} ${width},${H} ${width * 0.52},${H} ${width * 0.5},${H * 0.4}`;
   const snow = `${width * 0.3},${H * 0.34} ${width * 0.38},${H * 0.38} ${peakX},0 ${width * 0.6},${H * 0.3} ${width * 0.66},${H * 0.27} ${width * 0.7},${H * 0.36} ${width * 0.6},${H * 0.4} ${width * 0.52},${H * 0.33} ${width * 0.45},${H * 0.42} ${width * 0.38},${H * 0.46}`;
   return (
-    <Band ground={ground} px={px} bottom={18.6} top={25} left={w * 0.02} width={width}>
+    <Band ground={ground} px={px} bottom={19.7} top={25} left={w * 0.02} width={width}>
       <Svg width={width} height={H + 2}>
         <Polygon points={ridge} fill="#8594AB" />
         <Polygon points={shadow} fill="#66748B" />
@@ -926,7 +926,8 @@ const Galaxy = memo(function Galaxy({ w, px, ground }: WorldProps) {
 /** Which side each landmark's tag sits on: away from the thing itself. */
 const TAG_LEFT = new Set([10, 35, 50, 80, 95, 110]);
 
-const Tags = memo(function Tags({ w, px, ground, upTo }: WorldProps) {
+/** Drawn above the front clouds (LaunchGame), so none is ever hidden. */
+export const LandmarkTags = memo(function LandmarkTags({ w, px, ground, upTo }: WorldProps) {
   return (
     <>
       {LANDMARKS.filter((l) => l.kg <= upTo).map((l) => {
@@ -967,7 +968,7 @@ export const StarField = memo(function StarField({ w, h, seed = 3 }: { w: number
 /** Every piece, lowest first, with the lowest level at which it's visible. */
 const PIECES: Array<[number, React.ComponentType<WorldProps>]> = [
   [0, Ground], [0, SkyPuffs], [0, Trees], [0, Town], [0, LaunchPad], [11, Flock], [13, Balloons],
-  [17, CloudSea], [18, Everest], [28, Plane], [33, WeatherBalloon], [38, EdgeOfSpace], [42, Aurora],
+  [18, Everest], [17, CloudSea], [28, Plane], [33, WeatherBalloon], [38, EdgeOfSpace], [42, Aurora],
   [47, ISS], [50, Earth], [55, Astronaut], [57, Satellites], [66, Moon], [77, Mars], [82, Asteroids],
   [86, Jupiter], [92, Saturn], [98, Heliopause], [102, Nebula], [107, NextStar], [116, Galaxy],
 ];
@@ -978,7 +979,6 @@ export const Scenery = memo(function Scenery(props: WorldProps) {
       {PIECES.filter(([from]) => from <= props.upTo).map(([, Piece], i) => <Piece key={i} {...props} />)}
       {props.upTo >= 62 && <Comet {...props} level={65} cx={props.w * 0.72} />}
       {props.upTo >= 102 && <Comet {...props} level={105} cx={props.w * 0.2} />}
-      <Tags {...props} />
     </>
   );
 });

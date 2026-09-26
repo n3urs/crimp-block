@@ -60,6 +60,7 @@ describe('altitude text', () => {
     expect(formatAltitude(384_400_000)).toBe('384,400 KM');
     expect(formatAltitude(2.25e11)).toBe('225 MILLION KM');
     expect(formatAltitude(2.4e13)).toBe('24 BILLION KM');
+    expect(formatAltitude(1.17e15)).toBe('1.17 TRILLION KM');
     expect(formatAltitude(4.0e16)).toBe('4.23 LIGHT YEARS');
     expect(formatAltitude(2.4e22)).toBe('2.54 MILLION LIGHT YEARS');
   });
@@ -68,6 +69,7 @@ describe('altitude text', () => {
     expect(formatAltitude(8849, true)).toBe('8,849 M');
     expect(formatAltitude(2.25e11, true)).toBe('225 MN KM');
     expect(formatAltitude(2.4e13, true)).toBe('24 BN KM');
+    expect(formatAltitude(1.17e15, true)).toBe('1.17 TN KM');
     expect(formatAltitude(4.0e16, true)).toBe('4.23 LY');
     expect(formatAltitude(2.4e22, true)).toBe('2.54 MN LY');
   });

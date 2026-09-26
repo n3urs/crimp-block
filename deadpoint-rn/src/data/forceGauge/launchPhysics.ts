@@ -85,7 +85,8 @@ const LIGHT_YEAR_M = 9.4607e15;
 const commas = (n: number) => Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
 const sig3 = (n: number) => String(Number(n.toPrecision(3)));
 
-/** "8,849 M", "384,400 KM", "225 MILLION KM", "4.23 LIGHT YEARS". `short`
+/** "8,849 M", "384,400 KM", "225 MILLION KM", "1.17 TRILLION KM", "4.23 LIGHT
+    YEARS". `short`
     abbreviates the big units for the leaderboard ("225 MN KM", "4.23 LY"). */
 export function formatAltitude(m: number, short = false): string {
   if (!(m > 0)) return '0 M';
@@ -93,8 +94,9 @@ export function formatAltitude(m: number, short = false): string {
   const km = m / 1000;
   if (km < 1e6) return `${commas(Number(km.toPrecision(4)))} KM`;
   if (km < 1e9) return `${sig3(km / 1e6)} ${short ? 'MN' : 'MILLION'} KM`;
+  if (km < 1e12) return `${sig3(km / 1e9)} ${short ? 'BN' : 'BILLION'} KM`;
   const ly = m / LIGHT_YEAR_M;
-  if (ly < 0.1) return `${sig3(km / 1e9)} ${short ? 'BN' : 'BILLION'} KM`;
+  if (ly < 1) return `${sig3(km / 1e12)} ${short ? 'TN' : 'TRILLION'} KM`;
   if (ly < 1e6) return `${sig3(ly)} ${short ? 'LY' : 'LIGHT YEARS'}`;
   return `${sig3(ly / 1e6)} ${short ? 'MN LY' : 'MILLION LIGHT YEARS'}`;
 }

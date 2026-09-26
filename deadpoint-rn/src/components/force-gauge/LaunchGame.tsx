@@ -34,7 +34,7 @@ import { play as playCue } from '../timers/tones';
 import { BirdShape } from './BirdSprite';
 import { GymLeaderboard, PullPrompt, type ScoreFormat } from './GymLeaderboard';
 import { HowToPlay, LAUNCH_HOW_TO_LINES } from './HowToPlay';
-import { CloudSeaFront, Scenery, StarField, padHeight } from './LaunchScenery';
+import { CloudSeaFront, LandmarkTags, Scenery, StarField, padHeight } from './LaunchScenery';
 
 const ACCENT = resolveColour('--gorse');
 const GOLD = '#FFD34D';
@@ -53,8 +53,9 @@ const SKY_LV = [0, 12, 20, 26, 31, 36, 40, 46, 60, 90, 100, 108, 116, 126];
 const SKY_COL = ['#4EC0CA', '#48B4D8', '#3A9BD9', '#2F7FCB', '#2560B3', '#1B3F8C', '#122561', '#0B1438', '#070B22', '#070818', '#12092A', '#1C0B36', '#120828', '#0A0620'];
 const LANDMARK_KGS = LANDMARKS.map((l) => l.kg);
 
-const TRAIL_N = 16;
-const TRAIL_STEP_SEC = 0.05;
+const TRAIL_N = 40;
+const TRAIL_STEP_SEC = 0.02;
+const TRAIL_LIFE_SEC = 0.8;
 const SPEED_LINES = [0.12, 0.2, 0.3, 0.37, 0.63, 0.7, 0.8, 0.88, 0.25, 0.75, 0.42, 0.58];
 const DUST = 10;
 const CONFETTI = 28;
@@ -129,9 +130,9 @@ function TrailPuff({ k, sv, px, restY, cx, base }: { k: number; sv: FlightSV; px
     const y = restY - (lvE - sv.cam.value) * px + base * 0.7;
     const x = cx + Math.sin(slot * 12.9898) * base * 0.3 * (1 + age * 4);
     return {
-      opacity: live ? intensity * Math.max(0, 1 - age / 0.85) : 0,
+      opacity: live ? intensity * Math.max(0, 1 - age / TRAIL_LIFE_SEC) : 0,
       backgroundColor: interpolateColor(age, [0, 0.1, 0.32], ['#FFF3B0', '#FF9A3D', '#FFFFFF']),
-      transform: [{ translateX: x - base / 2 }, { translateY: y - base / 2 }, { scale: 0.45 + age * 2.6 }],
+      transform: [{ translateX: x - base / 2 }, { translateY: y - base / 2 }, { scale: 0.6 + age * 2.2 }],
     };
   });
   return <Animated.View pointerEvents="none" style={[{ position: 'absolute', left: 0, top: 0, width: base, height: base, borderRadius: base / 2 }, style]} />;
@@ -238,6 +239,7 @@ function PowerMeter({ liveKg, peakKg, height }: { liveKg: number; peakKg: number
   const y = (kg: number) => height - (Math.min(METER_MAX, kg) / METER_MAX) * height;
   return (
     <View style={[styles.meter, { height }]} pointerEvents="none">
+      <View style={styles.meterPanel} />
       <View style={[styles.meterTrack, { height }]}>
         <Animated.View style={[styles.meterFill, fillStyle]} />
         {peakKg > 0 && <View style={[styles.peakLine, { bottom: (Math.min(METER_MAX, peakKg) / METER_MAX) * height - 2 }]} />}
@@ -258,18 +260,20 @@ function ChargeReadout({ peakKg, chargeSec, unit }: { peakKg: number; chargeSec:
   const left = Math.max(0, 1 - chargeSec / CHARGE_SEC);
   const lastSecond = chargeSec > CHARGE_SEC - 1;
   return (
-    <View style={styles.readout} pointerEvents="none">
+    <View style={styles.readoutWrap} pointerEvents="none">
+    <View style={styles.readout}>
       <View style={styles.readoutRow}>
         <Text style={[styles.readoutKg, { fontSize: unit * 2.2 }]}>{peakKg.toFixed(1)}</Text>
         <Text style={[styles.readoutUnit, { fontSize: unit * 0.55 }]}>KG</Text>
       </View>
-      <Text style={[styles.readoutReach, { fontSize: unit * 0.5 }]}>{reachedPhrase(peakKg)}</Text>
+      <Text style={[styles.readoutReach, { fontSize: unit * 0.5 }]} numberOfLines={1} adjustsFontSizeToFit>{reachedPhrase(peakKg)}</Text>
       <View style={[styles.timerTrack, { width: unit * 7 }]}>
         <View style={[styles.timerFill, { width: `${left * 100}%` }, lastSecond && { backgroundColor: '#FF5A5F' }]} />
       </View>
-      <Text style={[styles.readoutHint, { fontSize: unit * 0.42 }, lastSecond && { color: '#FFFFFF' }]}>
+      <Text style={[styles.readoutHint, { fontSize: unit * 0.42 }, lastSecond && { color: '#FFFFFF' }]} numberOfLines={1} adjustsFontSizeToFit>
         {lastSecond ? 'LAUNCHING!' : 'PULL HARD · LET GO TO LAUNCH'}
       </Text>
+    </View>
     </View>
   );
 }
@@ -286,7 +290,7 @@ export function LaunchGame({ points, best, onNewBest, onExit, onGameOver, leader
   const H = size.height;
   const px = H / 8;
   const ground = H * 0.84;
-  const birdR = Math.max(15, Math.min(30, H * 0.04));
+  const birdR = Math.max(15, Math.min(36, H * 0.04));
   const restY = ground - padHeight(px) + 2 - birdR;
   const followY = H * 0.5;
   const lag = (restY - followY) / Math.max(1, px);
@@ -441,8 +445,11 @@ export function LaunchGame({ points, best, onNewBest, onExit, onGameOver, leader
     const wobble = Math.sin(idle.value * Math.PI * 2);
     const bob = onPad ? 0 : wobble * px * 0.06;
     const k = crouch.value;
-    const sY = (1 - 0.3 * k) * (1 + 0.3 * Math.min(1, spd / 14));
-    const sX = (1 + 0.16 * k) / (1 + 0.14 * Math.min(1, spd / 14));
+    // Crouch squashes him down on the pad; speed stretches him along his
+    // own nose-to-tail axis (local x — he's rotated to point up).
+    const f = Math.min(1, spd / 14);
+    const sX = (1 + 0.16 * k) * (1 + 0.3 * f);
+    const sY = (1 - 0.3 * k) / (1 + 0.2 * f);
     const quiver = k * 3.2 * Math.sin(idle.value * Math.PI * 2 * 22);
     // Squash keeps his feet planted on the pad.
     const y = restY - (level.value - cam.value) * px + bob + birdR * 0.3 * k;
@@ -450,7 +457,7 @@ export function LaunchGame({ points, best, onNewBest, onExit, onGameOver, leader
       transform: [
         { translateX: W / 2 - box / 2 + quiver },
         { translateY: y - box / 2 },
-        { rotate: `${-84 * Math.min(1, spd / 5)}deg` },
+        { rotate: `${-72 * Math.min(1, spd / 5)}deg` },
         { scaleX: sX },
         { scaleY: sY },
       ],
@@ -477,7 +484,8 @@ export function LaunchGame({ points, best, onNewBest, onExit, onGameOver, leader
   const heroUnit = Math.max(24, Math.min(56, H / 14.5));
   const overUnit = Math.max(22, Math.min(44, H / 17));
   const boardWidth = Math.min(W * 0.92, 640);
-  const readoutUnit = Math.max(22, Math.min(44, H / 15));
+  // Sized to fit beside the power meter on a phone as well as big on a tablet.
+  const readoutUnit = Math.max(18, Math.min(44, H / 15, (W - 220) / 7.7));
   const bestKg = kgFromScore(best);
   const displayBest = kgFromScore(Math.max(best, phase === 'result' ? score : 0));
 
@@ -530,7 +538,7 @@ export function LaunchGame({ points, best, onNewBest, onExit, onGameOver, leader
               <DustPuff key={i} i={i} launchT={launchT} cam={cam} px={px} ground={ground} cx={W / 2} base={birdR * 1.6} />
             ))}
             {Array.from({ length: TRAIL_N }, (_, k) => (
-              <TrailPuff key={k} k={k} sv={sv} px={px} restY={restY} cx={W / 2} base={birdR * 1.25} />
+              <TrailPuff key={k} k={k} sv={sv} px={px} restY={restY} cx={W / 2} base={birdR * 1.5} />
             ))}
             <Animated.View pointerEvents="none" style={[styles.ring, { width: birdR * 2, height: birdR * 2, borderRadius: birdR }, ringStyle]} />
 
@@ -540,13 +548,14 @@ export function LaunchGame({ points, best, onNewBest, onExit, onGameOver, leader
 
             <Animated.View style={[StyleSheet.absoluteFill, worldStyle]} pointerEvents="none">
               <CloudSeaFront {...world} />
+              <LandmarkTags {...world} />
             </Animated.View>
           </Animated.View>
         )}
 
         <Animated.View style={[styles.flash, flashStyle]} pointerEvents="none" />
 
-        {(phase === 'flying' || phase === 'result') && !showWaiting && <AltitudeHud level={level} kg={launchKg} />}
+        {(phase === 'flying' || phase === 'result') && !showWaiting && !showResultCard && <AltitudeHud level={level} kg={launchKg} />}
 
         {phase === 'flying' && banner != null && (
           <View style={styles.bannerWrap} pointerEvents="none">
@@ -616,7 +625,7 @@ const styles = StyleSheet.create({
   flash: { ...StyleSheet.absoluteFill, backgroundColor: '#FFFFFF' },
   ring: { position: 'absolute', left: 0, top: 0, borderWidth: 3, borderColor: GOLD },
 
-  hud: { position: 'absolute', left: 14, top: 12 },
+  hud: { position: 'absolute', left: 12, top: 12, backgroundColor: 'rgba(10,14,22,0.5)', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8 },
   hudLabel: { ...Fonts.mono(10, 'bold'), color: 'rgba(255,255,255,0.75)', letterSpacing: 1.5, ...textShadow },
   hudValue: { ...Fonts.timerDigits(30), color: '#FFFFFF', ...textShadow },
   hudSub: { ...Fonts.mono(11, 'bold'), color: GOLD, letterSpacing: 1, ...textShadow },
@@ -626,7 +635,9 @@ const styles = StyleSheet.create({
   bannerName: { ...Fonts.mono(20, 'bold'), color: GOLD, letterSpacing: 2, textShadowColor: 'rgba(255,211,77,0.6)', textShadowRadius: 10, textShadowOffset: { width: 0, height: 0 } },
   bannerAlt: { ...Fonts.mono(12, 'bold'), color: '#FFFFFF', letterSpacing: 1 },
 
-  readout: { position: 'absolute', top: '6%', left: 0, right: 0, alignItems: 'center' },
+  // Centred in the space left of the power meter, so the two never overlap.
+  readoutWrap: { position: 'absolute', top: '5%', left: 8, right: 168, alignItems: 'center' },
+  readout: { alignItems: 'center', maxWidth: '100%', backgroundColor: 'rgba(10,14,22,0.55)', borderRadius: 16, paddingHorizontal: 22, paddingTop: 6, paddingBottom: 12 },
   readoutRow: { flexDirection: 'row', alignItems: 'baseline', gap: 6 },
   readoutKg: { ...Fonts.timerDigits(64), color: '#FFFFFF', ...textShadow },
   readoutUnit: { ...Fonts.mono(18, 'bold'), color: '#FFFFFF', ...textShadow },
@@ -635,7 +646,8 @@ const styles = StyleSheet.create({
   timerTrack: { height: 8, borderRadius: 4, backgroundColor: 'rgba(10,14,22,0.45)', marginTop: 10, overflow: 'hidden' },
   timerFill: { height: 8, borderRadius: 4, backgroundColor: GOLD },
 
-  meter: { position: 'absolute', right: 12, top: '14%', width: 130, alignItems: 'flex-end' },
+  meter: { position: 'absolute', right: 12, top: '14%', width: 132, alignItems: 'flex-end' },
+  meterPanel: { position: 'absolute', right: -8, top: -12, bottom: -12, width: 152, borderRadius: 12, backgroundColor: 'rgba(10,14,22,0.72)' },
   meterTrack: { width: 22, borderRadius: 11, backgroundColor: 'rgba(10,14,22,0.5)', borderWidth: 2, borderColor: 'rgba(255,255,255,0.8)', overflow: 'hidden', justifyContent: 'flex-end' },
   meterFill: { width: '100%', borderRadius: 9 },
   meterMark: { position: 'absolute', right: 26, flexDirection: 'row', alignItems: 'center', gap: 4 },
