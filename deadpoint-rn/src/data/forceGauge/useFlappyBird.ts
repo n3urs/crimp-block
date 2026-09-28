@@ -49,7 +49,7 @@ export function smoothedKg(points: GraphPoint[], maxKg: number): number {
   return Math.min(maxKg, Math.max(0, avg));
 }
 
-export function useFlappyBird(points: GraphPoint[], config: PhysicsConfig = DEFAULT_CONFIG) {
+export function useFlappyBird(points: GraphPoint[], config: PhysicsConfig = DEFAULT_CONFIG, locked = false) {
   const [state, setState] = useState<GameState>(() => initialGameState(config));
 
   // Bypasses React's render cycle on purpose: the RAF loop below reads
@@ -80,13 +80,19 @@ export function useFlappyBird(points: GraphPoint[], config: PhysicsConfig = DEFA
         if (kg <= RELEASE_KG) armedRef.current = true;
         return s;
       }
+      // Locked (the gym station's name prompt is up over a made-the-board
+      // score): a pull must never start the next round underneath it —
+      // that round would run invisibly behind the modal and could finish,
+      // or worse be mid-flight, by the time the prompt closes. Gated here,
+      // the single place a round ever starts, rather than in every caller.
+      if (locked) return s;
       // A fresh random seed every round — flappyPhysics.ts stays pure
       // (no Math.random inside it), so this is the one place that
       // actually rolls it, matching how DEFAULT_CONFIG's own physics
       // constants get supplied from outside too.
       return kg >= START_PULL_KG ? startGame(config, Math.floor(Math.random() * 0x100000000)) : s;
     });
-  }, [points, config]);
+  }, [points, config, locked]);
 
   useEffect(() => {
     if (state.status !== 'playing') return;

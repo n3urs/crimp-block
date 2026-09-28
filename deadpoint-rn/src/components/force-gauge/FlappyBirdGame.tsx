@@ -68,19 +68,22 @@ interface Props {
   taring?: boolean;
   /** True while a round is in progress (the gym station hides its game switch). */
   onPlayingChange?: (playing: boolean) => void;
+  /** True while the gym station's name prompt is up over a made-the-board
+      score: blocks a pull from starting the next round underneath it. */
+  locked?: boolean;
 }
 
 /** After a game over, how long until the station goes back to its waiting
     screen (leaderboard + "PULL TO START") for the next person. */
 const IDLE_AFTER_OVER_MS = 12000;
 
-export function FlappyBirdGame({ points, highScore, onNewHighScore, onExit, onGameOver, leaderboard, onTare, taring, onPlayingChange }: Props) {
+export function FlappyBirdGame({ points, highScore, onNewHighScore, onExit, onGameOver, leaderboard, onTare, taring, onPlayingChange, locked }: Props) {
   const [size, setSize] = useState({ width: 0, height: 0 });
   // Starting (and restarting) is entirely internal to the hook now — a
   // real pull on the gauge, not a tap on the screen (Oscar: hands are
   // already on the gauge, reaching for the phone too is the wrong
   // mechanic) — so there's nothing left for this component to trigger.
-  const { state } = useFlappyBird(points);
+  const { state } = useFlappyBird(points, DEFAULT_CONFIG, locked);
   const reportedRef = useRef(false);
   useEffect(() => { onPlayingChange?.(state.status === 'playing'); }, [state.status, onPlayingChange]);
 

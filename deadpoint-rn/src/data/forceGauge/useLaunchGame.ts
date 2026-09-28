@@ -13,7 +13,7 @@ import { MAX_KG, MIN_RESULT_SEC, flightDurationSec, initialLaunchState, stepLaun
 
 const CHARGE_TICK_MS = 50;
 
-export function useLaunchGame(points: GraphPoint[]): { state: LaunchState } {
+export function useLaunchGame(points: GraphPoint[], locked = false): { state: LaunchState } {
   const [state, setState] = useState<LaunchState>(initialLaunchState);
   const kgRef = useRef(0);
   const lastRef = useRef(performance.now());
@@ -28,9 +28,13 @@ export function useLaunchGame(points: GraphPoint[]): { state: LaunchState } {
   }, []);
 
   useEffect(() => {
-    kgRef.current = smoothedKg(points, MAX_KG);
+    // Locked (the gym station's name prompt is up): feed a flat zero
+    // rather than the real pull, so stepLaunch's own 'result' -> 'charging'
+    // transition (a fresh pull after landing) can never fire underneath the
+    // modal — the one place a round starts, same guard as useFlappyBird.ts.
+    kgRef.current = locked ? 0 : smoothedKg(points, MAX_KG);
     step();
-  }, [points, step]);
+  }, [points, step, locked]);
 
   const { phase, launchKg } = state;
   useEffect(() => {

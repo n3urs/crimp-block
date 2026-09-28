@@ -11,8 +11,11 @@
     screens (drawn inside FlappyBirdGame); the only touch inputs are the
     ZERO button between rounds and typing a name when a score makes the
     board. That prompt offers "same as last" so one person's repeat tries
-    don't mean retyping, and it times out by itself so an abandoned prompt
-    can't block the next person.
+    don't mean retyping, a ✕ to dismiss it outright, and it times out by
+    itself so an abandoned prompt can't block the next person. While it's
+    up, the game underneath is `locked` — a pull can't start a new round
+    behind it, so whichever way the prompt closes always finds the game
+    exactly where it left it (see useFlappyBird.ts / useLaunchGame.ts).
 
     Two games, picked with the switch above the play area (hidden mid-round,
     remembered on the device): Flappy Bird and Launch (one max pull). Each
@@ -160,6 +163,11 @@ export default function Gym() {
     return () => clearTimeout(t);
   }, [pending, name, commit]);
 
+  // The explicit "✕" / Android-back way out: same as leaving the name blank
+  // and hitting SAVE (an ANON board entry — the round still counts either
+  // way, see gameOver above), just without typing anything or waiting.
+  const dismiss = useCallback(() => { if (pending != null) commit(pending, ''); }, [pending, commit]);
+
   const resetBoard = () => {
     Alert.alert('Reset the leaderboards?', "This clears this week's scores for both games on this device.", [
       { text: 'Cancel', style: 'cancel' },
@@ -239,6 +247,7 @@ export default function Gym() {
               onTare={tare}
               taring={taring}
               onPlayingChange={setPlaying}
+              locked={pending != null}
             />
           ) : (
             <FlappyBirdGame
@@ -250,6 +259,7 @@ export default function Gym() {
               onTare={tare}
               taring={taring}
               onPlayingChange={setPlaying}
+              locked={pending != null}
             />
           )
         ) : (
@@ -272,9 +282,16 @@ export default function Gym() {
 
       <Text style={styles.promo} numberOfLines={3}>{PROMO_LINE}</Text>
 
-      <Modal visible={pending != null} transparent animationType="fade" onRequestClose={() => pending != null && commit(pending, name)}>
+      <Modal visible={pending != null} transparent animationType="fade" onRequestClose={dismiss}>
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.modalBackdrop}>
           <View style={styles.modalCard}>
+            {/* Explicit "I don't care" out, separate from typing/SAME AS LAST — same
+                outcome as the 25s auto-timeout (an ANON board entry), just immediate.
+                A round can't start behind this modal while it's up (see `locked` on
+                the game components above), so dismissing is always safe. */}
+            <Pressable onPress={dismiss} hitSlop={16} style={styles.modalDismiss} accessibilityRole="button" accessibilityLabel="Dismiss without a name">
+              <Text style={styles.modalDismissText}>✕</Text>
+            </Pressable>
             <Text style={styles.modalTitle}>MADE THE BOARD</Text>
             {pending != null && (() => {
               const f = formatScore(pending.game, pending.score);
@@ -342,6 +359,8 @@ const styles = StyleSheet.create({
   promo: { ...Fonts.mono(10, 'medium'), color: Colours.dim, textAlign: 'center', marginTop: 10 },
   modalBackdrop: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.6)', padding: 24 },
   modalCard: { width: '100%', maxWidth: 380, backgroundColor: Colours.s1, borderRadius: 12, padding: 20, alignItems: 'center', gap: 12 },
+  modalDismiss: { position: 'absolute', top: 10, right: 10, width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: Colours.s2 },
+  modalDismissText: { ...Fonts.mono(14, 'bold'), color: Colours.dim },
   modalTitle: { ...Fonts.mono(12, 'bold'), color: Colours.dim, letterSpacing: 1.2 },
   modalScore: { ...Fonts.timerDigits(56), color: ACCENT },
   modalSub: { ...Fonts.mono(13, 'bold'), color: Colours.dim, letterSpacing: 1, marginTop: -8 },

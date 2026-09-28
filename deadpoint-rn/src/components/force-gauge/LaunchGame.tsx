@@ -86,6 +86,9 @@ interface Props {
   taring?: boolean;
   /** True while a round is in progress (charging or flying). */
   onPlayingChange?: (playing: boolean) => void;
+  /** True while the gym station's name prompt is up over a made-the-board
+      score: blocks a pull from starting the next round underneath it. */
+  locked?: boolean;
 }
 
 // ---------- the bird --------------------------------------------------------
@@ -362,9 +365,9 @@ function ChargeReadout({ peakKg, chargeSec, unit }: { peakKg: number; chargeSec:
 
 // ---------- the game ---------------------------------------------------------
 
-export function LaunchGame({ points, best, onNewBest, onExit, onGameOver, leaderboard, onTare, taring, onPlayingChange }: Props) {
+export function LaunchGame({ points, best, onNewBest, onExit, onGameOver, leaderboard, onTare, taring, onPlayingChange, locked }: Props) {
   const [size, setSize] = useState({ width: 0, height: 0 });
-  const { state } = useLaunchGame(points);
+  const { state } = useLaunchGame(points, locked);
   const { phase, round, launchKg, peakKg, liveKg, chargeSec } = state;
   const station = leaderboard != null;
 
